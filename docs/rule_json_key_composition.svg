@@ -1,0 +1,32 @@
+<svg width="450" height="200" xmlns="http://www.w3.org/2000/svg">
+    <style>
+        .box { fill: #f9f9f9; stroke: #333; stroke-width: 2; }
+        .text { font-family: monospace; font-size: 14px; }
+        .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+        .placeholder { fill: #d4edda; stroke: #155724; stroke-width: 1; }
+        .placeholder-text { font-family: monospace; font-size: 12px; fill: #155724; }
+        .json-box { fill: #fdfdfe; stroke: #a2a2a2; stroke-width: 1; }
+        .json-text { font-family: monospace; font-size: 12px; }
+    </style>
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" />
+        </marker>
+    </defs>
+
+    <!-- HTML Component Box -->
+    <rect x="250" y="50" width="180" height="100" class="box" rx="5" />
+    <text x="285" y="40" class="text">json1A.html</text>
+    <rect x="270" y="80" width="140" height="30" class="placeholder" rx="3"/>
+    <text x="285" y="100" class="placeholder-text">{{$Json1AKey}}</text>
+
+    <!-- JSON Data Box -->
+    <rect x="20" y="50" width="180" height="100" class="json-box" rx="5" />
+    <text x="55" y="40" class="text">json1A.json</text>
+    <text x="30" y="80" class="json-text">{</text>
+    <text x="40" y="100" class="json-text">"Json1AKey": "..."</text>
+    <text x="30" y="120" class="json-text">}</text>
+
+    <!-- Arrow -->
+    <path d="M200 100 H 250" class="arrow" />
+</svg>

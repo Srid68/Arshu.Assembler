@@ -1,0 +1,16 @@
+{
+    "items": [ 
+        { 
+            "Info":"Live demo upload",
+            "Highlight":false
+        },
+        { 
+            "Info":"Custom domain support",
+            "Highlight":false
+        },
+        { 
+            "Info":"SSL certificates",
+            "Highlight":true
+        } 
+    ]
+}

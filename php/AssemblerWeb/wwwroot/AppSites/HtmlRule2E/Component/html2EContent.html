@@ -1,0 +1,26 @@
+
+ <div>
+     <span style="text-decoration:underline">
+         Html Content from Slotted Component [#Columns] Merged with Multiple PlaceHolder Content from Html Component [Html2EContent]
+     </span>
+    <hr />
+
+     {{#Columns}}
+        {{@HTMLPLACEHOLDER1}}
+            <h3>
+                Slotted Left PlaceHolder 1 Content from [Html2EContent] Html Component
+            </h3>
+        {{/HTMLPLACEHOLDER1}}
+        {{@HTMLPLACEHOLDER2}}
+            <h3>
+                Slotted Right PlaceHolder 2 Content from [Html2EContent] Html Component
+            </h3>
+        {{/HTMLPLACEHOLDER2}}
+        {{@HTMLPLACEHOLDER3}}
+            <h3>
+                Slotted Center PlaceHolder 3 Content from [Html2EContent] Html Component
+            </h3>
+        {{/HTMLPLACEHOLDER3}}
+    {{/Columns}}
+
+</div>

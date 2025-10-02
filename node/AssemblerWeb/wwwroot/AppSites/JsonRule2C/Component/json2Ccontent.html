@@ -1,0 +1,16 @@
+<div>
+    <span style="text-decoration:underline">
+        Array Content from [Json2CArrayKey] from Json Component [Json2CContent]
+    </span>
+    <hr />
+    <div>
+        <select>
+            {{@Json2CArrayKey}}
+            <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
+            {{/Json2CArrayKey}}
+            {{^Json2CArrayKey}}
+            <option value="0">No Data Found</option>
+            {{/Json2CArrayKey}}
+        </select>
+    </div>
+</div>

@@ -1,0 +1,33 @@
+<html><head><title>Go Performance Summary Table</title></head><body>
+<h1>Go Performance Summary</h1>
+<table border='1' cellpadding='5' cellspacing='0'>
+<tr><th>AppSite</th><th>AppFile</th><th>AppView</th><th>Iterations</th><th>NormalMs</th><th>PreProcessMs</th><th>OutputSize</th><th>Match</th><th>PerfDiff</th></tr>
+<tr><td>HtmlRule1A</td><td>html1A</td><td></td><td>1000</td><td>0.57</td><td>0.54</td><td>564</td><td>YES</td><td>-5.2%</td></tr>
+<tr><td>HtmlRule1B</td><td>Html1B</td><td></td><td>1000</td><td>1.09</td><td>1.62</td><td>937</td><td>YES</td><td>48.7%</td></tr>
+<tr><td>HtmlRule2A</td><td>html2A</td><td></td><td>1000</td><td>1.61</td><td>0.00</td><td>910</td><td>YES</td><td>-100.0%</td></tr>
+<tr><td>HtmlRule2B</td><td>html2B</td><td></td><td>1000</td><td>2.07</td><td>0.55</td><td>1320</td><td>YES</td><td>-73.4%</td></tr>
+<tr><td>HtmlRule2C</td><td>Html2C</td><td></td><td>1000</td><td>2.11</td><td>0.00</td><td>1177</td><td>YES</td><td>-100.0%</td></tr>
+<tr><td>HtmlRule2D</td><td>HTML2D</td><td></td><td>1000</td><td>1.58</td><td>1.03</td><td>1070</td><td>YES</td><td>-34.4%</td></tr>
+<tr><td>HtmlRule2E</td><td>HTML2E</td><td></td><td>1000</td><td>3.17</td><td>1.08</td><td>1426</td><td>YES</td><td>-65.9%</td></tr>
+<tr><td>HtmlRule2F</td><td>Html2F</td><td></td><td>1000</td><td>2.69</td><td>1.03</td><td>1209</td><td>YES</td><td>-61.9%</td></tr>
+<tr><td>HtmlRule3A</td><td>html3A</td><td></td><td>1000</td><td>0.52</td><td>1.04</td><td>661</td><td>YES</td><td>101.5%</td></tr>
+<tr><td>HtmlRule3A</td><td>html3A</td><td>Html3A</td><td>1000</td><td>1.05</td><td>1.02</td><td>661</td><td>YES</td><td>-2.9%</td></tr>
+<tr><td>HtmlRule3A</td><td>html3A</td><td>Html3B</td><td>1000</td><td>1.02</td><td>0.52</td><td>661</td><td>YES</td><td>-49.6%</td></tr>
+<tr><td>HtmlRule3B</td><td>html3B</td><td></td><td>1000</td><td>1.07</td><td>1.07</td><td>660</td><td>YES</td><td>0.5%</td></tr>
+<tr><td>HtmlRule3B</td><td>html3B</td><td>Html3A</td><td>1000</td><td>1.56</td><td>1.08</td><td>660</td><td>YES</td><td>-31.0%</td></tr>
+<tr><td>HtmlRule3B</td><td>html3B</td><td>Html3B</td><td>1000</td><td>1.58</td><td>1.64</td><td>660</td><td>YES</td><td>3.6%</td></tr>
+<tr><td>JsonRule1A</td><td>json1A</td><td></td><td>1000</td><td>7.05</td><td>2.23</td><td>543</td><td>YES</td><td>-68.4%</td></tr>
+<tr><td>JsonRule1B</td><td>json1B</td><td></td><td>1000</td><td>3.23</td><td>3.75</td><td>719</td><td>YES</td><td>16.1%</td></tr>
+<tr><td>JsonRule1C</td><td>Json1C</td><td></td><td>1000</td><td>6.97</td><td>13.00</td><td>1270</td><td>YES</td><td>86.3%</td></tr>
+<tr><td>JsonRule2A</td><td>json2A</td><td></td><td>1000</td><td>50.04</td><td>1.00</td><td>940</td><td>YES</td><td>-98.0%</td></tr>
+<tr><td>JsonRule2B</td><td>json2B</td><td></td><td>1000</td><td>74.61</td><td>2.00</td><td>1395</td><td>YES</td><td>-97.3%</td></tr>
+<tr><td>JsonRule2C</td><td>json2C</td><td></td><td>1000</td><td>21.03</td><td>1.01</td><td>996</td><td>YES</td><td>-95.2%</td></tr>
+<tr><td>JsonRule2D</td><td>json2D</td><td></td><td>1000</td><td>29.54</td><td>3.01</td><td>1346</td><td>YES</td><td>-89.8%</td></tr>
+<tr><td>Test0</td><td>test0</td><td></td><td>1000</td><td>36.55</td><td>52.56</td><td>1659</td><td>YES</td><td>43.8%</td></tr>
+<tr><td>Test1</td><td>test1</td><td></td><td>1000</td><td>33.52</td><td>5.53</td><td>334</td><td>YES</td><td>-83.5%</td></tr>
+<tr><td>Test2</td><td>test2</td><td></td><td>1000</td><td>7.60</td><td>1.00</td><td>207</td><td>YES</td><td>-86.9%</td></tr>
+<tr><td>Test3</td><td>test3</td><td></td><td>1000</td><td>20.74</td><td>5.21</td><td>370</td><td>YES</td><td>-74.9%</td></tr>
+<tr><td>Test4</td><td>test4</td><td></td><td>1000</td><td>30.84</td><td>18.04</td><td>868</td><td>YES</td><td>-41.5%</td></tr>
+<tr><td>Test5</td><td>test5</td><td></td><td>1000</td><td>54.69</td><td>2.52</td><td>397</td><td>YES</td><td>-95.4%</td></tr>
+</table>
+</body></html>

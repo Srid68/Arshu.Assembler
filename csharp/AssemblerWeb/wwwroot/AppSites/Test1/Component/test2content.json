@@ -1,0 +1,18 @@
+
+{
+    "Test2Content": "Test 2 Content",
+    "items": [ 
+        { 
+            "Info":"Live demo upload",
+            "Highlight":false
+        },
+        { 
+            "Info":"Custom domain support",
+            "Highlight":false
+        },
+        { 
+            "Info":"SSL certificates",
+            "Highlight":true
+        } 
+    ]
+}

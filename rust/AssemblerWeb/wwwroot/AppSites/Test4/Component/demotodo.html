@@ -1,0 +1,11 @@
+<div class="demo-section">
+    <h4>Coming Soon</h4>
+    <ul>
+        {{@items}}
+            <li {{@Highlight}}style="color:red;"{{/Highlight}}>{{$Info}}</li>
+        {{/items}}
+        {{^items}}
+            <li>No items found</li>
+        {{/items}}
+    </ul>
+</div>

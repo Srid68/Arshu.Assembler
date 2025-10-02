@@ -1,0 +1,16 @@
+[package]
+name = "assembler_web"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+assembler = { path = "../Assembler" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+actix-web = "4.0"
+actix-files = "0.6"
+utoipa = "4"
+utoipa-scalar = { version = "0.3", features = ["actix-web"] }
+webbrowser = "0.8"
+futures-util = "0.3"

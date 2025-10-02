@@ -1,0 +1,39 @@
+
+
+<div style="min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;">
+    <div style="text-align:center;">
+        <h1>Rule 2B of 5 : Slotted Markup Assembly - Example 2B</h1>
+        <h3>Simple - Markup Assembly from multi slotted components</h3>
+        <hr />
+        <br />
+
+        <div>
+            <span style="text-decoration:underline">
+                Html Content from Slotted Component [#Columns] Merged with Multiple PlaceHolder Content from Html Component [Html2B]
+            </span>
+            <hr />
+
+            {{#Columns}}
+                {{@HTMLPLACEHOLDER1}}
+                    <h3>
+                        Slotted Left PlaceHolder 1 Content from [Html2B] Html Component
+                    </h3>
+                {{/HTMLPLACEHOLDER1}}
+                {{@HTMLPLACEHOLDER2}}
+                    <h3>
+                        Slotted Right PlaceHolder 2 Content from [Html2B] Html Component
+                    </h3>
+                {{/HTMLPLACEHOLDER2}}
+                {{@HTMLPLACEHOLDER3}}
+                    <h3>
+                        Slotted Center PlaceHolder 3 Content from [Html2B] Html Component
+                    </h3>
+                {{/HTMLPLACEHOLDER3}}
+            {{/Columns}}
+
+        </div>
+
+    </div>
+</div>
+
+

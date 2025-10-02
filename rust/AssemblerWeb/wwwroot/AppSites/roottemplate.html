@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Template Engine Comparison</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: Arial, sans-serif;
+        }
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right:0;            
+            z-index: 1000;
+            background: #f8f8f8;
+            border-bottom: 2px solid #ddd;
+            padding: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #test-select {
+            width: 100%;
+            font-size: 1.2em;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .content {
+            margin-top: 80px;
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        .column {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #ddd;
+        }
+        .column:last-child {
+            border-right: none;
+        }
+        .column h2 {
+            margin-top: 0;
+            padding: 10px;
+            background: #e9e9e9;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .result-content {
+            border: 1px solid #ccc;
+            padding: 10px;
+            min-height: 300px;
+            background: white;
+            border-radius: 4px;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #f8bbd9;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="prev-btn" title="Previous" style="background: none; border: none; cursor: pointer; padding: 0;">
+                <svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#eee"/><path d="M20 8l-8 8 8 8" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <select id="test-select" style="flex: 1;">
+                <option value="">Select a template to compare engines...</option>
+                <!--OPTIONS-->
+            </select>
+            <button id="next-btn" title="Next" style="background: none; border: none; cursor: pointer; padding: 0;">
+                <svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#eee"/><path d="M12 8l8 8-8 8" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+        </div>
+    </div>
+    <div class="content">
+        <div class="column">
+            <div id="normal-timing-bar" style="text-align:center; font-size:0.8em; text-decoration:underline; margin-bottom:4px; color:#555;"></div>
+            <h2>Normal Engine</h2>
+            <div id="normal-result" class="result-content">
+                <div class="loading">Select a template to see the Normal engine result</div>
+            </div>
+        </div>
+        <div class="column">
+            <div id="preprocess-timing-bar" style="text-align:center; font-size:0.8em; text-decoration:underline; margin-bottom:4px; color:#555;"></div>
+            <h2>PreProcess Engine</h2>
+            <div id="preprocess-result" class="result-content">
+                <div class="loading">Select a template to see the PreProcess engine result</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function handleSelectChange() {
+            const select = document.getElementById('test-select');
+            const selectedValue = select.value;
+            if (!selectedValue) {
+                document.getElementById('normal-result').innerHTML = '<div class="loading">Select a template to see the Normal engine result</div>';
+                document.getElementById('preprocess-result').innerHTML = '<div class="loading">Select a template to see the PreProcess engine result</div>';
+                document.getElementById('normal-timing-bar').innerHTML = '';
+                document.getElementById('preprocess-timing-bar').innerHTML = '';
+                return;
+            }
+
+            const selectedValueParts = selectedValue.split(',');
+            const appSite = selectedValueParts[0];
+            const appFile = selectedValueParts[1];
+            const appView = selectedValueParts[2] || "";
+            const appViewPrefix = selectedValueParts[3] || "";
+
+            document.getElementById('normal-result').innerHTML = '<div class="loading">Loading Normal engine result...</div>';
+            document.getElementById('preprocess-result').innerHTML = '<div class="loading">Loading PreProcess engine result...</div>';
+            document.getElementById('normal-timing-bar').innerHTML = '';
+            document.getElementById('preprocess-timing-bar').innerHTML = '';
+
+            const mergeUrl = window.location.origin + '/merge';
+            const clientStart = performance.now();
+            Promise.all([
+                fetch(mergeUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ appSite, appView, appViewPrefix, appFile, engineType: 'Normal' })
+                }),
+                fetch(mergeUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ appSite, appView, appViewPrefix, appFile, engineType: 'PreProcess' })
+                })
+            ]).then(async ([normalResponse, preprocessResponse]) => {
+                const clientEnd = performance.now();
+                const clientTimeMs = (clientEnd - clientStart).toFixed(2);
+
+                let normalTiming = null, preprocessTiming = null;
+                if (normalResponse.ok) {
+                    const normalJson = await normalResponse.json();
+                    document.getElementById('normal-result').innerHTML = normalJson.html;
+                    normalTiming = normalJson.timing;
+                } else {
+                    document.getElementById('normal-result').innerHTML = '<div class="error">Error loading Normal engine result: ' + normalResponse.status + '</div>';
+                }
+                if (preprocessResponse.ok) {
+                    const preprocessJson = await preprocessResponse.json();
+                    document.getElementById('preprocess-result').innerHTML = preprocessJson.html;
+                    preprocessTiming = preprocessJson.timing;
+                } else {
+                    document.getElementById('preprocess-result').innerHTML = '<div class="error">Error loading PreProcess engine result: ' + preprocessResponse.status + '</div>';
+                }
+
+                document.getElementById('normal-timing-bar').innerHTML = normalTiming ? `<div><span>Client: <b>${clientTimeMs}ms</b> | Server: <b>${normalTiming.serverTimeMs.toFixed(2)}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${normalTiming.engineTimeMs.toFixed(2)}ms</b></div>` : '';
+                document.getElementById('preprocess-timing-bar').innerHTML = preprocessTiming ? `<div><span>Client: <b>${clientTimeMs}ms</b> | Server: <b>${preprocessTiming.serverTimeMs.toFixed(2)}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${preprocessTiming.engineTimeMs.toFixed(2)}ms</b></div>` : '';
+            }).catch(error => {
+                document.getElementById('normal-result').innerHTML = '<div class="error">Network error: ' + error.message + '</div>';
+                document.getElementById('preprocess-result').innerHTML = '<div class="error">Network error: ' + error.message + '</div>';
+                document.getElementById('normal-timing-bar').innerHTML = '';
+                document.getElementById('preprocess-timing-bar').innerHTML = '';
+            });
+        }
+
+        document.getElementById('test-select').addEventListener('change', handleSelectChange);
+
+        // Next/Previous button logic
+        function moveSelect(offset) {
+            const select = document.getElementById('test-select');
+            if (select.options.length <= 1) return; // Only placeholder
+            let idx = select.selectedIndex;
+            if (idx === -1 || idx === 0) idx = 1; // skip placeholder
+            else idx += offset;
+            if (idx < 1) idx = 1;
+            if (idx >= select.options.length) idx = select.options.length - 1;
+            select.selectedIndex = idx;
+            select.dispatchEvent(new Event('change'));
+        }
+        document.getElementById('prev-btn').addEventListener('click', function() { moveSelect(-1); });
+        document.getElementById('next-btn').addEventListener('click', function() { moveSelect(1); });
+    </script>
+</body>
+</html>

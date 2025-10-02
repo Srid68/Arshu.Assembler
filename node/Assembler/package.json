@@ -1,0 +1,12 @@
+{
+  "name": "assembler",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'No build step needed for Node.js'",
+    "test": "node test/index.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
