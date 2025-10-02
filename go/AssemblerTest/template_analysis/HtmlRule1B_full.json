@@ -1,0 +1,125 @@
+{
+  "siteName": "HtmlRule1B",
+  "templates": {
+    "htmlrule1b_html1b": {
+      "originalContent": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 1 of 5 : PlaceHolder Markup Assembly - Example 1B\u003c/h1\u003e\r\n        \u003ch3\u003eHierarchical - Markup Assembly from placeholder components\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Html1BContent]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Html1BContent}}\r\n        \u003c/div\u003e\r\n\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Html1BContentB]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Html1BContentB}}\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n\r\n\r\n",
+      "placeholders": [
+        {
+          "name": "Html1BContent",
+          "startIndex": 500,
+          "endIndex": 517,
+          "fullMatch": "{{Html1BContent}}",
+          "templateKey": "html1bcontent",
+          "nestedPlaceholders": null,
+          "nestedSlots": null
+        },
+        {
+          "name": "Html1BContentB",
+          "startIndex": 744,
+          "endIndex": 762,
+          "fullMatch": "{{Html1BContentB}}",
+          "templateKey": "html1bcontentb",
+          "nestedPlaceholders": null,
+          "nestedSlots": null
+        }
+      ],
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{Html1BContent}}",
+          "replacementText": "\u003cspan style=\"text-decoration:underline\"\u003e\r\n    Html Content from Html Component [Html1BContentA]\r\n\u003c/span\u003e\r\n\u003chr /\u003e\r\n{{html1BcontentA}}",
+          "type": 1
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{Html1BContentB}}",
+          "replacementText": "\u003ch3\u003eHtml B2 Content\u003c/h3\u003e\r\n",
+          "type": 1
+        }
+      ],
+      "html": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 1 of 5 : PlaceHolder Markup Assembly - Example 1B\u003c/h1\u003e\r\n        \u003ch3\u003eHierarchical - Markup Assembly from placeholder components\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Html1BContent]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Html1BContent}}\r\n        \u003c/div\u003e\r\n\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Html1BContentB]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Html1BContentB}}\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n\r\n\r\n",
+      "hasPlaceholders": true,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": true
+    },
+    "htmlrule1b_html1bcontent": {
+      "originalContent": "\u003cspan style=\"text-decoration:underline\"\u003e\r\n    Html Content from Html Component [Html1BContentA]\r\n\u003c/span\u003e\r\n\u003chr /\u003e\r\n{{html1BcontentA}}",
+      "placeholders": [
+        {
+          "name": "html1BcontentA",
+          "startIndex": 114,
+          "endIndex": 132,
+          "fullMatch": "{{html1BcontentA}}",
+          "templateKey": "html1bcontenta",
+          "nestedPlaceholders": null,
+          "nestedSlots": null
+        }
+      ],
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{html1BcontentA}}",
+          "replacementText": "\u003ch5\u003eHtml B1 Content A\u003c/h5\u003e",
+          "type": 1
+        }
+      ],
+      "html": "\u003cspan style=\"text-decoration:underline\"\u003e\r\n    Html Content from Html Component [Html1BContentA]\r\n\u003c/span\u003e\r\n\u003chr /\u003e\r\n{{html1BcontentA}}",
+      "hasPlaceholders": true,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": true
+    },
+    "htmlrule1b_html1bcontenta": {
+      "originalContent": "\u003ch5\u003eHtml B1 Content A\u003c/h5\u003e",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [],
+      "html": "\u003ch5\u003eHtml B1 Content A\u003c/h5\u003e",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": false
+    },
+    "htmlrule1b_html1bcontentb": {
+      "originalContent": "\u003ch3\u003eHtml B2 Content\u003c/h3\u003e\r\n",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [],
+      "html": "\u003ch3\u003eHtml B2 Content\u003c/h3\u003e\r\n",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": false
+    }
+  },
+  "rawTemplates": {
+    "htmlrule1b_html1b": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 1 of 5 : PlaceHolder Markup Assembly - Example 1B\u003c/h1\u003e\r\n        \u003ch3\u003eHierarchical - Markup Assembly from placeholder components\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Html1BContent]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Html1BContent}}\r\n        \u003c/div\u003e\r\n\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Html1BContentB]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Html1BContentB}}\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n\r\n\r\n",
+    "htmlrule1b_html1bcontent": "\u003cspan style=\"text-decoration:underline\"\u003e\r\n    Html Content from Html Component [Html1BContentA]\r\n\u003c/span\u003e\r\n\u003chr /\u003e\r\n{{html1BcontentA}}",
+    "htmlrule1b_html1bcontenta": "\u003ch5\u003eHtml B1 Content A\u003c/h5\u003e",
+    "htmlrule1b_html1bcontentb": "\u003ch3\u003eHtml B2 Content\u003c/h3\u003e\r\n"
+  },
+  "templateKeys": {
+    "htmlrule1b_html1b": {},
+    "htmlrule1b_html1bcontent": {},
+    "htmlrule1b_html1bcontenta": {},
+    "htmlrule1b_html1bcontentb": {}
+  }
+}

@@ -1,0 +1,43 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "a162b21048ad6b756a9c0536bfc2d3bc",
+    "packages": [
+        {
+            "name": "assembler/assembler",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "../Assembler",
+                "reference": "4a1444a16a003139845617e0da67ac604a9f230d"
+            },
+            "require": {
+                "php": ">=8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Assembler\\": "src/"
+                }
+            },
+            "description": "Template assembler library for PHP",
+            "transport-options": {
+                "relative": true
+            }
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {
+        "php": ">=8.0"
+    },
+    "platform-dev": {},
+    "plugin-api-version": "2.6.0"
+}

@@ -1,0 +1,34 @@
+
+
+<div style="min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;">
+    <div style="text-align:center;">
+        <h1>Rule 2C of 5 : Slotted Markup Assembly - Example 2C</h1>
+        <h3>Nested - Markup Assembly from single slotted components</h3>
+        <hr />
+
+         <div>
+             <span style="text-decoration:underline">
+                 Html Content from Slotted Component [#Center] Merged with Nested Slotted Component [#ZoomIn] Merged with PlaceHolder Content from Component [Html2C]
+             </span>
+            <hr />
+
+            {{#Center}}
+                {{@HTMLPLACEHOLDER}}
+                    {{#ZoomIn}}
+                        {{@HTMLPLACEHOLDER}}
+                        <div style="text-align:center;">
+                            <h3>
+                                Nested Slotted PlaceHolder Content from [Html2C] Html Component
+                            </h3>
+                        </div>
+                        {{/HTMLPLACEHOLDER}}
+                    {{/ZoomIn}}
+                {{/HTMLPLACEHOLDER}}
+            {{/Center}}
+
+        </div>
+
+    </div>
+</div>
+
+

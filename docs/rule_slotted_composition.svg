@@ -1,0 +1,37 @@
+<svg width="550" height="250" xmlns="http://www.w3.org/2000/svg">
+    <style>
+        .box { fill: #f9f9f9; stroke: #333; stroke-width: 2; }
+        .text { font-family: monospace; font-size: 14px; }
+        .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+        .placeholder { fill: #e6e6fa; stroke: #9370db; stroke-width: 1; }
+        .placeholder-text { font-family: monospace; font-size: 12px; fill: #9370db; }
+        .slot-def { fill: #d4edda; stroke: #155724; stroke-width: 1; }
+        .slot-def-text { font-family: monospace; font-size: 12px; fill: #155724; }
+        .slot-fill { fill: #d1ecf1; stroke: #0c5460; stroke-width: 1; }
+        .slot-fill-text { font-family: monospace; font-size: 12px; fill: #0c5460; }
+    </style>
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" />
+        </marker>
+    </defs>
+
+    <!-- Consuming Component Box -->
+    <rect x="20" y="50" width="280" height="180" class="box" rx="5" />
+    <text x="110" y="40" class="text">html2A.html</text>
+    <text x="30" y="80" class="placeholder-text">{{#Center}}</text>
+    <rect x="40" y="90" width="240" height="100" class="slot-fill" rx="3"/>
+    <text x="50" y="110" class="slot-fill-text">{{@HTMLPLACEHOLDER}}</text>
+    <text x="70" y="140" class="text">&lt;h3&gt;...&lt;/h3&gt;</text>
+    <text x="50" y="170" class="slot-fill-text">{{/HTMLPLACEHOLDER}}</text>
+    <text x="30" y="210" class="placeholder-text">{{/Center}}</text>
+
+    <!-- Template Component Box -->
+    <rect x="380" y="50" width="150" height="100" class="box" rx="5" />
+    <text x="400" y="40" class="text">center.html</text>
+    <rect x="390" y="80" width="130" height="30" class="slot-def" rx="3"/>
+    <text x="395" y="100" class="slot-def-text">{{$HTMLPLACEHOLDER}}</text>
+
+    <!-- Arrow -->
+    <path d="M280 140 C 330 140, 330 100, 380 95" class="arrow" />
+</svg>

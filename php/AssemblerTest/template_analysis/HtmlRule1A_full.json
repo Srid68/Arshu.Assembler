@@ -1,0 +1,57 @@
+{
+    "siteName": "HtmlRule1A",
+    "templates": {
+        "htmlrule1a_html1acontent": {
+            "originalContent": "\r\n<h3>html 1A Content<\/h3>\r\n",
+            "placeholders": [],
+            "slottedTemplates": [],
+            "jsonPlaceholders": [],
+            "replacementMappings": [],
+            "hasPlaceholders": false,
+            "hasSlottedTemplates": false,
+            "hasJsonData": false,
+            "hasJsonPlaceholders": false,
+            "hasReplacementMappings": false,
+            "requiresProcessing": false
+        },
+        "htmlrule1a_html1a": {
+            "originalContent": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 1 of 5 : PlaceHolder Markup Assembly - Example 1A<\/h1>\r\n        <h3>Simple - Markup Assembly from placeholder components<\/h3>\r\n        <hr \/>\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html1AContent]\r\n            <\/span>\r\n            <hr \/>\r\n            {{Html1AContent}}\r\n        <\/div>\r\n    <\/div>\r\n\r\n<\/div>\r\n\r\n\r\n",
+            "placeholders": [
+                {
+                    "name": "Html1AContent",
+                    "startIndex": 492,
+                    "endIndex": 509,
+                    "fullMatch": "{{Html1AContent}}",
+                    "templateKey": "html1acontent",
+                    "nestedPlaceholders": [],
+                    "nestedSlots": []
+                }
+            ],
+            "slottedTemplates": [],
+            "jsonPlaceholders": [],
+            "replacementMappings": [
+                {
+                    "startIndex": 0,
+                    "endIndex": 0,
+                    "originalText": "{{Html1AContent}}",
+                    "replacementText": "\r\n<h3>html 1A Content<\/h3>\r\n",
+                    "type": "SimpleTemplate"
+                }
+            ],
+            "hasPlaceholders": true,
+            "hasSlottedTemplates": false,
+            "hasJsonData": false,
+            "hasJsonPlaceholders": false,
+            "hasReplacementMappings": true,
+            "requiresProcessing": true
+        }
+    },
+    "rawTemplates": {
+        "htmlrule1a_html1acontent": "\r\n<h3>html 1A Content<\/h3>\r\n",
+        "htmlrule1a_html1a": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 1 of 5 : PlaceHolder Markup Assembly - Example 1A<\/h1>\r\n        <h3>Simple - Markup Assembly from placeholder components<\/h3>\r\n        <hr \/>\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html1AContent]\r\n            <\/span>\r\n            <hr \/>\r\n            {{Html1AContent}}\r\n        <\/div>\r\n    <\/div>\r\n\r\n<\/div>\r\n\r\n\r\n"
+    },
+    "templateKeys": [
+        "htmlrule1a_html1acontent",
+        "htmlrule1a_html1a"
+    ]
+}

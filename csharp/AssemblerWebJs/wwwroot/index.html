@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AssemblerWebJs - Template Manager</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: Arial, sans-serif;
+        }
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            background: #f8f8f8;
+            border-bottom: 2px solid #ddd;
+            padding: 10px 20px 10px 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-sizing: border-box;
+        }
+        #appSiteSelect {
+            flex: 1;
+            min-width: 200px;
+            font-size: 1.2em;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: white !important;
+            color: #333 !important;
+            font-family: Arial, sans-serif;
+        }
+        #appSiteSelect option {
+            background-color: white !important;
+            color: #333 !important;
+            padding: 4px;
+            font-size: 1em;
+            font-family: Arial, sans-serif;
+        }
+        #appSiteSelect option:hover {
+            background-color: #f0f0f0 !important;
+            color: #000 !important;
+        }
+        .header button {
+            font-size: 1em;
+            padding: 8px 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .refresh-btn {
+            padding: 8px !important;
+            min-width: 40px !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .refresh-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+        .header button:hover {
+            background: #f0f0f0;
+        }
+        .get-templates-btn {
+            background: #007cba !important;
+            color: white !important;
+            border-color: #007cba !important;
+        }
+        .get-templates-btn:hover {
+            background: #005a87 !important;
+        }
+        .merge-templates-btn {
+            background: #28a745 !important;
+            color: white !important;
+            border-color: #28a745 !important;
+        }
+        .merge-templates-btn:hover {
+            background: #1e7e34 !important;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .header {
+                padding: 8px;
+                gap: 8px;
+            }
+            
+            .content {
+                margin-top: 80px;
+            }
+            
+            #appSiteSelect {
+                flex: 1;
+                min-width: 150px;
+                font-size: 1em;
+            }
+            
+            .header button {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+            
+            .refresh-btn {
+                padding: 8px !important;
+            }                       
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                gap: 6px;
+                padding: 8px;
+            }
+            
+            .content {
+                margin-top: 80px;
+            }
+            
+            #appSiteSelect {
+                flex: 1;
+                min-width: 120px;
+                font-size: 14px;
+            }
+            
+            .header button {
+                font-size: 12px;
+                padding: 6px 8px;
+            }
+            
+            .refresh-btn {
+                padding: 6px !important;
+                min-width: 32px !important;
+                flex: 0 0 32px;
+            }
+            
+            .get-templates-btn, .merge-templates-btn {
+                flex: 0 0 auto;
+                min-width: 50px;
+                padding: 6px 8px;
+                margin-right: 0;
+            }
+        }
+        .content {
+            margin-top: 80px;
+            padding: 10px;
+            min-height: calc(100vh - 80px);
+        }
+        .result-content {
+            padding: 0;
+            min-height: 400px;
+            background: white;
+            margin-top: 5px;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #f8bbd9;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="refresh-btn" onclick="loadScenarios()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                <path d="M3 21v-5h5"/>
+            </svg>
+        </button>
+        <button class="nav-btn" id="prevScenarioBtn" title="Previous Scenario" style="background: none; border: none; cursor: pointer; padding: 0 8px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <select id="appSiteSelect">
+            <option value="">Select a Scenario...</option>
+            <!--OPTIONS-->
+        </select>
+        <button class="nav-btn" id="nextScenarioBtn" title="Next Scenario" style="background: none; border: none; cursor: pointer; padding: 0 8px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+        <button class="get-templates-btn" onclick="getTemplates()">Get</button>
+        <button class="merge-templates-btn" onclick="mergeTemplates()">Merge</button>
+    </div>
+    
+    <div class="content">
+        <div id="result" class="result-content">
+        </div>
+    </div>
+
+    <script src="js/normalEngine.js"></script>
+    <script src="js/preprocessEngine.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

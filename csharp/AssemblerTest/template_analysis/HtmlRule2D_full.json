@@ -1,0 +1,116 @@
+{
+  "rawTemplates": {
+    "htmlrule2d_center": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER}}\r\n    </div>\r\n</div>\r\n",
+    "htmlrule2d_html2d": "\r\n\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 2 of 5 : Slotted Markup Assembly - Example 2D</h1>\r\n        <h3>Hierarchical - Markup Assembly from placeholder component having single slotted components</h3>\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html2DContent]\r\n            </span>\r\n            <hr />\r\n            {{Html2DContent}}\r\n        </div>\r\n\r\n    </div>\r\n</div>\r\n\r\n\r\n",
+    "htmlrule2d_html2dcontent": "\r\n <div>\r\n     <span style=\"text-decoration:underline\">\r\n         Html Content from Slotted Component [#Center] Merged with PlaceHolder Content from Html Component [Html2DContent]\r\n     </span>\r\n    <hr />\r\n\r\n    {{#Center}}\r\n        {{@HTMLPLACEHOLDER}}\r\n            <h3>\r\n                Slotted PlaceHolder Content from [Html2DContent] Html Component\r\n            </h3>\r\n        {{/HTMLPLACEHOLDER}}\r\n    {{/Center}}\r\n\r\n</div>"
+  },
+  "siteName": "HtmlRule2D",
+  "templateKeys": [
+    "htmlrule2d_html2d",
+    "htmlrule2d_center",
+    "htmlrule2d_html2dcontent"
+  ],
+  "templates": {
+    "htmlrule2d_center": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": false,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER}}\r\n    </div>\r\n</div>\r\n",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+      ],
+      "requiresProcessing": false,
+      "slottedTemplates": [
+      ]
+    },
+    "htmlrule2d_html2d": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": true,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "\r\n\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 2 of 5 : Slotted Markup Assembly - Example 2D</h1>\r\n        <h3>Hierarchical - Markup Assembly from placeholder component having single slotted components</h3>\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html2DContent]\r\n            </span>\r\n            <hr />\r\n            {{Html2DContent}}\r\n        </div>\r\n\r\n    </div>\r\n</div>\r\n\r\n\r\n",
+      "placeholders": [
+        {
+          "endIndex": 547,
+          "fullMatch": "{{Html2DContent}}",
+          "name": "Html2DContent",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 530,
+          "templateKey": "html2dcontent"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 547,
+          "originalText": "{{Html2DContent}}",
+          "replacementText": "\r\n <div>\r\n     <span style=\"text-decoration:underline\">\r\n         Html Content from Slotted Component [#Center] Merged with PlaceHolder Content from Html Component [Html2DContent]\r\n     </span>\r\n    <hr />\r\n\r\n    {{#Center}}\r\n        {{@HTMLPLACEHOLDER}}\r\n            <h3>\r\n                Slotted PlaceHolder Content from [Html2DContent] Html Component\r\n            </h3>\r\n        {{/HTMLPLACEHOLDER}}\r\n    {{/Center}}\r\n\r\n</div>",
+          "startIndex": 530,
+          "type": "SimpleTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+      ]
+    },
+    "htmlrule2d_html2dcontent": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": true,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "\r\n <div>\r\n     <span style=\"text-decoration:underline\">\r\n         Html Content from Slotted Component [#Center] Merged with PlaceHolder Content from Html Component [Html2DContent]\r\n     </span>\r\n    <hr />\r\n\r\n    {{#Center}}\r\n        {{@HTMLPLACEHOLDER}}\r\n            <h3>\r\n                Slotted PlaceHolder Content from [Html2DContent] Html Component\r\n            </h3>\r\n        {{/HTMLPLACEHOLDER}}\r\n    {{/Center}}\r\n\r\n</div>",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 0,
+          "originalText": "{{#Center}}\r\n        {{@HTMLPLACEHOLDER}}\r\n            <h3>\r\n                Slotted PlaceHolder Content from [Html2DContent] Html Component\r\n            </h3>\r\n        {{/HTMLPLACEHOLDER}}\r\n    {{/Center}}",
+          "replacementText": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        \r\n            <h3>\r\n                Slotted PlaceHolder Content from [Html2DContent] Html Component\r\n            </h3>\r\n        \r\n    </div>\r\n</div>\r\n",
+          "startIndex": 0,
+          "type": "SlottedTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+        {
+          "endIndex": 419,
+          "fullMatch": "{{#Center}}\r\n        {{@HTMLPLACEHOLDER}}\r\n            <h3>\r\n                Slotted PlaceHolder Content from [Html2DContent] Html Component\r\n            </h3>\r\n        {{/HTMLPLACEHOLDER}}\r\n    {{/Center}}",
+          "innerContent": "\r\n        {{@HTMLPLACEHOLDER}}\r\n            <h3>\r\n                Slotted PlaceHolder Content from [Html2DContent] Html Component\r\n            </h3>\r\n        {{/HTMLPLACEHOLDER}}\r\n    ",
+          "name": "Center",
+          "slots": [
+            {
+              "closeTag": "{{/HTMLPLACEHOLDER}}",
+              "content": "\r\n            <h3>\r\n                Slotted PlaceHolder Content from [Html2DContent] Html Component\r\n            </h3>\r\n        ",
+              "endIndex": 178,
+              "nestedPlaceholders": [
+              ],
+              "nestedSlots": [
+              ],
+              "nestedSlottedTemplates": [
+              ],
+              "number": "",
+              "openTag": "{{@HTMLPLACEHOLDER}}",
+              "slotKey": "{{$HTMLPLACEHOLDER}}",
+              "startIndex": 10
+            }
+          ],
+          "startIndex": 213,
+          "templateKey": "center"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "siteName": "JsonRule1A",
+  "templates": {
+    "jsonrule1a_json1a": {
+      "originalContent": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 4 of 5 : Json Key Assembly - Example 1A\u003c/h1\u003e\r\n        \u003ch3\u003eSimple - Json Key Assembly in component\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Json Key Content from Key [Json1AKey] from Json Component [Json1A]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{$Json1AKey}}\r\n        \u003c/div\u003e\r\n\r\n\t\u003c/div\u003e\r\n\u003c/div\u003e",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonData": {
+        "Json1AKey": "Json Key 1A Content"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Json1AKey",
+          "placeholder": "{{$Json1AKey}}",
+          "value": "Json Key 1A Content"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$Json1AKey}}",
+          "replacementText": "Json Key 1A Content",
+          "type": 0
+        }
+      ],
+      "html": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 4 of 5 : Json Key Assembly - Example 1A\u003c/h1\u003e\r\n        \u003ch3\u003eSimple - Json Key Assembly in component\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Json Key Content from Key [Json1AKey] from Json Component [Json1A]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{$Json1AKey}}\r\n        \u003c/div\u003e\r\n\r\n\t\u003c/div\u003e\r\n\u003c/div\u003e",
+      "json": "\r\n{\r\n    \"Json1AKey\": \"Json Key 1A Content\"\r\n}",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    }
+  },
+  "rawTemplates": {
+    "jsonrule1a_json1a": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 4 of 5 : Json Key Assembly - Example 1A\u003c/h1\u003e\r\n        \u003ch3\u003eSimple - Json Key Assembly in component\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Json Key Content from Key [Json1AKey] from Json Component [Json1A]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{$Json1AKey}}\r\n        \u003c/div\u003e\r\n\r\n\t\u003c/div\u003e\r\n\u003c/div\u003e"
+  },
+  "templateKeys": {
+    "jsonrule1a_json1a": {}
+  }
+}

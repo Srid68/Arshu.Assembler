@@ -1,0 +1,77 @@
+{
+  "siteName": "JsonRule1B",
+  "templates": {
+    "jsonrule1b_json1b": {
+      "originalContent": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 4 of 5 : Json Key Assembly - Example 1B\u003c/h1\u003e\r\n        \u003ch3\u003eHierarchical - Json Key Assembly in placeholder component\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Json1BContent]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Json1BContent}}\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e",
+      "placeholders": [
+        {
+          "name": "Json1BContent",
+          "startIndex": 489,
+          "endIndex": 506,
+          "fullMatch": "{{Json1BContent}}",
+          "templateKey": "json1bcontent",
+          "nestedPlaceholders": null,
+          "nestedSlots": null
+        }
+      ],
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{Json1BContent}}",
+          "replacementText": "\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Json Key Content from Key [Json1BKey] from Json Component [Json1BContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n    {{$Json1BKey}}\r\n\u003c/div\u003e",
+          "type": 1
+        }
+      ],
+      "html": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 4 of 5 : Json Key Assembly - Example 1B\u003c/h1\u003e\r\n        \u003ch3\u003eHierarchical - Json Key Assembly in placeholder component\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Json1BContent]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Json1BContent}}\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e",
+      "hasPlaceholders": true,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": true
+    },
+    "jsonrule1b_json1bcontent": {
+      "originalContent": "\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Json Key Content from Key [Json1BKey] from Json Component [Json1BContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n    {{$Json1BKey}}\r\n\u003c/div\u003e",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonData": {
+        "Json1BKey": "Json Key 1B Content"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Json1BKey",
+          "placeholder": "{{$Json1BKey}}",
+          "value": "Json Key 1B Content"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$Json1BKey}}",
+          "replacementText": "Json Key 1B Content",
+          "type": 0
+        }
+      ],
+      "html": "\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Json Key Content from Key [Json1BKey] from Json Component [Json1BContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n    {{$Json1BKey}}\r\n\u003c/div\u003e",
+      "json": "\r\n{\r\n    \"Json1BKey\": \"Json Key 1B Content\"\r\n}",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    }
+  },
+  "rawTemplates": {
+    "jsonrule1b_json1b": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 4 of 5 : Json Key Assembly - Example 1B\u003c/h1\u003e\r\n        \u003ch3\u003eHierarchical - Json Key Assembly in placeholder component\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Json1BContent]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Json1BContent}}\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e",
+    "jsonrule1b_json1bcontent": "\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Json Key Content from Key [Json1BKey] from Json Component [Json1BContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n    {{$Json1BKey}}\r\n\u003c/div\u003e"
+  },
+  "templateKeys": {
+    "jsonrule1b_json1b": {},
+    "jsonrule1b_json1bcontent": {}
+  }
+}

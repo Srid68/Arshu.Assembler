@@ -1,0 +1,218 @@
+[
+  {
+    "AppSite": "HtmlRule1A",
+    "AppFile": "html1A",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule1B",
+    "AppFile": "Html1B",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule2A",
+    "AppFile": "html2A",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule2B",
+    "AppFile": "html2B",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule2C",
+    "AppFile": "Html2C",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule2D",
+    "AppFile": "HTML2D",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule2E",
+    "AppFile": "HTML2E",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule2F",
+    "AppFile": "Html2F",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule3A",
+    "AppFile": "html3A",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule3A",
+    "AppFile": "html3A",
+    "AppView": "Html3A",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "PASS",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule3A",
+    "AppFile": "html3A",
+    "AppView": "Html3B",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "PASS",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule3B",
+    "AppFile": "html3B",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule3B",
+    "AppFile": "html3B",
+    "AppView": "Html3A",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "PASS",
+    "Error": ""
+  },
+  {
+    "AppSite": "HtmlRule3B",
+    "AppFile": "html3B",
+    "AppView": "Html3B",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "PASS",
+    "Error": ""
+  },
+  {
+    "AppSite": "JsonRule1A",
+    "AppFile": "json1A",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "JsonRule1B",
+    "AppFile": "json1B",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "JsonRule1C",
+    "AppFile": "Json1C",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "JsonRule2A",
+    "AppFile": "json2A",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "JsonRule2B",
+    "AppFile": "json2B",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "JsonRule2C",
+    "AppFile": "json2C",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "JsonRule2D",
+    "AppFile": "json2D",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "Test0",
+    "AppFile": "test0",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "Test1",
+    "AppFile": "test1",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "Test2",
+    "AppFile": "test2",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "Test3",
+    "AppFile": "test3",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "Test4",
+    "AppFile": "test4",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  },
+  {
+    "AppSite": "Test5",
+    "AppFile": "test5",
+    "AppView": "",
+    "OutputMatch": "PASS",
+    "ViewUnMatch": "",
+    "Error": ""
+  }
+]

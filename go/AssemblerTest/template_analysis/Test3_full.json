@@ -1,0 +1,139 @@
+{
+  "siteName": "Test3",
+  "templates": {
+    "test3_columns": {
+      "originalContent": "\u003cdiv style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER1}}\r\n    \u003c/div\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER3}}\r\n    \u003c/div\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER2}}\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [],
+      "html": "\u003cdiv style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER1}}\r\n    \u003c/div\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER3}}\r\n    \u003c/div\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER2}}\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": false
+    },
+    "test3_test3": {
+      "originalContent": "{{#Columns}}\r\n    {{@HTMLPLACEHOLDER1}}\r\n        \u003ch3\u003e{{$Test3ColumnLeft}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER1}}\r\n    {{@HTMLPLACEHOLDER2}}\r\n        \u003ch3\u003e{{$Test3ColumnRight}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER2}}\r\n    {{@HTMLPLACEHOLDER3}}\r\n        \u003ch3\u003e{{$Test3ColumnCenter}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER3}}\r\n{{/Columns}}\r\n\r\n",
+      "placeholders": null,
+      "slottedTemplates": [
+        {
+          "name": "Columns",
+          "startIndex": 0,
+          "endIndex": 308,
+          "fullMatch": "{{#Columns}}\r\n    {{@HTMLPLACEHOLDER1}}\r\n        \u003ch3\u003e{{$Test3ColumnLeft}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER1}}\r\n    {{@HTMLPLACEHOLDER2}}\r\n        \u003ch3\u003e{{$Test3ColumnRight}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER2}}\r\n    {{@HTMLPLACEHOLDER3}}\r\n        \u003ch3\u003e{{$Test3ColumnCenter}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER3}}\r\n{{/Columns}}",
+          "innerContent": "\r\n    {{@HTMLPLACEHOLDER1}}\r\n        \u003ch3\u003e{{$Test3ColumnLeft}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER1}}\r\n    {{@HTMLPLACEHOLDER2}}\r\n        \u003ch3\u003e{{$Test3ColumnRight}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER2}}\r\n    {{@HTMLPLACEHOLDER3}}\r\n        \u003ch3\u003e{{$Test3ColumnCenter}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER3}}\r\n",
+          "slots": [
+            {
+              "nestedSlots": null,
+              "number": "1",
+              "startIndex": 6,
+              "endIndex": 93,
+              "content": "\r\n        \u003ch3\u003e{{$Test3ColumnLeft}}\u003c/h3\u003e\r\n    ",
+              "slotKey": "{{$HTMLPLACEHOLDER1}}",
+              "openTag": "{{@HTMLPLACEHOLDER1}}",
+              "closeTag": "{{/HTMLPLACEHOLDER1}}",
+              "nestedPlaceholders": [],
+              "nestedSlottedTemplates": []
+            },
+            {
+              "nestedSlots": null,
+              "number": "2",
+              "startIndex": 99,
+              "endIndex": 187,
+              "content": "\r\n        \u003ch3\u003e{{$Test3ColumnRight}}\u003c/h3\u003e\r\n    ",
+              "slotKey": "{{$HTMLPLACEHOLDER2}}",
+              "openTag": "{{@HTMLPLACEHOLDER2}}",
+              "closeTag": "{{/HTMLPLACEHOLDER2}}",
+              "nestedPlaceholders": [],
+              "nestedSlottedTemplates": []
+            },
+            {
+              "nestedSlots": null,
+              "number": "3",
+              "startIndex": 193,
+              "endIndex": 282,
+              "content": "\r\n        \u003ch3\u003e{{$Test3ColumnCenter}}\u003c/h3\u003e\r\n    ",
+              "slotKey": "{{$HTMLPLACEHOLDER3}}",
+              "openTag": "{{@HTMLPLACEHOLDER3}}",
+              "closeTag": "{{/HTMLPLACEHOLDER3}}",
+              "nestedPlaceholders": [],
+              "nestedSlottedTemplates": []
+            }
+          ],
+          "templateKey": "columns"
+        }
+      ],
+      "jsonData": {
+        "Test3ColumnCenter": "Test 3 Column Center",
+        "Test3ColumnLeft": "Test 3 Column Left",
+        "Test3ColumnRight": "Test 3 Column Right"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Test3ColumnLeft",
+          "placeholder": "{{$Test3ColumnLeft}}",
+          "value": "Test 3 Column Left"
+        },
+        {
+          "key": "Test3ColumnRight",
+          "placeholder": "{{$Test3ColumnRight}}",
+          "value": "Test 3 Column Right"
+        },
+        {
+          "key": "Test3ColumnCenter",
+          "placeholder": "{{$Test3ColumnCenter}}",
+          "value": "Test 3 Column Center"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$Test3ColumnLeft}}",
+          "replacementText": "Test 3 Column Left",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$Test3ColumnRight}}",
+          "replacementText": "Test 3 Column Right",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$Test3ColumnCenter}}",
+          "replacementText": "Test 3 Column Center",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{#Columns}}\r\n    {{@HTMLPLACEHOLDER1}}\r\n        \u003ch3\u003e{{$Test3ColumnLeft}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER1}}\r\n    {{@HTMLPLACEHOLDER2}}\r\n        \u003ch3\u003e{{$Test3ColumnRight}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER2}}\r\n    {{@HTMLPLACEHOLDER3}}\r\n        \u003ch3\u003e{{$Test3ColumnCenter}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER3}}\r\n{{/Columns}}",
+          "replacementText": "\u003cdiv style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv\u003e\r\n        \r\n        \u003ch3\u003e{{$Test3ColumnLeft}}\u003c/h3\u003e\r\n    \r\n    \u003c/div\u003e\r\n    \u003cdiv\u003e\r\n        \r\n        \u003ch3\u003e{{$Test3ColumnCenter}}\u003c/h3\u003e\r\n    \r\n    \u003c/div\u003e\r\n    \u003cdiv\u003e\r\n        \r\n        \u003ch3\u003e{{$Test3ColumnRight}}\u003c/h3\u003e\r\n    \r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n",
+          "type": 2
+        }
+      ],
+      "html": "{{#Columns}}\r\n    {{@HTMLPLACEHOLDER1}}\r\n        \u003ch3\u003e{{$Test3ColumnLeft}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER1}}\r\n    {{@HTMLPLACEHOLDER2}}\r\n        \u003ch3\u003e{{$Test3ColumnRight}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER2}}\r\n    {{@HTMLPLACEHOLDER3}}\r\n        \u003ch3\u003e{{$Test3ColumnCenter}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER3}}\r\n{{/Columns}}\r\n\r\n",
+      "json": "\r\n{\r\n    \"Test3ColumnLeft\": \"Test 3 Column Left\" ,\r\n    \"Test3ColumnRight\": \"Test 3 Column Right\",    \r\n    \"Test3ColumnCenter\": \"Test 3 Column Center\"   \r\n}",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": true,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    }
+  },
+  "rawTemplates": {
+    "test3_columns": "\u003cdiv style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER1}}\r\n    \u003c/div\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER3}}\r\n    \u003c/div\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER2}}\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n",
+    "test3_test3": "{{#Columns}}\r\n    {{@HTMLPLACEHOLDER1}}\r\n        \u003ch3\u003e{{$Test3ColumnLeft}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER1}}\r\n    {{@HTMLPLACEHOLDER2}}\r\n        \u003ch3\u003e{{$Test3ColumnRight}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER2}}\r\n    {{@HTMLPLACEHOLDER3}}\r\n        \u003ch3\u003e{{$Test3ColumnCenter}}\u003c/h3\u003e\r\n    {{/HTMLPLACEHOLDER3}}\r\n{{/Columns}}\r\n\r\n"
+  },
+  "templateKeys": {
+    "test3_columns": {},
+    "test3_test3": {}
+  }
+}

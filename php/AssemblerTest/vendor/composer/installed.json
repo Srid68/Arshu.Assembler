@@ -1,0 +1,31 @@
+{
+    "packages": [
+        {
+            "name": "assembler/assembler",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "dist": {
+                "type": "path",
+                "url": "../Assembler",
+                "reference": "4a1444a16a003139845617e0da67ac604a9f230d"
+            },
+            "require": {
+                "php": ">=8.0"
+            },
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Assembler\\": "src/"
+                }
+            },
+            "description": "Template assembler library for PHP",
+            "transport-options": {
+                "relative": true
+            },
+            "install-path": "../assembler/assembler"
+        }
+    ],
+    "dev": true,
+    "dev-package-names": []
+}

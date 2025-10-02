@@ -1,0 +1,21 @@
+{
+    "name": "assembler/assemblertest",
+    "description": "Test suite for PHP Assembler library",
+    "version": "1.0.0",
+    "require": {
+        "php": ">=8.0",
+        "assembler/assembler": "*"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../Assembler"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "AssemblerTest\\": "src/"
+        }
+    },
+    "require-dev": {}
+}

@@ -1,0 +1,183 @@
+{
+  "rawTemplates": {
+    "test3_columns": "<div style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER1}}\r\n    </div>\r\n    <div>\r\n        {{$HTMLPLACEHOLDER3}}\r\n    </div>\r\n    <div>\r\n        {{$HTMLPLACEHOLDER2}}\r\n    </div>\r\n</div>\r\n",
+    "test3_test3": "{{#Columns}}\r\n    {{@HTMLPLACEHOLDER1}}\r\n        <h3>{{$Test3ColumnLeft}}</h3>\r\n    {{/HTMLPLACEHOLDER1}}\r\n    {{@HTMLPLACEHOLDER2}}\r\n        <h3>{{$Test3ColumnRight}}</h3>\r\n    {{/HTMLPLACEHOLDER2}}\r\n    {{@HTMLPLACEHOLDER3}}\r\n        <h3>{{$Test3ColumnCenter}}</h3>\r\n    {{/HTMLPLACEHOLDER3}}\r\n{{/Columns}}\r\n\r\n"
+  },
+  "siteName": "Test3",
+  "templateKeys": [
+    "test3_test3",
+    "test3_columns"
+  ],
+  "templates": {
+    "test3_columns": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": false,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "<div style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER1}}\r\n    </div>\r\n    <div>\r\n        {{$HTMLPLACEHOLDER3}}\r\n    </div>\r\n    <div>\r\n        {{$HTMLPLACEHOLDER2}}\r\n    </div>\r\n</div>\r\n",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+      ],
+      "requiresProcessing": false,
+      "slottedTemplates": [
+      ]
+    },
+    "test3_test3": {
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": true,
+      "jsonData": {
+        "Test3ColumnCenter": "Test 3 Column Center",
+        "Test3ColumnLeft": "Test 3 Column Left",
+        "Test3ColumnRight": "Test 3 Column Right"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Test3ColumnCenter",
+          "placeholder": "{{$Test3ColumnCenter}}",
+          "value": "Test 3 Column Center"
+        },
+        {
+          "key": "Test3ColumnLeft",
+          "placeholder": "{{$Test3ColumnLeft}}",
+          "value": "Test 3 Column Left"
+        },
+        {
+          "key": "Test3ColumnRight",
+          "placeholder": "{{$Test3ColumnRight}}",
+          "value": "Test 3 Column Right"
+        }
+      ],
+      "originalContent": "{{#Columns}}\r\n    {{@HTMLPLACEHOLDER1}}\r\n        <h3>{{$Test3ColumnLeft}}</h3>\r\n    {{/HTMLPLACEHOLDER1}}\r\n    {{@HTMLPLACEHOLDER2}}\r\n        <h3>{{$Test3ColumnRight}}</h3>\r\n    {{/HTMLPLACEHOLDER2}}\r\n    {{@HTMLPLACEHOLDER3}}\r\n        <h3>{{$Test3ColumnCenter}}</h3>\r\n    {{/HTMLPLACEHOLDER3}}\r\n{{/Columns}}\r\n\r\n",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 0,
+          "originalText": "{{$Test3ColumnCenter}}",
+          "replacementText": "Test 3 Column Center",
+          "startIndex": 0,
+          "type": "JsonPlaceholder"
+        },
+        {
+          "endIndex": 0,
+          "originalText": "{{$Test3ColumnLeft}}",
+          "replacementText": "Test 3 Column Left",
+          "startIndex": 0,
+          "type": "JsonPlaceholder"
+        },
+        {
+          "endIndex": 0,
+          "originalText": "{{$Test3ColumnRight}}",
+          "replacementText": "Test 3 Column Right",
+          "startIndex": 0,
+          "type": "JsonPlaceholder"
+        },
+        {
+          "endIndex": 0,
+          "originalText": "{{#Columns}}\r\n    {{@HTMLPLACEHOLDER1}}\r\n        <h3>{{$Test3ColumnLeft}}</h3>\r\n    {{/HTMLPLACEHOLDER1}}\r\n    {{@HTMLPLACEHOLDER2}}\r\n        <h3>{{$Test3ColumnRight}}</h3>\r\n    {{/HTMLPLACEHOLDER2}}\r\n    {{@HTMLPLACEHOLDER3}}\r\n        <h3>{{$Test3ColumnCenter}}</h3>\r\n    {{/HTMLPLACEHOLDER3}}\r\n{{/Columns}}",
+          "replacementText": "<div style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\">\r\n    <div>\r\n        \r\n        <h3>{{$Test3ColumnLeft}}</h3>\r\n    \r\n    </div>\r\n    <div>\r\n        \r\n        <h3>{{$Test3ColumnCenter}}</h3>\r\n    \r\n    </div>\r\n    <div>\r\n        \r\n        <h3>{{$Test3ColumnRight}}</h3>\r\n    \r\n    </div>\r\n</div>\r\n",
+          "startIndex": 0,
+          "type": "SlottedTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+        {
+          "endIndex": 308,
+          "fullMatch": "{{#Columns}}\r\n    {{@HTMLPLACEHOLDER1}}\r\n        <h3>{{$Test3ColumnLeft}}</h3>\r\n    {{/HTMLPLACEHOLDER1}}\r\n    {{@HTMLPLACEHOLDER2}}\r\n        <h3>{{$Test3ColumnRight}}</h3>\r\n    {{/HTMLPLACEHOLDER2}}\r\n    {{@HTMLPLACEHOLDER3}}\r\n        <h3>{{$Test3ColumnCenter}}</h3>\r\n    {{/HTMLPLACEHOLDER3}}\r\n{{/Columns}}",
+          "innerContent": "\r\n    {{@HTMLPLACEHOLDER1}}\r\n        <h3>{{$Test3ColumnLeft}}</h3>\r\n    {{/HTMLPLACEHOLDER1}}\r\n    {{@HTMLPLACEHOLDER2}}\r\n        <h3>{{$Test3ColumnRight}}</h3>\r\n    {{/HTMLPLACEHOLDER2}}\r\n    {{@HTMLPLACEHOLDER3}}\r\n        <h3>{{$Test3ColumnCenter}}</h3>\r\n    {{/HTMLPLACEHOLDER3}}\r\n",
+          "name": "Columns",
+          "slots": [
+            {
+              "closeTag": "{{/HTMLPLACEHOLDER1}}",
+              "content": "\r\n        <h3>{{$Test3ColumnLeft}}</h3>\r\n    ",
+              "endIndex": 93,
+              "nestedPlaceholders": [
+                {
+                  "endIndex": 34,
+                  "fullMatch": "{{$Test3ColumnLeft}}",
+                  "name": "$Test3ColumnLeft",
+                  "nestedPlaceholders": [
+                  ],
+                  "nestedSlots": [
+                  ],
+                  "startIndex": 14,
+                  "templateKey": "$test3columnleft"
+                }
+              ],
+              "nestedSlots": [
+              ],
+              "nestedSlottedTemplates": [
+              ],
+              "number": "1",
+              "openTag": "{{@HTMLPLACEHOLDER1}}",
+              "slotKey": "{{$HTMLPLACEHOLDER1}}",
+              "startIndex": 6
+            },
+            {
+              "closeTag": "{{/HTMLPLACEHOLDER2}}",
+              "content": "\r\n        <h3>{{$Test3ColumnRight}}</h3>\r\n    ",
+              "endIndex": 187,
+              "nestedPlaceholders": [
+                {
+                  "endIndex": 35,
+                  "fullMatch": "{{$Test3ColumnRight}}",
+                  "name": "$Test3ColumnRight",
+                  "nestedPlaceholders": [
+                  ],
+                  "nestedSlots": [
+                  ],
+                  "startIndex": 14,
+                  "templateKey": "$test3columnright"
+                }
+              ],
+              "nestedSlots": [
+              ],
+              "nestedSlottedTemplates": [
+              ],
+              "number": "2",
+              "openTag": "{{@HTMLPLACEHOLDER2}}",
+              "slotKey": "{{$HTMLPLACEHOLDER2}}",
+              "startIndex": 99
+            },
+            {
+              "closeTag": "{{/HTMLPLACEHOLDER3}}",
+              "content": "\r\n        <h3>{{$Test3ColumnCenter}}</h3>\r\n    ",
+              "endIndex": 282,
+              "nestedPlaceholders": [
+                {
+                  "endIndex": 36,
+                  "fullMatch": "{{$Test3ColumnCenter}}",
+                  "name": "$Test3ColumnCenter",
+                  "nestedPlaceholders": [
+                  ],
+                  "nestedSlots": [
+                  ],
+                  "startIndex": 14,
+                  "templateKey": "$test3columncenter"
+                }
+              ],
+              "nestedSlots": [
+              ],
+              "nestedSlottedTemplates": [
+              ],
+              "number": "3",
+              "openTag": "{{@HTMLPLACEHOLDER3}}",
+              "slotKey": "{{$HTMLPLACEHOLDER3}}",
+              "startIndex": 193
+            }
+          ],
+          "startIndex": 0,
+          "templateKey": "columns"
+        }
+      ]
+    }
+  }
+}

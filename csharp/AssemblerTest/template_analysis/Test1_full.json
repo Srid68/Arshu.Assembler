@@ -1,0 +1,211 @@
+{
+  "rawTemplates": {
+    "test1_test1": "\r\n{{Test1Content}}\r\n\r\n{{Test2Content}}\r\n\r\n",
+    "test1_test1content": "{{test1contentcontent}}",
+    "test1_test1contentcontent": "\r\n<h1>{{$Test1ContentContent}}</h1>",
+    "test1_test2content": "<div class=\"demo-section\">\r\n    <h4>Coming Soon - {{$Test2Content}}</h4>\r\n    <ul>\r\n        {{@items}}\r\n            <li {{@Highlight}}style=\"color:red;\"{{/Highlight}}>{{$Info}}</li>\r\n        {{/items}}\r\n        {{^items}}\r\n            <li>No items found</li>\r\n        {{/items}}\r\n    </ul>\r\n</div>"
+  },
+  "siteName": "Test1",
+  "templateKeys": [
+    "test1_test1",
+    "test1_test1content",
+    "test1_test1contentcontent",
+    "test1_test2content"
+  ],
+  "templates": {
+    "test1_test1": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": true,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "\r\n{{Test1Content}}\r\n\r\n{{Test2Content}}\r\n\r\n",
+      "placeholders": [
+        {
+          "endIndex": 18,
+          "fullMatch": "{{Test1Content}}",
+          "name": "Test1Content",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 2,
+          "templateKey": "test1content"
+        },
+        {
+          "endIndex": 38,
+          "fullMatch": "{{Test2Content}}",
+          "name": "Test2Content",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 22,
+          "templateKey": "test2content"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 18,
+          "originalText": "{{Test1Content}}",
+          "replacementText": "{{test1contentcontent}}",
+          "startIndex": 2,
+          "type": "SimpleTemplate"
+        },
+        {
+          "endIndex": 38,
+          "originalText": "{{Test2Content}}",
+          "replacementText": "<div class=\"demo-section\">\r\n    <h4>Coming Soon - {{$Test2Content}}</h4>\r\n    <ul>\r\n        {{@items}}\r\n            <li {{@Highlight}}style=\"color:red;\"{{/Highlight}}>{{$Info}}</li>\r\n        {{/items}}\r\n        {{^items}}\r\n            <li>No items found</li>\r\n        {{/items}}\r\n    </ul>\r\n</div>",
+          "startIndex": 22,
+          "type": "SimpleTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+      ]
+    },
+    "test1_test1content": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": true,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "{{test1contentcontent}}",
+      "placeholders": [
+        {
+          "endIndex": 23,
+          "fullMatch": "{{test1contentcontent}}",
+          "name": "test1contentcontent",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 0,
+          "templateKey": "test1contentcontent"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 23,
+          "originalText": "{{test1contentcontent}}",
+          "replacementText": "\r\n<h1>{{$Test1ContentContent}}</h1>",
+          "startIndex": 0,
+          "type": "SimpleTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+      ]
+    },
+    "test1_test1contentcontent": {
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": false,
+      "jsonData": {
+        "Test1ContentContent": "Test 1 Content Content"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Test1ContentContent",
+          "placeholder": "{{$Test1ContentContent}}",
+          "value": "Test 1 Content Content"
+        }
+      ],
+      "originalContent": "\r\n<h1>{{$Test1ContentContent}}</h1>",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 0,
+          "originalText": "{{$Test1ContentContent}}",
+          "replacementText": "Test 1 Content Content",
+          "startIndex": 0,
+          "type": "JsonPlaceholder"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+      ]
+    },
+    "test1_test2content": {
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": false,
+      "jsonData": {
+        "Test2Content": "Test 2 Content",
+        "items": [
+          {
+            "Highlight": false,
+            "Info": "Live demo upload"
+          },
+          {
+            "Highlight": false,
+            "Info": "Custom domain support"
+          },
+          {
+            "Highlight": true,
+            "Info": "SSL certificates"
+          }
+        ]
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Test2Content",
+          "placeholder": "{{$Test2Content}}",
+          "value": "Test 2 Content"
+        }
+      ],
+      "originalContent": "<div class=\"demo-section\">\r\n    <h4>Coming Soon - {{$Test2Content}}</h4>\r\n    <ul>\r\n        {{@items}}\r\n            <li {{@Highlight}}style=\"color:red;\"{{/Highlight}}>{{$Info}}</li>\r\n        {{/items}}\r\n        {{^items}}\r\n            <li>No items found</li>\r\n        {{/items}}\r\n    </ul>\r\n</div>",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 201,
+          "originalText": "{{@items}}\r\n            <li {{@Highlight}}style=\"color:red;\"{{/Highlight}}>{{$Info}}</li>\r\n        {{/items}}",
+          "replacementText": "\r\n            <li >Live demo upload</li>\r\n        \r\n            <li >Custom domain support</li>\r\n        \r\n            <li style=\"color:red;\">SSL certificates</li>\r\n        ",
+          "startIndex": 92,
+          "type": "JsonPlaceholder"
+        },
+        {
+          "endIndex": 278,
+          "originalText": "{{^items}}\r\n            <li>No items found</li>\r\n        {{/items}}",
+          "replacementText": "",
+          "startIndex": 211,
+          "type": "JsonPlaceholder"
+        },
+        {
+          "endIndex": 0,
+          "originalText": "{{$Test2Content}}",
+          "replacementText": "Test 2 Content",
+          "startIndex": 0,
+          "type": "JsonPlaceholder"
+        },
+        {
+          "endIndex": 201,
+          "originalText": "{{@items}}\r\n            <li {{@Highlight}}style=\"color:red;\"{{/Highlight}}>{{$Info}}</li>\r\n        {{/items}}",
+          "replacementText": "\r\n            <li >Live demo upload</li>\r\n        \r\n            <li >Custom domain support</li>\r\n        \r\n            <li style=\"color:red;\">SSL certificates</li>\r\n        ",
+          "startIndex": 92,
+          "type": "JsonPlaceholder"
+        },
+        {
+          "endIndex": 278,
+          "originalText": "{{^items}}\r\n            <li>No items found</li>\r\n        {{/items}}",
+          "replacementText": "",
+          "startIndex": 211,
+          "type": "JsonPlaceholder"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+      ]
+    }
+  }
+}

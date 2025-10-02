@@ -1,0 +1,94 @@
+{
+    "siteName": "HtmlRule2B",
+    "templates": {
+        "htmlrule2b_columns": {
+            "originalContent": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER1}}\r\n    <\/div>\r\n    <div>\r\n        {{$HTMLPLACEHOLDER3}}\r\n    <\/div>\r\n    <div>\r\n        {{$HTMLPLACEHOLDER2}}\r\n    <\/div>\r\n<\/div>\r\n",
+            "placeholders": [],
+            "slottedTemplates": [],
+            "jsonPlaceholders": [],
+            "replacementMappings": [],
+            "hasPlaceholders": false,
+            "hasSlottedTemplates": false,
+            "hasJsonData": false,
+            "hasJsonPlaceholders": false,
+            "hasReplacementMappings": false,
+            "requiresProcessing": false
+        },
+        "htmlrule2b_html2b": {
+            "originalContent": "\r\n\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 2 of 5 : Slotted Markup Assembly - Example 2B<\/h1>\r\n        <h3>Simple - Markup Assembly from multi slotted components<\/h3>\r\n        <hr \/>\r\n        <br \/>\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Slotted Component [#Columns] Merged with Multiple PlaceHolder Content from Html Component [Html2B]\r\n            <\/span>\r\n            <hr \/>\r\n\r\n            {{#Columns}}\r\n                {{@HTMLPLACEHOLDER1}}\r\n                    <h3>\r\n                        Slotted Left PlaceHolder 1 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER1}}\r\n                {{@HTMLPLACEHOLDER2}}\r\n                    <h3>\r\n                        Slotted Right PlaceHolder 2 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER2}}\r\n                {{@HTMLPLACEHOLDER3}}\r\n                    <h3>\r\n                        Slotted Center PlaceHolder 3 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER3}}\r\n            {{\/Columns}}\r\n\r\n        <\/div>\r\n\r\n    <\/div>\r\n<\/div>\r\n\r\n\r\n",
+            "placeholders": [],
+            "slottedTemplates": [
+                {
+                    "name": "Columns",
+                    "startIndex": 580,
+                    "endIndex": 1281,
+                    "fullMatch": "{{#Columns}}\r\n                {{@HTMLPLACEHOLDER1}}\r\n                    <h3>\r\n                        Slotted Left PlaceHolder 1 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER1}}\r\n                {{@HTMLPLACEHOLDER2}}\r\n                    <h3>\r\n                        Slotted Right PlaceHolder 2 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER2}}\r\n                {{@HTMLPLACEHOLDER3}}\r\n                    <h3>\r\n                        Slotted Center PlaceHolder 3 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER3}}\r\n            {{\/Columns}}",
+                    "innerContent": "\r\n                {{@HTMLPLACEHOLDER1}}\r\n                    <h3>\r\n                        Slotted Left PlaceHolder 1 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER1}}\r\n                {{@HTMLPLACEHOLDER2}}\r\n                    <h3>\r\n                        Slotted Right PlaceHolder 2 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER2}}\r\n                {{@HTMLPLACEHOLDER3}}\r\n                    <h3>\r\n                        Slotted Center PlaceHolder 3 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER3}}\r\n            ",
+                    "templateKey": "columns",
+                    "slots": [
+                        {
+                            "number": "1",
+                            "startIndex": 18,
+                            "endIndex": 220,
+                            "content": "\r\n                    <h3>\r\n                        Slotted Left PlaceHolder 1 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                ",
+                            "slotKey": "{{$HTMLPLACEHOLDER1}}",
+                            "openTag": "{{@HTMLPLACEHOLDER1}}",
+                            "closeTag": "{{\/HTMLPLACEHOLDER1}}",
+                            "nestedSlots": [],
+                            "nestedPlaceholders": [],
+                            "nestedSlottedTemplates": []
+                        },
+                        {
+                            "number": "2",
+                            "startIndex": 238,
+                            "endIndex": 441,
+                            "content": "\r\n                    <h3>\r\n                        Slotted Right PlaceHolder 2 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                ",
+                            "slotKey": "{{$HTMLPLACEHOLDER2}}",
+                            "openTag": "{{@HTMLPLACEHOLDER2}}",
+                            "closeTag": "{{\/HTMLPLACEHOLDER2}}",
+                            "nestedSlots": [],
+                            "nestedPlaceholders": [],
+                            "nestedSlottedTemplates": []
+                        },
+                        {
+                            "number": "3",
+                            "startIndex": 459,
+                            "endIndex": 663,
+                            "content": "\r\n                    <h3>\r\n                        Slotted Center PlaceHolder 3 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                ",
+                            "slotKey": "{{$HTMLPLACEHOLDER3}}",
+                            "openTag": "{{@HTMLPLACEHOLDER3}}",
+                            "closeTag": "{{\/HTMLPLACEHOLDER3}}",
+                            "nestedSlots": [],
+                            "nestedPlaceholders": [],
+                            "nestedSlottedTemplates": []
+                        }
+                    ]
+                }
+            ],
+            "jsonPlaceholders": [],
+            "replacementMappings": [
+                {
+                    "startIndex": 0,
+                    "endIndex": 0,
+                    "originalText": "{{#Columns}}\r\n                {{@HTMLPLACEHOLDER1}}\r\n                    <h3>\r\n                        Slotted Left PlaceHolder 1 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER1}}\r\n                {{@HTMLPLACEHOLDER2}}\r\n                    <h3>\r\n                        Slotted Right PlaceHolder 2 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER2}}\r\n                {{@HTMLPLACEHOLDER3}}\r\n                    <h3>\r\n                        Slotted Center PlaceHolder 3 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER3}}\r\n            {{\/Columns}}",
+                    "replacementText": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        \r\n                    <h3>\r\n                        Slotted Left PlaceHolder 1 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                \r\n    <\/div>\r\n    <div>\r\n        \r\n                    <h3>\r\n                        Slotted Center PlaceHolder 3 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                \r\n    <\/div>\r\n    <div>\r\n        \r\n                    <h3>\r\n                        Slotted Right PlaceHolder 2 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                \r\n    <\/div>\r\n<\/div>\r\n",
+                    "type": "SlottedTemplate"
+                }
+            ],
+            "hasPlaceholders": false,
+            "hasSlottedTemplates": true,
+            "hasJsonData": false,
+            "hasJsonPlaceholders": false,
+            "hasReplacementMappings": true,
+            "requiresProcessing": true
+        }
+    },
+    "rawTemplates": {
+        "htmlrule2b_columns": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER1}}\r\n    <\/div>\r\n    <div>\r\n        {{$HTMLPLACEHOLDER3}}\r\n    <\/div>\r\n    <div>\r\n        {{$HTMLPLACEHOLDER2}}\r\n    <\/div>\r\n<\/div>\r\n",
+        "htmlrule2b_html2b": "\r\n\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 2 of 5 : Slotted Markup Assembly - Example 2B<\/h1>\r\n        <h3>Simple - Markup Assembly from multi slotted components<\/h3>\r\n        <hr \/>\r\n        <br \/>\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Slotted Component [#Columns] Merged with Multiple PlaceHolder Content from Html Component [Html2B]\r\n            <\/span>\r\n            <hr \/>\r\n\r\n            {{#Columns}}\r\n                {{@HTMLPLACEHOLDER1}}\r\n                    <h3>\r\n                        Slotted Left PlaceHolder 1 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER1}}\r\n                {{@HTMLPLACEHOLDER2}}\r\n                    <h3>\r\n                        Slotted Right PlaceHolder 2 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER2}}\r\n                {{@HTMLPLACEHOLDER3}}\r\n                    <h3>\r\n                        Slotted Center PlaceHolder 3 Content from [Html2B] Html Component\r\n                    <\/h3>\r\n                {{\/HTMLPLACEHOLDER3}}\r\n            {{\/Columns}}\r\n\r\n        <\/div>\r\n\r\n    <\/div>\r\n<\/div>\r\n\r\n\r\n"
+    },
+    "templateKeys": [
+        "htmlrule2b_columns",
+        "htmlrule2b_html2b"
+    ]
+}

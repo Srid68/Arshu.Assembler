@@ -1,0 +1,118 @@
+{
+    "siteName": "Test5",
+    "templates": {
+        "test5_test5": {
+            "originalContent": "\r\n{{$Name}}\r\n\r\n<div>\r\n    <select>\r\n        {{@DataList}}\r\n        <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n        {{\/DataList}}\r\n        {{^DataList}}\r\n        <option value=\"0\">No Data Found<\/option>\r\n        {{\/DataList}}\r\n    <\/select>\r\n<\/div>\r\n\r\n\r\n<div>\r\n    <select>\r\n        {{@anotherList}}\r\n        <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n        {{\/anotherList}}\r\n        {{^anotherList}}\r\n        <option value=\"0\">No Another Data Found<\/option>\r\n        {{\/anotherList}}\r\n    <\/select>\r\n<\/div>",
+            "placeholders": [],
+            "slottedTemplates": [],
+            "jsonData": {
+                "Name": "Test5",
+                "DataList": [
+                    {
+                        "Id": 1,
+                        "Name": "Item 1",
+                        "Value": 100,
+                        "Selected": false
+                    },
+                    {
+                        "Id": 2,
+                        "Name": "Item 2",
+                        "Value": 200,
+                        "Selected": false
+                    },
+                    {
+                        "Id": 3,
+                        "Name": "Item 3",
+                        "Value": 300,
+                        "Selected": true
+                    }
+                ],
+                "AnotherList": []
+            },
+            "jsonPlaceholders": [
+                {
+                    "key": "Name",
+                    "placeholder": "{{$Name}}",
+                    "value": "Test5"
+                }
+            ],
+            "replacementMappings": [
+                {
+                    "startIndex": 44,
+                    "endIndex": 183,
+                    "originalText": "{{@DataList}}\r\n        <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n        {{\/DataList}}",
+                    "replacementText": "\r\n        <option  value=\"100\">Item 1<\/option>\r\n        \r\n        <option  value=\"200\">Item 2<\/option>\r\n        \r\n        <option selected=\"selected\"  value=\"300\">Item 3<\/option>\r\n        ",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 193,
+                    "endIndex": 279,
+                    "originalText": "{{^DataList}}\r\n        <option value=\"0\">No Data Found<\/option>\r\n        {{\/DataList}}",
+                    "replacementText": "",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 337,
+                    "endIndex": 482,
+                    "originalText": "{{@anotherList}}\r\n        <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n        {{\/anotherList}}",
+                    "replacementText": "",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 492,
+                    "endIndex": 592,
+                    "originalText": "{{^anotherList}}\r\n        <option value=\"0\">No Another Data Found<\/option>\r\n        {{\/anotherList}}",
+                    "replacementText": "\r\n        <option value=\"0\">No Another Data Found<\/option>\r\n        ",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 0,
+                    "endIndex": 0,
+                    "originalText": "{{$Name}}",
+                    "replacementText": "Test5",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 44,
+                    "endIndex": 183,
+                    "originalText": "{{@DataList}}\r\n        <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n        {{\/DataList}}",
+                    "replacementText": "\r\n        <option  value=\"100\">Item 1<\/option>\r\n        \r\n        <option  value=\"200\">Item 2<\/option>\r\n        \r\n        <option selected=\"selected\"  value=\"300\">Item 3<\/option>\r\n        ",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 193,
+                    "endIndex": 279,
+                    "originalText": "{{^DataList}}\r\n        <option value=\"0\">No Data Found<\/option>\r\n        {{\/DataList}}",
+                    "replacementText": "",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 337,
+                    "endIndex": 482,
+                    "originalText": "{{@anotherList}}\r\n        <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n        {{\/anotherList}}",
+                    "replacementText": "",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 492,
+                    "endIndex": 592,
+                    "originalText": "{{^anotherList}}\r\n        <option value=\"0\">No Another Data Found<\/option>\r\n        {{\/anotherList}}",
+                    "replacementText": "\r\n        <option value=\"0\">No Another Data Found<\/option>\r\n        ",
+                    "type": "JsonPlaceholder"
+                }
+            ],
+            "hasPlaceholders": false,
+            "hasSlottedTemplates": false,
+            "hasJsonData": true,
+            "hasJsonPlaceholders": true,
+            "hasReplacementMappings": true,
+            "requiresProcessing": true
+        }
+    },
+    "rawTemplates": {
+        "test5_test5": "\r\n{{$Name}}\r\n\r\n<div>\r\n    <select>\r\n        {{@DataList}}\r\n        <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n        {{\/DataList}}\r\n        {{^DataList}}\r\n        <option value=\"0\">No Data Found<\/option>\r\n        {{\/DataList}}\r\n    <\/select>\r\n<\/div>\r\n\r\n\r\n<div>\r\n    <select>\r\n        {{@anotherList}}\r\n        <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n        {{\/anotherList}}\r\n        {{^anotherList}}\r\n        <option value=\"0\">No Another Data Found<\/option>\r\n        {{\/anotherList}}\r\n    <\/select>\r\n<\/div>"
+    },
+    "templateKeys": [
+        "test5_test5"
+    ]
+}

@@ -1,0 +1,25 @@
+
+{{$Name}}
+
+<div>
+    <select>
+        {{@DataList}}
+        <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
+        {{/DataList}}
+        {{^DataList}}
+        <option value="0">No Data Found</option>
+        {{/DataList}}
+    </select>
+</div>
+
+
+<div>
+    <select>
+        {{@anotherList}}
+        <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
+        {{/anotherList}}
+        {{^anotherList}}
+        <option value="0">No Another Data Found</option>
+        {{/anotherList}}
+    </select>
+</div>

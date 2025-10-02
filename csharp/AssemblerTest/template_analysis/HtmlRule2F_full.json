@@ -1,0 +1,219 @@
+{
+  "rawTemplates": {
+    "htmlrule2f_center": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER}}\r\n    </div>\r\n</div>\r\n",
+    "htmlrule2f_html2f": "\r\n\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 2 of 5 : Slotted Markup Assembly - Example 2F</h1>\r\n        <h3>Hierarchical/Nested - Markup Assembly from placeholder having single slotted components</h3>\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html2FContent]\r\n            </span>\r\n            <hr />\r\n            {{Html2FContent}}\r\n        </div>\r\n\r\n    </div>\r\n</div>\r\n\r\n\r\n",
+    "htmlrule2f_html2fcontent": " <div>\r\n     <span style=\"text-decoration:underline\">\r\n         Html Content from Slotted Component [#Center] Merged with Nested Slotted Component [#ZoomIn] Merged with PlaceHolder Content from Component [Html2FContent]\r\n     </span>\r\n    <hr />\r\n\r\n    {{#Center}}\r\n        {{@HTMLPLACEHOLDER}}\r\n            {{#ZoomIn}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{Html2FContentA}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/ZoomIn}}\r\n        {{/HTMLPLACEHOLDER}}\r\n    {{/Center}}\r\n\r\n</div>",
+    "htmlrule2f_html2fcontenta": " <h3>\r\n   Nested Slotted PlaceHolder Content from [Html2FContentA] Html Component              \r\n </h3>",
+    "htmlrule2f_zoomin": "<div class=\"ar-column ar-animated ar-zoomIn\">\r\n    {{$HTMLPLACEHOLDER}}\r\n</div>\r\n\r\n"
+  },
+  "siteName": "HtmlRule2F",
+  "templateKeys": [
+    "htmlrule2f_html2f",
+    "htmlrule2f_center",
+    "htmlrule2f_zoomin",
+    "htmlrule2f_html2fcontent",
+    "htmlrule2f_html2fcontenta"
+  ],
+  "templates": {
+    "htmlrule2f_center": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": false,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER}}\r\n    </div>\r\n</div>\r\n",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+      ],
+      "requiresProcessing": false,
+      "slottedTemplates": [
+      ]
+    },
+    "htmlrule2f_html2f": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": true,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "\r\n\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 2 of 5 : Slotted Markup Assembly - Example 2F</h1>\r\n        <h3>Hierarchical/Nested - Markup Assembly from placeholder having single slotted components</h3>\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html2FContent]\r\n            </span>\r\n            <hr />\r\n            {{Html2FContent}}\r\n        </div>\r\n\r\n    </div>\r\n</div>\r\n\r\n\r\n",
+      "placeholders": [
+        {
+          "endIndex": 544,
+          "fullMatch": "{{Html2FContent}}",
+          "name": "Html2FContent",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 527,
+          "templateKey": "html2fcontent"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 544,
+          "originalText": "{{Html2FContent}}",
+          "replacementText": " <div>\r\n     <span style=\"text-decoration:underline\">\r\n         Html Content from Slotted Component [#Center] Merged with Nested Slotted Component [#ZoomIn] Merged with PlaceHolder Content from Component [Html2FContent]\r\n     </span>\r\n    <hr />\r\n\r\n    {{#Center}}\r\n        {{@HTMLPLACEHOLDER}}\r\n            {{#ZoomIn}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{Html2FContentA}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/ZoomIn}}\r\n        {{/HTMLPLACEHOLDER}}\r\n    {{/Center}}\r\n\r\n</div>",
+          "startIndex": 527,
+          "type": "SimpleTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+      ]
+    },
+    "htmlrule2f_html2fcontent": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": true,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": true,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": " <div>\r\n     <span style=\"text-decoration:underline\">\r\n         Html Content from Slotted Component [#Center] Merged with Nested Slotted Component [#ZoomIn] Merged with PlaceHolder Content from Component [Html2FContent]\r\n     </span>\r\n    <hr />\r\n\r\n    {{#Center}}\r\n        {{@HTMLPLACEHOLDER}}\r\n            {{#ZoomIn}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{Html2FContentA}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/ZoomIn}}\r\n        {{/HTMLPLACEHOLDER}}\r\n    {{/Center}}\r\n\r\n</div>",
+      "placeholders": [
+        {
+          "endIndex": 397,
+          "fullMatch": "{{Html2FContentA}}",
+          "name": "Html2FContentA",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 379,
+          "templateKey": "html2fcontenta"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 397,
+          "originalText": "{{Html2FContentA}}",
+          "replacementText": " <h3>\r\n   Nested Slotted PlaceHolder Content from [Html2FContentA] Html Component              \r\n </h3>",
+          "startIndex": 379,
+          "type": "SimpleTemplate"
+        },
+        {
+          "endIndex": 0,
+          "originalText": "{{#Center}}\r\n        {{@HTMLPLACEHOLDER}}\r\n            {{#ZoomIn}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{Html2FContentA}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/ZoomIn}}\r\n        {{/HTMLPLACEHOLDER}}\r\n    {{/Center}}",
+          "replacementText": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        \r\n            <div class=\"ar-column ar-animated ar-zoomIn\">\r\n    \r\n                     <h3>\r\n   Nested Slotted PlaceHolder Content from [Html2FContentA] Html Component              \r\n </h3>\r\n                \r\n</div>\r\n\r\n\r\n        \r\n    </div>\r\n</div>\r\n",
+          "startIndex": 0,
+          "type": "SlottedTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+        {
+          "endIndex": 507,
+          "fullMatch": "{{#Center}}\r\n        {{@HTMLPLACEHOLDER}}\r\n            {{#ZoomIn}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{Html2FContentA}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/ZoomIn}}\r\n        {{/HTMLPLACEHOLDER}}\r\n    {{/Center}}",
+          "innerContent": "\r\n        {{@HTMLPLACEHOLDER}}\r\n            {{#ZoomIn}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{Html2FContentA}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/ZoomIn}}\r\n        {{/HTMLPLACEHOLDER}}\r\n    ",
+          "name": "Center",
+          "slots": [
+            {
+              "closeTag": "{{/HTMLPLACEHOLDER}}",
+              "content": "\r\n            {{#ZoomIn}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{Html2FContentA}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/ZoomIn}}\r\n        ",
+              "endIndex": 226,
+              "nestedPlaceholders": [
+                {
+                  "endIndex": 103,
+                  "fullMatch": "{{Html2FContentA}}",
+                  "name": "Html2FContentA",
+                  "nestedPlaceholders": [
+                  ],
+                  "nestedSlots": [
+                  ],
+                  "startIndex": 85,
+                  "templateKey": "html2fcontenta"
+                }
+              ],
+              "nestedSlots": [
+              ],
+              "nestedSlottedTemplates": [
+                {
+                  "endIndex": 166,
+                  "fullMatch": "{{#ZoomIn}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{Html2FContentA}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/ZoomIn}}",
+                  "innerContent": "\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{Html2FContentA}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            ",
+                  "name": "ZoomIn",
+                  "slots": [
+                    {
+                      "closeTag": "{{/HTMLPLACEHOLDER}}",
+                      "content": "\r\n                    {{Html2FContentA}}\r\n                ",
+                      "endIndex": 116,
+                      "nestedPlaceholders": [
+                        {
+                          "endIndex": 40,
+                          "fullMatch": "{{Html2FContentA}}",
+                          "name": "Html2FContentA",
+                          "nestedPlaceholders": [
+                          ],
+                          "nestedSlots": [
+                          ],
+                          "startIndex": 22,
+                          "templateKey": "html2fcontenta"
+                        }
+                      ],
+                      "nestedSlots": [
+                      ],
+                      "nestedSlottedTemplates": [
+                      ],
+                      "number": "",
+                      "openTag": "{{@HTMLPLACEHOLDER}}",
+                      "slotKey": "{{$HTMLPLACEHOLDER}}",
+                      "startIndex": 18
+                    }
+                  ],
+                  "startIndex": 14,
+                  "templateKey": "zoomin"
+                }
+              ],
+              "number": "",
+              "openTag": "{{@HTMLPLACEHOLDER}}",
+              "slotKey": "{{$HTMLPLACEHOLDER}}",
+              "startIndex": 10
+            }
+          ],
+          "startIndex": 253,
+          "templateKey": "center"
+        }
+      ]
+    },
+    "htmlrule2f_html2fcontenta": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": false,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": " <h3>\r\n   Nested Slotted PlaceHolder Content from [Html2FContentA] Html Component              \r\n </h3>",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+      ],
+      "requiresProcessing": false,
+      "slottedTemplates": [
+      ]
+    },
+    "htmlrule2f_zoomin": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": false,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "<div class=\"ar-column ar-animated ar-zoomIn\">\r\n    {{$HTMLPLACEHOLDER}}\r\n</div>\r\n\r\n",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+      ],
+      "requiresProcessing": false,
+      "slottedTemplates": [
+      ]
+    }
+  }
+}

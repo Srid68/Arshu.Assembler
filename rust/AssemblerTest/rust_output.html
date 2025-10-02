@@ -1,0 +1,213 @@
+Current Directory: "C:\\Polyglot\\Arshu.Assembler\\rust\\AssemblerTest"
+Assembler Web Directory: "C:\\Polyglot\\Arshu.Assembler\\rust\\AssemblerWeb\\wwwroot"
+🔍 Analyzing site: JsonRule1A
+============================================================
+Current Directory: Ok("C:\\Polyglot\\Arshu.Assembler\\rust\\AssemblerTest")
+AssemblerWebDirPath: C:\Polyglot\Arshu.Assembler\rust\AssemblerWeb\wwwroot
+AppSites path: C:\Polyglot\Arshu.Assembler\rust\AssemblerWeb\wwwroot/AppSites/JsonRule1A
+AppSites exists: true
+Site directory found and accessible
+LoadGetTemplateFiles found 1 templates
+LoadProcessGetTemplateFiles found 1 templates
+📋 Summary for JsonRule1A:
+{
+  "siteName": "JsonRule1A",
+  "templatesRequiringProcessing": 1,
+  "templatesWithJsonData": 1,
+  "templatesWithPlaceholders": 0,
+  "totalTemplates": 1
+}
+
+📄 Full Structure for JsonRule1A:
+{
+  "siteName": "JsonRule1A",
+  "templates": {
+    "jsonrule1a_json1a": {
+      "originalContent": "\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 4 of 5 : Json Key Assembly - Example 1A</h1>\r\n        <h3>Simple - Json Key Assembly in component</h3>\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Json Key Content from Key [Json1AKey] from Json Component [Json1A]\r\n            </span>\r\n            <hr />\r\n            {{$Json1AKey}}\r\n        </div>\r\n\r\n\t</div>\r\n</div>",
+      "placeholders": [],
+      "slottedTemplates": [],
+      "jsonData": {
+        "data": {
+          "Json1AKey": {
+            "String": "Json Key 1A Content"
+          }
+        }
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Json1AKey",
+          "placeholder": "{{$Json1AKey}}",
+          "value": "Json Key 1A Content"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$Json1AKey}}",
+          "replacementText": "Json Key 1A Content",
+          "type": "JsonPlaceholder"
+        }
+      ],
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    }
+  },
+  "rawTemplates": {
+    "jsonrule1a_json1a": "\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 4 of 5 : Json Key Assembly - Example 1A</h1>\r\n        <h3>Simple - Json Key Assembly in component</h3>\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Json Key Content from Key [Json1AKey] from Json Component [Json1A]\r\n            </span>\r\n            <hr />\r\n            {{$Json1AKey}}\r\n        </div>\r\n\r\n\t</div>\r\n</div>"
+  },
+  "templateKeys": [
+    "jsonrule1a_json1a"
+  ]
+}
+💾 Analysis saved to:
+   Summary: C:\Polyglot\Arshu.Assembler\rust\AssemblerTest/template_analysis/JsonRule1A_summary.json
+   Full:    C:\Polyglot\Arshu.Assembler\rust\AssemblerTest/template_analysis/JsonRule1A_full.json
+
+✅ Template structure analysis complete!
+🔬 Advanced Mode: Running advanced tests for filtered scenarios
+
+🔍 ADVANCED TEST : appsite: JsonRule1A appfile: json1A
+✅ LoadGetTemplateFiles: 44 ticks (0ms)
+📂 Loaded 1 templates:
+   • jsonrule1a_json1a: 538 chars HTML + 46 chars JSON
+
+🔧 JSON Processing: ENABLED
+JsonRule1A: 🧪 ADVANCED TEST : scenario: AppView='', AppViewPrefix=''
+🔍 [RUST DEBUG] merge_template_with_json START
+🔍 [RUST DEBUG] Input template length: 538
+🔍 [RUST DEBUG] Input JSON: 
+{
+    "Json1AKey": "Json Key 1A Content"
+}
+🔍 [RUST DEBUG] Parsed JSON object: JsonObject { data: {"Json1AKey": String("Json Key 1A Content")} }
+🔍 [RUST DEBUG] Initial result length: 538
+🔍 [RUST DEBUG] Before simple placeholders replacement, result length: 538
+🔍 [RUST DEBUG] Replacing placeholder '{{$Json1AKey}}' with value 'Json Key 1A Content' (len: 19)
+🔍 [RUST DEBUG] Case-sensitive replacement done: 538 -> 543 chars
+🔍 [RUST DEBUG] Final result length: 543
+🔍 [RUST DEBUG] merge_template_with_json END
+🔍 [RUST DEBUG] merge_template_with_json START
+🔍 [RUST DEBUG] Input template length: 538
+🔍 [RUST DEBUG] Input JSON: 
+{
+    "Json1AKey": "Json Key 1A Content"
+}
+🔍 [RUST DEBUG] Parsed JSON object: JsonObject { data: {"Json1AKey": String("Json Key 1A Content")} }
+🔍 [RUST DEBUG] Initial result length: 538
+🔍 [RUST DEBUG] Before simple placeholders replacement, result length: 538
+🔍 [RUST DEBUG] Replacing placeholder '{{$Json1AKey}}' with value 'Json Key 1A Content' (len: 19)
+🔍 [RUST DEBUG] Case-sensitive replacement done: 538 -> 543 chars
+🔍 [RUST DEBUG] Final result length: 543
+🔍 [RUST DEBUG] merge_template_with_json END
+✅ Normal - MergeTemplates: 918 ticks (0ms)
+✅ PreProcess - MergeTemplates: 131 ticks (0ms)
+
+
+📋 FULL HTML OUTPUT (Normal):
+
+<div style="min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;">
+    <div style="text-align:center;">
+        <h1>Rule 4 of 5 : Json Key Assembly - Example 1A</h1>
+        <h3>Simple - Json Key Assembly in component</h3>
+        <hr />
+
+        <div>
+            <span style="text-decoration:underline">
+                Json Key Content from Key [Json1AKey] from Json Component [Json1A]
+            </span>
+            <hr />
+            Json Key 1A Content
+        </div>
+
+	</div>
+</div>
+
+📋 FULL HTML OUTPUT (PreProcess):
+
+<div style="min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;">
+    <div style="text-align:center;">
+        <h1>Rule 4 of 5 : Json Key Assembly - Example 1A</h1>
+        <h3>Simple - Json Key Assembly in component</h3>
+        <hr />
+
+        <div>
+            <span style="text-decoration:underline">
+                Json Key Content from Key [Json1AKey] from Json Component [Json1A]
+            </span>
+            <hr />
+            Json Key 1A Content
+        </div>
+
+	</div>
+</div>
+JsonRule1A: 📊 RESULTS COMPARISON:
+JsonRule1A: ---------------------------------------------
+JsonRule1A: 🔹 All Two Methods:
+JsonRule1A:   Normal: 543 chars
+JsonRule1A:   PreProcess: 543 chars
+JsonRule1A:   ✅ Normal vs PreProcess: MATCH
+
+JsonRule1A: 🎉 ALL METHODS PRODUCE IDENTICAL RESULTS! ✅
+
+JsonRule1A: 📋 FINAL OUTPUT SAMPLE (full HTML):
+
+<div style="min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;">
+    <div style="text-align:center;">
+        <h1>Rule 4 of 5 : Json Key Assembly - Example 1A</h1>
+        <h3>Simple - Json Key Assembly in component</h3>
+        <hr />
+
+        <div>
+            <span style="text-decoration:underline">
+                Json Key Content from Key [Json1AKey] from Json Component [Json1A]
+            </span>
+            <hr />
+            Json Key 1A Content
+        </div>
+
+	</div>
+</div>
+
+JsonRule1A: 🔎 Checking for unmerged template fields in outputs...
+JsonRule1A:   ✅ Normal output contains no unmerged template fields.
+JsonRule1A:   ✅ PreProcess output contains no unmerged template fields.
+
+JsonRule1A: 🎉 TEST SUCCESS: No unmerged non-JSON template fields found in any output.
+
+==================== RUST ADVANCED TEST SUMMARY ====================
+
+| AppSite    | AppFile    | AppView    | OutputMatch | ViewUnMatch | Error      |
+| ---------- | ---------- | ---------- | ----------- | ----------- | ---------- |
+| JsonRule1A | json1A     |            | PASS        |             |            |
+| ---------- | ---------- | ---------- | ----------- | ----------- | ---------- |
+Test summary JSON saved to: C:\Polyglot\Arshu.Assembler\rust\AssemblerWeb\wwwroot/rust_advancedtest_Summary.json
+Test summary HTML saved to: C:\Polyglot\Arshu.Assembler\rust\AssemblerWeb\wwwroot/rust_advancedtest_Summary.html
+⏱ Performance Mode: Running performance comparison
+
+Template Key: jsonrule1a_json1a
+Templates available: 1
+------------------------------------------------------------
+>>> RUST SCENARIO : 'JsonRule1A', 'json1A', '', ''
+Iterations per test: 1000
+[Normal Engine] 1000 iterations: 12ms
+[Normal Engine] Avg: 0.012ms per op, Output size: 538 chars
+[PreProcess Engine] 1000 iterations: 0ms
+[PreProcess Engine] Avg: 0.000ms per op, Output size: 538 chars
+>>> RUST PERFORMANCE COMPARISON:
+--------------------------------------------------
+Time difference: -12ms (-100.0%)
+Results match: ✅ YES
+
+==================== RUST PERFORMANCE SUMMARY ====================
+
+| AppSite    | AppView | Normal(ms) | PreProc(ms) | Match | PerfDiff |
+| ---------- | ------- | ---------- | ----------- | ----- | -------- |
+| JsonRule1A |         | 12         | 0           | YES   | -100.0%  |
+| ---------- | ------- | ---------- | ----------- | ----- | -------- |
+Performance summary JSON saved to: C:\Polyglot\Arshu.Assembler\rust\AssemblerWeb\wwwroot/rust_perfsummary.json
+Performance summary HTML saved to: C:\Polyglot\Arshu.Assembler\rust\AssemblerWeb\wwwroot/rust_perfsummary.html

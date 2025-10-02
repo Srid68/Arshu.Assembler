@@ -1,0 +1,75 @@
+{
+  "siteName": "HtmlRule3A",
+  "templates": {
+    "htmlrule3a_html3a": {
+      "originalContent": "\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 3 of 5 : Context PlaceHolder Markup Assembly - Example 3A\u003c/h1\u003e\r\n        \u003ch3\u003eSimple - Markup Assembly from placeholder components based on AppView Context\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Html3AContent] or [Html3BContent] based on AppView [Html3A] or [Html3B] Context\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Html3AContent}}\r\n        \u003c/div\u003e\r\n    \u003c/div\u003e\r\n\r\n\u003c/div\u003e\r\n\r\n\r\n",
+      "placeholders": [
+        {
+          "name": "Html3AContent",
+          "startIndex": 590,
+          "endIndex": 607,
+          "fullMatch": "{{Html3AContent}}",
+          "templateKey": "html3acontent",
+          "nestedPlaceholders": null,
+          "nestedSlots": null
+        }
+      ],
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{Html3AContent}}",
+          "replacementText": "\r\n\u003ch3\u003ehtml3A Content\u003c/h3\u003e\r\n",
+          "type": 1
+        }
+      ],
+      "html": "\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 3 of 5 : Context PlaceHolder Markup Assembly - Example 3A\u003c/h1\u003e\r\n        \u003ch3\u003eSimple - Markup Assembly from placeholder components based on AppView Context\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Html3AContent] or [Html3BContent] based on AppView [Html3A] or [Html3B] Context\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Html3AContent}}\r\n        \u003c/div\u003e\r\n    \u003c/div\u003e\r\n\r\n\u003c/div\u003e\r\n\r\n\r\n",
+      "hasPlaceholders": true,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": true
+    },
+    "htmlrule3a_html3acontent": {
+      "originalContent": "\r\n\u003ch3\u003ehtml3A Content\u003c/h3\u003e\r\n",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [],
+      "html": "\r\n\u003ch3\u003ehtml3A Content\u003c/h3\u003e\r\n",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": false
+    },
+    "htmlrule3a_html3bcontent": {
+      "originalContent": "\r\n\u003ch3\u003ehtml3B Content\u003c/h3\u003e\r\n",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [],
+      "html": "\r\n\u003ch3\u003ehtml3B Content\u003c/h3\u003e\r\n",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": false
+    }
+  },
+  "rawTemplates": {
+    "htmlrule3a_html3a": "\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 3 of 5 : Context PlaceHolder Markup Assembly - Example 3A\u003c/h1\u003e\r\n        \u003ch3\u003eSimple - Markup Assembly from placeholder components based on AppView Context\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Html3AContent] or [Html3BContent] based on AppView [Html3A] or [Html3B] Context\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Html3AContent}}\r\n        \u003c/div\u003e\r\n    \u003c/div\u003e\r\n\r\n\u003c/div\u003e\r\n\r\n\r\n",
+    "htmlrule3a_html3acontent": "\r\n\u003ch3\u003ehtml3A Content\u003c/h3\u003e\r\n",
+    "htmlrule3a_html3bcontent": "\r\n\u003ch3\u003ehtml3B Content\u003c/h3\u003e\r\n"
+  },
+  "templateKeys": {
+    "htmlrule3a_html3a": {},
+    "htmlrule3a_html3acontent": {},
+    "htmlrule3a_html3bcontent": {}
+  }
+}

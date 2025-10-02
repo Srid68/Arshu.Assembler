@@ -1,0 +1,16 @@
+
+ <div>
+     <span style="text-decoration:underline">
+         Html Content from Slotted Component [#Center] Merged with PlaceHolder Content from Html Component [Html2DContent]
+     </span>
+    <hr />
+
+    {{#Center}}
+        {{@HTMLPLACEHOLDER}}
+            <h3>
+                Slotted PlaceHolder Content from [Html2DContent] Html Component
+            </h3>
+        {{/HTMLPLACEHOLDER}}
+    {{/Center}}
+
+</div>

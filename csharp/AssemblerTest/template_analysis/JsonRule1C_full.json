@@ -1,0 +1,191 @@
+{
+  "rawTemplates": {
+    "jsonrule1c_json1c": "\r\n\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 4 of 5 : Json Key Assembly - Example 1C</h1>\r\n        <h3>Hierarchical - Json Key Assembly in placeholder component</h3>\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Json1CContent]\r\n            </span>\r\n            <hr />\r\n            {{Json1CContent}}\r\n        </div>\r\n\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Json1CContentB]\r\n            </span>\r\n            <hr />\r\n            {{Json1CContentB}}\r\n        </div>\r\n\r\n    </div>\r\n</div>",
+    "jsonrule1c_json1ccontent": "\r\n\r\n<span style=\"text-decoration:underline\">\r\n    Html Content from Html Component [Json1CContentA]\r\n</span>\r\n<hr />\r\n{{Json1CContentA}}\r\n",
+    "jsonrule1c_json1ccontenta": "\r\n<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Json Key Content from Key [Json1CKeyA] from Json Component [Json1CContentA]\r\n    </span>\r\n    <hr />\r\n    {{Json1CKeyA}}\r\n</div>",
+    "jsonrule1c_json1ccontentb": "<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Json Key Content from Key [Json1CKeyB] from Json Component [Json1CContentB]\r\n    </span>\r\n    <hr />\r\n    {{Json1CKeyB}}\r\n</div>"
+  },
+  "siteName": "JsonRule1C",
+  "templateKeys": [
+    "jsonrule1c_json1c",
+    "jsonrule1c_json1ccontent",
+    "jsonrule1c_json1ccontenta",
+    "jsonrule1c_json1ccontentb"
+  ],
+  "templates": {
+    "jsonrule1c_json1c": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": true,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "\r\n\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 4 of 5 : Json Key Assembly - Example 1C</h1>\r\n        <h3>Hierarchical - Json Key Assembly in placeholder component</h3>\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Json1CContent]\r\n            </span>\r\n            <hr />\r\n            {{Json1CContent}}\r\n        </div>\r\n\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Json1CContentB]\r\n            </span>\r\n            <hr />\r\n            {{Json1CContentB}}\r\n        </div>\r\n\r\n    </div>\r\n</div>",
+      "placeholders": [
+        {
+          "endIndex": 508,
+          "fullMatch": "{{Json1CContent}}",
+          "name": "Json1CContent",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 491,
+          "templateKey": "json1ccontent"
+        },
+        {
+          "endIndex": 753,
+          "fullMatch": "{{Json1CContentB}}",
+          "name": "Json1CContentB",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 735,
+          "templateKey": "json1ccontentb"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 508,
+          "originalText": "{{Json1CContent}}",
+          "replacementText": "\r\n\r\n<span style=\"text-decoration:underline\">\r\n    Html Content from Html Component [Json1CContentA]\r\n</span>\r\n<hr />\r\n{{Json1CContentA}}\r\n",
+          "startIndex": 491,
+          "type": "SimpleTemplate"
+        },
+        {
+          "endIndex": 753,
+          "originalText": "{{Json1CContentB}}",
+          "replacementText": "<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Json Key Content from Key [Json1CKeyB] from Json Component [Json1CContentB]\r\n    </span>\r\n    <hr />\r\n    {{Json1CKeyB}}\r\n</div>",
+          "startIndex": 735,
+          "type": "SimpleTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+      ]
+    },
+    "jsonrule1c_json1ccontent": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": true,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "\r\n\r\n<span style=\"text-decoration:underline\">\r\n    Html Content from Html Component [Json1CContentA]\r\n</span>\r\n<hr />\r\n{{Json1CContentA}}\r\n",
+      "placeholders": [
+        {
+          "endIndex": 136,
+          "fullMatch": "{{Json1CContentA}}",
+          "name": "Json1CContentA",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 118,
+          "templateKey": "json1ccontenta"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 136,
+          "originalText": "{{Json1CContentA}}",
+          "replacementText": "\r\n<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Json Key Content from Key [Json1CKeyA] from Json Component [Json1CContentA]\r\n    </span>\r\n    <hr />\r\n    {{Json1CKeyA}}\r\n</div>",
+          "startIndex": 118,
+          "type": "SimpleTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+      ]
+    },
+    "jsonrule1c_json1ccontenta": {
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasPlaceholders": true,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": false,
+      "jsonData": {
+        "Json1CKeyA": "Json Key 1C Content A"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Json1CKeyA",
+          "placeholder": "{{Json1CKeyA}}",
+          "value": "Json Key 1C Content A"
+        }
+      ],
+      "originalContent": "\r\n<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Json Key Content from Key [Json1CKeyA] from Json Component [Json1CContentA]\r\n    </span>\r\n    <hr />\r\n    {{Json1CKeyA}}\r\n</div>",
+      "placeholders": [
+        {
+          "endIndex": 183,
+          "fullMatch": "{{Json1CKeyA}}",
+          "name": "Json1CKeyA",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 169,
+          "templateKey": "json1ckeya"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 183,
+          "originalText": "{{Json1CKeyA}}",
+          "replacementText": "Json Key 1C Content A",
+          "startIndex": 169,
+          "type": "JsonPlaceholder"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+      ]
+    },
+    "jsonrule1c_json1ccontentb": {
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasPlaceholders": true,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": false,
+      "jsonData": {
+        "Json1CKeyB": "Json Key 1C Content B"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Json1CKeyB",
+          "placeholder": "{{Json1CKeyB}}",
+          "value": "Json Key 1C Content B"
+        }
+      ],
+      "originalContent": "<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Json Key Content from Key [Json1CKeyB] from Json Component [Json1CContentB]\r\n    </span>\r\n    <hr />\r\n    {{Json1CKeyB}}\r\n</div>",
+      "placeholders": [
+        {
+          "endIndex": 181,
+          "fullMatch": "{{Json1CKeyB}}",
+          "name": "Json1CKeyB",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 167,
+          "templateKey": "json1ckeyb"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 181,
+          "originalText": "{{Json1CKeyB}}",
+          "replacementText": "Json Key 1C Content B",
+          "startIndex": 167,
+          "type": "JsonPlaceholder"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+      ]
+    }
+  }
+}

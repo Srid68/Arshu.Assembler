@@ -1,0 +1,13 @@
+{
+    "name": "assembler/assembler",
+    "description": "Template assembler library for PHP",
+    "version": "1.0.0",
+    "autoload": {
+        "psr-4": {
+            "Assembler\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=8.0"
+    }
+}

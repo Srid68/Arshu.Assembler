@@ -1,0 +1,14 @@
+{
+  "name": "assemblertest",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node index.js"
+  },
+  "dependencies": {
+    "assembler": "file:../Assembler"
+  },
+  "devDependencies": {}
+}

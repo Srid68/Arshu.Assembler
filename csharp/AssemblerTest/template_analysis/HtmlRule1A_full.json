@@ -1,0 +1,65 @@
+{
+  "rawTemplates": {
+    "htmlrule1a_html1a": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 1 of 5 : PlaceHolder Markup Assembly - Example 1A</h1>\r\n        <h3>Simple - Markup Assembly from placeholder components</h3>\r\n        <hr />\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html1AContent]\r\n            </span>\r\n            <hr />\r\n            {{Html1AContent}}\r\n        </div>\r\n    </div>\r\n\r\n</div>\r\n\r\n\r\n",
+    "htmlrule1a_html1acontent": "\r\n<h3>html 1A Content</h3>\r\n"
+  },
+  "siteName": "HtmlRule1A",
+  "templateKeys": [
+    "htmlrule1a_html1a",
+    "htmlrule1a_html1acontent"
+  ],
+  "templates": {
+    "htmlrule1a_html1a": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": true,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 1 of 5 : PlaceHolder Markup Assembly - Example 1A</h1>\r\n        <h3>Simple - Markup Assembly from placeholder components</h3>\r\n        <hr />\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html1AContent]\r\n            </span>\r\n            <hr />\r\n            {{Html1AContent}}\r\n        </div>\r\n    </div>\r\n\r\n</div>\r\n\r\n\r\n",
+      "placeholders": [
+        {
+          "endIndex": 509,
+          "fullMatch": "{{Html1AContent}}",
+          "name": "Html1AContent",
+          "nestedPlaceholders": [
+          ],
+          "nestedSlots": [
+          ],
+          "startIndex": 492,
+          "templateKey": "html1acontent"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 509,
+          "originalText": "{{Html1AContent}}",
+          "replacementText": "\r\n<h3>html 1A Content</h3>\r\n",
+          "startIndex": 492,
+          "type": "SimpleTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+      ]
+    },
+    "htmlrule1a_html1acontent": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": false,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "\r\n<h3>html 1A Content</h3>\r\n",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+      ],
+      "requiresProcessing": false,
+      "slottedTemplates": [
+      ]
+    }
+  }
+}

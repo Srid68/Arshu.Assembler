@@ -1,0 +1,105 @@
+{
+  "rawTemplates": {
+    "test2_center": "<div style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER}}\r\n    </div>\r\n</div>\r\n",
+    "test2_test2": "{{#Center}}\r\n    {{@HTMLPLACEHOLDER}}\r\n        <h3>{{$test2Content}}</h3>\r\n    {{/HTMLPLACEHOLDER}}\r\n{{/Center}}"
+  },
+  "siteName": "Test2",
+  "templateKeys": [
+    "test2_test2",
+    "test2_center"
+  ],
+  "templates": {
+    "test2_center": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": false,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "<div style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER}}\r\n    </div>\r\n</div>\r\n",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+      ],
+      "requiresProcessing": false,
+      "slottedTemplates": [
+      ]
+    },
+    "test2_test2": {
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": true,
+      "jsonData": {
+        "test2Content": "Test 2 Content"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "test2Content",
+          "placeholder": "{{$test2Content}}",
+          "value": "Test 2 Content"
+        }
+      ],
+      "originalContent": "{{#Center}}\r\n    {{@HTMLPLACEHOLDER}}\r\n        <h3>{{$test2Content}}</h3>\r\n    {{/HTMLPLACEHOLDER}}\r\n{{/Center}}",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 0,
+          "originalText": "{{$test2Content}}",
+          "replacementText": "Test 2 Content",
+          "startIndex": 0,
+          "type": "JsonPlaceholder"
+        },
+        {
+          "endIndex": 0,
+          "originalText": "{{#Center}}\r\n    {{@HTMLPLACEHOLDER}}\r\n        <h3>{{$test2Content}}</h3>\r\n    {{/HTMLPLACEHOLDER}}\r\n{{/Center}}",
+          "replacementText": "<div style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\">\r\n    <div>\r\n        \r\n        <h3>{{$test2Content}}</h3>\r\n    \r\n    </div>\r\n</div>\r\n",
+          "startIndex": 0,
+          "type": "SlottedTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+        {
+          "endIndex": 112,
+          "fullMatch": "{{#Center}}\r\n    {{@HTMLPLACEHOLDER}}\r\n        <h3>{{$test2Content}}</h3>\r\n    {{/HTMLPLACEHOLDER}}\r\n{{/Center}}",
+          "innerContent": "\r\n    {{@HTMLPLACEHOLDER}}\r\n        <h3>{{$test2Content}}</h3>\r\n    {{/HTMLPLACEHOLDER}}\r\n",
+          "name": "Center",
+          "slots": [
+            {
+              "closeTag": "{{/HTMLPLACEHOLDER}}",
+              "content": "\r\n        <h3>{{$test2Content}}</h3>\r\n    ",
+              "endIndex": 88,
+              "nestedPlaceholders": [
+                {
+                  "endIndex": 31,
+                  "fullMatch": "{{$test2Content}}",
+                  "name": "$test2Content",
+                  "nestedPlaceholders": [
+                  ],
+                  "nestedSlots": [
+                  ],
+                  "startIndex": 14,
+                  "templateKey": "$test2content"
+                }
+              ],
+              "nestedSlots": [
+              ],
+              "nestedSlottedTemplates": [
+              ],
+              "number": "",
+              "openTag": "{{@HTMLPLACEHOLDER}}",
+              "slotKey": "{{$HTMLPLACEHOLDER}}",
+              "startIndex": 6
+            }
+          ],
+          "startIndex": 0,
+          "templateKey": "center"
+        }
+      ]
+    }
+  }
+}

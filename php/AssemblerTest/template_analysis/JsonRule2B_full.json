@@ -1,0 +1,104 @@
+{
+    "siteName": "JsonRule2B",
+    "templates": {
+        "jsonrule2b_json2b": {
+            "originalContent": "\r\n\r\n<div style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 5 of 5 : Json Array Assembly - Example 2B<\/h1>\r\n        <h3>Simple - Json Array Assembly in component<\/h3>\r\n        <hr \/>\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Array Content from [Json2BArrayKey] from Json Component [Json2B]\r\n            <\/span>\r\n            <hr \/>\r\n\r\n            <div>\r\n                <select>\r\n                    {{@Json2BArrayKey}}\r\n                    <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n                    {{\/Json2BArrayKey}}\r\n                    {{^Json2BArrayKey}}\r\n                    <option value=\"0\">No Data Found<\/option>\r\n                    {{\/Json2BArrayKey}}\r\n                <\/select>\r\n            <\/div>\r\n\r\n        <\/div>\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Empty Array Content from [anotherJson2BArrayKey] from Json Component [Json2B]\r\n            <\/span>\r\n            <hr \/>\r\n\r\n            <div>\r\n                <select>\r\n                    {{@anotherJson2BArrayKey}}\r\n                    <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n                    {{\/anotherJson2BArrayKey}}\r\n                    {{^anotherJson2BArrayKey}}\r\n                    <option value=\"0\">No Another Data Found<\/option>\r\n                    {{\/anotherJson2BArrayKey}}\r\n                <\/select>\r\n            <\/div>\r\n\r\n        <\/div>\r\n\r\n    <\/div>\r\n<\/div>",
+            "placeholders": [],
+            "slottedTemplates": [],
+            "jsonData": {
+                "Json2BArrayKey": [
+                    {
+                        "Id": 1,
+                        "Name": "Item 1",
+                        "Value": 100,
+                        "Selected": false
+                    },
+                    {
+                        "Id": 2,
+                        "Name": "Item 2",
+                        "Value": 200,
+                        "Selected": false
+                    },
+                    {
+                        "Id": 3,
+                        "Name": "Item 3",
+                        "Value": 300,
+                        "Selected": true
+                    }
+                ],
+                "AnotherJson2BArrayKey": []
+            },
+            "jsonPlaceholders": [],
+            "replacementMappings": [
+                {
+                    "startIndex": 571,
+                    "endIndex": 746,
+                    "originalText": "{{@Json2BArrayKey}}\r\n                    <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n                    {{\/Json2BArrayKey}}",
+                    "replacementText": "\r\n                    <option  value=\"100\">Item 1<\/option>\r\n                    \r\n                    <option  value=\"200\">Item 2<\/option>\r\n                    \r\n                    <option selected=\"selected\"  value=\"300\">Item 3<\/option>\r\n                    ",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 768,
+                    "endIndex": 890,
+                    "originalText": "{{^Json2BArrayKey}}\r\n                    <option value=\"0\">No Data Found<\/option>\r\n                    {{\/Json2BArrayKey}}",
+                    "replacementText": "",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 1231,
+                    "endIndex": 1420,
+                    "originalText": "{{@anotherJson2BArrayKey}}\r\n                    <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n                    {{\/anotherJson2BArrayKey}}",
+                    "replacementText": "",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 1442,
+                    "endIndex": 1586,
+                    "originalText": "{{^anotherJson2BArrayKey}}\r\n                    <option value=\"0\">No Another Data Found<\/option>\r\n                    {{\/anotherJson2BArrayKey}}",
+                    "replacementText": "\r\n                    <option value=\"0\">No Another Data Found<\/option>\r\n                    ",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 571,
+                    "endIndex": 746,
+                    "originalText": "{{@Json2BArrayKey}}\r\n                    <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n                    {{\/Json2BArrayKey}}",
+                    "replacementText": "\r\n                    <option  value=\"100\">Item 1<\/option>\r\n                    \r\n                    <option  value=\"200\">Item 2<\/option>\r\n                    \r\n                    <option selected=\"selected\"  value=\"300\">Item 3<\/option>\r\n                    ",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 768,
+                    "endIndex": 890,
+                    "originalText": "{{^Json2BArrayKey}}\r\n                    <option value=\"0\">No Data Found<\/option>\r\n                    {{\/Json2BArrayKey}}",
+                    "replacementText": "",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 1231,
+                    "endIndex": 1420,
+                    "originalText": "{{@anotherJson2BArrayKey}}\r\n                    <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n                    {{\/anotherJson2BArrayKey}}",
+                    "replacementText": "",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 1442,
+                    "endIndex": 1586,
+                    "originalText": "{{^anotherJson2BArrayKey}}\r\n                    <option value=\"0\">No Another Data Found<\/option>\r\n                    {{\/anotherJson2BArrayKey}}",
+                    "replacementText": "\r\n                    <option value=\"0\">No Another Data Found<\/option>\r\n                    ",
+                    "type": "JsonPlaceholder"
+                }
+            ],
+            "hasPlaceholders": false,
+            "hasSlottedTemplates": false,
+            "hasJsonData": true,
+            "hasJsonPlaceholders": false,
+            "hasReplacementMappings": true,
+            "requiresProcessing": true
+        }
+    },
+    "rawTemplates": {
+        "jsonrule2b_json2b": "\r\n\r\n<div style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 5 of 5 : Json Array Assembly - Example 2B<\/h1>\r\n        <h3>Simple - Json Array Assembly in component<\/h3>\r\n        <hr \/>\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Array Content from [Json2BArrayKey] from Json Component [Json2B]\r\n            <\/span>\r\n            <hr \/>\r\n\r\n            <div>\r\n                <select>\r\n                    {{@Json2BArrayKey}}\r\n                    <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n                    {{\/Json2BArrayKey}}\r\n                    {{^Json2BArrayKey}}\r\n                    <option value=\"0\">No Data Found<\/option>\r\n                    {{\/Json2BArrayKey}}\r\n                <\/select>\r\n            <\/div>\r\n\r\n        <\/div>\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Empty Array Content from [anotherJson2BArrayKey] from Json Component [Json2B]\r\n            <\/span>\r\n            <hr \/>\r\n\r\n            <div>\r\n                <select>\r\n                    {{@anotherJson2BArrayKey}}\r\n                    <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n                    {{\/anotherJson2BArrayKey}}\r\n                    {{^anotherJson2BArrayKey}}\r\n                    <option value=\"0\">No Another Data Found<\/option>\r\n                    {{\/anotherJson2BArrayKey}}\r\n                <\/select>\r\n            <\/div>\r\n\r\n        <\/div>\r\n\r\n    <\/div>\r\n<\/div>"
+    },
+    "templateKeys": [
+        "jsonrule2b_json2b"
+    ]
+}

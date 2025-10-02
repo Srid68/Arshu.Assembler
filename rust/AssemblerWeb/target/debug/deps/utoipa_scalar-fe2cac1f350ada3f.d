@@ -1,0 +1,11 @@
+C:\Polyglot\Arshu.Assembler\rust\AssemblerWeb\target\debug\deps\libutoipa_scalar-fe2cac1f350ada3f.rmeta: C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\lib.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\actix.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\axum.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\rocket.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\../res/scalar.html
+
+C:\Polyglot\Arshu.Assembler\rust\AssemblerWeb\target\debug\deps\libutoipa_scalar-fe2cac1f350ada3f.rlib: C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\lib.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\actix.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\axum.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\rocket.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\../res/scalar.html
+
+C:\Polyglot\Arshu.Assembler\rust\AssemblerWeb\target\debug\deps\utoipa_scalar-fe2cac1f350ada3f.d: C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\lib.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\actix.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\axum.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\rocket.rs C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\../res/scalar.html
+
+C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\lib.rs:
+C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\actix.rs:
+C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\axum.rs:
+C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\rocket.rs:
+C:\Users\Sri\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\utoipa-scalar-0.3.0\src\../res/scalar.html:

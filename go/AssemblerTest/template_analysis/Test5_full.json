@@ -1,0 +1,120 @@
+{
+  "siteName": "Test5",
+  "templates": {
+    "test5_test5": {
+      "originalContent": "\r\n{{$Name}}\r\n\r\n\u003cdiv\u003e\r\n    \u003cselect\u003e\r\n        {{@DataList}}\r\n        \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n        {{/DataList}}\r\n        {{^DataList}}\r\n        \u003coption value=\"0\"\u003eNo Data Found\u003c/option\u003e\r\n        {{/DataList}}\r\n    \u003c/select\u003e\r\n\u003c/div\u003e\r\n\r\n\r\n\u003cdiv\u003e\r\n    \u003cselect\u003e\r\n        {{@anotherList}}\r\n        \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n        {{/anotherList}}\r\n        {{^anotherList}}\r\n        \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n        {{/anotherList}}\r\n    \u003c/select\u003e\r\n\u003c/div\u003e",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonData": {
+        "AnotherList": [],
+        "DataList": [
+          {
+            "Id": 1,
+            "Name": "Item 1",
+            "Selected": false,
+            "Value": 100
+          },
+          {
+            "Id": 2,
+            "Name": "Item 2",
+            "Selected": false,
+            "Value": 200
+          },
+          {
+            "Id": 3,
+            "Name": "Item 3",
+            "Selected": true,
+            "Value": 300
+          }
+        ],
+        "Name": "Test5"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Name",
+          "placeholder": "{{$Name}}",
+          "value": "Test5"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "startIndex": 44,
+          "endIndex": 183,
+          "originalText": "{{@DataList}}\r\n        \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n        {{/DataList}}",
+          "replacementText": "\r\n        \u003coption  value=\"100\"\u003eItem 1\u003c/option\u003e\r\n        \r\n        \u003coption  value=\"200\"\u003eItem 2\u003c/option\u003e\r\n        \r\n        \u003coption selected=\"selected\"  value=\"300\"\u003eItem 3\u003c/option\u003e\r\n        ",
+          "type": 0
+        },
+        {
+          "startIndex": 193,
+          "endIndex": 279,
+          "originalText": "{{^DataList}}\r\n        \u003coption value=\"0\"\u003eNo Data Found\u003c/option\u003e\r\n        {{/DataList}}",
+          "replacementText": "",
+          "type": 0
+        },
+        {
+          "startIndex": 337,
+          "endIndex": 482,
+          "originalText": "{{@anotherList}}\r\n        \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n        {{/anotherList}}",
+          "replacementText": "",
+          "type": 0
+        },
+        {
+          "startIndex": 492,
+          "endIndex": 592,
+          "originalText": "{{^anotherList}}\r\n        \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n        {{/anotherList}}",
+          "replacementText": "\r\n        \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n        ",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$Name}}",
+          "replacementText": "Test5",
+          "type": 0
+        },
+        {
+          "startIndex": 44,
+          "endIndex": 183,
+          "originalText": "{{@DataList}}\r\n        \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n        {{/DataList}}",
+          "replacementText": "\r\n        \u003coption  value=\"100\"\u003eItem 1\u003c/option\u003e\r\n        \r\n        \u003coption  value=\"200\"\u003eItem 2\u003c/option\u003e\r\n        \r\n        \u003coption selected=\"selected\"  value=\"300\"\u003eItem 3\u003c/option\u003e\r\n        ",
+          "type": 0
+        },
+        {
+          "startIndex": 193,
+          "endIndex": 279,
+          "originalText": "{{^DataList}}\r\n        \u003coption value=\"0\"\u003eNo Data Found\u003c/option\u003e\r\n        {{/DataList}}",
+          "replacementText": "",
+          "type": 0
+        },
+        {
+          "startIndex": 337,
+          "endIndex": 482,
+          "originalText": "{{@anotherList}}\r\n        \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n        {{/anotherList}}",
+          "replacementText": "",
+          "type": 0
+        },
+        {
+          "startIndex": 492,
+          "endIndex": 592,
+          "originalText": "{{^anotherList}}\r\n        \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n        {{/anotherList}}",
+          "replacementText": "\r\n        \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n        ",
+          "type": 0
+        }
+      ],
+      "html": "\r\n{{$Name}}\r\n\r\n\u003cdiv\u003e\r\n    \u003cselect\u003e\r\n        {{@DataList}}\r\n        \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n        {{/DataList}}\r\n        {{^DataList}}\r\n        \u003coption value=\"0\"\u003eNo Data Found\u003c/option\u003e\r\n        {{/DataList}}\r\n    \u003c/select\u003e\r\n\u003c/div\u003e\r\n\r\n\r\n\u003cdiv\u003e\r\n    \u003cselect\u003e\r\n        {{@anotherList}}\r\n        \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n        {{/anotherList}}\r\n        {{^anotherList}}\r\n        \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n        {{/anotherList}}\r\n    \u003c/select\u003e\r\n\u003c/div\u003e",
+      "json": "{\r\n    \"Name\": \"Test5\",\r\n    \"DataList\": [\r\n        {\r\n            \"Id\": 1,\r\n            \"Name\": \"Item 1\",\r\n            \"Value\": 100,\r\n            \"Selected\": false\r\n        },\r\n        {\r\n            \"Id\": 2,\r\n            \"Name\": \"Item 2\",\r\n            \"Value\": 200,\r\n            \"Selected\": false\r\n        },\r\n        {\r\n            \"Id\": 3,\r\n            \"Name\": \"Item 3\",\r\n            \"Value\": 300,\r\n            \"Selected\": true\r\n        }\r\n    ],\r\n\r\n    \"AnotherList\": [\r\n        \r\n    ]\r\n}",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    }
+  },
+  "rawTemplates": {
+    "test5_test5": "\r\n{{$Name}}\r\n\r\n\u003cdiv\u003e\r\n    \u003cselect\u003e\r\n        {{@DataList}}\r\n        \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n        {{/DataList}}\r\n        {{^DataList}}\r\n        \u003coption value=\"0\"\u003eNo Data Found\u003c/option\u003e\r\n        {{/DataList}}\r\n    \u003c/select\u003e\r\n\u003c/div\u003e\r\n\r\n\r\n\u003cdiv\u003e\r\n    \u003cselect\u003e\r\n        {{@anotherList}}\r\n        \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n        {{/anotherList}}\r\n        {{^anotherList}}\r\n        \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n        {{/anotherList}}\r\n    \u003c/select\u003e\r\n\u003c/div\u003e"
+  },
+  "templateKeys": {
+    "test5_test5": {}
+  }
+}

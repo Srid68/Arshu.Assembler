@@ -1,0 +1,13 @@
+{
+  "name": "assemblerweb",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "build": "echo 'No build step needed for Node.js'"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

@@ -1,0 +1,39 @@
+# Ignore Rust build artifacts
+/target/
+
+# Ignore C# build artifacts
+**/bin/
+**/obj/
+
+# Ignore VS Code settings
+.vscode/
+
+# Ignore user-specific files
+*.swp
+*.swo
+*.tmp
+*.log
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore other common files
+*.user
+*.rs.bk
+*.bak
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore node_modules if present
+node_modules/
+
+# Ignore all Fly deploy batch scripts
+fly_deploy*.bat
+rust/fly_deploy_rust_web.bat
+go/fly_deploy_go_web.bat
+node/fly_deploy_node_web.bat
+csharp/fly_deploy_csharp_web.bat
+csharp/fly_deploy_js_web.bat

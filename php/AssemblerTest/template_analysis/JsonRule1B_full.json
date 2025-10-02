@@ -1,0 +1,74 @@
+{
+    "siteName": "JsonRule1B",
+    "templates": {
+        "jsonrule1b_json1bcontent": {
+            "originalContent": "<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Json Key Content from Key [Json1BKey] from Json Component [Json1BContent]\r\n    <\/span>\r\n    <hr \/>\r\n    {{$Json1BKey}}\r\n<\/div>",
+            "placeholders": [],
+            "slottedTemplates": [],
+            "jsonData": {
+                "Json1BKey": "Json Key 1B Content"
+            },
+            "jsonPlaceholders": [
+                {
+                    "key": "Json1BKey",
+                    "placeholder": "{{$Json1BKey}}",
+                    "value": "Json Key 1B Content"
+                }
+            ],
+            "replacementMappings": [
+                {
+                    "startIndex": 0,
+                    "endIndex": 0,
+                    "originalText": "{{$Json1BKey}}",
+                    "replacementText": "Json Key 1B Content",
+                    "type": "JsonPlaceholder"
+                }
+            ],
+            "hasPlaceholders": false,
+            "hasSlottedTemplates": false,
+            "hasJsonData": true,
+            "hasJsonPlaceholders": true,
+            "hasReplacementMappings": true,
+            "requiresProcessing": true
+        },
+        "jsonrule1b_json1b": {
+            "originalContent": "\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 4 of 5 : Json Key Assembly - Example 1B<\/h1>\r\n        <h3>Hierarchical - Json Key Assembly in placeholder component<\/h3>\r\n        <hr \/>\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Json1BContent]\r\n            <\/span>\r\n            <hr \/>\r\n            {{Json1BContent}}\r\n        <\/div>\r\n\r\n    <\/div>\r\n<\/div>",
+            "placeholders": [
+                {
+                    "name": "Json1BContent",
+                    "startIndex": 489,
+                    "endIndex": 506,
+                    "fullMatch": "{{Json1BContent}}",
+                    "templateKey": "json1bcontent",
+                    "nestedPlaceholders": [],
+                    "nestedSlots": []
+                }
+            ],
+            "slottedTemplates": [],
+            "jsonPlaceholders": [],
+            "replacementMappings": [
+                {
+                    "startIndex": 0,
+                    "endIndex": 0,
+                    "originalText": "{{Json1BContent}}",
+                    "replacementText": "<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Json Key Content from Key [Json1BKey] from Json Component [Json1BContent]\r\n    <\/span>\r\n    <hr \/>\r\n    {{$Json1BKey}}\r\n<\/div>",
+                    "type": "SimpleTemplate"
+                }
+            ],
+            "hasPlaceholders": true,
+            "hasSlottedTemplates": false,
+            "hasJsonData": false,
+            "hasJsonPlaceholders": false,
+            "hasReplacementMappings": true,
+            "requiresProcessing": true
+        }
+    },
+    "rawTemplates": {
+        "jsonrule1b_json1bcontent": "<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Json Key Content from Key [Json1BKey] from Json Component [Json1BContent]\r\n    <\/span>\r\n    <hr \/>\r\n    {{$Json1BKey}}\r\n<\/div>",
+        "jsonrule1b_json1b": "\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 4 of 5 : Json Key Assembly - Example 1B<\/h1>\r\n        <h3>Hierarchical - Json Key Assembly in placeholder component<\/h3>\r\n        <hr \/>\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Json1BContent]\r\n            <\/span>\r\n            <hr \/>\r\n            {{Json1BContent}}\r\n        <\/div>\r\n\r\n    <\/div>\r\n<\/div>"
+    },
+    "templateKeys": [
+        "jsonrule1b_json1bcontent",
+        "jsonrule1b_json1b"
+    ]
+}

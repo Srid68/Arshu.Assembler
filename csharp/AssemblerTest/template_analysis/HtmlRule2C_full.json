@@ -1,0 +1,123 @@
+{
+  "rawTemplates": {
+    "htmlrule2c_center": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER}}\r\n    </div>\r\n</div>\r\n",
+    "htmlrule2c_html2c": "\r\n\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 2 of 5 : Slotted Markup Assembly - Example 2C</h1>\r\n        <h3>Nested - Markup Assembly from single slotted components</h3>\r\n        <hr />\r\n\r\n         <div>\r\n             <span style=\"text-decoration:underline\">\r\n                 Html Content from Slotted Component [#Center] Merged with Nested Slotted Component [#ZoomIn] Merged with PlaceHolder Content from Component [Html2C]\r\n             </span>\r\n            <hr />\r\n\r\n            {{#Center}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        <div style=\"text-align:center;\">\r\n                            <h3>\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            </h3>\r\n                        </div>\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/Center}}\r\n\r\n        </div>\r\n\r\n    </div>\r\n</div>\r\n\r\n\r\n",
+    "htmlrule2c_zoomin": "<div class=\"ar-column ar-animated ar-zoomIn\">\r\n    {{$HTMLPLACEHOLDER}}\r\n</div>\r\n\r\n"
+  },
+  "siteName": "HtmlRule2C",
+  "templateKeys": [
+    "htmlrule2c_html2c",
+    "htmlrule2c_center",
+    "htmlrule2c_zoomin"
+  ],
+  "templates": {
+    "htmlrule2c_center": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": false,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER}}\r\n    </div>\r\n</div>\r\n",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+      ],
+      "requiresProcessing": false,
+      "slottedTemplates": [
+      ]
+    },
+    "htmlrule2c_html2c": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": true,
+      "hasSlottedTemplates": true,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "\r\n\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 2 of 5 : Slotted Markup Assembly - Example 2C</h1>\r\n        <h3>Nested - Markup Assembly from single slotted components</h3>\r\n        <hr />\r\n\r\n         <div>\r\n             <span style=\"text-decoration:underline\">\r\n                 Html Content from Slotted Component [#Center] Merged with Nested Slotted Component [#ZoomIn] Merged with PlaceHolder Content from Component [Html2C]\r\n             </span>\r\n            <hr />\r\n\r\n            {{#Center}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        <div style=\"text-align:center;\">\r\n                            <h3>\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            </h3>\r\n                        </div>\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/Center}}\r\n\r\n        </div>\r\n\r\n    </div>\r\n</div>\r\n\r\n\r\n",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+        {
+          "endIndex": 0,
+          "originalText": "{{#Center}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        <div style=\"text-align:center;\">\r\n                            <h3>\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            </h3>\r\n                        </div>\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/Center}}",
+          "replacementText": "<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div>\r\n        \r\n                    <div class=\"ar-column ar-animated ar-zoomIn\">\r\n    \r\n                        <div style=\"text-align:center;\">\r\n                            <h3>\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            </h3>\r\n                        </div>\r\n                        \r\n</div>\r\n\r\n\r\n                \r\n    </div>\r\n</div>\r\n",
+          "startIndex": 0,
+          "type": "SlottedTemplate"
+        }
+      ],
+      "requiresProcessing": true,
+      "slottedTemplates": [
+        {
+          "endIndex": 1127,
+          "fullMatch": "{{#Center}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        <div style=\"text-align:center;\">\r\n                            <h3>\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            </h3>\r\n                        </div>\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/Center}}",
+          "innerContent": "\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        <div style=\"text-align:center;\">\r\n                            <h3>\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            </h3>\r\n                        </div>\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            ",
+          "name": "Center",
+          "slots": [
+            {
+              "closeTag": "{{/HTMLPLACEHOLDER}}",
+              "content": "\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        <div style=\"text-align:center;\">\r\n                            <h3>\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            </h3>\r\n                        </div>\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                ",
+              "endIndex": 490,
+              "nestedPlaceholders": [
+              ],
+              "nestedSlots": [
+              ],
+              "nestedSlottedTemplates": [
+                {
+                  "endIndex": 414,
+                  "fullMatch": "{{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        <div style=\"text-align:center;\">\r\n                            <h3>\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            </h3>\r\n                        </div>\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}",
+                  "innerContent": "\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        <div style=\"text-align:center;\">\r\n                            <h3>\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            </h3>\r\n                        </div>\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    ",
+                  "name": "ZoomIn",
+                  "slots": [
+                    {
+                      "closeTag": "{{/HTMLPLACEHOLDER}}",
+                      "content": "\r\n                        <div style=\"text-align:center;\">\r\n                            <h3>\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            </h3>\r\n                        </div>\r\n                        ",
+                      "endIndex": 348,
+                      "nestedPlaceholders": [
+                      ],
+                      "nestedSlots": [
+                      ],
+                      "nestedSlottedTemplates": [
+                      ],
+                      "number": "",
+                      "openTag": "{{@HTMLPLACEHOLDER}}",
+                      "slotKey": "{{$HTMLPLACEHOLDER}}",
+                      "startIndex": 26
+                    }
+                  ],
+                  "startIndex": 22,
+                  "templateKey": "zoomin"
+                }
+              ],
+              "number": "",
+              "openTag": "{{@HTMLPLACEHOLDER}}",
+              "slotKey": "{{$HTMLPLACEHOLDER}}",
+              "startIndex": 18
+            }
+          ],
+          "startIndex": 601,
+          "templateKey": "center"
+        }
+      ]
+    },
+    "htmlrule2c_zoomin": {
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasPlaceholders": false,
+      "hasReplacementMappings": false,
+      "hasSlottedTemplates": false,
+      "jsonPlaceholders": [
+      ],
+      "originalContent": "<div class=\"ar-column ar-animated ar-zoomIn\">\r\n    {{$HTMLPLACEHOLDER}}\r\n</div>\r\n\r\n",
+      "placeholders": [
+      ],
+      "replacementMappings": [
+      ],
+      "requiresProcessing": false,
+      "slottedTemplates": [
+      ]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+<svg width="400" height="200" xmlns="http://www.w3.org/2000/svg">
+    <style>
+        .box { fill: #f9f9f9; stroke: #333; stroke-width: 2; }
+        .text { font-family: monospace; font-size: 14px; }
+        .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+        .placeholder { fill: #e6e6fa; stroke: #9370db; stroke-width: 1; }
+        .placeholder-text { font-family: monospace; font-size: 12px; fill: #9370db; }
+    </style>
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" />
+        </marker>
+    </defs>
+
+    <!-- Component Box -->
+    <rect x="20" y="50" width="180" height="100" class="box" rx="5" />
+    <text x="45" y="40" class="text">html1A.html</text>
+    <rect x="40" y="80" width="140" height="30" class="placeholder" rx="3"/>
+    <text x="50" y="100" class="placeholder-text">{{Html1AContent}}</text>
+
+    <!-- Content Box -->
+    <rect x="250" y="60" width="130" height="80" class="box" rx="5" />
+    <text x="255" y="40" class="text">html1Acontent.html</text>
+    <text x="260" y="90" class="text" xml:space="preserve">&lt;h3&gt;...&lt;/h3&gt;</text>
+
+    <!-- Arrow -->
+    <path d="M250 100 Q215 100 180 95" class="arrow" />
+</svg>

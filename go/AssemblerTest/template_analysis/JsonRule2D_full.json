@@ -1,0 +1,140 @@
+{
+  "siteName": "JsonRule2D",
+  "templates": {
+    "jsonrule2d_json2d": {
+      "originalContent": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 5 of 5 : Json Array Assembly - Example 2D\u003c/h1\u003e\r\n        \u003ch3\u003eHierarchical - Json Array Assembly in placeholder component\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Json2DContent]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Json2DContent}}\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e",
+      "placeholders": [
+        {
+          "name": "Json2DContent",
+          "startIndex": 493,
+          "endIndex": 510,
+          "fullMatch": "{{Json2DContent}}",
+          "templateKey": "json2dcontent",
+          "nestedPlaceholders": null,
+          "nestedSlots": null
+        }
+      ],
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{Json2DContent}}",
+          "replacementText": "\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Array Content from [Json2DArrayKey] from Json Component [Json2DContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n    \u003cdiv\u003e\r\n        \u003cselect\u003e\r\n            {{@Json2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/Json2DArrayKey}}\r\n            {{^Json2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Data Found\u003c/option\u003e\r\n            {{/Json2DArrayKey}}\r\n        \u003c/select\u003e\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n\r\n\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Empty Array Content from [anotherJson2DArrayKey] from Json Component [Json2DContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n\r\n    \u003cdiv\u003e\r\n        \u003cselect\u003e\r\n            {{@anotherJson2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}\r\n            {{^anotherJson2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}\r\n        \u003c/select\u003e\r\n    \u003c/div\u003e\r\n\r\n\u003c/div\u003e",
+          "type": 1
+        }
+      ],
+      "html": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 5 of 5 : Json Array Assembly - Example 2D\u003c/h1\u003e\r\n        \u003ch3\u003eHierarchical - Json Array Assembly in placeholder component\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Json2DContent]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Json2DContent}}\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e",
+      "hasPlaceholders": true,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": true
+    },
+    "jsonrule2d_json2dcontent": {
+      "originalContent": "\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Array Content from [Json2DArrayKey] from Json Component [Json2DContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n    \u003cdiv\u003e\r\n        \u003cselect\u003e\r\n            {{@Json2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/Json2DArrayKey}}\r\n            {{^Json2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Data Found\u003c/option\u003e\r\n            {{/Json2DArrayKey}}\r\n        \u003c/select\u003e\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n\r\n\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Empty Array Content from [anotherJson2DArrayKey] from Json Component [Json2DContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n\r\n    \u003cdiv\u003e\r\n        \u003cselect\u003e\r\n            {{@anotherJson2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}\r\n            {{^anotherJson2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}\r\n        \u003c/select\u003e\r\n    \u003c/div\u003e\r\n\r\n\u003c/div\u003e",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonData": {
+        "AnotherJson2DArrayKey": [],
+        "Json2DArrayKey": [
+          {
+            "Id": 1,
+            "Name": "Item 1",
+            "Selected": false,
+            "Value": 100
+          },
+          {
+            "Id": 2,
+            "Name": "Item 2",
+            "Selected": false,
+            "Value": 200
+          },
+          {
+            "Id": 3,
+            "Name": "Item 3",
+            "Selected": true,
+            "Value": 300
+          }
+        ]
+      },
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 200,
+          "endIndex": 359,
+          "originalText": "{{@Json2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/Json2DArrayKey}}",
+          "replacementText": "\r\n            \u003coption  value=\"100\"\u003eItem 1\u003c/option\u003e\r\n            \r\n            \u003coption  value=\"200\"\u003eItem 2\u003c/option\u003e\r\n            \r\n            \u003coption selected=\"selected\"  value=\"300\"\u003eItem 3\u003c/option\u003e\r\n            ",
+          "type": 0
+        },
+        {
+          "startIndex": 373,
+          "endIndex": 479,
+          "originalText": "{{^Json2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Data Found\u003c/option\u003e\r\n            {{/Json2DArrayKey}}",
+          "replacementText": "",
+          "type": 0
+        },
+        {
+          "startIndex": 737,
+          "endIndex": 910,
+          "originalText": "{{@anotherJson2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}",
+          "replacementText": "",
+          "type": 0
+        },
+        {
+          "startIndex": 924,
+          "endIndex": 1052,
+          "originalText": "{{^anotherJson2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}",
+          "replacementText": "\r\n            \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n            ",
+          "type": 0
+        },
+        {
+          "startIndex": 200,
+          "endIndex": 359,
+          "originalText": "{{@Json2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/Json2DArrayKey}}",
+          "replacementText": "\r\n            \u003coption  value=\"100\"\u003eItem 1\u003c/option\u003e\r\n            \r\n            \u003coption  value=\"200\"\u003eItem 2\u003c/option\u003e\r\n            \r\n            \u003coption selected=\"selected\"  value=\"300\"\u003eItem 3\u003c/option\u003e\r\n            ",
+          "type": 0
+        },
+        {
+          "startIndex": 373,
+          "endIndex": 479,
+          "originalText": "{{^Json2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Data Found\u003c/option\u003e\r\n            {{/Json2DArrayKey}}",
+          "replacementText": "",
+          "type": 0
+        },
+        {
+          "startIndex": 737,
+          "endIndex": 910,
+          "originalText": "{{@anotherJson2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}",
+          "replacementText": "",
+          "type": 0
+        },
+        {
+          "startIndex": 924,
+          "endIndex": 1052,
+          "originalText": "{{^anotherJson2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}",
+          "replacementText": "\r\n            \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n            ",
+          "type": 0
+        }
+      ],
+      "html": "\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Array Content from [Json2DArrayKey] from Json Component [Json2DContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n    \u003cdiv\u003e\r\n        \u003cselect\u003e\r\n            {{@Json2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/Json2DArrayKey}}\r\n            {{^Json2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Data Found\u003c/option\u003e\r\n            {{/Json2DArrayKey}}\r\n        \u003c/select\u003e\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n\r\n\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Empty Array Content from [anotherJson2DArrayKey] from Json Component [Json2DContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n\r\n    \u003cdiv\u003e\r\n        \u003cselect\u003e\r\n            {{@anotherJson2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}\r\n            {{^anotherJson2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}\r\n        \u003c/select\u003e\r\n    \u003c/div\u003e\r\n\r\n\u003c/div\u003e",
+      "json": "{\r\n  \"Json2DArrayKey\": [\r\n    {\r\n      \"Id\": 1,\r\n      \"Name\": \"Item 1\",\r\n      \"Value\": 100,\r\n      \"Selected\": false\r\n    },\r\n    {\r\n      \"Id\": 2,\r\n      \"Name\": \"Item 2\",\r\n      \"Value\": 200,\r\n      \"Selected\": false\r\n    },\r\n    {\r\n      \"Id\": 3,\r\n      \"Name\": \"Item 3\",\r\n      \"Value\": 300,\r\n      \"Selected\": true\r\n    }\r\n  ],\r\n  \"AnotherJson2DArrayKey\": [\r\n\r\n  ]\r\n}",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    }
+  },
+  "rawTemplates": {
+    "jsonrule2d_json2d": "\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 5 of 5 : Json Array Assembly - Example 2D\u003c/h1\u003e\r\n        \u003ch3\u003eHierarchical - Json Array Assembly in placeholder component\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n        \u003cdiv\u003e\r\n            \u003cspan style=\"text-decoration:underline\"\u003e\r\n                Html Content from Html Component [Json2DContent]\r\n            \u003c/span\u003e\r\n            \u003chr /\u003e\r\n            {{Json2DContent}}\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e",
+    "jsonrule2d_json2dcontent": "\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Array Content from [Json2DArrayKey] from Json Component [Json2DContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n    \u003cdiv\u003e\r\n        \u003cselect\u003e\r\n            {{@Json2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/Json2DArrayKey}}\r\n            {{^Json2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Data Found\u003c/option\u003e\r\n            {{/Json2DArrayKey}}\r\n        \u003c/select\u003e\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n\r\n\u003cdiv\u003e\r\n    \u003cspan style=\"text-decoration:underline\"\u003e\r\n        Empty Array Content from [anotherJson2DArrayKey] from Json Component [Json2DContent]\r\n    \u003c/span\u003e\r\n    \u003chr /\u003e\r\n\r\n    \u003cdiv\u003e\r\n        \u003cselect\u003e\r\n            {{@anotherJson2DArrayKey}}\r\n            \u003coption {{@Selected}}selected=\"selected\" {{ /Selected}} value=\"{{$Value}}\"\u003e{{$Name}}\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}\r\n            {{^anotherJson2DArrayKey}}\r\n            \u003coption value=\"0\"\u003eNo Another Data Found\u003c/option\u003e\r\n            {{/anotherJson2DArrayKey}}\r\n        \u003c/select\u003e\r\n    \u003c/div\u003e\r\n\r\n\u003c/div\u003e"
+  },
+  "templateKeys": {
+    "jsonrule2d_json2d": {},
+    "jsonrule2d_json2dcontent": {}
+  }
+}

@@ -1,0 +1,546 @@
+{
+  "siteName": "Test0",
+  "templates": {
+    "test0_center": {
+      "originalContent": "<div style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER}}\r\n    </div>\r\n</div>\r\n",
+      "placeholders": [],
+      "slottedTemplates": [],
+      "jsonData": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [],
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": false
+    },
+    "test0_demotodo": {
+      "originalContent": "<div class=\"demo-section\">\r\n    <h4>Coming Soon</h4>\r\n    <ul>\r\n        {{@items}}\r\n            <li {{@Highlight}}style=\"color:red;\"{{/Highlight}}>{{$Info}}</li>\r\n        {{/items}}\r\n        {{^items}}\r\n            <li>No items found</li>\r\n        {{/items}}\r\n    </ul>\r\n</div>",
+      "placeholders": [],
+      "slottedTemplates": [],
+      "jsonData": {
+        "items": [
+          {
+            "Info": "Live demo upload",
+            "Highlight": false
+          },
+          {
+            "Info": "Custom domain support",
+            "Highlight": false
+          },
+          {
+            "Info": "SSL certificates",
+            "Highlight": true
+          }
+        ]
+      },
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 72,
+          "endIndex": 181,
+          "originalText": "{{@items}}\r\n            <li {{@Highlight}}style=\"color:red;\"{{/Highlight}}>{{$Info}}</li>\r\n        {{/items}}",
+          "replacementText": "\r\n            <li >Live demo upload</li>\r\n        \r\n            <li >Custom domain support</li>\r\n        \r\n            <li style=\"color:red;\">SSL certificates</li>\r\n        ",
+          "type": 0
+        },
+        {
+          "startIndex": 191,
+          "endIndex": 258,
+          "originalText": "{{^items}}\r\n            <li>No items found</li>\r\n        {{/items}}",
+          "replacementText": "",
+          "type": 0
+        },
+        {
+          "startIndex": 72,
+          "endIndex": 181,
+          "originalText": "{{@items}}\r\n            <li {{@Highlight}}style=\"color:red;\"{{/Highlight}}>{{$Info}}</li>\r\n        {{/items}}",
+          "replacementText": "\r\n            <li >Live demo upload</li>\r\n        \r\n            <li >Custom domain support</li>\r\n        \r\n            <li style=\"color:red;\">SSL certificates</li>\r\n        ",
+          "type": 0
+        },
+        {
+          "startIndex": 191,
+          "endIndex": 258,
+          "originalText": "{{^items}}\r\n            <li>No items found</li>\r\n        {{/items}}",
+          "replacementText": "",
+          "type": 0
+        }
+      ],
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    },
+    "test0_deployinfo": {
+      "originalContent": "<h2>{{$DeployTitle}}</h2>\r\n<p>{{$DeployInstruction}}</p>",
+      "placeholders": [],
+      "slottedTemplates": [],
+      "jsonData": {
+        "DeployTitle": "Deploy Your Website",
+        "DeployInstruction": "Upload your ZIP file and deploy instantly!"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "DeployTitle",
+          "placeholder": "{{$DeployTitle}}",
+          "value": "Deploy Your Website"
+        },
+        {
+          "key": "DeployInstruction",
+          "placeholder": "{{$DeployInstruction}}",
+          "value": "Upload your ZIP file and deploy instantly!"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$DeployTitle}}",
+          "replacementText": "Deploy Your Website",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$DeployInstruction}}",
+          "replacementText": "Upload your ZIP file and deploy instantly!",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$DeployTitle}}",
+          "replacementText": "Deploy Your Website",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$DeployInstruction}}",
+          "replacementText": "Upload your ZIP file and deploy instantly!",
+          "type": 0
+        }
+      ],
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    },
+    "test0_footer": {
+      "originalContent": "\r\n<h5>{{$FooterText}}</h5>",
+      "placeholders": [],
+      "slottedTemplates": [],
+      "jsonData": {
+        "FooterText": "Footer Text"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "FooterText",
+          "placeholder": "{{$FooterText}}",
+          "value": "Footer Text"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$FooterText}}",
+          "replacementText": "Footer Text",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$FooterText}}",
+          "replacementText": "Footer Text",
+          "type": 0
+        }
+      ],
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    },
+    "test0_header": {
+      "originalContent": "\r\n<h1>Header - {{$testValue}}</h1>",
+      "placeholders": [],
+      "slottedTemplates": [],
+      "jsonData": {
+        "testValue": "JSON Integration Working!"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "testValue",
+          "placeholder": "{{$testValue}}",
+          "value": "JSON Integration Working!"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$testValue}}",
+          "replacementText": "JSON Integration Working!",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$testValue}}",
+          "replacementText": "JSON Integration Working!",
+          "type": 0
+        }
+      ],
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    },
+    "test0_maininfo": {
+      "originalContent": "<h3>{{$MainInfo}}</h3>\r\n<p>{{$MainTitle}}</p>",
+      "placeholders": [],
+      "slottedTemplates": [],
+      "jsonData": {
+        "MainInfo": "Fast & Reliable",
+        "MainTitle": "Your website will be live in seconds with our optimized hosting infrastructure."
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "MainInfo",
+          "placeholder": "{{$MainInfo}}",
+          "value": "Fast & Reliable"
+        },
+        {
+          "key": "MainTitle",
+          "placeholder": "{{$MainTitle}}",
+          "value": "Your website will be live in seconds with our optimized hosting infrastructure."
+        }
+      ],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$MainInfo}}",
+          "replacementText": "Fast & Reliable",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$MainTitle}}",
+          "replacementText": "Your website will be live in seconds with our optimized hosting infrastructure.",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$MainInfo}}",
+          "replacementText": "Fast & Reliable",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$MainTitle}}",
+          "replacementText": "Your website will be live in seconds with our optimized hosting infrastructure.",
+          "type": 0
+        }
+      ],
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    },
+    "test0_test0": {
+      "originalContent": "<!DOCTYPE html>\r\n<html lang=\"en\" data-theme=\"light\">\r\n<head>\r\n    <meta charset=\"UTF-8\">\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, viewport-fit=cover\">\r\n    <title>ZipDeploy - Deploy Your Website in Seconds</title>\r\n    <meta name=\"description\" content=\"Deploy your static websites instantly by uploading a ZIP file. Fast, secure, and reliable hosting for developers.\">\r\n    <meta name=\"keywords\" content=\"web hosting, static site hosting, zip deploy, website deployment, developer tools\">\r\n    <meta name=\"author\" content=\"ZipDeploy\">\r\n    \r\n    <link rel=\"stylesheet\" href=\"styles.css\">\r\n</head>\r\n<body class=\"bg-base-100\">\r\n\r\n    {{ Header}}\r\n\r\n    {{Content }}\r\n\r\n    {{ Footer }}\r\n\r\n</body>\r\n</html>",
+      "placeholders": [
+        {
+          "name": "Header",
+          "startIndex": 666,
+          "endIndex": 677,
+          "fullMatch": "{{ Header}}",
+          "templateKey": "header",
+          "nestedPlaceholders": [],
+          "nestedSlots": []
+        },
+        {
+          "name": "Content",
+          "startIndex": 685,
+          "endIndex": 697,
+          "fullMatch": "{{Content }}",
+          "templateKey": "content",
+          "nestedPlaceholders": [],
+          "nestedSlots": []
+        },
+        {
+          "name": "Footer",
+          "startIndex": 705,
+          "endIndex": 717,
+          "fullMatch": "{{ Footer }}",
+          "templateKey": "footer",
+          "nestedPlaceholders": [],
+          "nestedSlots": []
+        }
+      ],
+      "slottedTemplates": [],
+      "jsonData": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{ Header}}",
+          "replacementText": "\r\n<h1>Header - {{$testValue}}</h1>",
+          "type": 1
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{Content }}",
+          "replacementText": "\r\n{{#Center}}\r\n    {{@HTMLPLACEHOLDER}}\r\n        {{#ZoomIn}}\r\n            {{@HTMLPLACEHOLDER}}\r\n                <div style=\"text-align:center;\">\r\n                    {{DeployInfo}}\r\n                    {{MainInfo}}\r\n                    {{DemoToDo}}\r\n                </div>\r\n            {{/HTMLPLACEHOLDER}}\r\n        {{/ZoomIn}}\r\n    {{/HTMLPLACEHOLDER}}\r\n{{/Center}}\r\n\r\n\r\n                ",
+          "type": 1
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{ Footer }}",
+          "replacementText": "\r\n<h5>{{$FooterText}}</h5>",
+          "type": 1
+        }
+      ],
+      "hasPlaceholders": true,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    },
+    "test0_zoomin": {
+      "originalContent": "<div class=\"ar-column ar-animated ar-zoomIn\">\r\n    {{$HTMLPLACEHOLDER}}\r\n</div>\r\n\r\n",
+      "placeholders": [],
+      "slottedTemplates": [],
+      "jsonData": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [],
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": false
+    },
+    "test0_content": {
+      "originalContent": "\r\n{{#Center}}\r\n    {{@HTMLPLACEHOLDER}}\r\n        {{#ZoomIn}}\r\n            {{@HTMLPLACEHOLDER}}\r\n                <div style=\"text-align:center;\">\r\n                    {{DeployInfo}}\r\n                    {{MainInfo}}\r\n                    {{DemoToDo}}\r\n                </div>\r\n            {{/HTMLPLACEHOLDER}}\r\n        {{/ZoomIn}}\r\n    {{/HTMLPLACEHOLDER}}\r\n{{/Center}}\r\n\r\n\r\n                ",
+      "placeholders": [
+        {
+          "name": "DeployInfo",
+          "startIndex": 166,
+          "endIndex": 180,
+          "fullMatch": "{{DeployInfo}}",
+          "templateKey": "deployinfo",
+          "nestedPlaceholders": [],
+          "nestedSlots": []
+        },
+        {
+          "name": "MainInfo",
+          "startIndex": 202,
+          "endIndex": 214,
+          "fullMatch": "{{MainInfo}}",
+          "templateKey": "maininfo",
+          "nestedPlaceholders": [],
+          "nestedSlots": []
+        },
+        {
+          "name": "DemoToDo",
+          "startIndex": 236,
+          "endIndex": 248,
+          "fullMatch": "{{DemoToDo}}",
+          "templateKey": "demotodo",
+          "nestedPlaceholders": [],
+          "nestedSlots": []
+        }
+      ],
+      "slottedTemplates": [
+        {
+          "name": "Center",
+          "startIndex": 2,
+          "endIndex": 366,
+          "fullMatch": "{{#Center}}\r\n    {{@HTMLPLACEHOLDER}}\r\n        {{#ZoomIn}}\r\n            {{@HTMLPLACEHOLDER}}\r\n                <div style=\"text-align:center;\">\r\n                    {{DeployInfo}}\r\n                    {{MainInfo}}\r\n                    {{DemoToDo}}\r\n                </div>\r\n            {{/HTMLPLACEHOLDER}}\r\n        {{/ZoomIn}}\r\n    {{/HTMLPLACEHOLDER}}\r\n{{/Center}}",
+          "innerContent": "\r\n    {{@HTMLPLACEHOLDER}}\r\n        {{#ZoomIn}}\r\n            {{@HTMLPLACEHOLDER}}\r\n                <div style=\"text-align:center;\">\r\n                    {{DeployInfo}}\r\n                    {{MainInfo}}\r\n                    {{DemoToDo}}\r\n                </div>\r\n            {{/HTMLPLACEHOLDER}}\r\n        {{/ZoomIn}}\r\n    {{/HTMLPLACEHOLDER}}\r\n",
+          "slots": [
+            {
+              "nestedSlots": [],
+              "number": "",
+              "startIndex": 6,
+              "endIndex": 340,
+              "content": "\r\n        {{#ZoomIn}}\r\n            {{@HTMLPLACEHOLDER}}\r\n                <div style=\"text-align:center;\">\r\n                    {{DeployInfo}}\r\n                    {{MainInfo}}\r\n                    {{DemoToDo}}\r\n                </div>\r\n            {{/HTMLPLACEHOLDER}}\r\n        {{/ZoomIn}}\r\n    ",
+              "slotKey": "{{$HTMLPLACEHOLDER}}",
+              "openTag": "{{@HTMLPLACEHOLDER}}",
+              "closeTag": "{{/HTMLPLACEHOLDER}}",
+              "nestedPlaceholders": [
+                {
+                  "name": "DeployInfo",
+                  "startIndex": 127,
+                  "endIndex": 141,
+                  "fullMatch": "{{DeployInfo}}",
+                  "templateKey": "deployinfo",
+                  "nestedPlaceholders": [],
+                  "nestedSlots": []
+                },
+                {
+                  "name": "MainInfo",
+                  "startIndex": 163,
+                  "endIndex": 175,
+                  "fullMatch": "{{MainInfo}}",
+                  "templateKey": "maininfo",
+                  "nestedPlaceholders": [],
+                  "nestedSlots": []
+                },
+                {
+                  "name": "DemoToDo",
+                  "startIndex": 197,
+                  "endIndex": 209,
+                  "fullMatch": "{{DemoToDo}}",
+                  "templateKey": "demotodo",
+                  "nestedPlaceholders": [],
+                  "nestedSlots": []
+                }
+              ],
+              "nestedSlottedTemplates": [
+                {
+                  "name": "ZoomIn",
+                  "startIndex": 10,
+                  "endIndex": 288,
+                  "fullMatch": "{{#ZoomIn}}\r\n            {{@HTMLPLACEHOLDER}}\r\n                <div style=\"text-align:center;\">\r\n                    {{DeployInfo}}\r\n                    {{MainInfo}}\r\n                    {{DemoToDo}}\r\n                </div>\r\n            {{/HTMLPLACEHOLDER}}\r\n        {{/ZoomIn}}",
+                  "innerContent": "\r\n            {{@HTMLPLACEHOLDER}}\r\n                <div style=\"text-align:center;\">\r\n                    {{DeployInfo}}\r\n                    {{MainInfo}}\r\n                    {{DemoToDo}}\r\n                </div>\r\n            {{/HTMLPLACEHOLDER}}\r\n        ",
+                  "slots": [
+                    {
+                      "nestedSlots": [],
+                      "number": "",
+                      "startIndex": 14,
+                      "endIndex": 246,
+                      "content": "\r\n                <div style=\"text-align:center;\">\r\n                    {{DeployInfo}}\r\n                    {{MainInfo}}\r\n                    {{DemoToDo}}\r\n                </div>\r\n            ",
+                      "slotKey": "{{$HTMLPLACEHOLDER}}",
+                      "openTag": "{{@HTMLPLACEHOLDER}}",
+                      "closeTag": "{{/HTMLPLACEHOLDER}}",
+                      "nestedPlaceholders": [
+                        {
+                          "name": "DeployInfo",
+                          "startIndex": 72,
+                          "endIndex": 86,
+                          "fullMatch": "{{DeployInfo}}",
+                          "templateKey": "deployinfo",
+                          "nestedPlaceholders": [],
+                          "nestedSlots": []
+                        },
+                        {
+                          "name": "MainInfo",
+                          "startIndex": 108,
+                          "endIndex": 120,
+                          "fullMatch": "{{MainInfo}}",
+                          "templateKey": "maininfo",
+                          "nestedPlaceholders": [],
+                          "nestedSlots": []
+                        },
+                        {
+                          "name": "DemoToDo",
+                          "startIndex": 142,
+                          "endIndex": 154,
+                          "fullMatch": "{{DemoToDo}}",
+                          "templateKey": "demotodo",
+                          "nestedPlaceholders": [],
+                          "nestedSlots": []
+                        }
+                      ],
+                      "nestedSlottedTemplates": [],
+                      "hasNestedPlaceholders": true,
+                      "hasNestedSlottedTemplates": false,
+                      "requiresNestedProcessing": true
+                    }
+                  ],
+                  "templateKey": "zoomin",
+                  "jsonData": null
+                }
+              ],
+              "hasNestedPlaceholders": true,
+              "hasNestedSlottedTemplates": true,
+              "requiresNestedProcessing": true
+            }
+          ],
+          "templateKey": "center",
+          "jsonData": null
+        }
+      ],
+      "jsonData": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{DeployInfo}}",
+          "replacementText": "<h2>{{$DeployTitle}}</h2>\r\n<p>{{$DeployInstruction}}</p>",
+          "type": 1
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{MainInfo}}",
+          "replacementText": "<h3>{{$MainInfo}}</h3>\r\n<p>{{$MainTitle}}</p>",
+          "type": 1
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{DemoToDo}}",
+          "replacementText": "<div class=\"demo-section\">\r\n    <h4>Coming Soon</h4>\r\n    <ul>\r\n        {{@items}}\r\n            <li {{@Highlight}}style=\"color:red;\"{{/Highlight}}>{{$Info}}</li>\r\n        {{/items}}\r\n        {{^items}}\r\n            <li>No items found</li>\r\n        {{/items}}\r\n    </ul>\r\n</div>",
+          "type": 1
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{#Center}}\r\n    {{@HTMLPLACEHOLDER}}\r\n        {{#ZoomIn}}\r\n            {{@HTMLPLACEHOLDER}}\r\n                <div style=\"text-align:center;\">\r\n                    {{DeployInfo}}\r\n                    {{MainInfo}}\r\n                    {{DemoToDo}}\r\n                </div>\r\n            {{/HTMLPLACEHOLDER}}\r\n        {{/ZoomIn}}\r\n    {{/HTMLPLACEHOLDER}}\r\n{{/Center}}",
+          "replacementText": "<div style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\">\r\n    <div>\r\n        \r\n        <div class=\"ar-column ar-animated ar-zoomIn\">\r\n    \r\n                <div style=\"text-align:center;\">\r\n                    <h2>{{$DeployTitle}}</h2>\r\n<p>{{$DeployInstruction}}</p>\r\n                    <h3>{{$MainInfo}}</h3>\r\n<p>{{$MainTitle}}</p>\r\n                    <div class=\"demo-section\">\r\n    <h4>Coming Soon</h4>\r\n    <ul>\r\n        {{@items}}\r\n            <li {{@Highlight}}style=\"color:red;\"{{/Highlight}}>{{$Info}}</li>\r\n        {{/items}}\r\n        {{^items}}\r\n            <li>No items found</li>\r\n        {{/items}}\r\n    </ul>\r\n</div>\r\n                </div>\r\n            \r\n</div>\r\n\r\n\r\n    \r\n    </div>\r\n</div>\r\n",
+          "type": 2
+        }
+      ],
+      "hasPlaceholders": true,
+      "hasSlottedTemplates": true,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    }
+  },
+  "rawTemplates": {
+    "test0_center": "<div style=\"min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;\">\r\n    <div>\r\n        {{$HTMLPLACEHOLDER}}\r\n    </div>\r\n</div>\r\n",
+    "test0_zoomin": "<div class=\"ar-column ar-animated ar-zoomIn\">\r\n    {{$HTMLPLACEHOLDER}}\r\n</div>\r\n\r\n",
+    "test0_content": "\r\n{{#Center}}\r\n    {{@HTMLPLACEHOLDER}}\r\n        {{#ZoomIn}}\r\n            {{@HTMLPLACEHOLDER}}\r\n                <div style=\"text-align:center;\">\r\n                    {{DeployInfo}}\r\n                    {{MainInfo}}\r\n                    {{DemoToDo}}\r\n                </div>\r\n            {{/HTMLPLACEHOLDER}}\r\n        {{/ZoomIn}}\r\n    {{/HTMLPLACEHOLDER}}\r\n{{/Center}}\r\n\r\n\r\n                ",
+    "test0_demotodo": "<div class=\"demo-section\">\r\n    <h4>Coming Soon</h4>\r\n    <ul>\r\n        {{@items}}\r\n            <li {{@Highlight}}style=\"color:red;\"{{/Highlight}}>{{$Info}}</li>\r\n        {{/items}}\r\n        {{^items}}\r\n            <li>No items found</li>\r\n        {{/items}}\r\n    </ul>\r\n</div>",
+    "test0_deployinfo": "<h2>{{$DeployTitle}}</h2>\r\n<p>{{$DeployInstruction}}</p>",
+    "test0_footer": "\r\n<h5>{{$FooterText}}</h5>",
+    "test0_header": "\r\n<h1>Header - {{$testValue}}</h1>",
+    "test0_maininfo": "<h3>{{$MainInfo}}</h3>\r\n<p>{{$MainTitle}}</p>",
+    "test0_test0": "<!DOCTYPE html>\r\n<html lang=\"en\" data-theme=\"light\">\r\n<head>\r\n    <meta charset=\"UTF-8\">\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, viewport-fit=cover\">\r\n    <title>ZipDeploy - Deploy Your Website in Seconds</title>\r\n    <meta name=\"description\" content=\"Deploy your static websites instantly by uploading a ZIP file. Fast, secure, and reliable hosting for developers.\">\r\n    <meta name=\"keywords\" content=\"web hosting, static site hosting, zip deploy, website deployment, developer tools\">\r\n    <meta name=\"author\" content=\"ZipDeploy\">\r\n    \r\n    <link rel=\"stylesheet\" href=\"styles.css\">\r\n</head>\r\n<body class=\"bg-base-100\">\r\n\r\n    {{ Header}}\r\n\r\n    {{Content }}\r\n\r\n    {{ Footer }}\r\n\r\n</body>\r\n</html>"
+  },
+  "templateKeys": [
+    "test0_center",
+    "test0_demotodo",
+    "test0_deployinfo",
+    "test0_footer",
+    "test0_header",
+    "test0_maininfo",
+    "test0_test0",
+    "test0_zoomin",
+    "test0_content"
+  ]
+}

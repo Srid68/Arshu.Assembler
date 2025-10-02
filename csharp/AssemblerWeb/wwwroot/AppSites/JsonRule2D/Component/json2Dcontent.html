@@ -1,0 +1,35 @@
+<div>
+    <span style="text-decoration:underline">
+        Array Content from [Json2DArrayKey] from Json Component [Json2DContent]
+    </span>
+    <hr />
+    <div>
+        <select>
+            {{@Json2DArrayKey}}
+            <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
+            {{/Json2DArrayKey}}
+            {{^Json2DArrayKey}}
+            <option value="0">No Data Found</option>
+            {{/Json2DArrayKey}}
+        </select>
+    </div>
+</div>
+
+<div>
+    <span style="text-decoration:underline">
+        Empty Array Content from [anotherJson2DArrayKey] from Json Component [Json2DContent]
+    </span>
+    <hr />
+
+    <div>
+        <select>
+            {{@anotherJson2DArrayKey}}
+            <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
+            {{/anotherJson2DArrayKey}}
+            {{^anotherJson2DArrayKey}}
+            <option value="0">No Another Data Found</option>
+            {{/anotherJson2DArrayKey}}
+        </select>
+    </div>
+
+</div>

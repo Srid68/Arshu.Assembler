@@ -1,0 +1,39 @@
+<svg width="600" height="300" xmlns="http://www.w3.org/2000/svg">
+    <style>
+        .box { fill: #f9f9f9; stroke: #333; stroke-width: 2; }
+        .text { font-family: monospace; font-size: 14px; }
+        .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+        .placeholder { fill: #d1ecf1; stroke: #0c5460; stroke-width: 1; }
+        .placeholder-text { font-family: monospace; font-size: 12px; fill: #0c5460; }
+        .json-box { fill: #fdfdfe; stroke: #a2a2a2; stroke-width: 1; }
+        .json-text { font-family: monospace; font-size: 12px; }
+        .loop-text { font-family: monospace; font-size: 12px; fill: #5a2d82; }
+    </style>
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" />
+        </marker>
+    </defs>
+
+    <!-- HTML Component Box -->
+    <rect x="300" y="50" width="280" height="180" class="box" rx="5" />
+    <text x="380" y="40" class="text">json2A.html</text>
+    <text x="310" y="80" class="loop-text">{{@Json2AArrayKey}}</text>
+    <rect x="320" y="90" width="250" height="80" class="placeholder" rx="3"/>
+    <text x="330" y="110" class="placeholder-text">&lt;option value="{{$Value}}"&gt;</text>
+    <text x="350" y="130" class="placeholder-text">{{$Name}}</text>
+    <text x="330" y="150" class="placeholder-text">&lt;/option&gt;</text>
+    <text x="310" y="190" class="loop-text">{{/Json2AArrayKey}}</text>
+
+    <!-- JSON Data Box -->
+    <rect x="20" y="20" width="220" height="260" class="json-box" rx="5" />
+    <text x="70" y="40" class="text">json2A.json</text>
+    <text x="30" y="70" class="json-text">"Json2AArrayKey": [</text>
+    <text x="40" y="90" class="json-text">{ "Name": "Item 1", ... },</text>
+    <text x="40" y="110" class="json-text">{ "Name": "Item 2", ... },</text>
+    <text x="40" y="130" class="json-text">{ "Name": "Item 3", ... }</text>
+    <text x="30" y="150" class="json-text">]</text>
+
+    <!-- Arrow -->
+    <path d="M240 110 C 270 110, 270 130, 300 130" class="arrow" />
+</svg>

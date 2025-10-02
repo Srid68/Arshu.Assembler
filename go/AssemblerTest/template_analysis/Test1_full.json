@@ -1,0 +1,203 @@
+{
+  "siteName": "Test1",
+  "templates": {
+    "test1_test1": {
+      "originalContent": "\r\n{{Test1Content}}\r\n\r\n{{Test2Content}}\r\n\r\n",
+      "placeholders": [
+        {
+          "name": "Test1Content",
+          "startIndex": 2,
+          "endIndex": 18,
+          "fullMatch": "{{Test1Content}}",
+          "templateKey": "test1content",
+          "nestedPlaceholders": null,
+          "nestedSlots": null
+        },
+        {
+          "name": "Test2Content",
+          "startIndex": 22,
+          "endIndex": 38,
+          "fullMatch": "{{Test2Content}}",
+          "templateKey": "test2content",
+          "nestedPlaceholders": null,
+          "nestedSlots": null
+        }
+      ],
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{Test1Content}}",
+          "replacementText": "{{test1contentcontent}}",
+          "type": 1
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{Test2Content}}",
+          "replacementText": "\u003cdiv class=\"demo-section\"\u003e\r\n    \u003ch4\u003eComing Soon - {{$Test2Content}}\u003c/h4\u003e\r\n    \u003cul\u003e\r\n        {{@items}}\r\n            \u003cli {{@Highlight}}style=\"color:red;\"{{/Highlight}}\u003e{{$Info}}\u003c/li\u003e\r\n        {{/items}}\r\n        {{^items}}\r\n            \u003cli\u003eNo items found\u003c/li\u003e\r\n        {{/items}}\r\n    \u003c/ul\u003e\r\n\u003c/div\u003e",
+          "type": 1
+        }
+      ],
+      "html": "\r\n{{Test1Content}}\r\n\r\n{{Test2Content}}\r\n\r\n",
+      "hasPlaceholders": true,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": true
+    },
+    "test1_test1content": {
+      "originalContent": "{{test1contentcontent}}",
+      "placeholders": [
+        {
+          "name": "test1contentcontent",
+          "startIndex": 0,
+          "endIndex": 23,
+          "fullMatch": "{{test1contentcontent}}",
+          "templateKey": "test1contentcontent",
+          "nestedPlaceholders": null,
+          "nestedSlots": null
+        }
+      ],
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{test1contentcontent}}",
+          "replacementText": "\r\n\u003ch1\u003e{{$Test1ContentContent}}\u003c/h1\u003e",
+          "type": 1
+        }
+      ],
+      "html": "{{test1contentcontent}}",
+      "hasPlaceholders": true,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": true
+    },
+    "test1_test1contentcontent": {
+      "originalContent": "\r\n\u003ch1\u003e{{$Test1ContentContent}}\u003c/h1\u003e",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonData": {
+        "Test1ContentContent": "Test 1 Content Content"
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Test1ContentContent",
+          "placeholder": "{{$Test1ContentContent}}",
+          "value": "Test 1 Content Content"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$Test1ContentContent}}",
+          "replacementText": "Test 1 Content Content",
+          "type": 0
+        }
+      ],
+      "html": "\r\n\u003ch1\u003e{{$Test1ContentContent}}\u003c/h1\u003e",
+      "json": "\r\n{\r\n    \"Test1ContentContent\": \"Test 1 Content Content\"\r\n}",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    },
+    "test1_test2content": {
+      "originalContent": "\u003cdiv class=\"demo-section\"\u003e\r\n    \u003ch4\u003eComing Soon - {{$Test2Content}}\u003c/h4\u003e\r\n    \u003cul\u003e\r\n        {{@items}}\r\n            \u003cli {{@Highlight}}style=\"color:red;\"{{/Highlight}}\u003e{{$Info}}\u003c/li\u003e\r\n        {{/items}}\r\n        {{^items}}\r\n            \u003cli\u003eNo items found\u003c/li\u003e\r\n        {{/items}}\r\n    \u003c/ul\u003e\r\n\u003c/div\u003e",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonData": {
+        "Test2Content": "Test 2 Content",
+        "items": [
+          {
+            "Highlight": false,
+            "Info": "Live demo upload"
+          },
+          {
+            "Highlight": false,
+            "Info": "Custom domain support"
+          },
+          {
+            "Highlight": true,
+            "Info": "SSL certificates"
+          }
+        ]
+      },
+      "jsonPlaceholders": [
+        {
+          "key": "Test2Content",
+          "placeholder": "{{$Test2Content}}",
+          "value": "Test 2 Content"
+        }
+      ],
+      "replacementMappings": [
+        {
+          "startIndex": 92,
+          "endIndex": 201,
+          "originalText": "{{@items}}\r\n            \u003cli {{@Highlight}}style=\"color:red;\"{{/Highlight}}\u003e{{$Info}}\u003c/li\u003e\r\n        {{/items}}",
+          "replacementText": "\r\n            \u003cli \u003eLive demo upload\u003c/li\u003e\r\n        \r\n            \u003cli \u003eCustom domain support\u003c/li\u003e\r\n        \r\n            \u003cli style=\"color:red;\"\u003eSSL certificates\u003c/li\u003e\r\n        ",
+          "type": 0
+        },
+        {
+          "startIndex": 211,
+          "endIndex": 278,
+          "originalText": "{{^items}}\r\n            \u003cli\u003eNo items found\u003c/li\u003e\r\n        {{/items}}",
+          "replacementText": "",
+          "type": 0
+        },
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{$Test2Content}}",
+          "replacementText": "Test 2 Content",
+          "type": 0
+        },
+        {
+          "startIndex": 92,
+          "endIndex": 201,
+          "originalText": "{{@items}}\r\n            \u003cli {{@Highlight}}style=\"color:red;\"{{/Highlight}}\u003e{{$Info}}\u003c/li\u003e\r\n        {{/items}}",
+          "replacementText": "\r\n            \u003cli \u003eLive demo upload\u003c/li\u003e\r\n        \r\n            \u003cli \u003eCustom domain support\u003c/li\u003e\r\n        \r\n            \u003cli style=\"color:red;\"\u003eSSL certificates\u003c/li\u003e\r\n        ",
+          "type": 0
+        },
+        {
+          "startIndex": 211,
+          "endIndex": 278,
+          "originalText": "{{^items}}\r\n            \u003cli\u003eNo items found\u003c/li\u003e\r\n        {{/items}}",
+          "replacementText": "",
+          "type": 0
+        }
+      ],
+      "html": "\u003cdiv class=\"demo-section\"\u003e\r\n    \u003ch4\u003eComing Soon - {{$Test2Content}}\u003c/h4\u003e\r\n    \u003cul\u003e\r\n        {{@items}}\r\n            \u003cli {{@Highlight}}style=\"color:red;\"{{/Highlight}}\u003e{{$Info}}\u003c/li\u003e\r\n        {{/items}}\r\n        {{^items}}\r\n            \u003cli\u003eNo items found\u003c/li\u003e\r\n        {{/items}}\r\n    \u003c/ul\u003e\r\n\u003c/div\u003e",
+      "json": "\r\n{\r\n    \"Test2Content\": \"Test 2 Content\",\r\n    \"items\": [ \r\n        { \r\n            \"Info\":\"Live demo upload\",\r\n            \"Highlight\":false\r\n        },\r\n        { \r\n            \"Info\":\"Custom domain support\",\r\n            \"Highlight\":false\r\n        },\r\n        { \r\n            \"Info\":\"SSL certificates\",\r\n            \"Highlight\":true\r\n        } \r\n    ]\r\n}",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": true,
+      "hasJsonPlaceholders": true,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    }
+  },
+  "rawTemplates": {
+    "test1_test1": "\r\n{{Test1Content}}\r\n\r\n{{Test2Content}}\r\n\r\n",
+    "test1_test1content": "{{test1contentcontent}}",
+    "test1_test1contentcontent": "\r\n\u003ch1\u003e{{$Test1ContentContent}}\u003c/h1\u003e",
+    "test1_test2content": "\u003cdiv class=\"demo-section\"\u003e\r\n    \u003ch4\u003eComing Soon - {{$Test2Content}}\u003c/h4\u003e\r\n    \u003cul\u003e\r\n        {{@items}}\r\n            \u003cli {{@Highlight}}style=\"color:red;\"{{/Highlight}}\u003e{{$Info}}\u003c/li\u003e\r\n        {{/items}}\r\n        {{^items}}\r\n            \u003cli\u003eNo items found\u003c/li\u003e\r\n        {{/items}}\r\n    \u003c/ul\u003e\r\n\u003c/div\u003e"
+  },
+  "templateKeys": {
+    "test1_test1": {},
+    "test1_test1content": {},
+    "test1_test1contentcontent": {},
+    "test1_test2content": {}
+  }
+}

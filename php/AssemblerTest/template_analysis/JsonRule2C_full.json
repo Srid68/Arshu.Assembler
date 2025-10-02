@@ -1,0 +1,108 @@
+{
+    "siteName": "JsonRule2C",
+    "templates": {
+        "jsonrule2c_json2ccontent": {
+            "originalContent": "<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Array Content from [Json2CArrayKey] from Json Component [Json2CContent]\r\n    <\/span>\r\n    <hr \/>\r\n    <div>\r\n        <select>\r\n            {{@Json2CArrayKey}}\r\n            <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n            {{\/Json2CArrayKey}}\r\n            {{^Json2CArrayKey}}\r\n            <option value=\"0\">No Data Found<\/option>\r\n            {{\/Json2CArrayKey}}\r\n        <\/select>\r\n    <\/div>\r\n<\/div>",
+            "placeholders": [],
+            "slottedTemplates": [],
+            "jsonData": {
+                "Json2CArrayKey": [
+                    {
+                        "Id": 1,
+                        "Name": "Item 1",
+                        "Value": 100,
+                        "Selected": false
+                    },
+                    {
+                        "Id": 2,
+                        "Name": "Item 2",
+                        "Value": 200,
+                        "Selected": false
+                    },
+                    {
+                        "Id": 3,
+                        "Name": "Item 3",
+                        "Value": 300,
+                        "Selected": true
+                    }
+                ]
+            },
+            "jsonPlaceholders": [],
+            "replacementMappings": [
+                {
+                    "startIndex": 200,
+                    "endIndex": 359,
+                    "originalText": "{{@Json2CArrayKey}}\r\n            <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n            {{\/Json2CArrayKey}}",
+                    "replacementText": "\r\n            <option  value=\"100\">Item 1<\/option>\r\n            \r\n            <option  value=\"200\">Item 2<\/option>\r\n            \r\n            <option selected=\"selected\"  value=\"300\">Item 3<\/option>\r\n            ",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 373,
+                    "endIndex": 479,
+                    "originalText": "{{^Json2CArrayKey}}\r\n            <option value=\"0\">No Data Found<\/option>\r\n            {{\/Json2CArrayKey}}",
+                    "replacementText": "",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 200,
+                    "endIndex": 359,
+                    "originalText": "{{@Json2CArrayKey}}\r\n            <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n            {{\/Json2CArrayKey}}",
+                    "replacementText": "\r\n            <option  value=\"100\">Item 1<\/option>\r\n            \r\n            <option  value=\"200\">Item 2<\/option>\r\n            \r\n            <option selected=\"selected\"  value=\"300\">Item 3<\/option>\r\n            ",
+                    "type": "JsonPlaceholder"
+                },
+                {
+                    "startIndex": 373,
+                    "endIndex": 479,
+                    "originalText": "{{^Json2CArrayKey}}\r\n            <option value=\"0\">No Data Found<\/option>\r\n            {{\/Json2CArrayKey}}",
+                    "replacementText": "",
+                    "type": "JsonPlaceholder"
+                }
+            ],
+            "hasPlaceholders": false,
+            "hasSlottedTemplates": false,
+            "hasJsonData": true,
+            "hasJsonPlaceholders": false,
+            "hasReplacementMappings": true,
+            "requiresProcessing": true
+        },
+        "jsonrule2c_json2c": {
+            "originalContent": "\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 5 of 5 : Json Array Assembly - Example 2C<\/h1>\r\n        <h3>Hierarchical - Json Array Assembly in placeholder component<\/h3>\r\n        <hr \/>\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Json2CContent]\r\n            <\/span>\r\n            <hr \/>\r\n            {{Json2CContent}}\r\n        <\/div>\r\n\r\n    <\/div>\r\n<\/div>",
+            "placeholders": [
+                {
+                    "name": "Json2CContent",
+                    "startIndex": 493,
+                    "endIndex": 510,
+                    "fullMatch": "{{Json2CContent}}",
+                    "templateKey": "json2ccontent",
+                    "nestedPlaceholders": [],
+                    "nestedSlots": []
+                }
+            ],
+            "slottedTemplates": [],
+            "jsonPlaceholders": [],
+            "replacementMappings": [
+                {
+                    "startIndex": 0,
+                    "endIndex": 0,
+                    "originalText": "{{Json2CContent}}",
+                    "replacementText": "<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Array Content from [Json2CArrayKey] from Json Component [Json2CContent]\r\n    <\/span>\r\n    <hr \/>\r\n    <div>\r\n        <select>\r\n            {{@Json2CArrayKey}}\r\n            <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n            {{\/Json2CArrayKey}}\r\n            {{^Json2CArrayKey}}\r\n            <option value=\"0\">No Data Found<\/option>\r\n            {{\/Json2CArrayKey}}\r\n        <\/select>\r\n    <\/div>\r\n<\/div>",
+                    "type": "SimpleTemplate"
+                }
+            ],
+            "hasPlaceholders": true,
+            "hasSlottedTemplates": false,
+            "hasJsonData": false,
+            "hasJsonPlaceholders": false,
+            "hasReplacementMappings": true,
+            "requiresProcessing": true
+        }
+    },
+    "rawTemplates": {
+        "jsonrule2c_json2ccontent": "<div>\r\n    <span style=\"text-decoration:underline\">\r\n        Array Content from [Json2CArrayKey] from Json Component [Json2CContent]\r\n    <\/span>\r\n    <hr \/>\r\n    <div>\r\n        <select>\r\n            {{@Json2CArrayKey}}\r\n            <option {{@Selected}}selected=\"selected\" {{ \/Selected}} value=\"{{$Value}}\">{{$Name}}<\/option>\r\n            {{\/Json2CArrayKey}}\r\n            {{^Json2CArrayKey}}\r\n            <option value=\"0\">No Data Found<\/option>\r\n            {{\/Json2CArrayKey}}\r\n        <\/select>\r\n    <\/div>\r\n<\/div>",
+        "jsonrule2c_json2c": "\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 5 of 5 : Json Array Assembly - Example 2C<\/h1>\r\n        <h3>Hierarchical - Json Array Assembly in placeholder component<\/h3>\r\n        <hr \/>\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Json2CContent]\r\n            <\/span>\r\n            <hr \/>\r\n            {{Json2CContent}}\r\n        <\/div>\r\n\r\n    <\/div>\r\n<\/div>"
+    },
+    "templateKeys": [
+        "jsonrule2c_json2ccontent",
+        "jsonrule2c_json2c"
+    ]
+}

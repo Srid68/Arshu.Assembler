@@ -1,0 +1,128 @@
+{
+  "siteName": "HtmlRule1B",
+  "templates": {
+    "htmlrule1b_html1bcontenta": {
+      "originalContent": "<h5>Html B1 Content A</h5>",
+      "placeholders": [],
+      "slottedTemplates": [],
+      "jsonData": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [],
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": false
+    },
+    "htmlrule1b_html1bcontentb": {
+      "originalContent": "<h3>Html B2 Content</h3>\r\n",
+      "placeholders": [],
+      "slottedTemplates": [],
+      "jsonData": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [],
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": false
+    },
+    "htmlrule1b_html1b": {
+      "originalContent": "\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 1B of 5 : PlaceHolder Markup Assembly - Example 1B</h1>\r\n        <h3>Hierarchical - Markup Assembly from placeholder components</h3>\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html1BContent]\r\n            </span>\r\n            <hr />\r\n            {{Html1BContent}}\r\n        </div>\r\n\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html1BContentB]\r\n            </span>\r\n            <hr />\r\n            {{Html1BContentB}}\r\n        </div>\r\n\r\n    </div>\r\n</div>\r\n\r\n\r\n",
+      "placeholders": [
+        {
+          "name": "Html1BContent",
+          "startIndex": 501,
+          "endIndex": 518,
+          "fullMatch": "{{Html1BContent}}",
+          "templateKey": "html1bcontent",
+          "jsonData": null,
+          "nestedPlaceholders": [],
+          "nestedSlots": []
+        },
+        {
+          "name": "Html1BContentB",
+          "startIndex": 745,
+          "endIndex": 763,
+          "fullMatch": "{{Html1BContentB}}",
+          "templateKey": "html1bcontentb",
+          "jsonData": null,
+          "nestedPlaceholders": [],
+          "nestedSlots": []
+        }
+      ],
+      "slottedTemplates": [],
+      "jsonData": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 501,
+          "endIndex": 518,
+          "originalText": "{{Html1BContent}}",
+          "replacementText": "<span style=\"text-decoration:underline\">\r\n    Html Content from Html Component [Html1BContentA]\r\n</span>\r\n<hr />\r\n{{html1BcontentA}}",
+          "type": "SimpleTemplate"
+        },
+        {
+          "startIndex": 745,
+          "endIndex": 763,
+          "originalText": "{{Html1BContentB}}",
+          "replacementText": "<h3>Html B2 Content</h3>\r\n",
+          "type": "SimpleTemplate"
+        }
+      ],
+      "hasPlaceholders": true,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    },
+    "htmlrule1b_html1bcontent": {
+      "originalContent": "<span style=\"text-decoration:underline\">\r\n    Html Content from Html Component [Html1BContentA]\r\n</span>\r\n<hr />\r\n{{html1BcontentA}}",
+      "placeholders": [
+        {
+          "name": "html1BcontentA",
+          "startIndex": 114,
+          "endIndex": 132,
+          "fullMatch": "{{html1BcontentA}}",
+          "templateKey": "html1bcontenta",
+          "jsonData": null,
+          "nestedPlaceholders": [],
+          "nestedSlots": []
+        }
+      ],
+      "slottedTemplates": [],
+      "jsonData": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 114,
+          "endIndex": 132,
+          "originalText": "{{html1BcontentA}}",
+          "replacementText": "<h5>Html B1 Content A</h5>",
+          "type": "SimpleTemplate"
+        }
+      ],
+      "hasPlaceholders": true,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": true,
+      "requiresProcessing": true
+    }
+  },
+  "rawTemplates": {
+    "htmlrule1b_html1bcontentb": "<h3>Html B2 Content</h3>\r\n",
+    "htmlrule1b_html1bcontenta": "<h5>Html B1 Content A</h5>",
+    "htmlrule1b_html1b": "\r\n<div style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\">\r\n    <div style=\"text-align:center;\">\r\n        <h1>Rule 1B of 5 : PlaceHolder Markup Assembly - Example 1B</h1>\r\n        <h3>Hierarchical - Markup Assembly from placeholder components</h3>\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html1BContent]\r\n            </span>\r\n            <hr />\r\n            {{Html1BContent}}\r\n        </div>\r\n\r\n        <hr />\r\n\r\n        <div>\r\n            <span style=\"text-decoration:underline\">\r\n                Html Content from Html Component [Html1BContentB]\r\n            </span>\r\n            <hr />\r\n            {{Html1BContentB}}\r\n        </div>\r\n\r\n    </div>\r\n</div>\r\n\r\n\r\n",
+    "htmlrule1b_html1bcontent": "<span style=\"text-decoration:underline\">\r\n    Html Content from Html Component [Html1BContentA]\r\n</span>\r\n<hr />\r\n{{html1BcontentA}}"
+  },
+  "templateKeys": [
+    "htmlrule1b_html1bcontentb",
+    "htmlrule1b_html1bcontent",
+    "htmlrule1b_html1bcontenta",
+    "htmlrule1b_html1b"
+  ]
+}

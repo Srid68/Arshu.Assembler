@@ -1,0 +1,29 @@
+
+
+<div style="min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;">
+    <div style="text-align:center;">
+        <h1>Rule 5A of 5 : Json Array Assembly - Example 2A</h1>
+        <h3>Simple - Json Array Assembly in component</h3>
+        <hr />
+
+        <div>
+            <span style="text-decoration:underline">
+                Array Content from [Json2AArrayKey] from Json Component [Json2A]
+            </span>
+            <hr />
+
+            <div>
+                <select>
+                    {{@Json2AArrayKey}}
+                    <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
+                    {{/Json2AArrayKey}}
+                    {{^Json2AArrayKey}}
+                    <option value="0">No Data Found</option>
+                    {{/Json2AArrayKey}}
+                </select>
+            </div>
+
+        </div>
+
+    </div>
+</div>

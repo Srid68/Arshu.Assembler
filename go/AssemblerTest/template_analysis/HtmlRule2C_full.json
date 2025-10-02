@@ -1,0 +1,111 @@
+{
+  "siteName": "HtmlRule2C",
+  "templates": {
+    "htmlrule2c_center": {
+      "originalContent": "\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER}}\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [],
+      "html": "\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER}}\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": false
+    },
+    "htmlrule2c_html2c": {
+      "originalContent": "\r\n\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 2 of 5 : Slotted Markup Assembly - Example 2C\u003c/h1\u003e\r\n        \u003ch3\u003eNested - Markup Assembly from single slotted components\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n         \u003cdiv\u003e\r\n             \u003cspan style=\"text-decoration:underline\"\u003e\r\n                 Html Content from Slotted Component [#Center] Merged with Nested Slotted Component [#ZoomIn] Merged with PlaceHolder Content from Component [Html2C]\r\n             \u003c/span\u003e\r\n            \u003chr /\u003e\r\n\r\n            {{#Center}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        \u003cdiv style=\"text-align:center;\"\u003e\r\n                            \u003ch3\u003e\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            \u003c/h3\u003e\r\n                        \u003c/div\u003e\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/Center}}\r\n\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n\r\n\r\n",
+      "placeholders": null,
+      "slottedTemplates": [
+        {
+          "name": "Center",
+          "startIndex": 601,
+          "endIndex": 1127,
+          "fullMatch": "{{#Center}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        \u003cdiv style=\"text-align:center;\"\u003e\r\n                            \u003ch3\u003e\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            \u003c/h3\u003e\r\n                        \u003c/div\u003e\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/Center}}",
+          "innerContent": "\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        \u003cdiv style=\"text-align:center;\"\u003e\r\n                            \u003ch3\u003e\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            \u003c/h3\u003e\r\n                        \u003c/div\u003e\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            ",
+          "slots": [
+            {
+              "nestedSlots": null,
+              "number": "",
+              "startIndex": 18,
+              "endIndex": 490,
+              "content": "\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        \u003cdiv style=\"text-align:center;\"\u003e\r\n                            \u003ch3\u003e\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            \u003c/h3\u003e\r\n                        \u003c/div\u003e\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                ",
+              "slotKey": "{{$HTMLPLACEHOLDER}}",
+              "openTag": "{{@HTMLPLACEHOLDER}}",
+              "closeTag": "{{/HTMLPLACEHOLDER}}",
+              "nestedPlaceholders": [],
+              "nestedSlottedTemplates": [
+                {
+                  "name": "ZoomIn",
+                  "startIndex": 22,
+                  "endIndex": 414,
+                  "fullMatch": "{{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        \u003cdiv style=\"text-align:center;\"\u003e\r\n                            \u003ch3\u003e\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            \u003c/h3\u003e\r\n                        \u003c/div\u003e\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}",
+                  "innerContent": "\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        \u003cdiv style=\"text-align:center;\"\u003e\r\n                            \u003ch3\u003e\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            \u003c/h3\u003e\r\n                        \u003c/div\u003e\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    ",
+                  "slots": [
+                    {
+                      "nestedSlots": null,
+                      "number": "",
+                      "startIndex": 26,
+                      "endIndex": 348,
+                      "content": "\r\n                        \u003cdiv style=\"text-align:center;\"\u003e\r\n                            \u003ch3\u003e\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            \u003c/h3\u003e\r\n                        \u003c/div\u003e\r\n                        ",
+                      "slotKey": "{{$HTMLPLACEHOLDER}}",
+                      "openTag": "{{@HTMLPLACEHOLDER}}",
+                      "closeTag": "{{/HTMLPLACEHOLDER}}",
+                      "nestedPlaceholders": [],
+                      "nestedSlottedTemplates": []
+                    }
+                  ],
+                  "templateKey": "zoomin"
+                }
+              ]
+            }
+          ],
+          "templateKey": "center"
+        }
+      ],
+      "jsonPlaceholders": [],
+      "replacementMappings": [
+        {
+          "startIndex": 0,
+          "endIndex": 0,
+          "originalText": "{{#Center}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        \u003cdiv style=\"text-align:center;\"\u003e\r\n                            \u003ch3\u003e\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            \u003c/h3\u003e\r\n                        \u003c/div\u003e\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/Center}}",
+          "replacementText": "\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv\u003e\r\n        \r\n                    \u003cdiv class=\"ar-column ar-animated ar-zoomIn\"\u003e\r\n    \r\n                        \u003cdiv style=\"text-align:center;\"\u003e\r\n                            \u003ch3\u003e\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            \u003c/h3\u003e\r\n                        \u003c/div\u003e\r\n                        \r\n\u003c/div\u003e\r\n\r\n\r\n                \r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n",
+          "type": 2
+        }
+      ],
+      "html": "\r\n\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 2 of 5 : Slotted Markup Assembly - Example 2C\u003c/h1\u003e\r\n        \u003ch3\u003eNested - Markup Assembly from single slotted components\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n         \u003cdiv\u003e\r\n             \u003cspan style=\"text-decoration:underline\"\u003e\r\n                 Html Content from Slotted Component [#Center] Merged with Nested Slotted Component [#ZoomIn] Merged with PlaceHolder Content from Component [Html2C]\r\n             \u003c/span\u003e\r\n            \u003chr /\u003e\r\n\r\n            {{#Center}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        \u003cdiv style=\"text-align:center;\"\u003e\r\n                            \u003ch3\u003e\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            \u003c/h3\u003e\r\n                        \u003c/div\u003e\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/Center}}\r\n\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n\r\n\r\n",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": true,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": true
+    },
+    "htmlrule2c_zoomin": {
+      "originalContent": "\u003cdiv class=\"ar-column ar-animated ar-zoomIn\"\u003e\r\n    {{$HTMLPLACEHOLDER}}\r\n\u003c/div\u003e\r\n\r\n",
+      "placeholders": null,
+      "slottedTemplates": null,
+      "jsonPlaceholders": [],
+      "replacementMappings": [],
+      "html": "\u003cdiv class=\"ar-column ar-animated ar-zoomIn\"\u003e\r\n    {{$HTMLPLACEHOLDER}}\r\n\u003c/div\u003e\r\n\r\n",
+      "hasPlaceholders": false,
+      "hasSlottedTemplates": false,
+      "hasJsonData": false,
+      "hasJsonPlaceholders": false,
+      "hasReplacementMappings": false,
+      "requiresProcessing": false
+    }
+  },
+  "rawTemplates": {
+    "htmlrule2c_center": "\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv\u003e\r\n        {{$HTMLPLACEHOLDER}}\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n",
+    "htmlrule2c_html2c": "\r\n\r\n\u003cdiv style=\"min-height: 100px; width:100%; padding: 0; margin: 0; display:grid; align-items: center;\"\u003e\r\n    \u003cdiv style=\"text-align:center;\"\u003e\r\n        \u003ch1\u003eRule 2 of 5 : Slotted Markup Assembly - Example 2C\u003c/h1\u003e\r\n        \u003ch3\u003eNested - Markup Assembly from single slotted components\u003c/h3\u003e\r\n        \u003chr /\u003e\r\n\r\n         \u003cdiv\u003e\r\n             \u003cspan style=\"text-decoration:underline\"\u003e\r\n                 Html Content from Slotted Component [#Center] Merged with Nested Slotted Component [#ZoomIn] Merged with PlaceHolder Content from Component [Html2C]\r\n             \u003c/span\u003e\r\n            \u003chr /\u003e\r\n\r\n            {{#Center}}\r\n                {{@HTMLPLACEHOLDER}}\r\n                    {{#ZoomIn}}\r\n                        {{@HTMLPLACEHOLDER}}\r\n                        \u003cdiv style=\"text-align:center;\"\u003e\r\n                            \u003ch3\u003e\r\n                                Nested Slotted PlaceHolder Content from [Html2C] Html Component\r\n                            \u003c/h3\u003e\r\n                        \u003c/div\u003e\r\n                        {{/HTMLPLACEHOLDER}}\r\n                    {{/ZoomIn}}\r\n                {{/HTMLPLACEHOLDER}}\r\n            {{/Center}}\r\n\r\n        \u003c/div\u003e\r\n\r\n    \u003c/div\u003e\r\n\u003c/div\u003e\r\n\r\n\r\n",
+    "htmlrule2c_zoomin": "\u003cdiv class=\"ar-column ar-animated ar-zoomIn\"\u003e\r\n    {{$HTMLPLACEHOLDER}}\r\n\u003c/div\u003e\r\n\r\n"
+  },
+  "templateKeys": {
+    "htmlrule2c_center": {},
+    "htmlrule2c_html2c": {},
+    "htmlrule2c_zoomin": {}
+  }
+}
