@@ -37,3 +37,5 @@ go/fly_deploy_go_web.bat
 node/fly_deploy_node_web.bat
 csharp/fly_deploy_csharp_web.bat
 csharp/fly_deploy_js_web.bat
+csharp/fly_run_csharp_web.bat
+csharp/fly_run_js_web.bat
