@@ -60,15 +60,28 @@ $app->addRoutingMiddleware();
 $app->addErrorMiddleware(true, true, true);
 
 // Configure and add idle tracking middleware
-$idleSeconds = getenv('IDLE_SHUTDOWN_SECONDS') ?: 10;
-$idleSeconds = is_numeric($idleSeconds) ? (int)$idleSeconds : 10;
-IdleTrackingMiddleware::configure($idleSeconds);
+// Check if running in debug mode via environment variables or CLI
+$isDebug = getenv('APP_ENV') === 'development'
+    || getenv('APP_DEBUG') === 'true'
+    || in_array('--debug', $_SERVER['argv'] ?? [])
+    || php_sapi_name() === 'cli-server'; // PHP built-in server
 
-// Only enable in non-debug mode (check if we're not in development)
-$isDebug = getenv('APP_ENV') === 'development' || getenv('APP_DEBUG') === 'true';
+// Also check if running under debugger (Xdebug)
+if (function_exists('xdebug_is_debugger_active') && xdebug_is_debugger_active()) {
+    $isDebug = true;
+}
+
+Logger::info('Debug mode: ' . ($isDebug ? 'enabled' : 'disabled'), 'Index');
+
 if (!$isDebug) {
+    $idleSeconds = getenv('IDLE_SHUTDOWN_SECONDS') ?: 10;
+    $idleSeconds = is_numeric($idleSeconds) ? (int)$idleSeconds : 10;
+    IdleTrackingMiddleware::configure($idleSeconds);
     $app->add(new IdleTrackingMiddleware());
- }
+    Logger::info("Idle tracking enabled with {$idleSeconds} seconds timeout", 'Index');
+} else {
+    Logger::info('Idle tracking disabled in debug mode', 'Index');
+}
 
 // ...existing code...
 
@@ -94,7 +107,7 @@ $app->get('/scalar', function (ServerRequest $request, Response $response) {
 $app->get('/scalar/{file}', function (ServerRequest $request, Response $response, array $args) {
     $file = $args['file'];
     $filePath = __DIR__ . '/wwwroot/scalar/' . $file;
-    
+
     if (file_exists($filePath) && is_file($filePath)) {
         $content = file_get_contents($filePath);
         $contentType = match (pathinfo($file, PATHINFO_EXTENSION)) {
@@ -103,11 +116,43 @@ $app->get('/scalar/{file}', function (ServerRequest $request, Response $response
             'html' => 'text/html',
             default => 'text/plain'
         };
-        
+
         $response->getBody()->write($content);
         return $response->withHeader('Content-Type', $contentType);
     }
-    
+
+    return $response->withStatus(404);
+});
+
+// Serve static files from wwwroot/Resource
+$app->get('/Resource/{path:.+}', function (ServerRequest $request, Response $response, array $args) {
+    $path = $args['path'];
+    $filePath = __DIR__ . '/wwwroot/Resource/' . $path;
+
+    // Security check - prevent directory traversal
+    $realPath = realpath($filePath);
+    $basePath = realpath(__DIR__ . '/wwwroot/Resource');
+
+    if ($realPath && $basePath && strpos($realPath, $basePath) === 0 && is_file($realPath)) {
+        $content = file_get_contents($realPath);
+        $contentType = match (pathinfo($path, PATHINFO_EXTENSION)) {
+            'css' => 'text/css',
+            'js' => 'application/javascript',
+            'html' => 'text/html',
+            'json' => 'application/json',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'svg' => 'image/svg+xml',
+            'ico' => 'image/x-icon',
+            default => 'text/plain'
+        };
+
+        $response->getBody()->write($content);
+        return $response->withHeader('Content-Type', $contentType);
+    }
+
     return $response->withStatus(404);
 });
 

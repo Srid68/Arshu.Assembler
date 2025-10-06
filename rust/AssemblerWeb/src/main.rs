@@ -91,6 +91,14 @@ async fn main() -> std::io::Result<()> {
     assembler::template_common::logger::Logger::configure_context_log_files(context_log_files);
     assembler::template_common::logger::Logger::info("AssemblerWeb starting up", Some("Main"));
 
+    // Pre-generate appsites.csv at startup to ensure it's available
+    let (assembler_web_dir_path, _) = TemplateUtils::get_assembler_web_dir_path();
+    let wwwroot_path_str = assembler_web_dir_path.to_str().unwrap_or("");
+    if let Err(e) = app_sites_config::load_app_sites(wwwroot_path_str) {
+        eprintln!("[WARNING] Failed to load/generate appsites.csv: {}", e);
+        assembler::template_common::logger::Logger::warn(&format!("Failed to load appsites.csv: {}", e), Some("Main"));
+    }
+
     println!("Starting server on http://localhost:8080");
     println!("Scalar UI will be available at http://localhost:8080/scalar");
 

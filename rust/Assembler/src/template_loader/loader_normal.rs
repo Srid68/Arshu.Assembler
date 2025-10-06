@@ -51,11 +51,36 @@ impl LoaderNormal {
                 let file_name = path.file_stem().unwrap().to_string_lossy().to_string();
                 let key = format!("{}_{}", app_site.to_lowercase(), file_name.to_lowercase());
                 let html_content = fs::read_to_string(path).unwrap_or_default();
+
+                // Find JSON file case-insensitively
                 let json_file = path.with_extension("json");
                 let json_content = if json_file.exists() {
                     Some(fs::read_to_string(json_file).unwrap_or_default())
                 } else {
-                    None
+                    // Try case-insensitive search in the same directory
+                    if let Some(parent_dir) = path.parent() {
+                        let base_name = path.file_stem().unwrap().to_string_lossy();
+                        if let Ok(entries) = fs::read_dir(parent_dir) {
+                            let matching_json = entries
+                                .filter_map(|e| e.ok())
+                                .find(|entry| {
+                                    let file_path = entry.path();
+                                    file_path.extension().map(|ext| ext == "json").unwrap_or(false) &&
+                                    file_path.file_stem()
+                                        .and_then(|stem| Some(stem.to_string_lossy().eq_ignore_ascii_case(&base_name)))
+                                        .unwrap_or(false)
+                                });
+                            if let Some(json_entry) = matching_json {
+                                fs::read_to_string(json_entry.path()).ok()
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 };
                 result.insert(key, (html_content, json_content));
             }
