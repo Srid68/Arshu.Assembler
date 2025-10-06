@@ -2,6 +2,7 @@
   "Language": "JavaScript",
   "LanguageId": "javascript",
   "Title": "Web Assembler",
+  "HighlightText": "recreating abstractions from Mustache, React, and HTMX",
   "Label": "Try different implementations:",
   "FeatureParityText": "Towards Feature parity with Arshu Data",
   "ArshuDataUrl": "https://ovharshudata.roottns.com/",

@@ -73,9 +73,12 @@
 </style>
 
 <div class="header-bottom">
-    <p style="color: rgba(255,255,255,0.9); font-size: 0.9em; margin: 0 0 8px 0; text-align: center;">
-        Arshu Polyglot <span id="{{$LanguageId}}">{{$Language}}</span> {{$Title}}
-    </p>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
+        <p style="color: rgba(255,255,255,0.9); font-size: 0.9em; margin: 0; text-align: center;">
+            Arshu Polyglot <span id="{{$LanguageId}}">{{$Language}}</span> {{$Title}}
+        </p>
+        <span style="color: rgba(255,215,0,0.95); font-size: 0.85em; font-weight: 500; font-style: italic;">{{$HighlightText}}</span>
+    </div>
     <span class="lang-label">{{$Label}}</span>
     <div class="lang-links">
         {{@Languages}}

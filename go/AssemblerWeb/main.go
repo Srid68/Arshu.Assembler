@@ -186,16 +186,26 @@ func main() {
 		fmt.Printf("[PRODUCTION] Idle tracking enabled (%d seconds)\n", idleSeconds)
 	}
 
-	// Other routes
+	// Serve Scalar UI static files
+	r.Static("/scalar", "./wwwroot/scalar")
+
+	// API routes
 	r.GET("/", index)
 	r.POST("/merge", mergeTemplates)
 	r.GET("/openapi.json", openapi)
 
-	// Serve Scalar UI static files
-	r.Static("/scalar", "./wwwroot/scalar")
-
-	// Serve all wwwroot files (for test summary HTML files, etc.) - must come after specific routes
-	r.StaticFS("/", http.Dir("./wwwroot"))
+	// Serve static files from wwwroot (HTML, JSON, etc.) - use NoRoute to avoid conflicts
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		// Try to serve from wwwroot
+		filePath := "./wwwroot" + path
+		if _, err := os.Stat(filePath); err == nil {
+			c.File(filePath)
+			return
+		}
+		// If file not found, return 404
+		c.JSON(404, gin.H{"error": "Not Found"})
+	})
 
 	// Launch Scalar UI in browser after a short delay
 	go func() {

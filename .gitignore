@@ -27,6 +27,31 @@ Thumbs.db
 *.user
 *.rs.bk
 *.bak
+*.exe
+*.dll
+*.out
+*.so
+*.a
+*.lib
+*.pdb
+*.class
+*.jar
+*.o
+*.obj
+*.pyc
+*.zip
+*.tar
+*.gz
+*.7z
+*.db
+*.sqlite
+*.msi
+*.apk
+*.app
+*.dmg
+*.iso
+*.bin
+*.tmp
 
 # Ignore Python cache
 __pycache__/
@@ -47,6 +72,7 @@ csharp/fly_deploy_csharp_web.bat
 csharp/fly_deploy_js_web.bat
 csharp/fly_run_csharp_web.bat
 csharp/fly_run_js_web.bat
+...existing code...
 
 
 
