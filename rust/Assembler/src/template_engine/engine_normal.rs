@@ -405,16 +405,21 @@ impl EngineNormal {
             // Look for slot start {{@HTMLPLACEHOLDER
             if let Some(slot_start) = inner_content[search_pos..].find("{{@HTMLPLACEHOLDER") {
                 let slot_start = search_pos + slot_start;
-                
+
                 // Find the number (if any) and closing }}
                 let after_placeholder = slot_start + 18; // Length of "{{@HTMLPLACEHOLDER"
                 let mut slot_num = String::new();
                 let mut pos = after_placeholder;
 
-                // Extract slot number
-                while pos < inner_content.len() && inner_content.chars().nth(pos).unwrap_or(' ').is_digit(10) {
-                    slot_num.push(inner_content.chars().nth(pos).unwrap());
-                    pos += 1;
+                // Extract slot number using byte positions
+                while pos < inner_content.len() {
+                    let byte = inner_content.as_bytes()[pos];
+                    if byte.is_ascii_digit() {
+                        slot_num.push(byte as char);
+                        pos += 1;
+                    } else {
+                        break;
+                    }
                 }
 
                 // Check for closing }}

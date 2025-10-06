@@ -3,6 +3,7 @@
 namespace Assembler\TemplateLoader;
 
 use Assembler\App\JsonConverter;
+use Assembler\TemplateCommon\Logger;
 use Assembler\TemplateCommon\TemplateUtils;
 use Assembler\TemplateModel\PreprocessedSiteTemplates;
 use Assembler\TemplateModel\PreprocessedTemplate;
@@ -28,21 +29,28 @@ class LoaderPreProcess
      */
     public static function loadProcessGetTemplateFiles(string $rootDirPath, string $appSite): PreprocessedSiteTemplates
     {
+        Logger::debug("LoadProcessGetTemplateFiles called for appSite: $appSite", 'LoaderPreProcess');
+
         $cacheKey = dirname($rootDirPath) . '|' . $appSite;
-        
+
         if (isset(self::$preprocessedTemplatesCache[$cacheKey])) {
-            return self::$preprocessedTemplatesCache[$cacheKey];
+            $cached = self::$preprocessedTemplatesCache[$cacheKey];
+            Logger::debug("Returning cached templates for $appSite (" . count($cached->templates) . " templates)", 'LoaderPreProcess');
+            return $cached;
         }
 
         $result = new PreprocessedSiteTemplates();
         $result->siteName = $appSite;
 
         $appSitesPath = $rootDirPath . DIRECTORY_SEPARATOR . 'AppSites' . DIRECTORY_SEPARATOR . $appSite;
-        
+
         if (!is_dir($appSitesPath)) {
+            Logger::warn("AppSites directory not found: $appSitesPath", 'LoaderPreProcess');
             self::$preprocessedTemplatesCache[$cacheKey] = $result;
             return $result;
         }
+
+        Logger::debug("Loading templates from: $appSitesPath", 'LoaderPreProcess');
 
         // Recursively find all HTML files
         $iterator = new \RecursiveIteratorIterator(
@@ -54,15 +62,38 @@ class LoaderPreProcess
             if ($file->isFile() && $file->getExtension() === 'html') {
                 $fileName = $file->getBasename('.html');
                 $key = strtolower($appSite) . '_' . strtolower($fileName);
-                
+
                 $content = file_get_contents($file->getPathname()) ?: '';
-                
-                // Look for corresponding JSON file
+                Logger::debug("Loading template: $key (size: " . strlen($content) . ")", 'LoaderPreProcess');
+
+                // Find JSON file case-insensitively
                 $jsonFile = substr($file->getPathname(), 0, -5) . '.json'; // Replace .html with .json
                 $jsonContent = null;
-                
+
                 if (file_exists($jsonFile)) {
                     $jsonContent = file_get_contents($jsonFile) ?: null;
+                    Logger::debug("Found JSON file for $key (size: " . strlen($jsonContent ?: '') . ")", 'LoaderPreProcess');
+                } else {
+                    // Try case-insensitive search in the same directory
+                    $dir = dirname($file->getPathname());
+                    $baseName = strtolower($file->getBasename('.html'));
+                    $files = scandir($dir);
+
+                    if ($files !== false) {
+                        foreach ($files as $entry) {
+                            if ($entry !== '.' && $entry !== '..' && is_file($dir . DIRECTORY_SEPARATOR . $entry)) {
+                                if (strtolower(pathinfo($entry, PATHINFO_EXTENSION)) === 'json') {
+                                    $entryBase = strtolower(pathinfo($entry, PATHINFO_FILENAME));
+                                    if ($entryBase === $baseName) {
+                                        $matchedJsonPath = $dir . DIRECTORY_SEPARATOR . $entry;
+                                        $jsonContent = file_get_contents($matchedJsonPath) ?: null;
+                                        Logger::debug("Found JSON file (case-insensitive) for $key (size: " . strlen($jsonContent ?: '') . ")", 'LoaderPreProcess');
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Store raw template for backward compatibility
@@ -72,12 +103,19 @@ class LoaderPreProcess
                 // Preprocess the template with JSON data
                 $preprocessed = self::preprocessTemplate($content, $jsonContent, $appSite, $key);
                 $result->templates[$key] = $preprocessed;
+
+                Logger::debug("Preprocessed $key: " . count($preprocessed->replacementMappings) . " replacements, " .
+                    count($preprocessed->slottedTemplates) . " slotted, " . count($preprocessed->placeholders) . " placeholders", 'LoaderPreProcess');
             }
         }
+
+        Logger::info("Loaded " . count($result->templates) . " templates for $appSite", 'LoaderPreProcess');
 
         // CRITICAL: Create ALL replacement mappings after all templates are loaded
         // This ensures PreProcess engine does ONLY merging, no processing logic
         self::createAllReplacementMappingsForSite($result, $appSite);
+
+        Logger::info("Created all replacement mappings for $appSite", 'LoaderPreProcess');
 
         self::$preprocessedTemplatesCache[$cacheKey] = $result;
         return $result;
@@ -145,23 +183,33 @@ class LoaderPreProcess
      */
     private static function createAllReplacementMappingsForSite(PreprocessedSiteTemplates $siteTemplates, string $appSite): void
     {
+        Logger::debug("Creating replacement mappings for $appSite - Phase 1: JSON arrays", 'LoaderPreProcess');
         // Phase 1: Create JSON replacement mappings for all templates first (no dependencies)
         foreach ($siteTemplates->templates as $template) {
             // Create replacement mappings for JSON array blocks (including negative blocks)
             self::createJsonArrayReplacementMappings($template, $template->originalContent);
         }
 
+        Logger::debug("Creating replacement mappings for $appSite - Phase 2: Simple placeholders", 'LoaderPreProcess');
         // Phase 2: Create simple template replacement mappings (may depend on JSON but not on slotted templates)
         foreach ($siteTemplates->templates as $template) {
             // Create replacement mappings for simple placeholders
             self::createPlaceholderReplacementMappings($template, $siteTemplates->templates, $appSite);
         }
 
+        Logger::debug("Creating replacement mappings for $appSite - Phase 3: Slotted templates", 'LoaderPreProcess');
         // Phase 3: Create slotted template replacement mappings (may depend on other templates)
         foreach ($siteTemplates->templates as $template) {
             // Create replacement mappings for slotted templates
             self::createSlottedTemplateReplacementMappings($template, $siteTemplates->templates, $appSite);
         }
+
+        // Log summary of all replacement mappings
+        $totalMappings = 0;
+        foreach ($siteTemplates->templates as $template) {
+            $totalMappings += count($template->replacementMappings);
+        }
+        Logger::info("Total replacement mappings created for $appSite: $totalMappings", 'LoaderPreProcess');
     }
 
     /**
@@ -425,21 +473,29 @@ class LoaderPreProcess
         // Step 1: Create replacement mappings for JSON array blocks
         self::createJsonArrayReplacementMappings($template, $content);
 
-        // Step 2: Create replacement mappings for JSON placeholders  
+        // Step 2: Create replacement mappings for JSON placeholders
         // Simple JSON placeholder replacement for {{$key}} and {{key}} patterns
         foreach ($template->jsonData as $key => $value) {
-            if (is_string($value)) {
+            if (is_string($value) || is_bool($value) || is_numeric($value)) {
+                // Convert value to string representation
+                $valueStr = '';
+                if (is_bool($value)) {
+                    $valueStr = $value ? 'true' : 'false';
+                } else {
+                    $valueStr = (string)$value;
+                }
+
                 // Check for {{$key}} pattern first
                 $placeholder = '{{$' . $key . '}}';
                 if (strpos($content, $placeholder) !== false) {
-                    $jsonPlaceholder = new JsonPlaceholder($key, $placeholder, $value);
+                    $jsonPlaceholder = new JsonPlaceholder($key, $placeholder, $valueStr);
                     $template->jsonPlaceholders[] = $jsonPlaceholder;
                 }
-                
+
                 // Also check for {{key}} pattern (without $)
                 $placeholder = '{{' . $key . '}}';
                 if (strpos($content, $placeholder) !== false) {
-                    $jsonPlaceholder = new JsonPlaceholder($key, $placeholder, $value);
+                    $jsonPlaceholder = new JsonPlaceholder($key, $placeholder, $valueStr);
                     $template->jsonPlaceholders[] = $jsonPlaceholder;
                 }
             }
@@ -460,18 +516,31 @@ class LoaderPreProcess
         foreach ($template->placeholders as $placeholder) {
             $targetTemplateKey = strtolower($appSite) . '_' . $placeholder->templateKey;
             $targetTemplate = $allTemplates[$targetTemplateKey] ?? null;
-            
+
             if ($targetTemplate) {
-                // Use the target template's original content without applying other replacement mappings
-                // This prevents circular dependencies and infinite recursion
+                // Start with the target template's original content
                 $processedTemplate = $targetTemplate->originalContent;
+
+                // CRITICAL FIX: Apply the target template's JSON placeholder replacements
+                // This ensures nested components use their own JSON context (e.g., header.json for Header component)
+                $jsonMappingCount = 0;
+                foreach ($targetTemplate->replacementMappings as $m) {
+                    if ($m->type === ReplacementType::JSON_PLACEHOLDER && strpos($processedTemplate, $m->originalText) !== false) {
+                        Logger::info("  Replacing '{$m->originalText}' with '{$m->replacementText}' in {$targetTemplateKey}", 'LoaderPreProcess');
+                        $processedTemplate = str_replace($m->originalText, $m->replacementText, $processedTemplate);
+                        $jsonMappingCount++;
+                    }
+                }
+                if ($jsonMappingCount > 0) {
+                    Logger::info("Applied {$jsonMappingCount} JSON mappings to {$targetTemplateKey}", 'LoaderPreProcess');
+                }
 
                 // Create the replacement mapping
                 $mapping = new ReplacementMapping();
                 $mapping->originalText = $placeholder->fullMatch;
                 $mapping->replacementText = $processedTemplate;
                 $mapping->type = ReplacementType::SIMPLE_TEMPLATE;
-                
+
                 $template->replacementMappings[] = $mapping;
             }
         }
@@ -556,9 +625,17 @@ class LoaderPreProcess
             $targetTemplateKey = strtolower($appSite) . '_' . $nestedPlaceholder->templateKey;
             if (isset($allTemplates[$targetTemplateKey])) {
                 $targetTemplate = $allTemplates[$targetTemplateKey];
-                
-                // Use the target template's original content
+
+                // Start with the target template's original content
                 $processedTemplate = $targetTemplate->originalContent;
+
+                // CRITICAL FIX: Apply the target template's JSON placeholder replacements
+                // This ensures nested components use their own JSON context
+                foreach ($targetTemplate->replacementMappings as $jsonMapping) {
+                    if ($jsonMapping->type === ReplacementType::JSON_PLACEHOLDER) {
+                        $processedTemplate = str_replace($jsonMapping->originalText, $jsonMapping->replacementText, $processedTemplate);
+                    }
+                }
 
                 // Replace in result
                 $result = str_replace($nestedPlaceholder->fullMatch, $processedTemplate, $result);
@@ -667,7 +744,7 @@ class LoaderPreProcess
             
             // Only process if we have a valid array (empty arrays are valid too for negative blocks)
             if (is_array($processedArrayValue)) {
-                error_log("DEBUG: Processing array template blocks for '$arrayKey' using template key '$templateKey'");
+                Logger::debug("Processing array template blocks for '$arrayKey' using template key '$templateKey'", 'LoaderPreProcess');
                 // Process positive array blocks {{@templateKey}}...{{/templateKey}}
                 $openTag = '{{@' . $templateKey . '}}';
                 $closeTag = '{{/' . $templateKey . '}}';
@@ -685,20 +762,21 @@ class LoaderPreProcess
     private static function processJsonArrayBlock(PreprocessedTemplate $template, string $content, string $openTag, string $closeTag, array $arrayValue, bool $isNegative): void
     {
         $searchPos = 0;
-        
+        $mappingCount = 0;
+
         while ($searchPos < strlen($content)) {
             $openStart = strpos($content, $openTag, $searchPos);
             if ($openStart === false) break;
-            
+
             $openEnd = $openStart + strlen($openTag);
             $closeStart = strpos($content, $closeTag, $openEnd);
             if ($closeStart === false) break;
-            
+
             $innerContent = substr($content, $openEnd, $closeStart - $openEnd);
             $fullMatch = $openTag . $innerContent . $closeTag;
-            
+
             $replacementText = '';
-            
+
             if ($isNegative) {
                 // Negative block: show content only if array is empty
                 $replacementText = empty($arrayValue) ? $innerContent : '';
@@ -706,17 +784,24 @@ class LoaderPreProcess
                 // Positive block: process array content safely
                 $replacementText = self::processArrayBlockContentSafely($innerContent, $arrayValue);
             }
-            
+
+            Logger::info("[LoaderPreProcess]   Creating JSON array mapping: '{$openTag}' -> " . strlen($replacementText) . " chars", 'LoaderPreProcess');
+
             $mapping = new ReplacementMapping();
             $mapping->originalText = $fullMatch;
             $mapping->replacementText = $replacementText;
             $mapping->type = ReplacementType::JSON_PLACEHOLDER;
             $mapping->startIndex = $openStart;
             $mapping->endIndex = $closeStart + strlen($closeTag);
-            
+
             $template->replacementMappings[] = $mapping;
-            
+            $mappingCount++;
+
             $searchPos = $closeStart + strlen($closeTag);
+        }
+
+        if ($mappingCount > 0) {
+            Logger::info("[LoaderPreProcess] Applied {$mappingCount} JSON array mappings for '{$openTag}'", 'LoaderPreProcess');
         }
     }
 
@@ -749,11 +834,12 @@ class LoaderPreProcess
                             } elseif (is_bool($value)) {
                                 $valueStr = $value ? 'true' : 'false';
                             } elseif (is_object($value)) {
-                                $valueStr = json_encode($value);
+                                $valueStr = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
                             } else {
                                 $valueStr = (string)$value;
                             }
                         }
+                        Logger::debug("[LoaderPreProcess]   Replacing '{$placeholder}' with '{$valueStr}'", 'LoaderPreProcess');
                         $itemBlock = self::replaceAllCaseInsensitive($itemBlock, $placeholder, $valueStr);
                     }
 
@@ -918,7 +1004,15 @@ class LoaderPreProcess
         if ($template->jsonData === null) return;
 
         foreach ($template->jsonData as $key => $value) {
-            if (is_string($value)) {
+            if (is_string($value) || is_bool($value) || is_numeric($value)) {
+                // Convert value to string representation
+                $valueStr = '';
+                if (is_bool($value)) {
+                    $valueStr = $value ? 'true' : 'false';
+                } else {
+                    $valueStr = (string)$value;
+                }
+
                 // Handle both {{$key}} and {{key}} patterns
                 $placeholders = [
                     '{{$' . $key . '}}',
@@ -933,7 +1027,7 @@ class LoaderPreProcess
 
                         $mapping = new ReplacementMapping();
                         $mapping->originalText = $placeholder;
-                        $mapping->replacementText = $value;
+                        $mapping->replacementText = $valueStr;
                         $mapping->type = ReplacementType::JSON_PLACEHOLDER;
                         $mapping->startIndex = $pos;
                         $mapping->endIndex = $pos + strlen($placeholder);

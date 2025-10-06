@@ -1,0 +1,214 @@
+<script>
+// ========================================
+// COMMON SHARED JAVASCRIPT CODE
+// Used by both AssemblerWeb and AssemblerWebJs
+// ========================================
+
+// Function to update rule description
+function updateRuleDescription(appSite, description) {
+    const descElement = document.getElementById('rule-description');
+
+    if (description) {
+        descElement.innerHTML = `<strong>📘 ${appSite}:</strong> ${description}`;
+        descElement.classList.add('show');
+    } else {
+        descElement.classList.remove('show');
+    }
+}
+
+// Function to display template details in dedicated containers
+function displayTemplateDetails(templates, engineType) {
+    const containerId = engineType === 'normal' ? '{{$NormalTemplateId}}' : '{{$PreProcessTemplateId}}';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    let detailsHtml = '';
+
+    if (templates && Object.keys(templates).length > 0) {
+        Object.entries(templates).forEach(([key, tpl]) => {
+            if (engineType === 'normal') {
+                const htmlContent = tpl.Html || tpl.html || '';
+                const jsonContent = tpl.Json || tpl.json || '';
+                detailsHtml += `<div style='border:1px solid #e0e0e0; border-radius:8px; margin-bottom:20px; padding:16px; background:#fafbfc; box-shadow: 0 2px 4px rgba(0,0,0,0.05);'>
+                    <div style='font-weight:bold; font-size:1.1em; margin-bottom:12px; color:#667eea; border-bottom:2px solid #667eea; padding-bottom:8px;'>${key}</div>
+                    <div style='margin-bottom:12px;'><span style='font-weight:600; color:#555;'>HTML Content:</span></div>
+                    <pre style='font-size:11px; background:#f0f2f5; padding:12px; border-radius:6px; margin-bottom:12px; white-space:pre-wrap; border-left:4px solid #667eea; overflow-x:auto;'>${htmlContent.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+                    <div style='margin-bottom:8px;'><span style='font-weight:600; color:#555;'>JSON Content:</span></div>
+                    <pre style='font-size:11px; background:#f0f2f5; padding:12px; border-radius:6px; white-space:pre-wrap; border-left:4px solid #667eea; overflow-x:auto;'>${jsonContent.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+                </div>`;
+            } else {
+                // PreProcess engine - remove OriginalContent for clean display
+                const cleanTemplate = {...tpl};
+                if (cleanTemplate.hasOwnProperty('OriginalContent')) {
+                    delete cleanTemplate.OriginalContent;
+                }
+                detailsHtml += `<div style='border:1px solid #e0e0e0; border-radius:8px; margin-bottom:20px; padding:16px; background:#f6faff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);'>
+                    <div style='font-weight:bold; font-size:1.1em; margin-bottom:12px; color:#667eea; border-bottom:2px solid #667eea; padding-bottom:8px;'>${key}</div>
+                    <div style='margin-bottom:8px;'><span style='font-weight:600; color:#555;'>PreProcess JSON Structure:</span></div>
+                    <pre style='font-size:11px; background:#e7f3ff; padding:12px; border-radius:6px; white-space:pre-wrap; border-left:4px solid #007bff; overflow-x:auto;'>${JSON.stringify(cleanTemplate,null,2).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+                </div>`;
+            }
+        });
+    } else {
+        detailsHtml = '<div class="loading">No templates found.</div>';
+    }
+
+    container.innerHTML = detailsHtml;
+}
+
+// Wrapper function to route to appropriate handler based on merge mode
+console.log('[WRAPPER] Defining handleScenarioChange wrapper function');
+function handleScenarioChange() {
+    console.log('[WRAPPER] handleScenarioChange wrapper called');
+    const useClientMerge = document.getElementById('use-client-merge');
+    const isClientMode = useClientMerge && useClientMerge.checked;
+    const hasServerFunction = typeof handleScenarioChangeServer === 'function';
+    const hasClientFunction = typeof handleScenarioChangeClient === 'function';
+
+    console.log('handleScenarioChange called:', {
+        isClientMode,
+        hasServerFunction,
+        hasClientFunction
+    });
+
+    // Strict mode - no fallback. Show error if requested function doesn't exist
+    if (!isClientMode) {
+        // Server mode requested
+        if (!hasServerFunction) {
+            console.error('Server-side merging requested but handleScenarioChangeServer function not available');
+            const normalResult = document.querySelector('#{{$NormalResultId}}');
+            const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
+            if (normalResult) normalResult.innerHTML = '<div class="error">Error: Server-side merging not available in this project</div>';
+            if (preprocessResult) preprocessResult.innerHTML = '<div class="error">Error: Server-side merging not available in this project</div>';
+            return;
+        }
+        console.log('Calling handleScenarioChangeServer');
+        handleScenarioChangeServer();
+    } else {
+        // Client mode requested
+        if (!hasClientFunction) {
+            console.error('Client-side merging requested but handleScenarioChangeClient function not available');
+            const normalResult = document.querySelector('#{{$NormalResultId}}');
+            const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
+            if (normalResult) normalResult.innerHTML = '<div class="error">Error: Client-side merging not available in this project</div>';
+            if (preprocessResult) preprocessResult.innerHTML = '<div class="error">Error: Client-side merging not available in this project</div>';
+            return;
+        }
+        console.log('Calling handleScenarioChangeClient');
+        handleScenarioChangeClient();
+    }
+}
+
+// Function to navigate scenarios (prev/next)
+function moveScenario(offset) {
+    const select = document.getElementById('test-select');
+    if (!select || select.options.length <= 1) return; // Only placeholder
+
+    let idx = select.selectedIndex;
+    if (idx === -1 || idx === 0) idx = 1; // skip placeholder
+    else idx += offset;
+
+    if (idx < 1) idx = 1;
+    if (idx >= select.options.length) idx = select.options.length - 1;
+
+    select.selectedIndex = idx;
+    select.dispatchEvent(new Event('change'));
+}
+
+// Function to toggle template display visibility
+function updateTemplateVisibility() {
+    const showTemplates = document.getElementById('show-templates')?.checked;
+    const templateContainer = document.getElementById('template-display-container');
+
+    if (templateContainer) {
+        templateContainer.style.display = showTemplates ? 'block' : 'none';
+    }
+
+    // If checkbox is checked and a scenario is selected, load template details
+    if (showTemplates) {
+        const select = document.getElementById('test-select');
+        if (select && select.value) {
+            // Trigger scenario change to reload templates
+            handleScenarioChange();
+        }
+    }
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Scenario selector
+    const testSelect = document.getElementById('test-select');
+    if (testSelect) {
+        testSelect.addEventListener('change', handleScenarioChange);
+    }
+
+    // Previous/Next buttons
+    const prevBtn = document.getElementById('prevScenarioBtn');
+    const nextBtn = document.getElementById('nextScenarioBtn');
+    if (prevBtn) prevBtn.addEventListener('click', function() { moveScenario(-1); });
+    if (nextBtn) nextBtn.addEventListener('click', function() { moveScenario(1); });
+
+    // Template details toggle
+    const showTemplatesCheckbox = document.getElementById('show-templates');
+    if (showTemplatesCheckbox) {
+        showTemplatesCheckbox.addEventListener('change', updateTemplateVisibility);
+    }
+
+    // Client/Server merge toggle
+    const useClientMergeCheckbox = document.getElementById('use-client-merge');
+    const mergeModeLabel = document.getElementById('merge-mode-label');
+    if (useClientMergeCheckbox && mergeModeLabel) {
+        // Update label text based on checkbox state
+        function updateMergeModeLabel() {
+            mergeModeLabel.textContent = useClientMergeCheckbox.checked ?
+                'Client-Side Merging' : 'Server-Side Merging';
+        }
+
+        // Set default mode from data attribute
+        const defaultMode = useClientMergeCheckbox.dataset.defaultMode;
+        if (defaultMode === 'Client') {
+            useClientMergeCheckbox.checked = true;
+        }
+
+        useClientMergeCheckbox.addEventListener('change', function() {
+            updateMergeModeLabel();
+            const select = document.getElementById('test-select');
+            if (select && select.value) {
+                // Reload the current scenario with the new merge method
+                handleScenarioChange();
+            }
+        });
+
+        // Initialize label on page load
+        updateMergeModeLabel();
+    }
+
+    // Refresh button
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            // Save current selection
+            const select = document.getElementById('test-select');
+            const currentValue = select ? select.value : '';
+
+            // Reload the page
+            window.location.reload();
+
+            // Note: After reload, we'd need to restore selection, but since page reloads,
+            // we use sessionStorage to preserve the selection
+            if (currentValue) {
+                sessionStorage.setItem('selectedScenario', currentValue);
+            }
+        });
+    }
+
+    // Restore selection after page load
+    const savedSelection = sessionStorage.getItem('selectedScenario');
+    if (savedSelection && testSelect) {
+        sessionStorage.removeItem('selectedScenario');
+        testSelect.value = savedSelection;
+        // Trigger change event to load the scenario
+        testSelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>

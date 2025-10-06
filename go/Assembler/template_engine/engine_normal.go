@@ -4,6 +4,7 @@ import (
 	"assembler/app"
 	"assembler/app/json"
 	"assembler/template_common"
+	"fmt"
 	"strings"
 )
 
@@ -41,16 +42,32 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 	HTML string
 	JSON *string
 }, enableJsonProcessing bool) string {
+	template_common.Info(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EngineNormal")
+
 	if len(templates) == 0 {
+		template_common.Warn("No templates available", "EngineNormal")
 		return ""
 	}
+
+	template_common.Debug(fmt.Sprintf("Using %d templates", len(templates)), "EngineNormal")
+
 	mainHtml, mainJson := e.GetTemplate(appSite, appFile, templates, appView, e.AppViewPrefix, true)
 	if mainHtml == "" {
+		template_common.Warn(fmt.Sprintf("Main template not found for appSite=%s, appFile=%s", appSite, appFile), "EngineNormal")
 		return ""
 	}
+
+	jsonLen := 0
+	if mainJson != nil {
+		jsonLen = len(*mainJson)
+	}
+	template_common.Debug(fmt.Sprintf("Main template found, html size: %d, json: %d", len(mainHtml), jsonLen), "EngineNormal")
+
 	contentHtml := mainHtml
 	if enableJsonProcessing && mainJson != nil {
+		template_common.Debug(fmt.Sprintf("Merging main template with JSON (size: %d)", len(*mainJson)), "EngineNormal")
 		contentHtml = MergeTemplateWithJson(contentHtml, *mainJson)
+		template_common.Debug(fmt.Sprintf("After main JSON merge: %d chars", len(contentHtml)), "EngineNormal")
 	}
 	mergedTemplates := make(map[string]string)
 	allJsonValues := make(map[string]string)
@@ -65,11 +82,13 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 		}
 	}
 
+	jsonMergeCount := 0
 	for k, v := range templates {
 		htmlContent := v.HTML
 		jsonContent := v.JSON
 		if enableJsonProcessing && jsonContent != nil {
 			htmlContent = MergeTemplateWithJson(htmlContent, *jsonContent)
+			jsonMergeCount++
 			// Parse JSON and collect key-value pairs for allJsonValues
 			jsonObj := app.ParseJsonString(*jsonContent)
 			for jk, jv := range jsonObj.Iter() {
@@ -80,15 +99,31 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 		}
 		mergedTemplates[k] = htmlContent
 	}
+
+	template_common.Debug(fmt.Sprintf("Pre-merged %d templates with JSON, collected %d JSON values", jsonMergeCount, len(allJsonValues)), "EngineNormal")
+
 	previous := ""
-	for {
+	actualPasses := 0
+	maxPasses := 10
+	for pass := 0; pass < maxPasses; pass++ {
 		previous = contentHtml
+		actualPasses = pass + 1
+
+		template_common.Debug(fmt.Sprintf("Pass %d, current size: %d", actualPasses, len(contentHtml)), "EngineNormal")
+
 		contentHtml = e.MergeTemplateSlots(contentHtml, appSite, appView, mergedTemplates)
+		template_common.Debug(fmt.Sprintf("After slot merge: %d chars", len(contentHtml)), "EngineNormal")
+
 		contentHtml = e.ReplaceTemplatePlaceholdersWithJson(contentHtml, appSite, mergedTemplates, allJsonValues, appView)
+		template_common.Debug(fmt.Sprintf("After placeholder replacement: %d chars", len(contentHtml)), "EngineNormal")
+
 		if contentHtml == previous {
+			template_common.Debug(fmt.Sprintf("No changes in pass %d, stopping", actualPasses), "EngineNormal")
 			break
 		}
 	}
+
+	template_common.Info(fmt.Sprintf("MergeTemplates complete after %d passes: output size=%d", actualPasses, len(contentHtml)), "EngineNormal")
 	return contentHtml
 }
 

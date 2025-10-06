@@ -9,7 +9,7 @@
   },
   {
     "app_site": "HtmlRule1B",
-    "app_file": "Html1B",
+    "app_file": "html1B",
     "app_view": "",
     "normal_preprocess": "PASS",
     "cross_view_unmatch": "",
@@ -33,7 +33,7 @@
   },
   {
     "app_site": "HtmlRule2C",
-    "app_file": "Html2C",
+    "app_file": "html2C",
     "app_view": "",
     "normal_preprocess": "PASS",
     "cross_view_unmatch": "",
@@ -41,7 +41,7 @@
   },
   {
     "app_site": "HtmlRule2D",
-    "app_file": "HTML2D",
+    "app_file": "html2D",
     "app_view": "",
     "normal_preprocess": "PASS",
     "cross_view_unmatch": "",
@@ -49,7 +49,7 @@
   },
   {
     "app_site": "HtmlRule2E",
-    "app_file": "HTML2E",
+    "app_file": "html2E",
     "app_view": "",
     "normal_preprocess": "PASS",
     "cross_view_unmatch": "",
@@ -57,7 +57,7 @@
   },
   {
     "app_site": "HtmlRule2F",
-    "app_file": "Html2F",
+    "app_file": "html2F",
     "app_view": "",
     "normal_preprocess": "PASS",
     "cross_view_unmatch": "",
@@ -109,6 +109,14 @@
     "app_view": "Html3B",
     "normal_preprocess": "PASS",
     "cross_view_unmatch": "PASS",
+    "error": ""
+  },
+  {
+    "app_site": "Index",
+    "app_file": "index",
+    "app_view": "",
+    "normal_preprocess": "PASS",
+    "cross_view_unmatch": "",
     "error": ""
   },
   {
@@ -129,7 +137,15 @@
   },
   {
     "app_site": "JsonRule1C",
-    "app_file": "Json1C",
+    "app_file": "json1C",
+    "app_view": "",
+    "normal_preprocess": "PASS",
+    "cross_view_unmatch": "",
+    "error": ""
+  },
+  {
+    "app_site": "JsonRule1D",
+    "app_file": "index",
     "app_view": "",
     "normal_preprocess": "PASS",
     "cross_view_unmatch": "",
@@ -168,48 +184,16 @@
     "error": ""
   },
   {
-    "app_site": "Test0",
-    "app_file": "test0",
+    "app_site": "JsonRule3AHtml2A",
+    "app_file": "Index",
     "app_view": "",
     "normal_preprocess": "PASS",
     "cross_view_unmatch": "",
     "error": ""
   },
   {
-    "app_site": "Test1",
-    "app_file": "test1",
-    "app_view": "",
-    "normal_preprocess": "PASS",
-    "cross_view_unmatch": "",
-    "error": ""
-  },
-  {
-    "app_site": "Test2",
-    "app_file": "test2",
-    "app_view": "",
-    "normal_preprocess": "PASS",
-    "cross_view_unmatch": "",
-    "error": ""
-  },
-  {
-    "app_site": "Test3",
-    "app_file": "test3",
-    "app_view": "",
-    "normal_preprocess": "PASS",
-    "cross_view_unmatch": "",
-    "error": ""
-  },
-  {
-    "app_site": "Test4",
-    "app_file": "test4",
-    "app_view": "",
-    "normal_preprocess": "PASS",
-    "cross_view_unmatch": "",
-    "error": ""
-  },
-  {
-    "app_site": "Test5",
-    "app_file": "test5",
+    "app_site": "JsonRule3AHtml2B",
+    "app_file": "Index",
     "app_view": "",
     "normal_preprocess": "PASS",
     "cross_view_unmatch": "",

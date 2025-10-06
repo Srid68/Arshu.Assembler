@@ -102,7 +102,7 @@ pub struct ReplacementMapping {
     pub r#type: ReplacementType,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
 pub enum ReplacementType {
     JsonPlaceholder,
     SimpleTemplate,
@@ -166,21 +166,12 @@ pub struct SlotPlaceholder {
     pub nested_placeholders: Vec<TemplatePlaceholder>,
     #[serde(rename = "nestedSlottedTemplates")]
     pub nested_slotted_templates: Vec<SlottedTemplate>,
-}
-
-impl SlotPlaceholder {
-    // Helper properties matching C# structure
-    pub fn has_nested_placeholders(&self) -> bool {
-        !self.nested_placeholders.is_empty()
-    }
-    
-    pub fn has_nested_slotted_templates(&self) -> bool {
-        !self.nested_slotted_templates.is_empty()
-    }
-    
-    pub fn requires_nested_processing(&self) -> bool {
-        self.has_nested_placeholders() || self.has_nested_slotted_templates()
-    }
+    #[serde(rename = "hasNestedPlaceholders")]
+    pub has_nested_placeholders: bool,
+    #[serde(rename = "hasNestedSlottedTemplates")]
+    pub has_nested_slotted_templates: bool,
+    #[serde(rename = "requiresNestedProcessing")]
+    pub requires_nested_processing: bool,
 }
 
 impl PreprocessedSiteTemplates {

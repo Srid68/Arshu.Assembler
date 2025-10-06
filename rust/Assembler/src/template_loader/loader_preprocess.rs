@@ -163,11 +163,20 @@ impl LoaderPreProcess {
         for placeholder in &template.placeholders {
             let target_template_key = format!("{}_{}", app_site.to_lowercase(), placeholder.template_key);
             if let Some(target_template) = all_templates.get(&target_template_key) {
+                // Start with the target template's original content
+                let mut processed_template = target_template.original_content.clone();
+
+                // CRITICAL FIX: Apply the target template's JSON placeholder replacements
+                // This ensures nested components use their own JSON context (e.g., header.json for Header component)
+                for json_mapping in target_template.replacement_mappings.iter().filter(|m| matches!(m.r#type, ReplacementType::JsonPlaceholder)) {
+                    processed_template = processed_template.replace(&json_mapping.original_text, &json_mapping.replacement_text);
+                }
+
                 template.replacement_mappings.push(ReplacementMapping {
                     start_index: placeholder.start_index,
                     end_index: placeholder.end_index,
                     original_text: placeholder.full_match.clone(),
-                    replacement_text: target_template.original_content.clone(),
+                    replacement_text: processed_template,
                     r#type: ReplacementType::SimpleTemplate,
                 });
             }
@@ -235,7 +244,15 @@ impl LoaderPreProcess {
         for nested_placeholder in &slot.nested_placeholders {
             let target_template_key = format!("{}_{}", app_site.to_lowercase(), nested_placeholder.template_key);
             if let Some(target_template) = all_templates.get(&target_template_key) {
-                let processed_template = target_template.original_content.clone();
+                // Start with the target template's original content
+                let mut processed_template = target_template.original_content.clone();
+
+                // CRITICAL FIX: Apply the target template's JSON placeholder replacements
+                // This ensures nested components use their own JSON context
+                for json_mapping in target_template.replacement_mappings.iter().filter(|m| matches!(m.r#type, ReplacementType::JsonPlaceholder)) {
+                    processed_template = processed_template.replace(&json_mapping.original_text, &json_mapping.replacement_text);
+                }
+
                 result = result.replace(&nested_placeholder.full_match, &processed_template);
             }
         }
@@ -289,9 +306,8 @@ impl LoaderPreProcess {
                 json_data: None,
             };
 
-            if !template.slotted_templates.iter().any(|st| st.name == template_name) {
-                template.slotted_templates.push(slotted_template);
-            }
+            // Add ALL slotted template instances (no deduplication) - multiple instances of the same template are allowed
+            template.slotted_templates.push(slotted_template);
 
             search_pos = close_start + close_tag.len();
         }
@@ -310,10 +326,14 @@ impl LoaderPreProcess {
             let mut pos = after_placeholder;
 
             while pos < inner_content.len() {
-                let ch = inner_content.chars().nth(pos).unwrap();
-                if ch.is_ascii_digit() {
-                    slot_num.push(ch);
-                    pos += 1;
+                let remaining = &inner_content[pos..];
+                if let Some(ch) = remaining.chars().next() {
+                    if ch.is_ascii_digit() {
+                        slot_num.push(ch);
+                        pos += ch.len_utf8();
+                    } else {
+                        break;
+                    }
                 } else {
                     break;
                 }
@@ -375,6 +395,10 @@ impl LoaderPreProcess {
             Self::parse_placeholder_templates(&slot_content, &mut temp_template);
             let nested_placeholders = temp_template.placeholders.clone();
 
+            let has_nested_placeholders = !nested_placeholders.is_empty();
+            let has_nested_slotted_templates = !nested_slotted_templates.is_empty();
+            let requires_nested_processing = has_nested_placeholders || has_nested_slotted_templates;
+
             let slot = SlotPlaceholder {
                 number: slot_num,
                 start_index: slot_start,
@@ -386,6 +410,9 @@ impl LoaderPreProcess {
                 nested_slots: Vec::new(),
                 nested_placeholders,
                 nested_slotted_templates,
+                has_nested_placeholders,
+                has_nested_slotted_templates,
+                requires_nested_processing,
             };
 
             slots.push(slot);

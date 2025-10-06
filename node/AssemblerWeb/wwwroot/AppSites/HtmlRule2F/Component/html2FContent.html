@@ -1,17 +1,22 @@
- <div>
-     <span style="text-decoration:underline">
-         Html Content from Slotted Component [#Center] Merged with Nested Slotted Component [#ZoomIn] Merged with PlaceHolder Content from Component [Html2FContent]
-     </span>
-    <hr />
-
-    {{#Center}}
-        {{@HTMLPLACEHOLDER}}
-            {{#ZoomIn}}
-                {{@HTMLPLACEHOLDER}}
-                    {{Html2FContentA}}
-                {{/HTMLPLACEHOLDER}}
-            {{/ZoomIn}}
-        {{/HTMLPLACEHOLDER}}
-    {{/Center}}
-
+<div style="border: 2px dashed #667eea; border-radius: 6px; padding: 15px; background: #f8f9ff; margin: 10px 0;">
+    <p style="margin: 0 0 10px 0; text-align: center; color: #667eea; font-weight: 500;">🔷 Component: Html2FContent (Placeholder)</p>
+    <div style="background: white; padding: 10px; border-radius: 4px;">
+        <p style="margin: 0 0 10px 0; color: #495057;">Html Content from Slotted Component [#Center] Merged with Nested Slotted Component [#ZoomIn] Merged with PlaceHolder Content from Component [Html2FContent]</p>
+        <hr style="margin: 10px 0; border: none; border-top: 1px solid #e0e0e0;" />
+        {{#Center}}
+            {{@HTMLPLACEHOLDER}}
+                <div style="border: 2px dashed #e83e8c; border-radius: 6px; padding: 15px; background: #fff5f8; margin: 10px 0;">
+                    <p style="margin: 0 0 10px 0; text-align: center; color: #e83e8c; font-weight: 500;">✨ Outer Slot: Center PlaceHolder</p>
+                    {{#ZoomIn}}
+                        {{@HTMLPLACEHOLDER}}
+                            <div style="border: 2px dashed #e83e8c; border-radius: 6px; padding: 15px; background: #fff5f8; margin: 10px 0;">
+                                <p style="margin: 0 0 10px 0; text-align: center; color: #e83e8c; font-weight: 500;">✨ Nested Slot: ZoomIn PlaceHolder</p>
+                                {{Html2FContentA}}
+                            </div>
+                        {{/HTMLPLACEHOLDER}}
+                    {{/ZoomIn}}
+                </div>
+            {{/HTMLPLACEHOLDER}}
+        {{/Center}}
+    </div>
 </div>

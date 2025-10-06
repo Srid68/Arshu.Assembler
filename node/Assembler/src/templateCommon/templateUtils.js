@@ -139,4 +139,23 @@ export class TemplateUtils {
 
         return result;
     }
+
+    /**
+     * Replaces the first occurrence of 'from' in 'text' (case-insensitive) with 'to'
+     * @param {string} text Text to search in
+     * @param {string} from Text to search for
+     * @param {string} to Replacement text
+     * @returns {string} Modified text
+     */
+    static replaceCaseInsensitive(text, from, to) {
+        if (!text || !from) return text;
+
+        const index = text.toLowerCase().indexOf(from.toLowerCase());
+        if (index >= 0) {
+            return text.substring(0, index) + to + text.substring(index + from.length);
+        }
+        return text;
+    }
 }
+
+export default TemplateUtils;

@@ -3,6 +3,7 @@ package template_loader
 import (
 	"assembler/template_common"
 	"assembler/template_model"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,10 +18,13 @@ var preprocessedTemplatesCache = struct {
 }{cache: make(map[string]*template_model.PreprocessedSiteTemplates)}
 
 func LoadProcessGetTemplateFiles(rootDirPath, appSite string) *template_model.PreprocessedSiteTemplates {
+	template_common.Debug(fmt.Sprintf("LoadProcessGetTemplateFiles called for appSite: %s", appSite), "LoaderPreProcess")
+
 	cacheKey := filepath.Dir(rootDirPath) + "|" + appSite
 	preprocessedTemplatesCache.RLock()
 	if cached, ok := preprocessedTemplatesCache.cache[cacheKey]; ok {
 		preprocessedTemplatesCache.RUnlock()
+		template_common.Debug(fmt.Sprintf("Returning cached templates for %s (%d templates)", appSite, len(cached.Templates)), "LoaderPreProcess")
 		return cached
 	}
 	preprocessedTemplatesCache.RUnlock()
@@ -34,11 +38,14 @@ func LoadProcessGetTemplateFiles(rootDirPath, appSite string) *template_model.Pr
 
 	appSitesPath := filepath.Join(rootDirPath, "AppSites", appSite)
 	if _, err := os.Stat(appSitesPath); os.IsNotExist(err) {
+		template_common.Warn(fmt.Sprintf("AppSites directory not found: %s", appSitesPath), "LoaderPreProcess")
 		preprocessedTemplatesCache.Lock()
 		preprocessedTemplatesCache.cache[cacheKey] = result
 		preprocessedTemplatesCache.Unlock()
 		return result
 	}
+
+	template_common.Debug(fmt.Sprintf("Loading templates from: %s", appSitesPath), "LoaderPreProcess")
 
 	err := filepath.Walk(appSitesPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !strings.HasSuffix(info.Name(), ".html") {
@@ -51,12 +58,36 @@ func LoadProcessGetTemplateFiles(rootDirPath, appSite string) *template_model.Pr
 		result.RawTemplates[key] = content
 		result.TemplateKeys[key] = struct{}{}
 
-		// Look for corresponding JSON file
+		template_common.Debug(fmt.Sprintf("Loading template: %s (size: %d)", key, len(content)), "LoaderPreProcess")
+
+		// Find JSON file case-insensitively
 		jsonPath := strings.TrimSuffix(path, ".html") + ".json"
 		var jsonContent *string
 		if jsonBytes, err := os.ReadFile(jsonPath); err == nil {
 			jsonStr := string(jsonBytes)
 			jsonContent = &jsonStr
+			template_common.Debug(fmt.Sprintf("Found JSON file for %s (size: %d)", key, len(jsonStr)), "LoaderPreProcess")
+		} else {
+			// Try case-insensitive search in the same directory
+			dir := filepath.Dir(path)
+			baseName := strings.ToLower(strings.TrimSuffix(filepath.Base(path), ".html"))
+			entries, err := os.ReadDir(dir)
+			if err == nil {
+				for _, entry := range entries {
+					if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".json") {
+						entryBase := strings.ToLower(strings.TrimSuffix(entry.Name(), ".json"))
+						if entryBase == baseName {
+							matchedJsonPath := filepath.Join(dir, entry.Name())
+							if jsonBytes, err := os.ReadFile(matchedJsonPath); err == nil {
+								jsonStr := string(jsonBytes)
+								jsonContent = &jsonStr
+								template_common.Debug(fmt.Sprintf("Found JSON file (case-insensitive) for %s (size: %d)", key, len(jsonStr)), "LoaderPreProcess")
+								break
+							}
+						}
+					}
+				}
+			}
 		}
 
 		// Preprocess the template
@@ -68,8 +99,12 @@ func LoadProcessGetTemplateFiles(rootDirPath, appSite string) *template_model.Pr
 		// handle error if needed
 	}
 
+	template_common.Info(fmt.Sprintf("Loaded %d templates for %s", len(result.Templates), appSite), "LoaderPreProcess")
+
 	// After loading all templates, create replacement mappings for simple template placeholders
 	createReplacementMappings(result)
+
+	template_common.Info(fmt.Sprintf("Created all replacement mappings for %s", appSite), "LoaderPreProcess")
 
 	// Update convenience flags for all templates after processing
 	for _, template := range result.Templates {
@@ -91,6 +126,8 @@ func createReplacementMappings(result *template_model.PreprocessedSiteTemplates)
 
 // createAllReplacementMappingsForSite creates all replacement mappings for a site with AppView support
 func createAllReplacementMappingsForSite(siteTemplates *template_model.PreprocessedSiteTemplates) {
+	template_common.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 1: JSON arrays", siteTemplates.SiteName), "LoaderPreProcess")
+
 	// Phase 1: Create JSON replacement mappings for all templates first (no dependencies)
 	templateKeys := make([]string, 0, len(siteTemplates.Templates))
 	for key := range siteTemplates.Templates {
@@ -105,6 +142,8 @@ func createAllReplacementMappingsForSite(siteTemplates *template_model.Preproces
 		}
 	}
 
+	template_common.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 2: Simple placeholders", siteTemplates.SiteName), "LoaderPreProcess")
+
 	// Phase 2: Create simple template replacement mappings (may depend on JSON but not on slotted templates)
 	allTemplatesSnapshot := make(map[string]template_model.PreprocessedTemplate)
 	for key, template := range siteTemplates.Templates {
@@ -118,6 +157,8 @@ func createAllReplacementMappingsForSite(siteTemplates *template_model.Preproces
 		}
 	}
 
+	template_common.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 3: Slotted templates", siteTemplates.SiteName), "LoaderPreProcess")
+
 	// Phase 3: Create slotted template replacement mappings (may depend on simple templates)
 	for _, key := range templateKeys {
 		if template, exists := siteTemplates.Templates[key]; exists {
@@ -125,6 +166,12 @@ func createAllReplacementMappingsForSite(siteTemplates *template_model.Preproces
 			siteTemplates.Templates[key] = template
 		}
 	}
+
+	totalMappings := 0
+	for _, template := range siteTemplates.Templates {
+		totalMappings += len(template.ReplacementMappings)
+	}
+	template_common.Info(fmt.Sprintf("Total replacement mappings created for %s: %d", siteTemplates.SiteName, totalMappings), "LoaderPreProcess")
 }
 
 // createPlaceholderReplacementMappings creates replacement mappings for simple template placeholders that reference other templates
@@ -174,10 +221,27 @@ func createPlaceholderReplacementMappings(template *template_model.PreprocessedT
 
 		if foundKey != "" {
 			if referencedTemplate, exists := allTemplates[foundKey]; exists {
+				// Start with the target template's original content
+				processedTemplate := referencedTemplate.OriginalContent
+
+				// CRITICAL FIX: Apply the target template's JSON placeholder replacements
+				// This ensures nested components use their own JSON context (e.g., header.json for Header component)
+				jsonMappingCount := 0
+				for _, m := range referencedTemplate.ReplacementMappings {
+					if m.Type == template_model.JsonPlaceholderType && strings.Contains(processedTemplate, m.OriginalText) {
+						template_common.Info(fmt.Sprintf("  Replacing '%s' with '%s' in %s", m.OriginalText, m.ReplacementText, foundKey), "LoaderPreProcess")
+						processedTemplate = strings.ReplaceAll(processedTemplate, m.OriginalText, m.ReplacementText)
+						jsonMappingCount++
+					}
+				}
+				if jsonMappingCount > 0 {
+					template_common.Info(fmt.Sprintf("Applied %d JSON mappings to %s", jsonMappingCount, foundKey), "LoaderPreProcess")
+				}
+
 				// Create replacement mapping for direct replacement
 				mapping := template_model.ReplacementMapping{
 					OriginalText:    placeholder,
-					ReplacementText: referencedTemplate.OriginalContent,
+					ReplacementText: processedTemplate,
 					Type:            template_model.SimpleTemplateType,
 				}
 				template.ReplacementMappings = append(template.ReplacementMappings, mapping)
@@ -253,8 +317,26 @@ func processSlotContentForReplacementMappingRecursive(slot template_model.SlotPl
 		}
 	}
 
-	// Recursively resolve placeholders in slot content
-	result = recursivelyResolveSlotsAndPlaceholders(result, allTemplates, appSite)
+	// Process nested simple placeholders
+	for _, nestedPlaceholder := range slot.NestedPlaceholders {
+		targetTemplateKey := fmt.Sprintf("%s_%s", strings.ToLower(appSite), nestedPlaceholder.TemplateKey)
+		if targetTemplate, exists := allTemplates[targetTemplateKey]; exists {
+			// Start with the target template's original content
+			processedTemplate := targetTemplate.OriginalContent
+
+			// CRITICAL FIX: Apply the target template's JSON placeholder replacements
+			// This ensures nested components use their own JSON context
+			for _, mapping := range targetTemplate.ReplacementMappings {
+				if mapping.Type == template_model.JsonPlaceholderType {
+					processedTemplate = strings.ReplaceAll(processedTemplate, mapping.OriginalText, mapping.ReplacementText)
+				}
+			}
+
+			// Replace in result
+			result = strings.ReplaceAll(result, nestedPlaceholder.FullMatch, processedTemplate)
+		}
+	}
+
 	return result
 }
 
@@ -298,8 +380,19 @@ func resolveSimplePlaceholders(content string, allTemplates map[string]template_
 		}
 		templateKey := strings.ToLower(appSite) + "_" + strings.ToLower(placeholderName)
 		if referencedTemplate, exists := allTemplates[templateKey]; exists {
-			result = strings.Replace(result, result[openStart:closeStart+2], referencedTemplate.OriginalContent, 1)
-			searchPos = openStart + len(referencedTemplate.OriginalContent)
+			// Start with the target template's original content
+			processedTemplate := referencedTemplate.OriginalContent
+
+			// CRITICAL FIX: Apply the target template's JSON placeholder replacements
+			// This ensures nested components use their own JSON context
+			for _, mapping := range referencedTemplate.ReplacementMappings {
+				if mapping.Type == template_model.JsonPlaceholderType {
+					processedTemplate = strings.ReplaceAll(processedTemplate, mapping.OriginalText, mapping.ReplacementText)
+				}
+			}
+
+			result = strings.Replace(result, result[openStart:closeStart+2], processedTemplate, 1)
+			searchPos = openStart + len(processedTemplate)
 		} else {
 			searchPos = closeStart + 2
 		}
@@ -561,19 +654,27 @@ func parseSlots(innerContent string, slottedTemplate *template_model.SlottedTemp
 
 		// Create slot structure
 		slot := template_model.SlotPlaceholder{
-			Number:                 slotNum,
-			StartIndex:             slotStart,
-			EndIndex:               closeStart + len(closeTag),
-			Content:                slotContent,
-			SlotKey:                slotKey,
-			OpenTag:                openTag,
-			CloseTag:               closeTag,
-			NestedPlaceholders:     []template_model.TemplatePlaceholder{},
-			NestedSlottedTemplates: []template_model.SlottedTemplate{},
+			Number:                     slotNum,
+			StartIndex:                 slotStart,
+			EndIndex:                   closeStart + len(closeTag),
+			Content:                    slotContent,
+			SlotKey:                    slotKey,
+			OpenTag:                    openTag,
+			CloseTag:                   closeTag,
+			NestedPlaceholders:         []template_model.TemplatePlaceholder{},
+			NestedSlottedTemplates:     []template_model.SlottedTemplate{},
+			HasNestedPlaceholders:      false, // Will be updated after parsing
+			HasNestedSlottedTemplates:  false, // Will be updated after parsing
+			RequiresNestedProcessing:   false, // Will be updated after parsing
 		}
 
 		// Parse nested templates within the slot content
 		parseNestedTemplatesInSlot(&slot, slottedTemplate.JsonData, appSite)
+
+		// Update boolean flags after parsing nested content
+		slot.HasNestedPlaceholders = len(slot.NestedPlaceholders) > 0
+		slot.HasNestedSlottedTemplates = len(slot.NestedSlottedTemplates) > 0
+		slot.RequiresNestedProcessing = slot.HasNestedPlaceholders || slot.HasNestedSlottedTemplates
 
 		slottedTemplate.Slots = append(slottedTemplate.Slots, slot)
 		searchPos = closeStart + len(closeTag)
@@ -782,8 +883,12 @@ func processArrayBlockContent(blockContent string, arrayData []interface{}) stri
 				placeholder := "{{$" + k + "}}"
 				valueStr := ""
 				if v != nil {
-					if bytes, err := json.Marshal(v); err == nil {
-						valueStr = strings.ReplaceAll(string(bytes), "\"", "")
+					var buf bytes.Buffer
+					encoder := json.NewEncoder(&buf)
+					encoder.SetEscapeHTML(false) // Disable HTML escaping to preserve &, <, >, etc.
+					if err := encoder.Encode(v); err == nil {
+						valueStr = strings.TrimSpace(buf.String()) // Encoder adds a newline, so trim it
+						valueStr = strings.ReplaceAll(valueStr, "\"", "")
 						if valueStr == "null" {
 							valueStr = ""
 						}
@@ -1008,4 +1113,11 @@ func findMatchingCloseTag(content string, searchFrom int, openTag, closeTag stri
 	}
 
 	return -1
+}
+
+// ClearPreProcessCache clears all cached preprocessed templates
+func ClearPreProcessCache() {
+	preprocessedTemplatesCache.Lock()
+	preprocessedTemplatesCache.cache = make(map[string]*template_model.PreprocessedSiteTemplates)
+	preprocessedTemplatesCache.Unlock()
 }

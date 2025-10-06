@@ -1,9 +1,10 @@
 # PowerShell script to compare C# vs Rust, Node, Go, and PHP HTML outputs for all scenarios
 $scenarios = @(
-    "HtmlRule1A", "HtmlRule1B", "HtmlRule2A", "HtmlRule2B", "HtmlRule2C", 
+    "HtmlRule1A", "HtmlRule1B", "HtmlRule2A", "HtmlRule2B", "HtmlRule2C",
     "HtmlRule2D", "HtmlRule2E", "HtmlRule2F", "HtmlRule3A", "HtmlRule3B",
-    "JsonRule1A", "JsonRule1B", "JsonRule1C", "JsonRule2A", "JsonRule2B", 
-    "JsonRule2C", "JsonRule2D", "Test0", "Test1", "Test2", "Test3", "Test4", "Test5"
+    "Index",
+    "JsonRule1A", "JsonRule1B", "JsonRule1C", "JsonRule1D", "JsonRule2A", "JsonRule2B",
+    "JsonRule2C", "JsonRule2D", "JsonRule3AHtml2A"
 )
 
 $results = @()
@@ -18,19 +19,25 @@ foreach ($scenario in $scenarios) {
     Write-Host "  Running C#..." -ForegroundColor Cyan
     $csharpOutput = & dotnet run --project csharp/AssemblerTest/AssemblerTest.csproj -- --printhtml --appsite $scenario 2>&1
     
-    # Extract C# output size - look for the performance line which shows "Normal: X chars"
-    $csharpMatch = $csharpOutput | Select-String "Normal: (\d+) chars" | Select-Object -First 1
-    $csharpSize = if ($csharpMatch) { $csharpMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+    # Extract C# output size - look for the performance line which shows "Normal: X chars" and "PreProcess: Y chars"
+    $csharpNormalMatch = $csharpOutput | Select-String "Normal: (\d+) chars" | Select-Object -First 1
+    $csharpNormalSize = if ($csharpNormalMatch) { $csharpNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+
+    $csharpPreProcessMatch = $csharpOutput | Select-String "PreProcess: (\d+) chars" | Select-Object -First 1
+    $csharpPreProcessSize = if ($csharpPreProcessMatch) { $csharpPreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
     
     # Run Rust test
     Write-Host "  Running Rust..." -ForegroundColor Red
     Set-Location "rust\AssemblerTest"
-    $rustOutput = & cargo run -- --printhtml --appsite $scenario 2>&1
+    $rustOutput = & cargo run --release -- --printhtml --appsite $scenario 2>&1
     Set-Location "..\..\"
     
-    # Extract Rust output size - look for the performance line which shows "Output size: X chars"
-    $rustMatch = $rustOutput | Select-String "Normal Engine.*Output size: (\d+) chars" | Select-Object -First 1
-    $rustSize = if ($rustMatch) { $rustMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+    # Extract Rust output size
+    $rustNormalMatch = $rustOutput | Select-String "^\s*\w+:\s+Normal:\s+(\d+)\s+chars" | Select-Object -First 1
+    $rustNormalSize = if ($rustNormalMatch) { $rustNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+
+    $rustPreProcessMatch = $rustOutput | Select-String "^\s*\w+:\s+PreProcess:\s+(\d+)\s+chars" | Select-Object -First 1
+    $rustPreProcessSize = if ($rustPreProcessMatch) { $rustPreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
     
     # Run Go test
     Write-Host "  Running Go..." -ForegroundColor Green
@@ -38,9 +45,12 @@ foreach ($scenario in $scenarios) {
     $goOutput = & go run . --printhtml --appsite $scenario 2>&1
     Set-Location "..\..\"
     
-    # Extract Go output size - look for the performance line which shows "Output size: X chars"
-    $goMatch = $goOutput | Select-String "Normal Engine.*Output size: (\d+) chars" | Select-Object -First 1
-    $goSize = if ($goMatch) { $goMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+    # Extract Go output size
+    $goNormalMatch = $goOutput | Select-String "Normal: (\d+) chars" | Select-Object -First 1
+    $goNormalSize = if ($goNormalMatch) { $goNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+
+    $goPreProcessMatch = $goOutput | Select-String "PreProcess: (\d+) chars" | Select-Object -First 1
+    $goPreProcessSize = if ($goPreProcessMatch) { $goPreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
     
     # Run Node test
     Write-Host "  Running Node..." -ForegroundColor Magenta
@@ -48,9 +58,12 @@ foreach ($scenario in $scenarios) {
     $nodeOutput = & node index.js --printhtml --appsite $scenario 2>&1
     Set-Location "..\..\"
     
-    # Extract Node output size - look for the performance line which shows "Normal: X chars"
-    $nodeMatch = $nodeOutput | Select-String "Normal: (\d+) chars" | Select-Object -First 1
-    $nodeSize = if ($nodeMatch) { $nodeMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+    # Extract Node output size - look for the performance line which shows "Normal: X chars" and "PreProcess: Y chars"
+    $nodeNormalMatch = $nodeOutput | Select-String "Normal: (\d+) chars" | Select-Object -First 1
+    $nodeNormalSize = if ($nodeNormalMatch) { $nodeNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+
+    $nodePreProcessMatch = $nodeOutput | Select-String "PreProcess: (\d+) chars" | Select-Object -First 1
+    $nodePreProcessSize = if ($nodePreProcessMatch) { $nodePreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
     
     # Run PHP test
     Write-Host "  Running PHP..." -ForegroundColor Blue
@@ -58,36 +71,52 @@ foreach ($scenario in $scenarios) {
     $phpOutput = & php index.php --printhtml --appsite $scenario 2>&1
     Set-Location "..\..\"
     
-    # Extract PHP output size - look for the performance line which shows "Normal: X chars"
-    $phpMatch = $phpOutput | Select-String "Normal: (\d+) chars" | Select-Object -First 1
-    $phpSize = if ($phpMatch) { $phpMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+    # Extract PHP output size - look for the performance line which shows "Normal: X chars" and "PreProcess: Y chars"
+    $phpNormalMatch = $phpOutput | Select-String "Normal: (\d+) chars" | Select-Object -First 1
+    $phpNormalSize = if ($phpNormalMatch) { $phpNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+
+    $phpPreProcessMatch = $phpOutput | Select-String "PreProcess: (\d+) chars" | Select-Object -First 1
+    $phpPreProcessSize = if ($phpPreProcessMatch) { $phpPreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
     
-    # Compare results
-    $rustMatch = if ($csharpSize -eq $rustSize -and $csharpSize -ne "ERROR") { "✅" } else { "❌" }
-    $goMatch = if ($csharpSize -eq $goSize -and $csharpSize -ne "ERROR") { "✅" } else { "❌" }
-    $nodeMatch = if ($csharpSize -eq $nodeSize -and $csharpSize -ne "ERROR") { "✅" } else { "❌" }
-    $phpMatch = if ($csharpSize -eq $phpSize -and $csharpSize -ne "ERROR") { "✅" } else { "❌" }
-    
+    # Compare results - all languages now count UTF-16 characters
+    $rustNormalMatch = if ($csharpNormalSize -eq $rustNormalSize -and $csharpNormalSize -ne "ERROR") { "✅" } else { "❌" }
+    $goNormalMatch = if ($csharpNormalSize -eq $goNormalSize -and $csharpNormalSize -ne "ERROR") { "✅" } else { "❌" }
+    $nodeNormalMatch = if ($csharpNormalSize -eq $nodeNormalSize -and $csharpNormalSize -ne "ERROR") { "✅" } else { "❌" }
+    $phpNormalMatch = if ($csharpNormalSize -eq $phpNormalSize -and $csharpNormalSize -ne "ERROR") { "✅" } else { "❌" }
+
+    $rustPreProcessMatch = if ($csharpPreProcessSize -eq $rustPreProcessSize -and $csharpPreProcessSize -ne "ERROR") { "✅" } else { "❌" }
+    $goPreProcessMatch = if ($csharpPreProcessSize -eq $goPreProcessSize -and $csharpPreProcessSize -ne "ERROR") { "✅" } else { "❌" }
+    $nodePreProcessMatch = if ($csharpPreProcessSize -eq $nodePreProcessSize -and $csharpPreProcessSize -ne "ERROR") { "✅" } else { "❌" }
+    $phpPreProcessMatch = if ($csharpPreProcessSize -eq $phpPreProcessSize -and $csharpPreProcessSize -ne "ERROR") { "✅" } else { "❌" }
+
     $result = [PSCustomObject]@{
         Scenario = $scenario
-        CSharp = $csharpSize
-        Rust = "$rustSize $rustMatch"
-        Go = "$goSize $goMatch"
-        Node = "$nodeSize $nodeMatch"
-        PHP = "$phpSize $phpMatch"
-        RustDiff = if ($csharpSize -ne "ERROR" -and $rustSize -ne "ERROR") { [int]$csharpSize - [int]$rustSize } else { "N/A" }
-        GoDiff = if ($csharpSize -ne "ERROR" -and $goSize -ne "ERROR") { [int]$csharpSize - [int]$goSize } else { "N/A" }
-        NodeDiff = if ($csharpSize -ne "ERROR" -and $nodeSize -ne "ERROR") { [int]$csharpSize - [int]$nodeSize } else { "N/A" }
-        PHPDiff = if ($csharpSize -ne "ERROR" -and $phpSize -ne "ERROR") { [int]$csharpSize - [int]$phpSize } else { "N/A" }
+        "CSharp Normal" = $csharpNormalSize
+        "Rust Normal" = "$rustNormalSize $rustNormalMatch"
+        "Go Normal" = "$goNormalSize $goNormalMatch"
+        "Node Normal" = "$nodeNormalSize $nodeNormalMatch"
+        "PHP Normal" = "$phpNormalSize $phpNormalMatch"
+        "CSharp PreProcess" = $csharpPreProcessSize
+        "Rust PreProcess" = "$rustPreProcessSize $rustPreProcessMatch"
+        "Go PreProcess" = "$goPreProcessSize $goPreProcessMatch"
+        "Node PreProcess" = "$nodePreProcessSize $nodePreProcessMatch"
+        "PHP PreProcess" = "$phpPreProcessSize $phpPreProcessMatch"
     }
     
     $results += $result
-    
-    Write-Host "  C#: $csharpSize chars" -ForegroundColor White
-    Write-Host "  Rust: $rustSize chars $rustMatch" -ForegroundColor $(if ($rustMatch -eq "✅") { "Green" } else { "Red" })
-    Write-Host "  Go: $goSize chars $goMatch" -ForegroundColor $(if ($goMatch -eq "✅") { "Green" } else { "Red" })
-    Write-Host "  Node: $nodeSize chars $nodeMatch" -ForegroundColor $(if ($nodeMatch -eq "✅") { "Green" } else { "Red" })
-    Write-Host "  PHP: $phpSize chars $phpMatch" -ForegroundColor $(if ($phpMatch -eq "✅") { "Green" } else { "Red" })
+
+    Write-Host "  Normal Mode:" -ForegroundColor White
+    Write-Host "    C#: $csharpNormalSize chars" -ForegroundColor White
+    Write-Host "    Rust: $rustNormalSize chars $rustNormalMatch" -ForegroundColor $(if ($rustNormalMatch -eq "✅") { "Green" } else { "Red" })
+    Write-Host "    Go: $goNormalSize chars $goNormalMatch" -ForegroundColor $(if ($goNormalMatch -eq "✅") { "Green" } else { "Red" })
+    Write-Host "    Node: $nodeNormalSize chars $nodeNormalMatch" -ForegroundColor $(if ($nodeNormalMatch -eq "✅") { "Green" } else { "Red" })
+    Write-Host "    PHP: $phpNormalSize chars $phpNormalMatch" -ForegroundColor $(if ($phpNormalMatch -eq "✅") { "Green" } else { "Red" })
+    Write-Host "  PreProcess Mode:" -ForegroundColor White
+    Write-Host "    C#: $csharpPreProcessSize chars" -ForegroundColor White
+    Write-Host "    Rust: $rustPreProcessSize chars $rustPreProcessMatch" -ForegroundColor $(if ($rustPreProcessMatch -eq "✅") { "Green" } else { "Red" })
+    Write-Host "    Go: $goPreProcessSize chars $goPreProcessMatch" -ForegroundColor $(if ($goPreProcessMatch -eq "✅") { "Green" } else { "Red" })
+    Write-Host "    Node: $nodePreProcessSize chars $nodePreProcessMatch" -ForegroundColor $(if ($nodePreProcessMatch -eq "✅") { "Green" } else { "Red" })
+    Write-Host "    PHP: $phpPreProcessSize chars $phpPreProcessMatch" -ForegroundColor $(if ($phpPreProcessMatch -eq "✅") { "Green" } else { "Red" })
     Write-Host ""
 }
 
@@ -97,50 +126,78 @@ Write-Host "========================================" -ForegroundColor Magenta
 $results | Format-Table -AutoSize
 
 # Count matches vs mismatches for each language
-$rustMatches = ($results | Where-Object { $_.Rust -like "*✅*" }).Count
-$goMatches = ($results | Where-Object { $_.Go -like "*✅*" }).Count
-$nodeMatches = ($results | Where-Object { $_.Node -like "*✅*" }).Count
-$phpMatches = ($results | Where-Object { $_.PHP -like "*✅*" }).Count
+$rustNormalMatches = ($results | Where-Object { $_."Rust Normal" -like "*✅*" }).Count
+$goNormalMatches = ($results | Where-Object { $_."Go Normal" -like "*✅*" }).Count
+$nodeNormalMatches = ($results | Where-Object { $_."Node Normal" -like "*✅*" }).Count
+$phpNormalMatches = ($results | Where-Object { $_."PHP Normal" -like "*✅*" }).Count
 
-$rustMismatches = ($results | Where-Object { $_.Rust -like "*❌*" }).Count
-$goMismatches = ($results | Where-Object { $_.Go -like "*❌*" }).Count
-$nodeMismatches = ($results | Where-Object { $_.Node -like "*❌*" }).Count
-$phpMismatches = ($results | Where-Object { $_.PHP -like "*❌*" }).Count
+$rustNormalMismatches = ($results | Where-Object { $_."Rust Normal" -like "*❌*" }).Count
+$goNormalMismatches = ($results | Where-Object { $_."Go Normal" -like "*❌*" }).Count
+$nodeNormalMismatches = ($results | Where-Object { $_."Node Normal" -like "*❌*" }).Count
+$phpNormalMismatches = ($results | Where-Object { $_."PHP Normal" -like "*❌*" }).Count
+
+$rustPreProcessMatches = ($results | Where-Object { $_."Rust PreProcess" -like "*✅*" }).Count
+$goPreProcessMatches = ($results | Where-Object { $_."Go PreProcess" -like "*✅*" }).Count
+$nodePreProcessMatches = ($results | Where-Object { $_."Node PreProcess" -like "*✅*" }).Count
+$phpPreProcessMatches = ($results | Where-Object { $_."PHP PreProcess" -like "*✅*" }).Count
+
+$rustPreProcessMismatches = ($results | Where-Object { $_."Rust PreProcess" -like "*❌*" }).Count
+$goPreProcessMismatches = ($results | Where-Object { $_."Go PreProcess" -like "*❌*" }).Count
+$nodePreProcessMismatches = ($results | Where-Object { $_."Node PreProcess" -like "*❌*" }).Count
+$phpPreProcessMismatches = ($results | Where-Object { $_."PHP PreProcess" -like "*❌*" }).Count
 
 Write-Host "LANGUAGE COMPARISON RESULTS:" -ForegroundColor White
 Write-Host "============================" -ForegroundColor White
 Write-Host "Total scenarios tested: $($results.Count)" -ForegroundColor White
 Write-Host ""
+Write-Host "NORMAL MODE:" -ForegroundColor Cyan
 Write-Host "Rust vs C#:" -ForegroundColor Red
-Write-Host "  Exact matches: $rustMatches" -ForegroundColor Green
-Write-Host "  Mismatches: $rustMismatches" -ForegroundColor Red
+Write-Host "  Exact matches: $rustNormalMatches" -ForegroundColor Green
+Write-Host "  Mismatches: $rustNormalMismatches" -ForegroundColor Red
 Write-Host ""
-Write-Host "Go vs C#:" -ForegroundColor Green  
-Write-Host "  Exact matches: $goMatches" -ForegroundColor Green
-Write-Host "  Mismatches: $goMismatches" -ForegroundColor Red
+Write-Host "Go vs C#:" -ForegroundColor Green
+Write-Host "  Exact matches: $goNormalMatches" -ForegroundColor Green
+Write-Host "  Mismatches: $goNormalMismatches" -ForegroundColor Red
 Write-Host ""
 Write-Host "Node vs C#:" -ForegroundColor Magenta
-Write-Host "  Exact matches: $nodeMatches" -ForegroundColor Green
-Write-Host "  Mismatches: $nodeMismatches" -ForegroundColor Red
+Write-Host "  Exact matches: $nodeNormalMatches" -ForegroundColor Green
+Write-Host "  Mismatches: $nodeNormalMismatches" -ForegroundColor Red
 Write-Host ""
 Write-Host "PHP vs C#:" -ForegroundColor Blue
-Write-Host "  Exact matches: $phpMatches" -ForegroundColor Green
-Write-Host "  Mismatches: $phpMismatches" -ForegroundColor Red
+Write-Host "  Exact matches: $phpNormalMatches" -ForegroundColor Green
+Write-Host "  Mismatches: $phpNormalMismatches" -ForegroundColor Red
+Write-Host ""
+Write-Host "PREPROCESS MODE:" -ForegroundColor Cyan
+Write-Host "Rust vs C#:" -ForegroundColor Red
+Write-Host "  Exact matches: $rustPreProcessMatches" -ForegroundColor Green
+Write-Host "  Mismatches: $rustPreProcessMismatches" -ForegroundColor Red
+Write-Host ""
+Write-Host "Go vs C#:" -ForegroundColor Green
+Write-Host "  Exact matches: $goPreProcessMatches" -ForegroundColor Green
+Write-Host "  Mismatches: $goPreProcessMismatches" -ForegroundColor Red
+Write-Host ""
+Write-Host "Node vs C#:" -ForegroundColor Magenta
+Write-Host "  Exact matches: $nodePreProcessMatches" -ForegroundColor Green
+Write-Host "  Mismatches: $nodePreProcessMismatches" -ForegroundColor Red
+Write-Host ""
+Write-Host "PHP vs C#:" -ForegroundColor Blue
+Write-Host "  Exact matches: $phpPreProcessMatches" -ForegroundColor Green
+Write-Host "  Mismatches: $phpPreProcessMismatches" -ForegroundColor Red
 Write-Host ""
 
 # Overall assessment
-$totalMatches = $rustMatches + $goMatches + $nodeMatches + $phpMatches
-$totalMismatches = $rustMismatches + $goMismatches + $nodeMismatches + $phpMismatches
-$totalTests = ($results.Count * 4)
+$totalMatches = $rustNormalMatches + $goNormalMatches + $nodeNormalMatches + $phpNormalMatches + $rustPreProcessMatches + $goPreProcessMatches + $nodePreProcessMatches + $phpPreProcessMatches
+$totalMismatches = $rustNormalMismatches + $goNormalMismatches + $nodeNormalMismatches + $phpNormalMismatches + $rustPreProcessMismatches + $goPreProcessMismatches + $nodePreProcessMismatches + $phpPreProcessMismatches
+$totalTests = ($results.Count * 8)
 
 if ($totalMismatches -eq 0) {
-    Write-Host "🎉 SUCCESS: All languages produce identical outputs to C#!" -ForegroundColor Green
+    Write-Host "🎉 SUCCESS: All languages produce identical outputs to C# in both Normal and PreProcess modes!" -ForegroundColor Green
 } else {
     Write-Host "⚠️  WARNING: $totalMismatches out of $totalTests comparisons failed" -ForegroundColor Yellow
     Write-Host "Some language implementations may not be producing exactly the same results as C#" -ForegroundColor Yellow
-    
-    if ($rustMismatches -eq 0) { Write-Host "✅ Rust implementation is perfect!" -ForegroundColor Green }
-    if ($goMismatches -eq 0) { Write-Host "✅ Go implementation is perfect!" -ForegroundColor Green }  
-    if ($nodeMismatches -eq 0) { Write-Host "✅ Node implementation is perfect!" -ForegroundColor Green }
-    if ($phpMismatches -eq 0) { Write-Host "✅ PHP implementation is perfect!" -ForegroundColor Green }
+
+    if ($rustNormalMismatches -eq 0 -and $rustPreProcessMismatches -eq 0) { Write-Host "✅ Rust implementation is perfect!" -ForegroundColor Green }
+    if ($goNormalMismatches -eq 0 -and $goPreProcessMismatches -eq 0) { Write-Host "✅ Go implementation is perfect!" -ForegroundColor Green }
+    if ($nodeNormalMismatches -eq 0 -and $nodePreProcessMismatches -eq 0) { Write-Host "✅ Node implementation is perfect!" -ForegroundColor Green }
+    if ($phpNormalMismatches -eq 0 -and $phpPreProcessMismatches -eq 0) { Write-Host "✅ PHP implementation is perfect!" -ForegroundColor Green }
 }

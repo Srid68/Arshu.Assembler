@@ -2,6 +2,8 @@
 
 namespace Assembler\TemplateEngine;
 
+use Assembler\TemplateCommon\Logger;
+use Assembler\TemplateCommon\TemplateUtils;
 use Assembler\TemplateModel\PreprocessedTemplate;
 use Assembler\TemplateModel\ReplacementType;
 
@@ -38,23 +40,33 @@ class EnginePreProcess
      * @param bool $enableJsonProcessing Whether to enable JSON data processing
      * @return string HTML with placeholders replaced using preprocessed structures
      */
-    public function mergeTemplates(string $appSite, string $appFile, ?string $appView, array $preprocessedTemplates, bool $enableJsonProcessing = true): string 
+    public function mergeTemplates(string $appSite, string $appFile, ?string $appView, array $preprocessedTemplates, bool $enableJsonProcessing = true): string
     {
+        Logger::info("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? 'null') . ", enableJson=" . ($enableJsonProcessing ? 'true' : 'false'), 'EnginePreProcess');
+
         if (empty($preprocessedTemplates)) {
+            Logger::warn('No preprocessed templates available', 'EnginePreProcess');
             return '';
         }
+
+        Logger::debug('Using ' . count($preprocessedTemplates) . ' preprocessed templates', 'EnginePreProcess');
 
         // Use the getTemplate method to retrieve the main template
         $mainPreprocessed = $this->getTemplate($appSite, $appFile, $preprocessedTemplates, $appView, $this->appViewPrefix, true);
         if ($mainPreprocessed === null) {
+            Logger::warn("Main template not found for appSite=$appSite, appFile=$appFile", 'EnginePreProcess');
             return '';
         }
+
+        Logger::debug('Main template found, original size: ' . strlen($mainPreprocessed->originalContent), 'EnginePreProcess');
 
         // Start with original content
         $contentHtml = $mainPreprocessed->originalContent;
 
         // Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
-        $contentHtml = $this->applyTemplateReplacements($contentHtml, $preprocessedTemplates, $enableJsonProcessing, $appView);
+        $contentHtml = $this->applyTemplateReplacements($contentHtml, $preprocessedTemplates, $enableJsonProcessing, $appView, $mainPreprocessed);
+
+        Logger::info('MergeTemplates complete: output size=' . strlen($contentHtml), 'EnginePreProcess');
 
         return $contentHtml;
     }
@@ -81,7 +93,7 @@ class EnginePreProcess
         if ($useAppViewFallback && !empty($appView) && !empty($viewPrefix) && stripos($templateName, $viewPrefix) !== false) {
             // Direct replacement: Replace the AppViewPrefix with the AppView value
             // For example: Html3AContent with AppViewPrefix=Html3A and AppView=html3B becomes html3BContent
-            $appKey = $this->replaceAllCaseInsensitive($templateName, $viewPrefix, $appView);
+            $appKey = TemplateUtils::replaceCaseInsensitive($templateName, $viewPrefix, $appView);
             $fallbackTemplateKey = strtolower($appSite) . '_' . strtolower($appKey);
             if (isset($preprocessedTemplates[$fallbackTemplateKey])) {
                 return $preprocessedTemplates[$fallbackTemplateKey]; // Found AppView-specific template, use it
@@ -103,20 +115,42 @@ class EnginePreProcess
      * @param array<string, PreprocessedTemplate> $preprocessedTemplates Dictionary of preprocessed templates
      * @param bool $enableJsonProcessing Whether to enable JSON processing
      * @param string|null $appView The application view name
+     * @param PreprocessedTemplate|null $mainTemplate The main template (optional)
      * @return string Content with all replacements applied
      */
-    private function applyTemplateReplacements(string $content, array $preprocessedTemplates, bool $enableJsonProcessing, ?string $appView): string 
+    private function applyTemplateReplacements(string $content, array $preprocessedTemplates, bool $enableJsonProcessing, ?string $appView, ?PreprocessedTemplate $mainTemplate = null): string
     {
         $result = $content;
+
+        Logger::debug('Starting ApplyTemplateReplacements, initial size: ' . strlen($content), 'EnginePreProcess');
 
         // Apply replacement mappings from all templates in multiple passes until no more changes
         $maxPasses = 10; // Prevent infinite loops
         $currentPass = 0;
-        
+
         do {
             $previous = $result;
             $currentPass++;
-            
+
+            Logger::debug("Replacement pass $currentPass, current size: " . strlen($result), 'EnginePreProcess');
+
+            $slottedCount = 0;
+            $simpleCount = 0;
+            $jsonPlaceholderCount = 0;
+
+            // FIRST: Apply JSON placeholder mappings ONLY from the main template (to avoid overwriting component content)
+            if ($mainTemplate !== null && $currentPass === 1 && $enableJsonProcessing) {
+                foreach ($mainTemplate->replacementMappings as $mapping) {
+                    if ($mapping->type === ReplacementType::JSON_PLACEHOLDER) {
+                        if (strpos($result, $mapping->originalText) !== false) {
+                            Logger::debug("Applying main template JSON placeholder: {$mapping->originalText} -> {$mapping->replacementText}", 'EnginePreProcess');
+                            $result = str_replace($mapping->originalText, $mapping->replacementText, $result);
+                            $jsonPlaceholderCount++;
+                        }
+                    }
+                }
+            }
+
             // Apply replacement mappings from all templates
             foreach ($preprocessedTemplates as $template) {
                 // CRITICAL: Apply slotted template mappings FIRST (before JSON processing changes the content)
@@ -124,62 +158,34 @@ class EnginePreProcess
                     if ($mapping->type === ReplacementType::SLOTTED_TEMPLATE) {
                         if (strpos($result, $mapping->originalText) !== false) {
                             $result = str_replace($mapping->originalText, $mapping->replacementText, $result);
+                            $slottedCount++;
                         }
                     }
                 }
-                
+
                 // Then apply other replacement mappings (simple templates) with AppView logic
+                // Replacement text already has JSON values baked in by LoaderPreProcess
                 foreach ($template->replacementMappings as $mapping) {
                     if ($mapping->type === ReplacementType::SIMPLE_TEMPLATE) {
                         if (strpos($result, $mapping->originalText) !== false) {
                             // Apply AppView logic before replacement
                             $replacementText = $this->applyAppViewLogicToReplacement($mapping->originalText, $mapping->replacementText, $preprocessedTemplates, $appView);
                             $result = str_replace($mapping->originalText, $replacementText, $result);
+                            $simpleCount++;
                         }
-                    }
-                }
-                
-                // Apply JSON replacement mappings only if JSON processing is enabled
-                if ($enableJsonProcessing) {
-                    foreach ($template->replacementMappings as $mapping) {
-                        if ($mapping->type === ReplacementType::JSON_PLACEHOLDER) {
-                            if (strpos($result, $mapping->originalText) !== false) {
-                                $result = str_replace($mapping->originalText, $mapping->replacementText, $result);
-                            }
-                        }
-                    }
-                }
-                
-                // Apply JSON placeholders if JSON processing is enabled (LAST)
-                if ($enableJsonProcessing) {
-                    foreach ($template->jsonPlaceholders as $placeholder) {
-                        $result = $this->replaceAllCaseInsensitive($result, $placeholder->placeholder, $placeholder->value);
                     }
                 }
             }
-            
+
+            Logger::debug("Pass $currentPass applied: $jsonPlaceholderCount main JSON placeholders, $slottedCount slotted, $simpleCount simple", 'EnginePreProcess');
+
         } while ($result !== $previous && $currentPass < $maxPasses);
 
-        return $result;
-    }
+        // All JSON replacements are handled in LoaderPreProcess during replacement mapping creation
+        // The engine only does simple string replacements using pre-prepared mappings
+        Logger::info("Replacement complete after $currentPass passes, final size: " . strlen($result), 'EnginePreProcess');
 
-    /**
-     * Helper method to replace all case-insensitive occurrences
-     * @param string $input Input string
-     * @param string $search Search string
-     * @param string $replacement Replacement string
-     * @return string String with all occurrences replaced
-     */
-    private function replaceAllCaseInsensitive(string $input, string $search, string $replacement): string 
-    {
-        $idx = 0;
-        while (true) {
-            $found = stripos($input, $search, $idx);
-            if ($found === false) break;
-            $input = substr($input, 0, $found) . $replacement . substr($input, $found + strlen($search));
-            $idx = $found + strlen($replacement);
-        }
-        return $input;
+        return $result;
     }
 
     /**
@@ -190,32 +196,42 @@ class EnginePreProcess
      * @param string|null $appView The application view name
      * @return string Updated replacement text with AppView logic applied
      */
-    private function applyAppViewLogicToReplacement(string $originalText, string $replacementText, array $preprocessedTemplates, ?string $appView): string 
+    private function applyAppViewLogicToReplacement(string $originalText, string $replacementText, array $preprocessedTemplates, ?string $appView): string
     {
-        // Check if the original text is a placeholder that should use AppView fallback logic
+        // If no appView context, use the default replacement text (which already has JSON values baked in)
+        if (empty($appView)) {
+            return $replacementText;
+        }
+
         // Extract placeholder name from {{PlaceholderName}} format
         $placeholderName = $this->extractPlaceholderName($originalText);
         if (empty($placeholderName)) {
             return $replacementText;
         }
 
-        // Use the centralized getTemplate method for consistent AppView logic
         // First get the appSite from the template key pattern
         $sampleKey = array_keys($preprocessedTemplates)[0] ?? '';
         if (empty($sampleKey)) {
             return $replacementText;
         }
-            
+
         $parts = explode('_', $sampleKey);
         if (count($parts) < 2) {
             return $replacementText;
         }
-            
+
         $appSite = $parts[0]; // Extract appSite from the key pattern
-        
-        $template = $this->getTemplate($appSite, $placeholderName, $preprocessedTemplates, $appView, $this->appViewPrefix, true);
-        
-        return $template?->originalContent ?? $replacementText;
+
+        // Use GetTemplate to find the AppView-specific template variant
+        $appViewTemplate = $this->getTemplate($appSite, $placeholderName, $preprocessedTemplates, $appView, $this->appViewPrefix, true);
+
+        // If no AppView-specific template found, use the default replacement text
+        if ($appViewTemplate === null) {
+            return $replacementText;
+        }
+
+        // Return the AppView-specific template's original content (which already has JSON baked in by LoaderPreProcess)
+        return $appViewTemplate->originalContent;
     }
 
     /**

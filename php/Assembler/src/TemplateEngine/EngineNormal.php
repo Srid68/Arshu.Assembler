@@ -6,6 +6,7 @@ use Assembler\App\JsonConverter;
 use Assembler\App\Json\JsonObject;
 use Assembler\App\Json\JsonArray;
 use Assembler\TemplateCommon\TemplateUtils;
+use Assembler\TemplateCommon\Logger;
 use Assembler\TemplateLoader\TemplateResult;
 
 /**
@@ -43,9 +44,14 @@ class EngineNormal
      */
     public function mergeTemplates(string $appSite, string $appFile, ?string $appView, array $templates, bool $enableJsonProcessing = true): string
     {
+        Logger::info("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? 'null') . ", enableJson=" . ($enableJsonProcessing ? 'true' : 'false'), 'EngineNormal');
+
         if (empty($templates)) {
+            Logger::warn('No templates available', 'EngineNormal');
             return '';
         }
+
+        Logger::debug('Using ' . count($templates) . ' templates', 'EngineNormal');
 
         // Direct lookup for main template
         $mainTemplateKey = strtolower($appSite) . '_' . strtolower($appFile);
@@ -58,21 +64,28 @@ class EngineNormal
                 $fallbackTemplateKey = strtolower($appSite) . '_' . strtolower($appKey);
                 $mainTemplate = $templates[$fallbackTemplateKey] ?? null;
                 if (!$mainTemplate) {
+                    Logger::warn("Main template not found for appSite=$appSite, appFile=$appFile", 'EngineNormal');
                     return '';
                 }
             } else {
+                Logger::warn("Main template not found for appSite=$appSite, appFile=$appFile", 'EngineNormal');
                 return '';
             }
         }
 
+        Logger::debug('Main template found, html size: ' . strlen($mainTemplate->html) . ', json: ' . ($mainTemplate->json ? strlen($mainTemplate->json) : 0), 'EngineNormal');
+
         $contentHtml = $mainTemplate->html;
         if ($enableJsonProcessing && $mainTemplate->json) {
+            Logger::debug('Merging main template with JSON (size: ' . strlen($mainTemplate->json) . ')', 'EngineNormal');
             $contentHtml = $this->mergeTemplateWithJson($contentHtml, $mainTemplate->json);
+            Logger::debug('After main JSON merge: ' . strlen($contentHtml) . ' chars', 'EngineNormal');
         }
 
         // Pre-merge all templates and JSON values
         $mergedTemplates = [];
         $allJsonValues = [];
+        $jsonMergeCount = 0;
 
         foreach ($templates as $key => $template) {
             $htmlContent = $template->html;
@@ -80,11 +93,16 @@ class EngineNormal
 
             if ($enableJsonProcessing && $jsonContent) {
                 $htmlContent = $this->mergeTemplateWithJson($htmlContent, $jsonContent);
+                $jsonMergeCount++;
                 try {
                     $jsonObj = JsonConverter::parseJsonString($jsonContent);
                     foreach ($jsonObj as $jsonKey => $jsonValue) {
                         if (is_string($jsonValue)) {
                             $allJsonValues[strtolower($jsonKey)] = $jsonValue;
+                        } elseif (is_bool($jsonValue)) {
+                            $allJsonValues[strtolower($jsonKey)] = $jsonValue ? 'true' : 'false';
+                        } elseif (is_numeric($jsonValue)) {
+                            $allJsonValues[strtolower($jsonKey)] = (string)$jsonValue;
                         }
                     }
                 } catch (\Exception $e) {
@@ -94,17 +112,32 @@ class EngineNormal
             $mergedTemplates[$key] = $htmlContent;
         }
 
+        Logger::debug("Pre-merged $jsonMergeCount templates with JSON, collected " . count($allJsonValues) . " JSON values", 'EngineNormal');
+
         // Iterative processing with change detection
         $maxPasses = 10;
+        $actualPasses = 0;
         for ($pass = 0; $pass < $maxPasses; $pass++) {
             $before = $contentHtml;
+            $actualPasses = $pass + 1;
+
+            Logger::debug("Pass $actualPasses, current size: " . strlen($contentHtml), 'EngineNormal');
+
             $afterSlots = $this->mergeTemplateSlots($before, $appSite, $appView, $mergedTemplates);
+            Logger::debug('After slot merge: ' . strlen($afterSlots) . ' chars', 'EngineNormal');
+
             $afterJson = $this->replaceTemplatePlaceholdersWithJson($afterSlots, $appSite, $mergedTemplates, $allJsonValues, $appView);
-            
+            Logger::debug('After placeholder replacement: ' . strlen($afterJson) . ' chars', 'EngineNormal');
+
             $changed = $afterJson !== $before;
-            if (!$changed) break;
+            if (!$changed) {
+                Logger::debug("No changes in pass $actualPasses, stopping", 'EngineNormal');
+                break;
+            }
             $contentHtml = $afterJson;
         }
+
+        Logger::info("MergeTemplates complete after $actualPasses passes: output size=" . strlen($contentHtml), 'EngineNormal');
 
         return $contentHtml;
     }
@@ -483,7 +516,14 @@ class EngineNormal
                     if ($item instanceof JsonObject) {
                         $obj = [];
                         foreach ($item as $subKey => $subValue) {
-                            $obj[strtolower($subKey)] = $subValue;
+                            // Convert boolean and numeric values to strings
+                            if (is_bool($subValue)) {
+                                $obj[strtolower($subKey)] = $subValue ? 'true' : 'false';
+                            } elseif (is_numeric($subValue)) {
+                                $obj[strtolower($subKey)] = (string)$subValue;
+                            } else {
+                                $obj[strtolower($subKey)] = $subValue;
+                            }
                         }
                         $arr[] = $obj;
                     } else {
@@ -494,7 +534,14 @@ class EngineNormal
                 }
                 $dict[strtolower($key)] = $arr;
             } else {
-                $dict[strtolower($key)] = $value;
+                // Convert boolean and numeric values to strings
+                if (is_bool($value)) {
+                    $dict[strtolower($key)] = $value ? 'true' : 'false';
+                } elseif (is_numeric($value)) {
+                    $dict[strtolower($key)] = (string)$value;
+                } else {
+                    $dict[strtolower($key)] = $value;
+                }
             }
         }
 

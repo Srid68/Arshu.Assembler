@@ -1,13 +1,16 @@
 <?php
 
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 
 require_once __DIR__ . '/../Assembler/vendor/autoload.php';
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/../Assembler/src/TemplateModel/ModelPreProcess.php';
+require_once __DIR__ . '/../Assembler/src/TemplateApi/ApiResponse.php';
 require_once __DIR__ . '/MergeRequest.php';
 require_once __DIR__ . '/IdleTrackingMiddleware.php';
+require_once __DIR__ . '/AssemblerEndpoint.php';
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as ServerRequest;
@@ -17,7 +20,35 @@ use Assembler\TemplateEngine\EngineNormal;
 use Assembler\TemplateEngine\EnginePreProcess;
 use Assembler\TemplateLoader\LoaderNormal;
 use Assembler\TemplateLoader\LoaderPreProcess;
+use Assembler\TemplateApi\ApiResponse;
+use Assembler\TemplateApi\TemplateData;
+use Assembler\TemplateApi\PreProcessTemplateMetadata;
+use Assembler\TemplateCommon\Logger;
 
+// Configure logger with context-specific log files
+$logRotation = Logger::ROTATION_NONE;
+$paths = TemplateUtils::getAssemblerWebDirPath();
+$projectDirectory = $paths['projectDirectory'];
+$templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
+$logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
+if (!is_dir($logsDir)) {
+    mkdir($logsDir, 0755, true);
+}
+
+// Configure separate log files for each context
+$contextLogFiles = [
+    'LoaderNormal' => $logsDir . DIRECTORY_SEPARATOR . 'php_loadernormal.log',
+    'LoaderPreProcess' => $logsDir . DIRECTORY_SEPARATOR . 'php_loaderpreprocess.log',
+    'EngineNormal' => $logsDir . DIRECTORY_SEPARATOR . 'php_enginenormal.log',
+    'EnginePreProcess' => $logsDir . DIRECTORY_SEPARATOR . 'php_enginepreprocess.log',
+    'Index' => $logsDir . DIRECTORY_SEPARATOR . 'php_index.log',
+    'MergeEndpoint' => $logsDir . DIRECTORY_SEPARATOR . 'php_mergeendpoint.log',
+    'IdleTracking' => $logsDir . DIRECTORY_SEPARATOR . 'php_idletracking.log',
+];
+
+Logger::configure(Logger::DEBUG, null, false, $logRotation);
+Logger::configureContextLogFiles($contextLogFiles);
+Logger::info('AssemblerWeb starting up', 'Index');
 
 // ...existing code...
 
@@ -43,167 +74,12 @@ if (!$isDebug) {
 
 // GET / - Root endpoint
 $app->get('/', function (ServerRequest $request, Response $response) {
-    $paths = TemplateUtils::getAssemblerWebDirPath();
-    $appSitesPath = $paths['assemblerWebDirPath'] . DIRECTORY_SEPARATOR . 'AppSites';
-    // Get wwwroot/AppSites path
-    $paths = TemplateUtils::getAssemblerWebDirPath();
-    $appSitesPath = $paths['assemblerWebDirPath'] . DIRECTORY_SEPARATOR . 'AppSites';
-
-    $optionsList = [];
-
-    if (is_dir($appSitesPath)) {
-        $testDirs = array_diff(scandir($appSitesPath), ['.', '..']);
-        foreach ($testDirs as $testDir) {
-            if ($testDir === 'roottemplate.html') continue;
-            $testDirPath = $appSitesPath . DIRECTORY_SEPARATOR . $testDir;
-
-            if (!is_dir($testDirPath)) continue;
-
-            // Find root html files
-            $htmlFiles = TemplateUtils::getHtmlFiles($testDirPath);
-
-            // Views subdir
-            $viewsPath = $testDirPath . DIRECTORY_SEPARATOR . 'Views';
-            $hasViews = is_dir($viewsPath);
-
-            foreach ($htmlFiles as $htmlFile) {
-                $appViewPrefix = substr($htmlFile, 0, min(6, strlen($htmlFile)));
-                $optionValue = $testDir . ',' . $htmlFile . ',,' . $appViewPrefix;
-                $optionText = $testDir . ' - ' . $htmlFile;
-                $optionsList[] = '<option value="' . $optionValue . '">' . $optionText . '</option>';
-            }
-
-            if ($hasViews) {
-                $viewFiles = TemplateUtils::getHtmlFiles($viewsPath);
-
-                $appViewValues = [];
-                foreach ($viewFiles as $vf) {
-                    $idx = stripos($vf, 'content');
-                    if ($idx > 0) {
-                        $viewPart = substr($vf, 0, $idx);
-                        if (!empty($viewPart)) {
-                            $appViewValues[] = ucfirst($viewPart);
-                        }
-                    }
-                }
-                $appViewValues = array_unique($appViewValues);
-
-                foreach ($htmlFiles as $rootFile) {
-                    $rootAppViewPrefix = substr($rootFile, 0, min(6, strlen($rootFile)));
-
-                    $matchingViewPrefix = null;
-                    foreach ($viewFiles as $vf) {
-                        $idx = stripos($vf, 'content');
-                        if ($idx > 0) {
-                            $prefix = substr($vf, 0, $idx);
-                            if (!empty($prefix) && stripos($rootFile, $prefix) === 0) {
-                                $matchingViewPrefix = $prefix;
-                                break;
-                            }
-                        }
-                    }
-
-                    if ($matchingViewPrefix !== null) {
-                        foreach ($appViewValues as $appView) {
-                            $optionValueAppView = $testDir . ',' . $rootFile . ',' . $appView . ',' . $rootAppViewPrefix;
-                            $optionTextAppView = $testDir . ' - ' . $rootFile . ' (AppView: ' . $appView . ')';
-                            $optionsList[] = '<option value="' . $optionValueAppView . '">' . $optionTextAppView . '</option>';
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    $options = implode("\n        ", $optionsList);
-    $templatePath = $appSitesPath . DIRECTORY_SEPARATOR . 'roottemplate.html';
-        if (!file_exists($templatePath)) {
-            $html = '<html><body>Template not found</body></html>';
-        } else {
-            $html = file_get_contents($templatePath);
-        }
-        $html = str_replace('<!--OPTIONS-->', $options, $html);
-
-    $response->getBody()->write($html);
-    return $response->withHeader('Content-Type', 'text/html');
+    return AssemblerEndpoint::indexEndpoint($request, $response);
 })->setName('GetRootUrl');
 
 // POST /merge - Merge templates
 $app->post('/merge', function (ServerRequest $request, Response $response) {
-    $serverStart = microtime(true) * 1000;
-    $body = $request->getBody()->getContents();
-    error_log("[DEBUG] Raw body: $body");
-    $data = json_decode($body, true);
-    error_log("[DEBUG] Decoded data: " . json_encode($data));
-    $serverStart = microtime(true) * 1000;
-
-    $body = $request->getBody()->getContents();
-    $data = json_decode($body, true);
-
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        $response->getBody()->write(json_encode(['error' => 'Invalid JSON']));
-        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
-    }
-
-    $mergeRequest = new MergeRequest(
-        $data['appSite'] ?? null,
-        $data['appView'] ?? null,
-        $data['appViewPrefix'] ?? null,
-        $data['appFile'] ?? null,
-        $data['engineType'] ?? null
-    );
-
-    // Log the merge endpoint call with parameters
-    error_log(sprintf(
-        "/merge endpoint called with: app_site=%s, app_file=%s, engine_type=%s, app_view=%s, app_view_prefix=%s",
-        $mergeRequest->appSite ?? 'null',
-        $mergeRequest->appFile ?? 'null',
-        $mergeRequest->engineType ?? 'null',
-        $mergeRequest->appView ?? 'null',
-        $mergeRequest->appViewPrefix ?? 'null'
-    ));
-
-    // Validate required fields
-    if (empty($mergeRequest->appSite) || empty($mergeRequest->appFile) || empty($mergeRequest->engineType)) {
-        $response->getBody()->write(json_encode(['error' => 'Missing required fields: appSite, appFile, engineType']));
-        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
-    }
-
-    $paths = TemplateUtils::getAssemblerWebDirPath();
-    $rootDirPath = $paths['assemblerWebDirPath'];
-    error_log("[DEBUG] rootDirPath: " . $rootDirPath);
-
-    $engineStart = microtime(true) * 1000;
-
-    if (strcasecmp($mergeRequest->engineType, 'PreProcess') === 0) {
-        $templates = LoaderPreProcess::loadProcessGetTemplateFiles($rootDirPath, $mergeRequest->appSite);
-        $engine = new EnginePreProcess();
-        if (!empty($mergeRequest->appViewPrefix)) {
-            $engine->setAppViewPrefix($mergeRequest->appViewPrefix);
-        }
-        $mergedHtml = $engine->mergeTemplates($mergeRequest->appSite, $mergeRequest->appFile, $mergeRequest->appView, $templates->templates);
-    } else {
-        $templates = LoaderNormal::loadGetTemplateFiles($rootDirPath, $mergeRequest->appSite);
-        $engine = new EngineNormal();
-        if (!empty($mergeRequest->appViewPrefix)) {
-            $engine->setAppViewPrefix($mergeRequest->appViewPrefix);
-        }
-        $mergedHtml = $engine->mergeTemplates($mergeRequest->appSite, $mergeRequest->appFile, $mergeRequest->appView, $templates);
-    }
-
-    $engineTimeMs = (microtime(true) * 1000) - $engineStart;
-    $serverTimeMs = (microtime(true) * 1000) - $serverStart;
-
-    $responseData = [
-        'html' => $mergedHtml,
-        'timing' => [
-            'serverTimeMs' => $serverTimeMs,
-            'engineTimeMs' => $engineTimeMs
-        ]
-    ];
-
-    $response->getBody()->write(json_encode($responseData));
-    return $response->withHeader('Content-Type', 'application/json');
+    return AssemblerEndpoint::mergeEndpoint($request, $response);
 })->setName('PostMergeTemplate');
 
 // Serve Scalar UI index.html at /scalar

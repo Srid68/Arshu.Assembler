@@ -34,14 +34,13 @@ pub struct PerformanceUtils;
 impl PerformanceUtils 
 {
     /// Runs performance comparison and returns summary rows
-    pub fn run_performance_comparison(assembler_web_dir_path: &str, app_site_filter: Option<&str>, skip_details: bool, enable_json_processing: bool) -> Vec<PerfSummaryRow> 
+    pub fn run_performance_comparison(assembler_web_dir_path: &str, app_site_filter: Option<&str>, skip_details: bool, enable_json_processing: bool) -> Vec<PerfSummaryRow>
 	{
+        let start_time = Instant::now();
+        println!("\n========== RunPerformanceComparison ==========");
         let iterations = 1000;
         let app_sites_path = std::path::Path::new(assembler_web_dir_path).join("AppSites");
         if !app_sites_path.exists() {
-            if !skip_details {
-                println!("❌ AppSites directory not found: {:?}", app_sites_path);
-            }
             return Vec::new();
         }
         
@@ -86,23 +85,12 @@ impl PerformanceUtils
                 let site_templates = LoaderPreProcess::load_process_get_template_files(assembler_web_dir_path, &test_app_site);
                 
                 if templates.is_empty() {
-                    if !skip_details {
-                        println!("❌ No templates found for {}", test_app_site);
-                    }
                     continue;
                 }
                 
                 let main_template_key = format!("{}_{}", test_app_site, app_file_name).to_lowercase();
                 if !templates.contains_key(&main_template_key) {
-                    if !skip_details {
-                        println!("❌ No main template found for {}", main_template_key);
-                    }
                     continue;
-                }
-                
-                if !skip_details {
-                    println!("Template Key: {}", main_template_key);
-                    println!("Templates available: {}", templates.len());
                 }
                 
                 // Build AppView scenarios
@@ -137,8 +125,8 @@ impl PerformanceUtils
                 for (app_view, app_view_prefix) in app_view_scenarios {
                     if !skip_details {
                         println!("{}", "-".repeat(60));
-                        println!(">>> RUST SCENARIO : '{}', '{}', '{}', '{}'", test_app_site, app_file_name, app_view, app_view_prefix);
-                        println!("Iterations per test: {}", iterations);
+                        println!("[Rust] Testing: AppSite={}, AppFile={}, AppView={}", test_app_site, app_file_name, app_view);
+                        println!("[Rust] Iterations: {}", iterations);
                     }
                     
                     // Normal Engine
@@ -163,9 +151,9 @@ impl PerformanceUtils
                     let normal_time_nanos = normal_duration.as_nanos();
                     
                     if !skip_details {
-                        println!("[Normal Engine] {} iterations: {:.2}ms", iterations, normal_time_nanos as f64 / 1_000_000.0);
-                        println!("[Normal Engine] Avg: {:.3}ms per op, Output size: {} chars", 
-                            normal_time_nanos as f64 / 1_000_000.0 / iterations as f64, result_normal.len());
+                        let normal_time_ms = normal_time_nanos as f64 / 1_000_000.0;
+                        let avg = normal_time_ms / iterations as f64;
+                        println!("[Rust] Normal Engine:     {:.0}ms | Avg: {:.3}ms/op | Size: {} chars", normal_time_ms, avg, result_normal.len());
                     }
                     
                     // PreProcess Engine
@@ -190,13 +178,10 @@ impl PerformanceUtils
                     let preprocess_time_nanos = preprocess_duration.as_nanos();
                     
                     if !skip_details {
-                        println!("[PreProcess Engine] {} iterations: {:.2}ms", iterations, preprocess_time_nanos as f64 / 1_000_000.0);
-                        println!("[PreProcess Engine] Avg: {:.3}ms per op, Output size: {} chars",
-                            preprocess_time_nanos as f64 / 1_000_000.0 / iterations as f64, result_preprocess.len());
-                        
-                        // Comparison
-                        println!(">>> RUST PERFORMANCE COMPARISON:");
-                        println!("{}", "-".repeat(50));
+                        let preprocess_time_ms = preprocess_time_nanos as f64 / 1_000_000.0;
+                        let avg = preprocess_time_ms / iterations as f64;
+                        println!("[Rust] PreProcess Engine: {:.0}ms | Avg: {:.3}ms/op | Size: {} chars", preprocess_time_ms, avg, result_preprocess.len());
+
                         let difference_nanos = preprocess_time_nanos as i128 - normal_time_nanos as i128;
                         let difference_ms = difference_nanos as f64 / 1_000_000.0;
                         let difference_percent = if normal_time_nanos > 0 {
@@ -204,10 +189,10 @@ impl PerformanceUtils
                         } else {
                             0.0
                         };
-                        
-                        println!("Time difference: {:.2}ms ({:.1}%)", difference_ms, difference_percent);
                         let results_match = result_normal == result_preprocess;
-                        println!("Results match: {}", if results_match { "✅ YES" } else { "❌ NO" });
+                        let sign_ms = if difference_ms >= 0.0 { "+" } else { "" };
+                        let sign_pct = if difference_percent >= 0.0 { "+" } else { "" };
+                        println!("[Rust] Performance: {}{:.0}ms ({}{:.1}%) | Match: {}", sign_ms, difference_ms, sign_pct, difference_percent, if results_match { "YES" } else { "NO" });
                     }
                     
                     let results_match = result_normal == result_preprocess;
@@ -231,7 +216,9 @@ impl PerformanceUtils
                 }
             }
         }
-        
+
+        let elapsed = start_time.elapsed();
+        println!("\n========== Performance Testing Completed in {}ms ==========\n", elapsed.as_millis());
         perf_summary_rows
     }
 

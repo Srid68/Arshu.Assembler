@@ -33,19 +33,33 @@ public class EnginePreProcess
     /// <returns>HTML with placeholders replaced using preprocessed structures</returns>
     public string MergeTemplates(string appSite, string appFile, string? appView, Dictionary<string, PreprocessedTemplate> preprocessedTemplates, bool enableJsonProcessing = true)
     {
+        Logger.Info($"MergeTemplates called: appSite={appSite}, appFile={appFile}, appView={appView ?? "null"}, enableJson={enableJsonProcessing}", "EnginePreProcess");
+
         if (preprocessedTemplates == null || preprocessedTemplates.Count == 0)
+        {
+            Logger.Warn("No preprocessed templates available", "EnginePreProcess");
             return "";
+        }
+
+        Logger.Debug($"Using {preprocessedTemplates.Count} preprocessed templates", "EnginePreProcess");
 
         // Use the new GetTemplate method to retrieve the main template
         var mainPreprocessed = GetTemplate(appSite, appFile, preprocessedTemplates, appView, AppViewPrefix, useAppViewFallback: true);
         if (mainPreprocessed == null)
+        {
+            Logger.Warn($"Main template not found for appSite={appSite}, appFile={appFile}", "EnginePreProcess");
             return "";
+        }
+
+        Logger.Debug($"Main template found, original size: {mainPreprocessed.OriginalContent.Length}", "EnginePreProcess");
 
         // Start with original content
         var contentHtml = mainPreprocessed.OriginalContent;
 
         // Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
-        contentHtml = ApplyTemplateReplacements(contentHtml, preprocessedTemplates, enableJsonProcessing, appView);
+        contentHtml = ApplyTemplateReplacements(contentHtml, preprocessedTemplates, enableJsonProcessing, appView, mainPreprocessed);
+
+        Logger.Info($"MergeTemplates complete: output size={contentHtml.Length}", "EnginePreProcess");
 
         return contentHtml;
     }
@@ -98,84 +112,77 @@ public class EnginePreProcess
     /// <summary>
     /// Applies all replacement mappings from all templates - NO processing logic, only direct replacements
     /// </summary>
-    private string ApplyTemplateReplacements(string content, Dictionary<string, PreprocessedTemplate> preprocessedTemplates, bool enableJsonProcessing, string? appView)
+    private string ApplyTemplateReplacements(string content, Dictionary<string, PreprocessedTemplate> preprocessedTemplates, bool enableJsonProcessing, string? appView, PreprocessedTemplate? mainTemplate = null)
     {
         var result = content;
+
+        Logger.Debug($"Starting ApplyTemplateReplacements, initial size: {content.Length}", "EnginePreProcess");
 
         // Apply replacement mappings from all templates in multiple passes until no more changes
         string previous;
         int maxPasses = 10; // Prevent infinite loops
         int currentPass = 0;
-        
+
         do
         {
             previous = result;
             currentPass++;
-            
+
+            Logger.Debug($"Replacement pass {currentPass}, current size: {result.Length}", "EnginePreProcess");
+
+            int slottedCount = 0, simpleCount = 0, jsonPlaceholderCount = 0;
+
+            // FIRST: Apply JSON placeholder mappings ONLY from the main template (to avoid overwriting component content)
+            if (mainTemplate != null && currentPass == 1 && enableJsonProcessing)
+            {
+                foreach (var mapping in mainTemplate.ReplacementMappings.Where(m => m.Type == ReplacementType.JsonPlaceholder))
+                {
+                    if (result.Contains(mapping.OriginalText))
+                    {
+                        Logger.Debug($"Applying main template JSON placeholder: {mapping.OriginalText} -> {mapping.ReplacementText}", "EnginePreProcess");
+                        result = result.Replace(mapping.OriginalText, mapping.ReplacementText);
+                        jsonPlaceholderCount++;
+                    }
+                }
+            }
+
             // Apply replacement mappings from all templates
             foreach (var template in preprocessedTemplates.Values)
             {
-                // CRITICAL: Apply slotted template mappings FIRST (before JSON processing changes the content)
+                // Apply slotted template mappings
                 foreach (var mapping in template.ReplacementMappings.Where(m => m.Type == ReplacementType.SlottedTemplate))
                 {
                     if (result.Contains(mapping.OriginalText))
                     {
+                        Logger.Debug($"Applying slotted template: {mapping.OriginalText.Substring(0, Math.Min(50, mapping.OriginalText.Length))}... -> {mapping.ReplacementText.Length} chars", "EnginePreProcess");
                         result = result.Replace(mapping.OriginalText, mapping.ReplacementText);
+                        slottedCount++;
                     }
                 }
-                
-                // Then apply other replacement mappings (simple templates) with AppView logic
+
+                // Apply simple template mappings (components) - replacement text already has JSON values baked in by LoaderPreProcess
                 foreach (var mapping in template.ReplacementMappings.Where(m => m.Type == ReplacementType.SimpleTemplate))
                 {
                     if (result.Contains(mapping.OriginalText))
                     {
-                        // Apply AppView logic before replacement
+                        // Apply AppView logic to handle runtime template selection with baked-in JSON values
                         var replacementText = ApplyAppViewLogicToReplacement(mapping.OriginalText, mapping.ReplacementText, preprocessedTemplates, appView);
+                        Logger.Info($"Applying simple template: {mapping.OriginalText} -> replacement text (first 200 chars): {replacementText.Substring(0, Math.Min(200, replacementText.Length))}", "EnginePreProcess");
                         result = result.Replace(mapping.OriginalText, replacementText);
-                    }
-                }
-                
-                // Apply JSON replacement mappings only if JSON processing is enabled
-                if (enableJsonProcessing)
-                {
-                    foreach (var mapping in template.ReplacementMappings.Where(m => m.Type == ReplacementType.JsonPlaceholder))
-                    {
-                        if (result.Contains(mapping.OriginalText))
-                        {
-                            result = result.Replace(mapping.OriginalText, mapping.ReplacementText);
-                        }
-                    }
-                }
-                
-                // Apply JSON placeholders if JSON processing is enabled (LAST)
-                if (enableJsonProcessing)
-                {
-                    foreach (var placeholder in template.JsonPlaceholders)
-                    {
-                        result = ReplaceAllCaseInsensitive(result, placeholder.Placeholder, placeholder.Value);
+                        simpleCount++;
                     }
                 }
             }
-            
+
+            Logger.Debug($"Pass {currentPass} applied: {jsonPlaceholderCount} main JSON placeholders, {slottedCount} slotted, {simpleCount} simple", "EnginePreProcess");
+
         } while (result != previous && currentPass < maxPasses);
 
-        return result;
-    }
+        // All JSON replacements are handled in LoaderPreProcess during replacement mapping creation
+        // The engine only does simple string replacements using pre-prepared mappings
+        Logger.Info($"Replacement complete after {currentPass} passes, final size: {result.Length}", "EnginePreProcess");
 
-    /// <summary>
-    /// Helper method to replace all case-insensitive occurrences
-    /// </summary>
-    private static string ReplaceAllCaseInsensitive(string input, string search, string replacement)
-    {
-        int idx = 0;
-        while (true)
-        {
-            int found = input.IndexOf(search, idx, StringComparison.OrdinalIgnoreCase);
-            if (found == -1) break;
-            input = input.Substring(0, found) + replacement + input.Substring(found + search.Length);
-            idx = found + replacement.Length;
-        }
-        return input;
+        return result;
     }
 
     /// <summary>
@@ -183,27 +190,35 @@ public class EnginePreProcess
     /// </summary>
     private string ApplyAppViewLogicToReplacement(string originalText, string replacementText, Dictionary<string, PreprocessedTemplate> preprocessedTemplates, string? appView)
     {
-        // Check if the original text is a placeholder that should use AppView fallback logic
+        // If no appView context, use the default replacement text (which already has JSON values baked in)
+        if (string.IsNullOrEmpty(appView))
+            return replacementText;
+
         // Extract placeholder name from {{PlaceholderName}} format
         var placeholderName = ExtractPlaceholderName(originalText);
         if (string.IsNullOrEmpty(placeholderName))
             return replacementText;
 
-        // Use the centralized GetTemplate method for consistent AppView logic
         // First get the appSite from the template key pattern
         var sampleKey = preprocessedTemplates.Keys.FirstOrDefault();
         if (string.IsNullOrEmpty(sampleKey))
             return replacementText;
-            
+
         var parts = sampleKey.Split('_');
         if (parts.Length < 2)
             return replacementText;
-            
+
         var appSite = parts[0]; // Extract appSite from the key pattern
-        
-        var template = GetTemplate(appSite, placeholderName, preprocessedTemplates, appView, AppViewPrefix, useAppViewFallback: true);
-        
-        return template?.OriginalContent ?? replacementText;
+
+        // Use GetTemplate to find the AppView-specific template variant
+        var appViewTemplate = GetTemplate(appSite, placeholderName, preprocessedTemplates, appView, AppViewPrefix, useAppViewFallback: true);
+
+        // If no AppView-specific template found, use the default replacement text
+        if (appViewTemplate == null)
+            return replacementText;
+
+        // Return the AppView-specific template's original content (which already has JSON baked in by LoaderPreProcess)
+        return appViewTemplate.OriginalContent;
     }
 
     /// <summary>

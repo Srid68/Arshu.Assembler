@@ -1,0 +1,133 @@
+<script>
+// ========================================
+// SERVER-SIDE MERGING JAVASCRIPT CODE
+// Used by AssemblerWeb (server performs merging via /merge endpoint)
+// ========================================
+
+// Function to handle scenario selection with server-side merging
+function handleScenarioChangeServer() {
+    const select = document.getElementById('test-select');
+    const selectedValue = select.value;
+
+    if (!selectedValue) {
+        document.getElementById('rule-description').classList.remove('show');
+        // Reset outputs to loading state
+        const normalResult = document.querySelector('#{{$NormalResultId}}');
+        const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
+        if (normalResult) normalResult.innerHTML = '<div class="loading">Select a scenario to see the Normal engine result</div>';
+        if (preprocessResult) preprocessResult.innerHTML = '<div class="loading">Select a scenario to see the PreProcess engine result</div>';
+        return;
+    }
+
+    // Get data from data attributes
+    const selectedOption = select.options[select.selectedIndex];
+    const appSite = selectedOption.dataset.appsite || selectedValue;
+    const appFile = selectedOption.dataset.appfile || "";
+    const appView = selectedOption.dataset.appview || "";
+    const appViewPrefix = selectedOption.dataset.appviewprefix || "";
+    const description = selectedOption.dataset.description || "";
+
+    // Update rule description
+    updateRuleDescription(appSite, description);
+
+    // Show loading state
+    const normalResult = document.querySelector('#{{$NormalResultId}}');
+    const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
+    if (normalResult) normalResult.innerHTML = '<div class="loading">Loading Normal engine result...</div>';
+    if (preprocessResult) preprocessResult.innerHTML = '<div class="loading">Loading PreProcess engine result...</div>';
+
+    // Clear timing bars
+    const normalTimingBar = document.querySelector('#{{$NormalTimingBarId}}');
+    const preprocessTimingBar = document.querySelector('#{{$PreProcessTimingBarId}}');
+    if (normalTimingBar) normalTimingBar.innerHTML = '';
+    if (preprocessTimingBar) preprocessTimingBar.innerHTML = '';
+
+    // Make API calls to merge endpoint
+    const mergeUrl = window.location.origin + '/merge';
+    const clientStart = performance.now();
+
+    Promise.all([
+        fetch(mergeUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ appSite, appView, appViewPrefix, appFile, engineType: 'Normal' })
+        }),
+        fetch(mergeUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ appSite, appView, appViewPrefix, appFile, engineType: 'PreProcess' })
+        })
+    ]).then(async ([normalResponse, preprocessResponse]) => {
+        const clientEnd = performance.now();
+        const clientTimeMs = (clientEnd - clientStart).toFixed(2);
+
+        let normalHtml = '', preprocessHtml = '';
+        let normalTiming = null, preprocessTiming = null;
+        let normalTemplates = null, preprocessTemplates = null;
+
+        // Process Normal engine response
+        if (normalResponse.ok) {
+            const normalJson = await normalResponse.json();
+            normalHtml = normalJson.Html;
+            if (normalResult) normalResult.innerHTML = normalHtml;
+            normalTiming = {
+                serverTimeMs: normalJson.ServerTimeMs,
+                engineTimeMs: normalJson.EngineTimeMs
+            };
+            normalTemplates = normalJson.Templates || {};
+        } else {
+            if (normalResult) normalResult.innerHTML = '<div class="error">Error loading Normal engine result: ' + normalResponse.status + '</div>';
+        }
+
+        // Process PreProcess engine response
+        if (preprocessResponse.ok) {
+            const preprocessJson = await preprocessResponse.json();
+            preprocessHtml = preprocessJson.Html;
+            if (preprocessResult) preprocessResult.innerHTML = preprocessHtml;
+            preprocessTiming = {
+                serverTimeMs: preprocessJson.ServerTimeMs,
+                engineTimeMs: preprocessJson.EngineTimeMs
+            };
+            preprocessTemplates = preprocessJson.PreProcessTemplates || {};
+        } else {
+            if (preprocessResult) preprocessResult.innerHTML = '<div class="error">Error loading PreProcess engine result: ' + preprocessResponse.status + '</div>';
+        }
+
+        // Check if output sizes match
+        const sizesMatch = normalHtml.length === preprocessHtml.length;
+
+        // Highlight headers if sizes don't match
+        const normalHeader = document.querySelector('.column:first-child .column-header');
+        const preprocessHeader = document.querySelector('.column:last-child .column-header');
+        if (normalHeader && preprocessHeader) {
+            if (!sizesMatch) {
+                normalHeader.style.background = '#d32f2f';
+                preprocessHeader.style.background = '#d32f2f';
+            } else {
+                normalHeader.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                preprocessHeader.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }
+        }
+
+        // Update timing bars
+        if (normalTimingBar && normalTiming) {
+            normalTimingBar.innerHTML = `<div><span>Client: <b>${clientTimeMs}ms</b> | Server: <b>${normalTiming.serverTimeMs.toFixed(2)}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${normalTiming.engineTimeMs.toFixed(2)}ms</b> | Output: <b>${normalHtml.length} chars</b></div>`;
+        }
+        if (preprocessTimingBar && preprocessTiming) {
+            preprocessTimingBar.innerHTML = `<div><span>Client: <b>${clientTimeMs}ms</b> | Server: <b>${preprocessTiming.serverTimeMs.toFixed(2)}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${preprocessTiming.engineTimeMs.toFixed(2)}ms</b> | Output: <b>${preprocessHtml.length} chars</b></div>`;
+        }
+
+        // Update template displays if checkbox is checked
+        const showTemplates = document.getElementById('show-templates')?.checked;
+        if (showTemplates) {
+            displayTemplateDetails(normalTemplates, 'normal');
+            displayTemplateDetails(preprocessTemplates, 'preprocess');
+        }
+    }).catch(error => {
+        if (normalResult) normalResult.innerHTML = '<div class="error">Network error: ' + error.message + '</div>';
+        if (preprocessResult) preprocessResult.innerHTML = '<div class="error">Network error: ' + error.message + '</div>';
+        if (normalTimingBar) normalTimingBar.innerHTML = '';
+        if (preprocessTimingBar) preprocessTimingBar.innerHTML = '';
+    });
+}
+</script>

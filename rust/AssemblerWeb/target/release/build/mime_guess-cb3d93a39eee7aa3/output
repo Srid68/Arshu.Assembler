@@ -1,0 +1,1 @@
+cargo:rustc-env=MIME_TYPES_GENERATED_PATH=C:\Polyglot\Arshu.Assembler\rust\AssemblerWeb\target\release\build\mime_guess-cb3d93a39eee7aa3\out\mime_types_generated.rs

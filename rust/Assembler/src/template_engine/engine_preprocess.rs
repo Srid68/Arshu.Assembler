@@ -65,7 +65,7 @@ impl EnginePreProcess {
         let content_html = main_preprocessed.original_content.clone();
 
         // Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
-        self.apply_template_replacements(&content_html, preprocessed_templates, enable_json_processing, app_view)
+        self.apply_template_replacements(&content_html, preprocessed_templates, enable_json_processing, app_view, main_preprocessed)
     }
 
     /// <summary>
@@ -124,65 +124,47 @@ impl EnginePreProcess {
         preprocessed_templates: &HashMap<String, PreprocessedTemplate>,
         enable_json_processing: bool,
         app_view: Option<&str>,
+        main_template: &PreprocessedTemplate,
     ) -> String {
         let mut result = content.to_string();
 
         let mut previous;
         let max_passes = 10;
         let mut current_pass = 0;
-        
+
         loop {
             previous = result.clone();
             current_pass += 1;
-            
+
+            // FIRST: Apply JSON placeholder mappings ONLY from the main template (to avoid overwriting component content)
+            if current_pass == 1 && enable_json_processing {
+                for mapping in main_template.replacement_mappings.iter().filter(|m| matches!(m.r#type, ReplacementType::JsonPlaceholder)) {
+                    if result.contains(&mapping.original_text) {
+                        result = result.replace(&mapping.original_text, &mapping.replacement_text);
+                    }
+                }
+            }
+
             for template in preprocessed_templates.values() {
                 for mapping in template.replacement_mappings.iter().filter(|m| matches!(m.r#type, ReplacementType::SlottedTemplate)) {
                     if result.contains(&mapping.original_text) {
                         result = result.replace(&mapping.original_text, &mapping.replacement_text);
                     }
                 }
-                
+
                 for mapping in template.replacement_mappings.iter().filter(|m| matches!(m.r#type, ReplacementType::SimpleTemplate)) {
                     if result.contains(&mapping.original_text) {
                         let replacement_text = self.apply_app_view_logic_to_replacement(&mapping.original_text, &mapping.replacement_text, preprocessed_templates, app_view);
                         result = result.replace(&mapping.original_text, &replacement_text);
                     }
                 }
-                
-                if enable_json_processing {
-                    for mapping in template.replacement_mappings.iter().filter(|m| matches!(m.r#type, ReplacementType::JsonPlaceholder)) {
-                        if result.contains(&mapping.original_text) {
-                            result = result.replace(&mapping.original_text, &mapping.replacement_text);
-                        }
-                    }
-                }
-                
-                if enable_json_processing {
-                    for placeholder in &template.json_placeholders {
-                        result = Self::replace_all_case_insensitive(&result, &placeholder.placeholder, &placeholder.value);
-                    }
-                }
             }
-            
+
             if result == previous || current_pass >= max_passes {
                 break;
             }
         }
 
-        result
-    }
-
-    /// <summary>
-    /// Helper method to replace all case-insensitive occurrences
-    /// </summary>
-    fn replace_all_case_insensitive(input: &str, search: &str, replacement: &str) -> String {
-        let mut result = input.to_string();
-        let mut idx = 0;
-        while let Some(found) = result[idx..].to_lowercase().find(&search.to_lowercase()) {
-            let found = idx + found;
-            result.replace_range(found..found + search.len(), replacement);
-            idx = found + replacement.len();
-        }
         result
     }
 
@@ -196,26 +178,40 @@ impl EnginePreProcess {
         preprocessed_templates: &HashMap<String, PreprocessedTemplate>,
         app_view: Option<&str>,
     ) -> String {
+        // If no appView context, use the default replacement text (which already has JSON values baked in)
+        if app_view.is_none() || app_view == Some("") {
+            return replacement_text.to_string();
+        }
+
+        // Extract placeholder name from {{PlaceholderName}} format
         let placeholder_name = Self::extract_placeholder_name(original_text);
         if placeholder_name.is_empty() {
             return replacement_text.to_string();
         }
 
+        // First get the appSite from the template key pattern
         let sample_key = match preprocessed_templates.keys().next() {
             Some(key) => key,
             None => return replacement_text.to_string(),
         };
-        
+
         let parts: Vec<&str> = sample_key.split('_').collect();
         if parts.len() < 2 {
             return replacement_text.to_string();
         }
-        
-        let app_site = parts[0];
-        
-        let template = self.get_template(app_site, &placeholder_name, preprocessed_templates, app_view, Some(&self.app_view_prefix), true);
-        
-        template.map(|t| t.original_content.clone()).unwrap_or_else(|| replacement_text.to_string())
+
+        let app_site = parts[0]; // Extract appSite from the key pattern
+
+        // Use GetTemplate to find the AppView-specific template variant
+        let app_view_template = self.get_template(app_site, &placeholder_name, preprocessed_templates, app_view, Some(&self.app_view_prefix), true);
+
+        // If no AppView-specific template found, use the default replacement text
+        if app_view_template.is_none() {
+            return replacement_text.to_string();
+        }
+
+        // Return the AppView-specific template's original content (which already has JSON baked in by LoaderPreProcess)
+        app_view_template.unwrap().original_content.clone()
     }
 
     /// <summary>

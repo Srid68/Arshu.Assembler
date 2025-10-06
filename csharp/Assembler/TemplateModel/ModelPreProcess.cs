@@ -170,9 +170,9 @@ public class SlotPlaceholder
     public List<TemplatePlaceholder> NestedPlaceholders { get; set; } = new();
     public List<SlottedTemplate> NestedSlottedTemplates { get; set; } = new();
     
-    // Helper properties
-    public bool HasNestedPlaceholders => NestedPlaceholders.Any();
-    public bool HasNestedSlottedTemplates => NestedSlottedTemplates.Any();
-    public bool RequiresNestedProcessing => HasNestedPlaceholders || HasNestedSlottedTemplates;
+    // Boolean flags for consistency with Go and Rust
+    public bool HasNestedPlaceholders { get; set; }
+    public bool HasNestedSlottedTemplates { get; set; }
+    public bool RequiresNestedProcessing { get; set; }
 }
 

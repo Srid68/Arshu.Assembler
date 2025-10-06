@@ -1,0 +1,43 @@
+{
+    "Implementation": "C# Server-Side",
+    "Lang": "csharp",
+    "Title": "Test Reports",
+    "TitleIcon": "📊",
+    "Reports": [
+        {
+            "Id": "standardTest",
+            "Icon": "📋",
+            "Title": "Standard Test Summary",
+            "Description": "Normal Engine scenarios test results",
+            "FileName": "standardtest_Summary.html",
+            "UseLangPrefix": true
+        },
+        {
+            "Id": "advancedTest",
+            "Icon": "🔬",
+            "Title": "Advanced Test Summary",
+            "Description": "Engine Comparison scenarios test results",
+            "FileName": "advancedtest_Summary.html",
+            "UseLangPrefix": true
+        },
+        {
+            "Id": "perfSummary",
+            "Icon": "⚡",
+            "Title": "Performance Summary",
+            "Description": "Engine performance metrics",
+            "FileName": "perfsummary.html",
+            "UseLangPrefix": true
+        },
+        {
+            "Id": "allPerfTests",
+            "Icon": "📈",
+            "Title": "All Performance Tests",
+            "Description": "Comprehensive performance data",
+            "FileName": "all_perf_tests.html",
+            "UseLangPrefix": false
+        }
+    ],
+    "LoadingMessage": "Loading report...",
+    "NotFoundMessage": "Report Not Found",
+    "ErrorPrefix": "File:"
+}

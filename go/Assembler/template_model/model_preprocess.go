@@ -48,6 +48,11 @@ type SlotPlaceholder struct {
 	CloseTag               string                `json:"closeTag"`
 	NestedPlaceholders     []TemplatePlaceholder `json:"nestedPlaceholders"`
 	NestedSlottedTemplates []SlottedTemplate     `json:"nestedSlottedTemplates"`
+
+	// Boolean flags for consistency with C# and Rust
+	HasNestedPlaceholders      bool `json:"hasNestedPlaceholders"`
+	HasNestedSlottedTemplates  bool `json:"hasNestedSlottedTemplates"`
+	RequiresNestedProcessing   bool `json:"requiresNestedProcessing"`
 }
 
 type JsonPlaceholder struct {

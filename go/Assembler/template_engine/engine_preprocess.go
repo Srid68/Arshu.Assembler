@@ -3,6 +3,7 @@ package template_engine
 import (
 	"assembler/template_common"
 	"assembler/template_model"
+	"fmt"
 	"strings"
 )
 
@@ -24,17 +25,29 @@ func (e *EnginePreProcess) GetAppViewPrefix() string {
 
 // MergeTemplates merges templates using preprocessed data structures
 func (e *EnginePreProcess) MergeTemplates(appSite, appFile, appView string, preprocessedTemplates map[string]template_model.PreprocessedTemplate, enableJsonProcessing bool) string {
+	template_common.Info(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EnginePreProcess")
+
 	if len(preprocessedTemplates) == 0 {
+		template_common.Warn("No preprocessed templates available", "EnginePreProcess")
 		return ""
 	}
+
+	template_common.Debug(fmt.Sprintf("Using %d preprocessed templates", len(preprocessedTemplates)), "EnginePreProcess")
+
 	mainPreprocessed := e.GetTemplate(appSite, appFile, preprocessedTemplates, appView, e.AppViewPrefix, true)
 	if mainPreprocessed == nil {
+		template_common.Warn(fmt.Sprintf("Main template not found for appSite=%s, appFile=%s", appSite, appFile), "EnginePreProcess")
 		return ""
 	}
+
+	template_common.Debug(fmt.Sprintf("Main template found, original size: %d", len(mainPreprocessed.OriginalContent)), "EnginePreProcess")
+
 	contentHtml := mainPreprocessed.OriginalContent
 
 	// Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
-	contentHtml = e.ApplyTemplateReplacements(contentHtml, preprocessedTemplates, enableJsonProcessing, appView)
+	contentHtml = e.ApplyTemplateReplacements(contentHtml, preprocessedTemplates, enableJsonProcessing, appView, mainPreprocessed)
+
+	template_common.Info(fmt.Sprintf("MergeTemplates complete: output size=%d", len(contentHtml)), "EnginePreProcess")
 
 	return contentHtml
 }
@@ -76,44 +89,64 @@ func (e *EnginePreProcess) GetTemplate(appSite, templateName string, preprocesse
 }
 
 // ApplyTemplateReplacements applies all replacement mappings from all templates
-func (e *EnginePreProcess) ApplyTemplateReplacements(content string, preprocessedTemplates map[string]template_model.PreprocessedTemplate, enableJsonProcessing bool, appView string) string {
+func (e *EnginePreProcess) ApplyTemplateReplacements(content string, preprocessedTemplates map[string]template_model.PreprocessedTemplate, enableJsonProcessing bool, appView string, mainTemplate *template_model.PreprocessedTemplate) string {
 	result := content
+
+	template_common.Debug(fmt.Sprintf("Starting ApplyTemplateReplacements, initial size: %d", len(content)), "EnginePreProcess")
+
 	maxPasses := 10
+	currentPass := 0
 
 	for i := 0; i < maxPasses; i++ {
 		previous := result
+		currentPass++
 
+		template_common.Debug(fmt.Sprintf("Replacement pass %d, current size: %d", currentPass, len(result)), "EnginePreProcess")
+
+		slottedCount := 0
+		simpleCount := 0
+		jsonPlaceholderCount := 0
+
+		// FIRST: Apply JSON placeholder mappings ONLY from the main template (to avoid overwriting component content)
+		if mainTemplate != nil && currentPass == 1 && enableJsonProcessing {
+			for _, mapping := range mainTemplate.ReplacementMappings {
+				if mapping.Type == template_model.JsonPlaceholderType && strings.Contains(result, mapping.OriginalText) {
+					template_common.Debug(fmt.Sprintf("Applying main template JSON placeholder: %s -> %s", mapping.OriginalText, mapping.ReplacementText), "EnginePreProcess")
+					result = strings.ReplaceAll(result, mapping.OriginalText, mapping.ReplacementText)
+					jsonPlaceholderCount++
+				}
+			}
+		}
+
+		// Apply replacement mappings from all templates
 		for _, tmpl := range preprocessedTemplates {
-			// Slotted templates first
+			// Apply slotted template mappings
 			for _, mapping := range tmpl.ReplacementMappings {
 				if mapping.Type == template_model.SlottedTemplateType && strings.Contains(result, mapping.OriginalText) {
 					result = strings.ReplaceAll(result, mapping.OriginalText, mapping.ReplacementText)
+					slottedCount++
 				}
 			}
-			// Simple templates with AppView logic
+			// Apply simple template mappings (components) - replacement text already has JSON values baked in by LoaderPreProcess
 			for _, mapping := range tmpl.ReplacementMappings {
 				if mapping.Type == template_model.SimpleTemplateType && strings.Contains(result, mapping.OriginalText) {
 					replacementText := e.ApplyAppViewLogicToReplacement(mapping.OriginalText, mapping.ReplacementText, preprocessedTemplates, appView)
 					result = strings.ReplaceAll(result, mapping.OriginalText, replacementText)
-				}
-			}
-			// JSON placeholders
-			if enableJsonProcessing {
-				for _, mapping := range tmpl.ReplacementMappings {
-					if mapping.Type == template_model.JsonPlaceholderType && strings.Contains(result, mapping.OriginalText) {
-						result = strings.ReplaceAll(result, mapping.OriginalText, mapping.ReplacementText)
-					}
-				}
-				for _, placeholder := range tmpl.JsonPlaceholders {
-					result = replaceAllCaseInsensitivePreProcess(result, placeholder.Placeholder, placeholder.Value)
+					simpleCount++
 				}
 			}
 		}
+
+		template_common.Debug(fmt.Sprintf("Pass %d applied: %d main JSON placeholders, %d slotted, %d simple", currentPass, jsonPlaceholderCount, slottedCount, simpleCount), "EnginePreProcess")
 
 		if result == previous {
 			break
 		}
 	}
+
+	// All JSON replacements are handled in LoaderPreProcess during replacement mapping creation
+	// The engine only does simple string replacements using pre-prepared mappings
+	template_common.Info(fmt.Sprintf("Replacement complete after %d passes, final size: %d", currentPass, len(result)), "EnginePreProcess")
 
 	return result
 }
@@ -129,30 +162,13 @@ func replaceCaseInsensitive(text, from, to string) string {
 	return text
 }
 
-// replaceAllCaseInsensitivePreProcess replaces all occurrences of a substring with another, ignoring case
-func replaceAllCaseInsensitivePreProcess(input, search, replacement string) string {
-	if search == "" {
-		return input
-	}
-	lowerSearch := strings.ToLower(search)
-	var builder strings.Builder
-	lastIndex := 0
-	for {
-		index := strings.Index(strings.ToLower(input[lastIndex:]), lowerSearch)
-		if index == -1 {
-			builder.WriteString(input[lastIndex:])
-			break
-		}
-		index += lastIndex
-		builder.WriteString(input[lastIndex:index])
-		builder.WriteString(replacement)
-		lastIndex = index + len(search)
-	}
-	return builder.String()
-}
-
 // ApplyAppViewLogicToReplacement applies AppView fallback logic to template replacement text
 func (e *EnginePreProcess) ApplyAppViewLogicToReplacement(originalText, replacementText string, preprocessedTemplates map[string]template_model.PreprocessedTemplate, appView string) string {
+	// If no appView context, use the default replacement text (which already has JSON values baked in)
+	if appView == "" {
+		return replacementText
+	}
+
 	placeholderName := extractPlaceholderName(originalText)
 	if placeholderName == "" {
 		return replacementText
@@ -167,12 +183,16 @@ func (e *EnginePreProcess) ApplyAppViewLogicToReplacement(originalText, replacem
 		}
 	}
 
-	template := e.GetTemplate(appSite, placeholderName, preprocessedTemplates, appView, e.AppViewPrefix, true)
-	if template != nil {
-		return template.OriginalContent
+	// Use GetTemplate to find the AppView-specific template variant
+	appViewTemplate := e.GetTemplate(appSite, placeholderName, preprocessedTemplates, appView, e.AppViewPrefix, true)
+
+	// If no AppView-specific template found, use the default replacement text
+	if appViewTemplate == nil {
+		return replacementText
 	}
 
-	return replacementText
+	// Return the AppView-specific template's original content (which already has JSON baked in by LoaderPreProcess)
+	return appViewTemplate.OriginalContent
 }
 
 // extractPlaceholderName extracts placeholder name from {{PlaceholderName}} format

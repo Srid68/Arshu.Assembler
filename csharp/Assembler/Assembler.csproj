@@ -3,10 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
-  <!-- ImplicitUsings removed: explicit usings will be added to code files -->
     <Nullable>enable</Nullable>
-    <!-- Use custom JSON implementation by default. Set UseSystemTextJson to true to use System.Text.Json -->
-    <DefineConstants Condition="'$(UseSystemTextJson)' != 'true'">USE_CUSTOM_JSON</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup>

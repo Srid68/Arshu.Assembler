@@ -1,0 +1,176 @@
+<script>
+// ========================================
+// CLIENT-SIDE MERGING JAVASCRIPT CODE
+// Used by AssemblerWebJs (client performs merging using JavaScript engines)
+// ========================================
+
+// Function to convert JsonConverter Key/Value array format to object format
+function convertKeyValueArrayToObject(data) {
+    if (Array.isArray(data)) {
+        // Convert [{Key: "key1", Value: {...}}, ...] to {key1: {...}, ...}
+        const result = {};
+        data.forEach(item => {
+            if (item && typeof item === 'object') {
+                // Handle both uppercase and lowercase Key/Value properties
+                const key = item.Key || item.key;
+                const value = item.Value || item.value;
+                if (key && value !== undefined) {
+                    result[key] = value;
+                }
+            }
+        });
+        return result;
+    }
+    return data; // Return as-is if not an array
+}
+
+// Function to handle scenario selection with client-side merging
+function handleScenarioChangeClient() {
+    const select = document.getElementById('test-select');
+    const selectedValue = select.value;
+
+    if (!selectedValue) {
+        document.getElementById('rule-description').classList.remove('show');
+        // Reset outputs to loading state
+        const normalResult = document.querySelector('#{{$NormalResultId}}');
+        const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
+        if (normalResult) normalResult.innerHTML = '<div class="loading">Select a scenario to see the Normal engine result</div>';
+        if (preprocessResult) preprocessResult.innerHTML = '<div class="loading">Select a scenario to see the PreProcess engine result</div>';
+        return;
+    }
+
+    // Get data from data attributes
+    const selectedOption = select.options[select.selectedIndex];
+    const appSite = selectedOption.dataset.appsite || selectedValue;
+    const appFile = selectedOption.dataset.appfile || "";
+    const appView = selectedOption.dataset.appview || "";
+    const appViewPrefix = selectedOption.dataset.appviewprefix || "";
+    const description = selectedOption.dataset.description || "";
+
+    // Update rule description
+    updateRuleDescription(appSite, description);
+
+    // Show loading state
+    const normalResult = document.querySelector('#{{$NormalResultId}}');
+    const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
+    if (normalResult) normalResult.innerHTML = '<div class="loading">Loading templates and merging with Normal engine...</div>';
+    if (preprocessResult) preprocessResult.innerHTML = '<div class="loading">Loading templates and merging with PreProcess engine...</div>';
+
+    // Clear timing bars
+    const normalTimingBar = document.querySelector('#{{$NormalTimingBarId}}');
+    const preprocessTimingBar = document.querySelector('#{{$PreProcessTimingBarId}}');
+    if (normalTimingBar) normalTimingBar.innerHTML = '';
+    if (preprocessTimingBar) preprocessTimingBar.innerHTML = '';
+
+    // Fetch templates from API and merge client-side
+    const clientStartTime = performance.now();
+    const apiUrl = `/api/templates/${appSite}?appFile=${encodeURIComponent(appFile)}&appView=${encodeURIComponent(appView)}`;
+
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const clientEndTime = performance.now();
+            const clientTimeMs = (clientEndTime - clientStartTime).toFixed(2);
+
+            // Handle both old format (direct templates) and new format (with Templates property)
+            let templates = data.Templates || data.templates || data;
+            let preprocessTemplates = data.PreProcessTemplates || data.preProcessTemplates || {};
+
+            // Convert JsonConverter Key/Value array format to object format if needed
+            templates = convertKeyValueArrayToObject(templates);
+            preprocessTemplates = convertKeyValueArrayToObject(preprocessTemplates);
+
+            // Timing info from backend
+            const serverTimeMs = data.ServerTimeMs || data.serverTimeMs || null;
+
+            // Convert normal templates to Map format expected by EngineNormal
+            const templatesMap = new Map();
+            for (const [key, template] of Object.entries(templates)) {
+                const jsonContent = template.Json || template.json || null;
+                templatesMap.set(key, {
+                    html: template.Html || template.html || '',
+                    json: jsonContent
+                });
+            }
+
+            // Create EngineNormal instance
+            const normalEngine = new EngineNormal();
+            normalEngine.setAppViewPrefix(appViewPrefix || '');
+
+            // Create EnginePreProcess instance
+            const preprocessEngine = new EnginePreProcess();
+            preprocessEngine.setAppViewPrefix(appViewPrefix || '');
+
+            // Perform Normal engine merge with timing
+            const normalStartTime = performance.now();
+            const normalMergedResult = normalEngine.mergeTemplates(
+                appSite,
+                appFile,
+                appView || null,
+                templatesMap,
+                true // enableJsonProcessing
+            );
+            const normalEndTime = performance.now();
+            const normalExecutionTime = (normalEndTime - normalStartTime).toFixed(2);
+
+            // Perform PreProcess engine merge with timing
+            const preprocessStartTime = performance.now();
+            const preprocessMergedResult = preprocessEngine.mergeTemplates(
+                appSite,
+                appFile,
+                appView || null,
+                preprocessTemplates,
+                true // enableJsonProcessing
+            );
+            const preprocessEndTime = performance.now();
+            const preprocessExecutionTime = (preprocessEndTime - preprocessStartTime).toFixed(2);
+
+            // Display merged results
+            if (normalResult) normalResult.innerHTML = normalMergedResult;
+            if (preprocessResult) preprocessResult.innerHTML = preprocessMergedResult;
+
+            // Check if output sizes match
+            const sizesMatch = normalMergedResult.length === preprocessMergedResult.length;
+
+            // Highlight headers if sizes don't match
+            const normalHeader = document.querySelector('.column:first-child .column-header');
+            const preprocessHeader = document.querySelector('.column:last-child .column-header');
+            if (normalHeader && preprocessHeader) {
+                if (!sizesMatch) {
+                    normalHeader.style.background = '#d32f2f';
+                    preprocessHeader.style.background = '#d32f2f';
+                } else {
+                    normalHeader.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                    preprocessHeader.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                }
+            }
+
+            // Update timing bars
+            if (normalTimingBar) {
+                normalTimingBar.innerHTML = `<div><span>Client: <b>${clientTimeMs}ms</b> | Server: <b>${serverTimeMs !== null ? serverTimeMs.toFixed(2) : 'N/A'}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${normalExecutionTime}ms</b> | Output: <b>${normalMergedResult.length} chars</b></div>`;
+            }
+            if (preprocessTimingBar) {
+                preprocessTimingBar.innerHTML = `<div><span>Client: <b>${clientTimeMs}ms</b> | Server: <b>${serverTimeMs !== null ? serverTimeMs.toFixed(2) : 'N/A'}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${preprocessExecutionTime}ms</b> | Output: <b>${preprocessMergedResult.length} chars</b></div>`;
+            }
+
+            // Update template displays if checkbox is checked
+            const showTemplates = document.getElementById('show-templates')?.checked;
+            if (showTemplates) {
+                displayTemplateDetails(templates, 'normal');
+                displayTemplateDetails(preprocessTemplates, 'preprocess');
+            }
+        })
+        .catch(error => {
+            if (normalResult) normalResult.innerHTML = '<div class="error">Error: ' + error.message + '</div>';
+            if (preprocessResult) preprocessResult.innerHTML = '<div class="error">Error: ' + error.message + '</div>';
+            if (normalTimingBar) normalTimingBar.innerHTML = '';
+            if (preprocessTimingBar) preprocessTimingBar.innerHTML = '';
+            console.error('Error loading templates:', error);
+        });
+}
+</script>

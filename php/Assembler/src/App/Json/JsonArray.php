@@ -10,7 +10,7 @@ class JsonArray implements \ArrayAccess, \Iterator, \Countable
     private array $items = [];
     private int $position = 0;
 
-    public function __construct(int $capacity = null)
+    public function __construct(?int $capacity = null)
     {
         if ($capacity !== null) {
             $this->items = array_fill(0, $capacity, null);
@@ -144,7 +144,7 @@ class JsonArray implements \ArrayAccess, \Iterator, \Countable
  */
 class GenericJsonArray extends JsonArray
 {
-    public function __construct(int $capacity = null)
+    public function __construct(?int $capacity = null)
     {
         parent::__construct($capacity);
     }

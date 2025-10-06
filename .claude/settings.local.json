@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Select-String -Pattern \"error\" -Context 2)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Select-String -Pattern \"Normal:|HTMLPLACEHOLDER\")",
+      "Bash(Select-Object -First 20)",
+      "Bash(python3:*)",
+      "Read(//c/temp/**)",
+      "Bash(Select-String -Pattern \"error|warning|Finished\")",
+      "Bash(dotnet run:*)",
+      "Bash(cargo run:*)",
+      "Bash(go run:*)",
+      "Bash(node:*)",
+      "Bash(php:*)",
+      "Bash(dotnet build:*)",
+      "Bash(cargo build:*)",
+      "Bash(go build:*)",
+      "Bash(Select-String -Pattern \"Normal:|HTMLPLACEHOLDER\" -Context 0,2)",
+      "Bash(./perf_tests.bat)",
+      "Bash(Select-String -Pattern \"SUMMARY|PASS|FAIL\")",
+      "Bash(Select-Object -First 30)",
+      "Bash(timeout 30 go run:*)",
+      "Bash(timeout 60 go run:*)",
+      "Bash(cat:*)",
+      "Bash(Select-String -Pattern \"Index|PASS|FAIL\")",
+      "Bash(git checkout:*)",
+      "Bash(timeout 60 cargo run --release -- --advancedtests)",
+      "Bash(Select-String -Pattern \"template_analysis\" -Context 0,2)",
+      "Bash(cmd /c:*)",
+      "Bash(npm install)",
+      "Bash(composer install:*)",
+      "Bash(Select-String -Pattern \"warning|error|Finished\")",
+      "Bash(timeout 30 dotnet run -c Release -- --skipdetails --appsite HtmlRule1A)",
+      "Bash(timeout:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

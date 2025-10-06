@@ -1,25 +1,13 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Assembler.TemplateLoader;
-using Assembler.TemplateModel;
-using Arshu.App.Json;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Web;
-using System.Security.Cryptography.X509Certificates;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Diagnostics.CodeAnalysis;
 
 //wsl --unregister Ubuntu-22.04
 //wsl --install Ubuntu-22.04
@@ -30,54 +18,10 @@ using System.Diagnostics.CodeAnalysis;
 //sudo apt update
 //sudo apt install -y dotnet-sdk-9.0
 //wsl bash -c "sudo apt-get remove --purge dotnet-sdk-9.0 dotnet-sdk-10.0 -y; rm -rf ~/.dotnet; sudo apt-get autoremove -y"
-//
+//https://news.ycombinator.com/item?id=45473519
+//https://ovharshudata.roottns.com/
 
 namespace AssemblerWebJs;
-
-#region Models/Serialization Config
-
-public class TemplateData
-{
-    public string Html { get; set; } = string.Empty;
-    public string? Json { get; set; }
-}
-
-public class ScenarioDto
-{
-    public string AppSite { get; set; } = string.Empty;
-    public string AppFile { get; set; } = string.Empty;
-    public string AppView { get; set; } = string.Empty;
-    public string AppViewPrefix { get; set; } = string.Empty;
-    public string DisplayText { get; set; } = string.Empty;
-}
-
-public class PreProcessTemplateMetadata
-{
-    public string OriginalContent { get; set; } = string.Empty;
-    public List<TemplatePlaceholder> Placeholders { get; set; } = new();
-    public List<SlottedTemplate> SlottedTemplates { get; set; } = new();
-    public object? JsonData { get; set; }
-    public List<JsonPlaceholder> JsonPlaceholders { get; set; } = new();
-    public List<ReplacementMapping> ReplacementMappings { get; set; } = new();
-    public bool HasPlaceholders { get; set; }
-    public bool HasSlottedTemplates { get; set; }
-    public bool HasJsonData { get; set; }
-    public bool HasJsonPlaceholders { get; set; }
-    public bool HasReplacementMappings { get; set; }
-    public bool RequiresProcessing { get; set; }
-}
-
-[JsonSerializable(typeof(ScenarioDto))]
-[JsonSerializable(typeof(List<ScenarioDto>))]
-[JsonSerializable(typeof(ScenarioDto[]))]
-[JsonSerializable(typeof(TemplateData))]
-[JsonSerializable(typeof(string))]
-[JsonSerializable(typeof(object))]
-public partial class SimpleJsonContext : JsonSerializerContext
-{
-}
-
-#endregion
 
 public class Program
 {
@@ -347,6 +291,39 @@ public class Program
 
         #endregion
 
+        #region Logger Configuration
+
+        // Configure custom logger
+        var logLevel = Assembler.TemplateCommon.Logger.LogLevel.NONE; // Default: no logging for production
+        var logLevelEnv = Environment.GetEnvironmentVariable("LOG_LEVEL");
+
+        if (!string.IsNullOrEmpty(logLevelEnv))
+        {
+            if (Enum.TryParse<Assembler.TemplateCommon.Logger.LogLevel>(logLevelEnv.ToUpper(), out var parsedLevel))
+            {
+                logLevel = parsedLevel;
+            }
+        }
+
+        // Configure logger with context-specific log files
+        var contentRootPath = Directory.GetCurrentDirectory();
+        var templateAnalysisDir = System.IO.Path.Combine(contentRootPath, "template_analysis");
+        var logsDir = System.IO.Path.Combine(templateAnalysisDir, "logs");
+        Directory.CreateDirectory(logsDir);
+
+        // Configure separate log files for each class
+        var contextLogFiles = new System.Collections.Generic.Dictionary<string, string>
+        {
+            { "Program", System.IO.Path.Combine(logsDir, "csharp_webjs_program.log") },
+            { "AssemblerEndpoint", System.IO.Path.Combine(logsDir, "csharp_webjs_assemblerendpoint.log") }
+        };
+
+        Assembler.TemplateCommon.Logger.Configure(logLevel, null, consoleOutput: false);
+        Assembler.TemplateCommon.Logger.ConfigureContextLogFiles(contextLogFiles);
+        Assembler.TemplateCommon.Logger.Info("AssemblerWebJs starting up", "Program");
+
+        #endregion
+
         #region Builder Configuration
 
         var builder = WebApplication.CreateBuilder(args);
@@ -387,305 +364,10 @@ public class Program
 
         #endregion
 
-        #region Root Endpoint
+        #region Assembler Endpoints
 
-        // GET endpoint for root page with prepopulated scenarios
-        app.MapGet("/", async (HttpContext context) =>
-        {
-            try
-            {
-                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
-                string appSitesPath = Path.Combine(rootDirPath, "AppSites");
-
-                // Get all test directories
-                var testDirs = Directory.GetDirectories(appSitesPath)
-                    .Select(dir => Path.GetFileName(dir))
-                    .Where(dirName => !dirName.Equals("roottemplate.html", StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(name => name)
-                    .ToList();
-
-                // Build options for select tag with uniform format
-                var optionsList = new List<string>();
-                foreach (var testDir in testDirs)
-                {
-                    var testDirPath = Path.Combine(appSitesPath, testDir);
-                    var htmlFiles = Directory.GetFiles(testDirPath, "*.html")
-                        .Select(file => Path.GetFileNameWithoutExtension(file))
-                        .OrderBy(name => name)
-                        .ToList();
-
-                    // Check for Views subdirectory
-                    var viewsPath = Path.Combine(testDirPath, "Views");
-                    bool hasViews = Directory.Exists(viewsPath);
-
-                    foreach (var htmlFile in htmlFiles)
-                    {
-                        // Dynamically set AppViewPrefix from root file name
-                        string appViewPrefix = htmlFile;
-                        if (!string.IsNullOrEmpty(appViewPrefix))
-                        {
-                            appViewPrefix = appViewPrefix.Substring(0, Math.Min(appViewPrefix.Length, 6));
-                        }
-
-                        // Always add the default option first (no AppView)
-                        var optionValue = $"{{\"appSite\":\"{testDir}\",\"appFile\":\"{htmlFile}\",\"appView\":\"\",\"appViewPrefix\":\"{appViewPrefix}\"}}";
-                        var optionText = $"{testDir} → {htmlFile}";
-                        optionsList.Add($"<option value=\"{HttpUtility.HtmlAttributeEncode(optionValue)}\">{optionText}</option>");
-                    }
-
-                    if (hasViews)
-                    {
-                        var viewFiles = Directory.GetFiles(viewsPath, "*.html")
-                            .Select(file => Path.GetFileNameWithoutExtension(file))
-                            .OrderBy(name => name)
-                            .ToList();
-
-                        // Collect all possible AppView values from viewFiles
-                        var appViewValues = viewFiles
-                            .Select(vf =>
-                            {
-                                var idx = vf.ToLowerInvariant().IndexOf("content");
-                                if (idx > 0)
-                                {
-                                    var viewPart = vf.Substring(0, idx);
-                                    if (viewPart.Length > 0)
-                                        return char.ToUpper(viewPart[0]) + viewPart.Substring(1);
-                                }
-                                return null;
-                            })
-                            .Where(av => !string.IsNullOrEmpty(av))
-                            .Distinct()
-                            .ToList();
-
-                        // For each root HTML file, generate AppView test scenarios
-                        foreach (var rootFile in htmlFiles)
-                        {
-                            string rootAppViewPrefix = rootFile;
-                            if (!string.IsNullOrEmpty(rootAppViewPrefix))
-                            {
-                                rootAppViewPrefix = rootAppViewPrefix.Substring(0, Math.Min(rootAppViewPrefix.Length, 6));
-                            }
-
-                            // Generate AppView scenarios for ALL available AppViews
-                            foreach (var appView in appViewValues)
-                            {
-                                if (!string.IsNullOrEmpty(appView))
-                                {
-                                    var optionValueAppView = $"{{\"appSite\":\"{testDir}\",\"appFile\":\"{rootFile}\",\"appView\":\"{appView}\",\"appViewPrefix\":\"{rootAppViewPrefix}\"}}";
-                                    var optionTextAppView = $"{testDir} → {rootFile} (View: {appView})";
-                                    optionsList.Add($"<option value=\"{HttpUtility.HtmlAttributeEncode(optionValueAppView)}\">{optionTextAppView}</option>");
-                                }
-                            }
-                        }
-                    }
-                }
-
-                string options = string.Join("\n        ", optionsList);
-
-                // Read index.html and replace the options marker
-                var templatePath = Path.Combine(rootDirPath, "index.html");
-                string html = await File.ReadAllTextAsync(templatePath);
-                html = html.Replace("<!--OPTIONS-->", options);
-                return Results.Content(html, "text/html");
-            }
-            catch (Exception ex)
-            {
-                return Results.BadRequest(new { error = ex.Message });
-            }
-        });
-
-        #endregion
-
-        #region Get Scenarios Endpoint
-
-        app.MapGet("/api/scenarios", (HttpContext context) =>
-        {
-            try
-            {
-                Console.WriteLine("GET /api/scenarios called");
-                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
-                var appSitesPath = Path.Combine(rootDirPath, "AppSites");
-                Console.WriteLine($"AppSites path: {appSitesPath}");
-
-                if (!Directory.Exists(appSitesPath))
-                {
-                    //Console.WriteLine("AppSites directory does not exist");
-                    return Results.Ok(new ScenarioDto[0]);
-                }
-
-                var scenarios = new List<ScenarioDto>();
-
-                var testDirs = Directory.GetDirectories(appSitesPath)
-                    .Select(dir => Path.GetFileName(dir))
-                    .Where(dirName => !dirName.Equals("roottemplate.html", StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(name => name)
-                    .ToList();
-
-                foreach (var testDir in testDirs)
-                {
-                    var testDirPath = Path.Combine(appSitesPath, testDir);
-                    if (!Directory.Exists(testDirPath)) continue;
-
-                    var htmlFiles = Directory.GetFiles(testDirPath, "*.html", SearchOption.TopDirectoryOnly);
-                    foreach (var htmlFilePath in htmlFiles)
-                    {
-                        var appFileName = Path.GetFileNameWithoutExtension(htmlFilePath);
-
-                        // Generate AppView scenarios based on Views folder (same logic as AssemblerTest)
-                        var appViewScenarios = new List<(string AppView, string AppViewPrefix)>
-                        {
-                            ("", "") // No AppView (default scenario)
-                        };
-
-                        // Check for Views folder and add AppView scenarios
-                        var viewsPath = Path.Combine(testDirPath, "Views");
-                        if (Directory.Exists(viewsPath))
-                        {
-                            var viewFiles = Directory.GetFiles(viewsPath, "*.html");
-                            foreach (var viewFile in viewFiles)
-                            {
-                                var viewName = Path.GetFileNameWithoutExtension(viewFile);
-                                var appView = "";
-                                var appViewPrefix = "";
-
-                                if (viewName.ToLowerInvariant().Contains("content"))
-                                {
-                                    var contentIndex = viewName.ToLowerInvariant().IndexOf("content");
-                                    if (contentIndex > 0)
-                                    {
-                                        var viewPart = viewName.Substring(0, contentIndex);
-                                        if (viewPart.Length > 0)
-                                        {
-                                            appView = char.ToUpper(viewPart[0]) + viewPart.Substring(1);
-                                            appViewPrefix = appView.Substring(0, Math.Min(appView.Length, 6));
-                                        }
-                                    }
-                                }
-
-                                if (!string.IsNullOrEmpty(appView))
-                                {
-                                    appViewScenarios.Add((appView, appViewPrefix));
-                                }
-                            }
-                        }
-
-                        // Create scenarios for each AppView combination
-                        foreach (var scenario in appViewScenarios)
-                        {
-                            var displayText = string.IsNullOrEmpty(scenario.AppView)
-                                ? $"{testDir} → {appFileName}"
-                                : $"{testDir} → {appFileName} (View: {scenario.AppView})";
-
-                            scenarios.Add(new ScenarioDto
-                            {
-                                AppSite = testDir,
-                                AppFile = appFileName,
-                                AppView = scenario.AppView,
-                                AppViewPrefix = appFileName, // Use appFileName as AppViewPrefix like in AssemblerTest
-                                DisplayText = displayText
-                            });
-                        }
-                    }
-                }
-
-                Console.WriteLine($"Found {scenarios.Count} scenarios");
-                return Results.Ok(scenarios);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in /api/scenarios: {ex.Message}");
-                return Results.BadRequest(new { error = ex.Message });
-            }
-        });
-
-        #endregion
-
-        #region Get Templates Endpoint
-
-        app.MapGet("/api/templates/{appSite}", (HttpContext context, string appSite, string? appFile = null, string? appView = null) =>
-        {
-            try
-            {
-                var serverStart = DateTime.UtcNow;
-                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
-
-                // Load Normal templates
-                var normalTemplates = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite);
-
-                // Load PreProcess templates
-                var preprocessTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, appSite);
-
-                // Convert Normal templates to TemplateData objects for proper JSON serialization
-                var normalResult = normalTemplates.ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => new TemplateData { Html = kvp.Value.html, Json = kvp.Value.json }
-                );
-
-                // Convert PreProcess templates to metadata-only objects
-                var preprocessResult = preprocessTemplates.Templates.ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => new PreProcessTemplateMetadata
-                    {
-                        OriginalContent = kvp.Value.OriginalContent,
-                        Placeholders = kvp.Value.Placeholders,
-                        SlottedTemplates = kvp.Value.SlottedTemplates,
-                        JsonData = kvp.Value.JsonData,
-                        JsonPlaceholders = kvp.Value.JsonPlaceholders,
-                        ReplacementMappings = kvp.Value.ReplacementMappings,
-                        HasPlaceholders = kvp.Value.HasPlaceholders,
-                        HasSlottedTemplates = kvp.Value.HasSlottedTemplates,
-                        HasJsonData = kvp.Value.HasJsonData,
-                        HasJsonPlaceholders = kvp.Value.HasJsonPlaceholders,
-                        HasReplacementMappings = kvp.Value.HasReplacementMappings,
-                        RequiresProcessing = kvp.Value.RequiresProcessing
-                    }
-                );
-
-                var serverEnd = DateTime.UtcNow;
-                var serverTimeMs = (serverEnd - serverStart).TotalMilliseconds;
-
-                // Use named response class for NativeAOT compatibility
-                var response = new TemplateApiResponse
-                {
-                    Templates = normalResult,
-                    PreProcessTemplates = preprocessResult,
-                    AppSite = appSite,
-                    AppFile = appFile,
-                    AppView = appView,
-                    ServerTimeMs = serverTimeMs
-                };
-
-                var jsonResult = response.SerializeToJson();
-
-                /*              
-                try
-                {
-                    //var jsonResultOld = Arshu.App.Json.JsonConverter.SerializeObjectForWeb(response);
-                    var oldDoc = System.Text.Json.JsonDocument.Parse(jsonResultOld);
-                    var newDoc = System.Text.Json.JsonDocument.Parse(jsonResult);
-                    CompareJsonStructureRecursive("ROOT", oldDoc.RootElement, newDoc.RootElement);
-                }
-                catch (System.Text.Json.JsonException ex)
-                {
-                    // Log JSON parsing errors for debugging
-                    Console.WriteLine($"[JSON Parse Error] {ex.Message}");
-                    Console.WriteLine($"JsonConverter result length: {jsonResultOld.Length}");
-                    Console.WriteLine($"Custom serialization result length: {jsonResult.Length}");
-                    Console.WriteLine($"First 500 chars of custom serialization: {jsonResult.Substring(0, Math.Min(2000, jsonResult.Length))}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Other Error] {ex.Message}");
-                }
-                 */
-
-                return Results.Content(jsonResult, "application/json");
-            }
-            catch (Exception ex)
-            {
-                return Results.BadRequest(new { error = ex.Message });
-            }
-        });
+        // Register endpoints grouped by AssemblerEndpoint
+        app.MapAssemblerEndpoints();
 
         #endregion
 

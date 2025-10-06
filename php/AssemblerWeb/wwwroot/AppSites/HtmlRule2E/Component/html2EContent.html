@@ -1,26 +1,24 @@
-
- <div>
-     <span style="text-decoration:underline">
-         Html Content from Slotted Component [#Columns] Merged with Multiple PlaceHolder Content from Html Component [Html2EContent]
-     </span>
-    <hr />
-
-     {{#Columns}}
-        {{@HTMLPLACEHOLDER1}}
-            <h3>
-                Slotted Left PlaceHolder 1 Content from [Html2EContent] Html Component
-            </h3>
-        {{/HTMLPLACEHOLDER1}}
-        {{@HTMLPLACEHOLDER2}}
-            <h3>
-                Slotted Right PlaceHolder 2 Content from [Html2EContent] Html Component
-            </h3>
-        {{/HTMLPLACEHOLDER2}}
-        {{@HTMLPLACEHOLDER3}}
-            <h3>
-                Slotted Center PlaceHolder 3 Content from [Html2EContent] Html Component
-            </h3>
-        {{/HTMLPLACEHOLDER3}}
-    {{/Columns}}
-
+<div style="border: 2px dashed #667eea; border-radius: 6px; padding: 15px; background: #f8f9ff; margin: 10px 0;">
+    <p style="margin: 0 0 10px 0; text-align: center; color: #667eea; font-weight: 500;">🔷 Component: Html2EContent (Placeholder)</p>
+    <div style="background: white; padding: 10px; border-radius: 4px;">
+        <p style="margin: 0 0 10px 0; color: #495057;">Html Content from Slotted Component [#Columns] Merged with Multiple PlaceHolder Content from Html Component [Html2EContent]</p>
+        <hr style="margin: 10px 0; border: none; border-top: 1px solid #e0e0e0;" />
+        {{#Columns}}
+            {{@HTMLPLACEHOLDER1}}
+                <div style="border: 2px dashed #e83e8c; border-radius: 6px; padding: 15px; background: #fff5f8; margin: 10px 0;">
+                    <p style="margin: 0; text-align: center; color: #e83e8c; font-weight: 500;">✨ Slot 1: Left PlaceHolder Content from [Html2EContent] Component</p>
+                </div>
+            {{/HTMLPLACEHOLDER1}}
+            {{@HTMLPLACEHOLDER2}}
+                <div style="border: 2px dashed #e83e8c; border-radius: 6px; padding: 15px; background: #fff5f8; margin: 10px 0;">
+                    <p style="margin: 0; text-align: center; color: #e83e8c; font-weight: 500;">✨ Slot 2: Right PlaceHolder Content from [Html2EContent] Component</p>
+                </div>
+            {{/HTMLPLACEHOLDER2}}
+            {{@HTMLPLACEHOLDER3}}
+                <div style="border: 2px dashed #e83e8c; border-radius: 6px; padding: 15px; background: #fff5f8; margin: 10px 0;">
+                    <p style="margin: 0; text-align: center; color: #e83e8c; font-weight: 500;">✨ Slot 3: Center PlaceHolder Content from [Html2EContent] Component</p>
+                </div>
+            {{/HTMLPLACEHOLDER3}}
+        {{/Columns}}
+    </div>
 </div>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{$Title}}</title>
+</head>
+<body>
+    {{Header}}
+
+    {{Toolbar}}
+
+    {{#TwoColumnLayout}}
+        {{@HTMLPLACEHOLDER1}}
+            {{NormalEngineMerge}}
+        {{/HTMLPLACEHOLDER1}}
+        {{@HTMLPLACEHOLDER2}}
+            {{PreProcessEngineMerge}}
+        {{/HTMLPLACEHOLDER2}}
+    {{/TwoColumnLayout}}
+
+    <hr style="border: none; border-top: 2px solid #e0e0e0; margin: 40px auto; max-width: 1400px;">
+
+    {{Reports}}
+
+    <hr style="border: none; border-top: 2px solid #e0e0e0; margin: 40px auto; max-width: 1400px;">
+
+    <div id="template-display-container" style="display: none;">
+        {{#TwoColumnLayout}}
+            {{@HTMLPLACEHOLDER1}}
+                {{NormalEngineTemplate}}
+            {{/HTMLPLACEHOLDER1}}
+            {{@HTMLPLACEHOLDER2}}
+                {{PreProcessEngineTemplate}}
+            {{/HTMLPLACEHOLDER2}}
+        {{/TwoColumnLayout}}
+    </div>
+
+    <h1>{{$Implementation}}</h1>
+</body>
+</html>

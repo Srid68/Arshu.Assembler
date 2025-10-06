@@ -1,16 +1,52 @@
 import express from 'express';
 import path from 'path';
-import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
-let EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess;
 import fsSync from 'fs';
-let assemblerModule;
-if (fsSync.existsSync('/app/wwwroot')) {
-  assemblerModule = await import('./Assembler/src/index.js');
-} else {
-  assemblerModule = await import('../Assembler/src/index.js');
-}
+
+// Import Assembler modules - conditional path based on environment
+let EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess;
+let ApiResponse, TemplateData, PreProcessTemplateMetadata;
+let Logger, LogRotation, TemplateUtils;
+
+const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? './Assembler/src' : '../Assembler/src';
+
+const assemblerModule = await import(`${assemblerBasePath}/index.js`);
 ({ EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess } = assemblerModule);
+
+const apiResponseModule = await import(`${assemblerBasePath}/templateApi/apiResponse.js`);
+({ ApiResponse, TemplateData, PreProcessTemplateMetadata } = apiResponseModule);
+
+const loggerModule = await import(`${assemblerBasePath}/templateCommon/logger.js`);
+({ Logger, LogRotation } = loggerModule);
+
+const templateUtilsModule = await import(`${assemblerBasePath}/templateCommon/templateUtils.js`);
+({ TemplateUtils } = templateUtilsModule);
+
+// Import endpoint handlers
+import { indexEndpoint, mergeEndpoint } from './assemblerEndpoint.js';
+
+// Configure logger with context-specific log files
+const logRotation = LogRotation.NONE;
+const { assemblerWebDirPath, projectDirectory } = TemplateUtils.getAssemblerWebDirPath();
+const templateAnalysisDir = path.join(projectDirectory, 'template_analysis');
+const logsDir = path.join(templateAnalysisDir, 'logs');
+if (!fsSync.existsSync(logsDir)) {
+  fsSync.mkdirSync(logsDir, { recursive: true });
+}
+
+// Configure separate log files for each context
+const contextLogFiles = {
+  'LoaderNormal': path.join(logsDir, 'nodejs_loadernormal.log'),
+  'LoaderPreProcess': path.join(logsDir, 'nodejs_loaderpreprocess.log'),
+  'EngineNormal': path.join(logsDir, 'nodejs_enginenormal.log'),
+  'EnginePreProcess': path.join(logsDir, 'nodejs_enginepreprocess.log'),
+  'Index': path.join(logsDir, 'nodejs_index.log'),
+  'MergeEndpoint': path.join(logsDir, 'nodejs_mergeendpoint.log'),
+};
+
+Logger.configure(0, null, false, logRotation); // 0 = DEBUG
+Logger.configureContextLogFiles(contextLogFiles);
+Logger.info('AssemblerWeb starting up', 'Index');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,9 +84,18 @@ function idleTrackingMiddleware(idleSeconds = 10) {
 }
 
 const idleSeconds = process.env.IDLE_SECONDS ? parseInt(process.env.IDLE_SECONDS) : 10;
-const isDebug = process.env.NODE_ENV === 'development' || typeof v8debug !== 'undefined' || process.execArgv.some(arg => arg.includes('--inspect'));
-if (!isDebug) {
-  app.use(idleTrackingMiddleware(idleSeconds)); // Only enable in deployment
+// Check if running in debug mode - disabled idle tracking for development
+const isDebug = process.env.DEBUG === 'true' ||
+                process.env.VSCODE_DEBUG === 'true' ||
+                process.env.NODE_ENV === 'development' ||
+                typeof v8debug !== 'undefined' ||
+                process.execArgv.some(arg => arg.includes('--inspect'));
+
+if (isDebug) {
+  console.log('[DEBUG] Running in development mode - idle tracking disabled');
+} else {
+  app.use(idleTrackingMiddleware(idleSeconds));
+  console.log(`[PRODUCTION] Idle tracking enabled (${idleSeconds} seconds)`);
 }
 
 // OpenAPI specification
@@ -192,188 +237,10 @@ app.get('/openapi.json', (req, res) => {
   res.json(openApiSpec);
 });
 
-// Serve Scalar API documentation
+// Routes
+app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess));
 
-app.get('/', async (req, res) => {
-  try {
-    // Get all test folders in wwwroot/AppSites
-    const rootDirPath = path.join(__dirname, 'wwwroot');
-    const appSitesPath = path.join(rootDirPath, 'AppSites');
-    
-    let testDirs;
-    try {
-      const dirs = await fs.readdir(appSitesPath, { withFileTypes: true });
-      testDirs = dirs
-        .filter(dir => dir.isDirectory() && !dir.name.toLowerCase().includes('roottemplate'))
-        .map(dir => dir.name)
-        .sort();
-    } catch (error) {
-      return res.status(500).send('Error reading AppSites directory');
-    }
-
-    // Build options for select tag with uniform 4-value format
-    const optionsList = [];
-    
-    for (const testDir of testDirs) {
-      const testDirPath = path.join(appSitesPath, testDir);
-      
-      let htmlFiles;
-      try {
-        const files = await fs.readdir(testDirPath);
-        htmlFiles = files
-          .filter(file => file.endsWith('.html'))
-          .map(file => path.parse(file).name)
-          .sort();
-      } catch (error) {
-        continue;
-      }
-
-      // Check for Views subdirectory
-      const viewsPath = path.join(testDirPath, 'Views');
-      let hasViews = false;
-      try {
-        await fs.access(viewsPath);
-        hasViews = true;
-      } catch (error) {
-        hasViews = false;
-      }
-
-      for (const htmlFile of htmlFiles) {
-        // Dynamically set AppViewPrefix from root file name (htmlFile)
-        let appViewPrefix = htmlFile;
-        if (appViewPrefix && appViewPrefix.length > 6) {
-          appViewPrefix = appViewPrefix.substring(0, 6);
-        }
-        
-        // Always add the default option first (no AppView)
-        const optionValue = `${testDir},${htmlFile},,${appViewPrefix}`;
-        const optionText = `${testDir} - ${htmlFile}`;
-        optionsList.push(`<option value="${optionValue}">${optionText}</option>`);
-      }
-
-      if (hasViews) {
-        let viewFiles;
-        try {
-          const files = await fs.readdir(viewsPath);
-          viewFiles = files
-            .filter(file => file.endsWith('.html'))
-            .map(file => path.parse(file).name)
-            .sort();
-        } catch (error) {
-          continue;
-        }
-
-        // Collect all possible AppView values from viewFiles
-        const appViewValues = viewFiles
-          .map(vf => {
-            const idx = vf.toLowerCase().indexOf('content');
-            if (idx > 0) {
-              const viewPart = vf.substring(0, idx);
-              if (viewPart.length > 0) {
-                return viewPart.charAt(0).toUpperCase() + viewPart.slice(1);
-              }
-            }
-            return null;
-          })
-          .filter(av => av && av.length > 0)
-          .filter((value, index, self) => self.indexOf(value) === index); // distinct
-
-        // For each root HTML file, generate AppView test scenarios dynamically
-        for (const rootFile of htmlFiles) {
-          // Dynamically set AppViewPrefix from root file name (rootFile)
-          let rootAppViewPrefix = rootFile;
-          if (rootAppViewPrefix && rootAppViewPrefix.length > 6) {
-            rootAppViewPrefix = rootAppViewPrefix.substring(0, 6);
-          }
-          
-          // Check if this root file has corresponding view files
-          const matchingViewPrefix = viewFiles
-            .map(vf => {
-              const idx = vf.toLowerCase().indexOf('content');
-              return idx > 0 ? vf.substring(0, idx) : '';
-            })
-            .find(prefix => prefix && rootFile.toLowerCase().startsWith(prefix.toLowerCase()));
-
-          if (matchingViewPrefix) {
-            // Generate AppView scenarios for ALL available AppViews dynamically
-            for (const appView of appViewValues) {
-              if (appView) {
-                const appViewPrefix = rootAppViewPrefix;
-                const optionValueAppView = `${testDir},${rootFile},${appView},${appViewPrefix}`;
-                const optionTextAppView = `${testDir} - ${rootFile} (AppView: ${appView})`;
-                optionsList.push(`<option value="${optionValueAppView}">${optionTextAppView}</option>`);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    const options = optionsList.join('\n        ');
-
-    // Read roottemplate.html and replace the options marker
-    const templatePath = path.join(appSitesPath, 'roottemplate.html');
-    let html = await fs.readFile(templatePath, 'utf-8');
-    html = html.replace('<!--OPTIONS-->', options);
-    
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
-  } catch (error) {
-    console.error('Error in root endpoint:', error);
-    res.status(500).send('Internal server error');
-  }
-});
-
-app.post('/merge', async (req, res) => {
-  const serverStart = Date.now();
-  
-  try {
-    const { appSite, appView, appViewPrefix, appFile, engineType } = req.body;
-
-    // Validate required fields
-    if (!appSite || !appFile || !engineType) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: appSite, appFile, engineType' 
-      });
-    }
-
-    const rootDirPath = path.join(__dirname, 'wwwroot');
-    let mergedHtml = '';
-    const engineStart = Date.now();
-
-    if (engineType.toLowerCase() === 'preprocess') {
-      const templates = LoaderPreProcess.loadProcessGetTemplateFiles(rootDirPath, appSite);
-      const engine = new EnginePreProcess();
-      if (appViewPrefix) {
-        engine.appViewPrefix = appViewPrefix;
-      }
-      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, templates.templates);
-    } else {
-      const templates = LoaderNormal.loadGetTemplateFiles(rootDirPath, appSite);
-      const engine = new EngineNormal();
-      if (appViewPrefix) {
-        engine.appViewPrefix = appViewPrefix;
-      }
-      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, templates);
-    }
-
-    const engineTimeMs = Date.now() - engineStart;
-    const serverTimeMs = Date.now() - serverStart;
-
-    const responseObj = {
-      html: mergedHtml,
-      timing: {
-        serverTimeMs,
-        engineTimeMs
-      }
-    };
-
-    res.json(responseObj);
-  } catch (error) {
-    console.error('Error in merge endpoint:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata));
 
 app.listen(port, () => {
   // OS environment detection

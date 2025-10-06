@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { JsonConverter } from '../app/jsonConverter.js';
 import { TemplateUtils } from '../templateCommon/templateUtils.js';
+import { Logger } from '../templateCommon/logger.js';
 import {
     PreprocessedSiteTemplates,
     PreprocessedTemplate,
@@ -25,36 +26,62 @@ export class LoaderPreProcess {
      * @returns {PreprocessedSiteTemplates} PreprocessedSiteTemplates containing structured template data
      */
     static loadProcessGetTemplateFiles(rootDirPath, appSite) {
+        Logger.debug(`LoadProcessGetTemplateFiles called for appSite: ${appSite}`, 'LoaderPreProcess');
+
         const cacheKey = `${path.dirname(rootDirPath)}|${appSite}`;
-        
+
         if (this.#preprocessedTemplatesCache.has(cacheKey)) {
-            return this.#preprocessedTemplatesCache.get(cacheKey);
+            const cached = this.#preprocessedTemplatesCache.get(cacheKey);
+            Logger.debug(`Returning cached templates for ${appSite} (${cached.templates.size} templates)`, 'LoaderPreProcess');
+            return cached;
         }
 
         const result = new PreprocessedSiteTemplates();
         result.siteName = appSite;
 
         const appSitesPath = path.join(rootDirPath, 'AppSites', appSite);
-        
+
         if (!fs.existsSync(appSitesPath) || !fs.statSync(appSitesPath).isDirectory()) {
+            Logger.warn(`AppSites directory not found: ${appSitesPath}`, 'LoaderPreProcess');
             this.#preprocessedTemplatesCache.set(cacheKey, result);
             return result;
         }
+
+        Logger.debug(`Loading templates from: ${appSitesPath}`, 'LoaderPreProcess');
 
         // Recursively find all HTML files
         this.#walkDirectory(appSitesPath, (filePath, stats) => {
             if (stats.isFile() && path.extname(filePath) === '.html') {
                 const fileName = path.basename(filePath, '.html');
                 const key = `${appSite.toLowerCase()}_${fileName.toLowerCase()}`;
-                
+
                 const content = fs.readFileSync(filePath, 'utf8');
-                
-                // Look for corresponding JSON file
+                Logger.debug(`Loading template: ${key} (size: ${content.length})`, 'LoaderPreProcess');
+
+                // Find JSON file case-insensitively
                 const jsonFile = filePath.replace('.html', '.json');
                 let jsonContent = null;
-                
+
                 if (fs.existsSync(jsonFile)) {
                     jsonContent = fs.readFileSync(jsonFile, 'utf8');
+                    Logger.debug(`Found JSON file for ${key} (size: ${jsonContent.length})`, 'LoaderPreProcess');
+                } else {
+                    // Try case-insensitive search in the same directory
+                    const dir = path.dirname(filePath);
+                    const baseName = path.basename(filePath, '.html').toLowerCase();
+                    const entries = fs.readdirSync(dir);
+
+                    for (const entry of entries) {
+                        const entryPath = path.join(dir, entry);
+                        if (fs.statSync(entryPath).isFile() && path.extname(entry).toLowerCase() === '.json') {
+                            const entryBase = path.basename(entry, path.extname(entry)).toLowerCase();
+                            if (entryBase === baseName) {
+                                jsonContent = fs.readFileSync(entryPath, 'utf8');
+                                Logger.debug(`Found JSON file (case-insensitive) for ${key} (size: ${jsonContent.length})`, 'LoaderPreProcess');
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 // Store raw template for backward compatibility
@@ -64,12 +91,18 @@ export class LoaderPreProcess {
                 // Preprocess the template with JSON data
                 const preprocessed = this.#preprocessTemplate(content, jsonContent, appSite, key);
                 result.templates.set(key, preprocessed);
+
+                Logger.debug(`Preprocessed ${key}: ${preprocessed.replacementMappings.length} replacements, ${preprocessed.slottedTemplates.length} slotted, ${preprocessed.placeholders.length} placeholders`, 'LoaderPreProcess');
             }
         });
+
+        Logger.info(`Loaded ${result.templates.size} templates for ${appSite}`, 'LoaderPreProcess');
 
         // CRITICAL: Create ALL replacement mappings after all templates are loaded
         // This ensures PreProcess engine does ONLY merging, no processing logic
         this.#createAllReplacementMappingsForSite(result, appSite);
+
+        Logger.info(`Created all replacement mappings for ${appSite}`, 'LoaderPreProcess');
 
         this.#preprocessedTemplatesCache.set(cacheKey, result);
         return result;
@@ -133,23 +166,33 @@ export class LoaderPreProcess {
      * @param {string} appSite - The application site name
      */
     static #createAllReplacementMappingsForSite(siteTemplates, appSite) {
+        Logger.debug(`Creating replacement mappings for ${appSite} - Phase 1: JSON arrays`, 'LoaderPreProcess');
         // Phase 1: Create JSON replacement mappings for all templates first (no dependencies)
         for (const template of siteTemplates.templates.values()) {
             // Create replacement mappings for JSON array blocks (including negative blocks)
             this.#createJsonArrayReplacementMappings(template, template.originalContent);
         }
 
+        Logger.debug(`Creating replacement mappings for ${appSite} - Phase 2: Simple placeholders`, 'LoaderPreProcess');
         // Phase 2: Create simple template replacement mappings (may depend on JSON but not on slotted templates)
         for (const template of siteTemplates.templates.values()) {
             // Create replacement mappings for simple placeholders
             this.#createPlaceholderReplacementMappings(template, siteTemplates.templates, appSite);
         }
 
+        Logger.debug(`Creating replacement mappings for ${appSite} - Phase 3: Slotted templates`, 'LoaderPreProcess');
         // Phase 3: Create slotted template replacement mappings (may depend on other templates)
         for (const template of siteTemplates.templates.values()) {
             // Create replacement mappings for slotted templates
             this.#createSlottedTemplateReplacementMappings(template, siteTemplates.templates, appSite);
         }
+
+        // Log summary of all replacement mappings
+        let totalMappings = 0;
+        for (const template of siteTemplates.templates.values()) {
+            totalMappings += template.replacementMappings.length;
+        }
+        Logger.info(`Total replacement mappings created for ${appSite}: ${totalMappings}`, 'LoaderPreProcess');
     }
 
     /**
@@ -478,21 +521,43 @@ export class LoaderPreProcess {
         for (const placeholder of template.placeholders) {
             const targetTemplateKey = `${appSite.toLowerCase()}_${placeholder.templateKey}`;
             const targetTemplate = allTemplates.get(targetTemplateKey);
-            
+
             if (targetTemplate) {
-                // Use the target template's original content without applying other replacement mappings
-                // This prevents circular dependencies and infinite recursion
-                const processedTemplate = targetTemplate.originalContent;
+                // Start with the target template's original content
+                let processedTemplate = targetTemplate.originalContent;
+
+                // CRITICAL FIX: Apply the target template's JSON placeholder replacements
+                // This ensures nested components use their own JSON context (e.g., header.json for Header component)
+                let jsonMappingCount = 0;
+                for (const m of targetTemplate.replacementMappings) {
+                    if (m.type === ReplacementType.JSON_PLACEHOLDER && processedTemplate.includes(m.originalText)) {
+                        Logger.info(`  Replacing '${m.originalText}' with '${m.replacementText}' in ${targetTemplateKey}`, 'LoaderPreProcess');
+                        processedTemplate = processedTemplate.replace(new RegExp(this.#escapeRegExp(m.originalText), 'g'), m.replacementText);
+                        jsonMappingCount++;
+                    }
+                }
+                if (jsonMappingCount > 0) {
+                    Logger.info(`Applied ${jsonMappingCount} JSON mappings to ${targetTemplateKey}`, 'LoaderPreProcess');
+                }
 
                 // Create the replacement mapping
                 const mapping = new ReplacementMapping();
                 mapping.originalText = placeholder.fullMatch;
                 mapping.replacementText = processedTemplate;
                 mapping.type = ReplacementType.SIMPLE_TEMPLATE;
-                
+
                 template.replacementMappings.push(mapping);
             }
         }
+    }
+
+    /**
+     * Escapes special regex characters for use in RegExp constructor
+     * @param {string} string - String to escape
+     * @returns {string} Escaped string
+     */
+    static #escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     /**
@@ -547,7 +612,7 @@ export class LoaderPreProcess {
         for (const nestedSlottedTemplate of slot.nestedSlottedTemplates) {
             const targetTemplateKey = `${appSite.toLowerCase()}_${nestedSlottedTemplate.templateKey}`;
             const targetTemplate = allTemplates.get(targetTemplateKey);
-            
+
             if (targetTemplate) {
                 // Use the target template's original content without applying replacement mappings
                 // This prevents circular dependencies during replacement mapping creation
@@ -571,10 +636,18 @@ export class LoaderPreProcess {
         for (const nestedPlaceholder of slot.nestedPlaceholders) {
             const targetTemplateKey = `${appSite.toLowerCase()}_${nestedPlaceholder.templateKey}`;
             const targetTemplate = allTemplates.get(targetTemplateKey);
-            
+
             if (targetTemplate) {
-                // Use the target template's original content
-                const processedTemplate = targetTemplate.originalContent;
+                // Start with the target template's original content
+                let processedTemplate = targetTemplate.originalContent;
+
+                // CRITICAL FIX: Apply the target template's JSON placeholder replacements
+                // This ensures nested components use their own JSON context
+                for (const mapping of targetTemplate.replacementMappings) {
+                    if (mapping.type === ReplacementType.JSON_PLACEHOLDER) {
+                        processedTemplate = processedTemplate.replace(new RegExp(this.#escapeRegExp(mapping.originalText), 'g'), mapping.replacementText);
+                    }
+                }
 
                 // Replace in result
                 result = result.replace(nestedPlaceholder.fullMatch, processedTemplate);
@@ -689,32 +762,64 @@ export class LoaderPreProcess {
      */
     static #processArrayBlockContent(blockContent, dataArray) {
         let result = '';
-        
+
         for (let i = 0; i < dataArray.length; i++) {
             const item = dataArray[i];
             let itemTemplate = blockContent;
-            
+
             // Process conditional blocks like {{@Selected}}...{{/Selected}} FIRST
             itemTemplate = this.#processConditionalBlocks(itemTemplate, item);
-            
+
             // Replace {{$PropertyName}} with actual values AFTER conditional processing
             // Handle both Map (JsonObject) and plain object structures with case-insensitive matching
             if (item instanceof Map) {
                 for (const [prop, val] of item) {
                     const placeholder = `{{$${prop}}}`;
-                    itemTemplate = this.#replaceAllCaseInsensitive(itemTemplate, placeholder, String(val));
+                    const valueStr = this.#jsonValueToStringWithoutHtmlEscape(val);
+                    itemTemplate = this.#replaceAllCaseInsensitive(itemTemplate, placeholder, valueStr);
                 }
             } else {
                 for (const [prop, val] of Object.entries(item)) {
                     const placeholder = `{{$${prop}}}`;
-                    itemTemplate = this.#replaceAllCaseInsensitive(itemTemplate, placeholder, String(val));
+                    const valueStr = this.#jsonValueToStringWithoutHtmlEscape(val);
+                    itemTemplate = this.#replaceAllCaseInsensitive(itemTemplate, placeholder, valueStr);
                 }
             }
-            
+
             result += itemTemplate;
         }
-        
+
         return result;
+    }
+
+    /**
+     * Converts JSON value to string without HTML escaping (like Go's SetEscapeHTML(false))
+     * @param {*} value - JSON value to convert
+     * @returns {string} String representation without HTML escaping
+     */
+    static #jsonValueToStringWithoutHtmlEscape(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        // Convert to JSON string first
+        let valueStr = JSON.stringify(value);
+
+        // Remove quotes if it's a string
+        if (typeof value === 'string') {
+            valueStr = valueStr.slice(1, -1);
+        }
+
+        // Decode HTML entities that JSON.stringify escapes
+        // This matches Go's SetEscapeHTML(false) behavior
+        valueStr = valueStr
+            .replace(/\\u003c/gi, '<')
+            .replace(/\\u003e/gi, '>')
+            .replace(/\\u0026/gi, '&')
+            .replace(/\\u0027/gi, "'")
+            .replace(/\\u0022/gi, '"');
+
+        return valueStr;
     }
 
     /**

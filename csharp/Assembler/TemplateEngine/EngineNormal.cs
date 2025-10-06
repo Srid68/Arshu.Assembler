@@ -32,8 +32,15 @@ public class EngineNormal
     /// <returns>HTML with placeholders replaced</returns>
     public string MergeTemplates(string appSite, string appFile, string? appView, Dictionary<string, (string html, string? json)> templates, bool enableJsonProcessing = true)
     {
+        Logger.Info($"MergeTemplates called: appSite={appSite}, appFile={appFile}, appView={appView ?? "null"}, enableJson={enableJsonProcessing}", "EngineNormal");
+
         if (templates == null || templates.Count == 0)
+        {
+            Logger.Warn("No templates available", "EngineNormal");
             return "";
+        }
+
+        Logger.Debug($"Using {templates.Count} templates", "EngineNormal");
 
         // Direct dictionary lookup for main template
     string mainTemplateKey = appSite.ToLowerInvariant() + "_" + appFile.ToLowerInvariant();
@@ -46,23 +53,32 @@ public class EngineNormal
                 var appKey = TemplateUtils.ReplaceCaseInsensitive(appFile, AppViewPrefix, appView);
                 var fallbackTemplateKey = appSite.ToLowerInvariant() + "_" + appKey.ToLowerInvariant();
                 if (!templates.TryGetValue(fallbackTemplateKey, out mainTemplate))
+                {
+                    Logger.Warn($"Main template not found for appSite={appSite}, appFile={appFile}", "EngineNormal");
                     return string.Empty;
+                }
             }
             else
             {
+                Logger.Warn($"Main template not found for appSite={appSite}, appFile={appFile}", "EngineNormal");
                 return string.Empty;
             }
         }
 
+        Logger.Debug($"Main template found, html size: {mainTemplate.html.Length}, json: {mainTemplate.json?.Length ?? 0}", "EngineNormal");
+
         var contentHtml = mainTemplate.html;
         if (enableJsonProcessing && !string.IsNullOrEmpty(mainTemplate.json))
         {
+            Logger.Debug($"Merging main template with JSON (size: {mainTemplate.json.Length})", "EngineNormal");
             contentHtml = MergeTemplateWithJson(contentHtml, mainTemplate.json);
+            Logger.Debug($"After main JSON merge: {contentHtml.Length} chars", "EngineNormal");
         }
 
         // Pre-merge all templates and JSON values
         var mergedTemplates = new Dictionary<string, string>(templates.Count);
         var allJsonValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        int jsonMergeCount = 0;
         foreach (var kvp in templates)
         {
             var htmlContent = kvp.Value.html;
@@ -70,6 +86,7 @@ public class EngineNormal
             if (enableJsonProcessing && !string.IsNullOrEmpty(jsonContent))
             {
                 htmlContent = MergeTemplateWithJson(htmlContent, jsonContent);
+                jsonMergeCount++;
                 try
                 {
                     var jsonObj = JsonConverter.ParseJsonString(jsonContent);
@@ -86,16 +103,33 @@ public class EngineNormal
             mergedTemplates[kvp.Key] = htmlContent;
         }
 
+        Logger.Debug($"Pre-merged {jsonMergeCount} templates with JSON, collected {allJsonValues.Count} JSON values", "EngineNormal");
+
         // Simple loop like Go implementation - avoid StringBuilder overhead
         string previous;
         int maxPasses = 10;
+        int actualPasses = 0;
         for (int pass = 0; pass < maxPasses; pass++)
         {
             previous = contentHtml;
+            actualPasses = pass + 1;
+
+            Logger.Debug($"Pass {actualPasses}, current size: {contentHtml.Length}", "EngineNormal");
+
             contentHtml = MergeTemplateSlots(contentHtml, appSite, appView, mergedTemplates);
+            Logger.Debug($"After slot merge: {contentHtml.Length} chars", "EngineNormal");
+
             contentHtml = ReplaceTemplatePlaceholdersWithJson(contentHtml, appSite, mergedTemplates, allJsonValues, appView);
-            if (contentHtml == previous) break;
+            Logger.Debug($"After placeholder replacement: {contentHtml.Length} chars", "EngineNormal");
+
+            if (contentHtml == previous)
+            {
+                Logger.Debug($"No changes in pass {actualPasses}, stopping", "EngineNormal");
+                break;
+            }
         }
+
+        Logger.Info($"MergeTemplates complete after {actualPasses} passes: output size={contentHtml.Length}", "EngineNormal");
         return contentHtml;
 
     }
@@ -157,25 +191,38 @@ public class EngineNormal
 
             // Extract placeholder name
             var placeholderName = result.Substring(openStart + 2, closeStart - openStart - 2).Trim();
-            if (string.IsNullOrEmpty(placeholderName) || !TemplateUtils.IsAlphaNumeric(placeholderName))
+            if (string.IsNullOrEmpty(placeholderName))
             {
                 searchPos = openStart + 2;
                 continue;
             }
 
-            // Look up replacement in templates - use GetTemplate method for optimized lookup
-            var templateContent = GetTemplate(appSite, placeholderName, htmlFiles, appView, useAppViewFallback: true);
-
             string? processedReplacement = null;
 
-            if (!string.IsNullOrEmpty(templateContent))
+            // PRIORITY 1: Check for JSON placeholders first (starts with '$')
+            if (placeholderName.StartsWith("$"))
             {
-                processedReplacement = ReplaceTemplatePlaceholdersWithJson(templateContent, appSite, htmlFiles, jsonValues ?? new Dictionary<string, string>(), appView);
+                var key = placeholderName.Substring(1); // Remove the leading '$'
+                if (jsonValues != null && jsonValues.TryGetValue(key, out var jsonValue))
+                {
+                    processedReplacement = jsonValue;
+                }
             }
-            // If template not found, try JSON value
-            else if (jsonValues != null && jsonValues.TryGetValue(placeholderName, out var jsonValue))
+            // PRIORITY 2: Check for template placeholders (alphanumeric)
+            else if (TemplateUtils.IsAlphaNumeric(placeholderName))
             {
-                processedReplacement = jsonValue;
+                // Look up replacement in templates - use GetTemplate method for optimized lookup
+                var templateContent = GetTemplate(appSite, placeholderName, htmlFiles, appView, useAppViewFallback: true);
+
+                if (!string.IsNullOrEmpty(templateContent))
+                {
+                    processedReplacement = ReplaceTemplatePlaceholdersWithJson(templateContent, appSite, htmlFiles, jsonValues ?? new Dictionary<string, string>(), appView);
+                }
+                // PRIORITY 3: If no template found, try JSON values (for backward compatibility)
+                else if (jsonValues != null && jsonValues.TryGetValue(placeholderName, out var jsonValue))
+                {
+                    processedReplacement = jsonValue;
+                }
             }
 
             if (processedReplacement != null)

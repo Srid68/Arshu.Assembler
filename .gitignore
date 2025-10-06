@@ -14,6 +14,11 @@
 *.tmp
 *.log
 
+# Ignore Log directories
+Log/
+*/Log/
+**/Log/
+
 # Ignore OS-specific files
 .DS_Store
 Thumbs.db
@@ -30,6 +35,9 @@ __pycache__/
 # Ignore node_modules if present
 node_modules/
 
+# Ignore all template analysis files
+**/template_analysis/
+
 # Ignore all Fly deploy batch scripts
 fly_deploy*.bat
 rust/fly_deploy_rust_web.bat
@@ -39,3 +47,6 @@ csharp/fly_deploy_csharp_web.bat
 csharp/fly_deploy_js_web.bat
 csharp/fly_run_csharp_web.bat
 csharp/fly_run_js_web.bat
+
+
+

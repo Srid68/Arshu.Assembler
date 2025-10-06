@@ -36,12 +36,13 @@ func (p *PerfSummaryRow) PreProcessTimeMs() float64 {
 }
 
 func RunPerformanceComparison(assemblerWebDir string, appSiteFilter string, skipDetails bool, enableJsonProcessing bool) []PerfSummaryRow {
+	startTime := time.Now()
+	fmt.Println("\n========== RunPerformanceComparison ==========")
 	skipDetailsFlag := skipDetails
 	iterations := 1000
 	appSitesPath := filepath.Join(assemblerWebDir, "AppSites")
 	entries, err := os.ReadDir(appSitesPath)
 	if err != nil {
-		fmt.Printf("❌ AppSites directory not found: %s\n", appSitesPath)
 		return []PerfSummaryRow{}
 	}
 	var perfSummaryRows []PerfSummaryRow
@@ -63,21 +64,11 @@ func RunPerformanceComparison(assemblerWebDir string, appSiteFilter string, skip
 			templates := template_loader.LoadGetTemplateFiles(assemblerWebDir, testAppSite)
 			siteTemplates := template_loader.LoadProcessGetTemplateFiles(assemblerWebDir, testAppSite)
 			if len(templates) == 0 {
-				if !skipDetailsFlag {
-					fmt.Printf("❌ No templates found for %s\n", testAppSite)
-				}
 				continue
 			}
 			mainTemplateKey := strings.ToLower(fmt.Sprintf("%s_%s", testAppSite, appFileName))
 			if _, ok := templates[mainTemplateKey]; !ok {
-				if !skipDetailsFlag {
-					fmt.Printf("❌ No main template found for %s\n", mainTemplateKey)
-				}
 				continue
-			}
-			if !skipDetailsFlag {
-				fmt.Printf("Template Key: %s\n", mainTemplateKey)
-				fmt.Printf("Templates available: %d\n", len(templates))
 			}
 			appViewScenarios := []struct{ AppView, AppViewPrefix string }{{"", ""}}
 			viewsPath := filepath.Join(appSiteDir, "Views")
@@ -106,8 +97,8 @@ func RunPerformanceComparison(assemblerWebDir string, appSiteFilter string, skip
 			for _, scenario := range appViewScenarios {
 				if !skipDetailsFlag {
 					fmt.Println(strings.Repeat("-", 60))
-					fmt.Printf(">>> GO SCENARIO : '%s', '%s', '%s', '%s'\n", testAppSite, appFileName, scenario.AppView, scenario.AppViewPrefix)
-					fmt.Printf("Iterations per test: %d\n", iterations)
+					fmt.Printf("[Go] Testing: AppSite=%s, AppFile=%s, AppView=%s\n", testAppSite, appFileName, scenario.AppView)
+					fmt.Printf("[Go] Iterations: %d\n", iterations)
 				}
 				template_loader.ClearCache()
 				normalEngine := template_engine.NewEngineNormal(appFileName)
@@ -125,8 +116,9 @@ func RunPerformanceComparison(assemblerWebDir string, appSiteFilter string, skip
 				}
 				normalTimeNanos := time.Since(start).Nanoseconds()
 				if !skipDetailsFlag {
-					fmt.Printf("[Normal Engine] %d iterations: %.2fms\n", iterations, float64(normalTimeNanos)/1_000_000.0)
-					fmt.Printf("[Normal Engine] Avg: %.3fms per op, Output size: %d chars\n", float64(normalTimeNanos)/float64(iterations)/1_000_000.0, len(resultNormal))
+					normalTimeMs := float64(normalTimeNanos) / 1_000_000.0
+					avg := normalTimeMs / float64(iterations)
+					fmt.Printf("[Go] Normal Engine:     %.0fms | Avg: %.3fms/op | Size: %d chars\n", normalTimeMs, avg, len(resultNormal))
 				}
 				template_loader.ClearCache()
 				preprocessEngine := template_engine.NewEnginePreProcess(appFileName)
@@ -145,9 +137,28 @@ func RunPerformanceComparison(assemblerWebDir string, appSiteFilter string, skip
 				preprocessTimeNanos := time.Since(start).Nanoseconds()
 				resultsMatch := resultNormal == resultPreprocess
 				if !skipDetailsFlag {
-					fmt.Printf("[PreProcess Engine] %d iterations: %.2fms\n", iterations, float64(preprocessTimeNanos)/1_000_000.0)
-					fmt.Printf("[PreProcess Engine] Avg: %.3fms per op, Output size: %d chars\n", float64(preprocessTimeNanos)/float64(iterations)/1_000_000.0, len(resultPreprocess))
-					fmt.Printf("Results match: %s\n", map[bool]string{true: "✅ YES", false: "❌ NO"}[resultsMatch])
+					preprocessTimeMs := float64(preprocessTimeNanos) / 1_000_000.0
+					avg := preprocessTimeMs / float64(iterations)
+					fmt.Printf("[Go] PreProcess Engine: %.0fms | Avg: %.3fms/op | Size: %d chars\n", preprocessTimeMs, avg, len(resultPreprocess))
+
+					differenceMs := preprocessTimeMs - float64(normalTimeNanos)/1_000_000.0
+					differencePercent := 0.0
+					if normalTimeNanos > 0 {
+						differencePercent = (float64(preprocessTimeNanos-normalTimeNanos) / float64(normalTimeNanos)) * 100.0
+					}
+					signMs := ""
+					if differenceMs >= 0 {
+						signMs = "+"
+					}
+					signPct := ""
+					if differencePercent >= 0 {
+						signPct = "+"
+					}
+					matchStr := "NO"
+					if resultsMatch {
+						matchStr = "YES"
+					}
+					fmt.Printf("[Go] Performance: %s%.0fms (%s%.1f%%) | Match: %s\n", signMs, differenceMs, signPct, differencePercent, matchStr)
 				}
 				perfDiff := "0%"
 				if normalTimeNanos > 0 {
@@ -167,6 +178,8 @@ func RunPerformanceComparison(assemblerWebDir string, appSiteFilter string, skip
 			}
 		}
 	}
+	elapsed := time.Since(startTime)
+	fmt.Printf("\n========== Performance Testing Completed in %dms ==========\n\n", elapsed.Milliseconds())
 	return perfSummaryRows
 }
 

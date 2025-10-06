@@ -1,29 +1,25 @@
+<div style="max-width: 800px; margin: 40px auto; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+    <div style="background: white; padding: 30px; border-radius: 8px;">
+        <h2 style="color: #667eea; margin: 0 0 10px 0; font-size: 1.8em;">Rule 5: JSON Array Assembly</h2>
+        <p style="color: #666; margin: 0 0 25px 0; font-size: 0.95em;">Simple JSON array iteration using <code style="background: #f4f4f4; padding: 2px 6px; border-radius: 3px; color: #e83e8c;">&#123;&#123;@Json2AArrayKey&#125;&#125;</code></p>
 
-
-<div style="min-height: calc(100vh - 150px); width:100%; padding: 0; margin: 0 0 50px 0; display:grid; align-items: center;">
-    <div style="text-align:center;">
-        <h1>Rule 5A of 5 : Json Array Assembly - Example 2A</h1>
-        <h3>Simple - Json Array Assembly in component</h3>
-        <hr />
-
-        <div>
-            <span style="text-decoration:underline">
-                Array Content from [Json2AArrayKey] from Json Component [Json2A]
-            </span>
-            <hr />
-
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 6px; border-left: 4px solid #667eea;">
+            <div style="color: #495057; font-size: 0.9em; margin-bottom: 15px;">
+                <strong>📝 Array Loop:</strong> Iterating over <code style="background: white; padding: 2px 8px; border-radius: 3px;">Json2AArrayKey</code> array
+            </div>
             <div>
                 <select>
                     {{@Json2AArrayKey}}
-                    <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
+                    <div style="border: 2px dashed #4caf50; border-radius: 6px; padding: 10px; background: #f1f8f4; margin: 5px 0;">
+                        <p style="margin: 0 0 5px 0; text-align: center; color: #4caf50; font-weight: 500; font-size: 0.85em;">🔁 Array Item Content</p>
+                        <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
+                    </div>
                     {{/Json2AArrayKey}}
                     {{^Json2AArrayKey}}
                     <option value="0">No Data Found</option>
                     {{/Json2AArrayKey}}
                 </select>
             </div>
-
         </div>
-
     </div>
 </div>

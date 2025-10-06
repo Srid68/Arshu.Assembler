@@ -1,35 +1,35 @@
-<div>
-    <span style="text-decoration:underline">
-        Array Content from [Json2DArrayKey] from Json Component [Json2DContent]
-    </span>
-    <hr />
-    <div>
-        <select>
-            {{@Json2DArrayKey}}
-            <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
-            {{/Json2DArrayKey}}
-            {{^Json2DArrayKey}}
-            <option value="0">No Data Found</option>
-            {{/Json2DArrayKey}}
-        </select>
+<div style="border: 2px dashed #667eea; border-radius: 6px; padding: 15px; background: #f8f9ff; margin: 10px 0;">
+    <p style="margin: 0 0 10px 0; text-align: center; color: #667eea; font-weight: 500;">🔷 Component: Json2DContent (Placeholder)</p>
+    <div style="background: white; padding: 10px; border-radius: 4px;">
+        <p style="margin: 0 0 10px 0; color: #495057;">Array Content from [Json2DArrayKey] from Json Component [Json2DContent]</p>
+        <hr style="margin: 10px 0; border: none; border-top: 1px solid #e0e0e0;" />
+        <div>
+            <select>
+                {{@Json2DArrayKey}}
+                <div style="border: 2px dashed #4caf50; border-radius: 6px; padding: 10px; background: #f1f8f4; margin: 5px 0;">
+                    <p style="margin: 0 0 5px 0; text-align: center; color: #4caf50; font-weight: 500; font-size: 0.85em;">🔁 Array 1 Item Content</p>
+                    <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
+                </div>
+                {{/Json2DArrayKey}}
+                {{^Json2DArrayKey}}
+                <option value="0">No Data Found</option>
+                {{/Json2DArrayKey}}
+            </select>
+        </div>
+        <p style="margin: 10px 0; color: #495057;">Empty Array Content from [anotherJson2DArrayKey] from Json Component [Json2DContent]</p>
+        <hr style="margin: 10px 0; border: none; border-top: 1px solid #e0e0e0;" />
+        <div>
+            <select>
+                {{@anotherJson2DArrayKey}}
+                <div style="border: 2px dashed #4caf50; border-radius: 6px; padding: 10px; background: #f1f8f4; margin: 5px 0;">
+                    <p style="margin: 0 0 5px 0; text-align: center; color: #4caf50; font-weight: 500; font-size: 0.85em;">🔁 Array 2 Item Content</p>
+                    <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
+                </div>
+                {{/anotherJson2DArrayKey}}
+                {{^anotherJson2DArrayKey}}
+                <option value="0">No Another Data Found</option>
+                {{/anotherJson2DArrayKey}}
+            </select>
+        </div>
     </div>
-</div>
-
-<div>
-    <span style="text-decoration:underline">
-        Empty Array Content from [anotherJson2DArrayKey] from Json Component [Json2DContent]
-    </span>
-    <hr />
-
-    <div>
-        <select>
-            {{@anotherJson2DArrayKey}}
-            <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
-            {{/anotherJson2DArrayKey}}
-            {{^anotherJson2DArrayKey}}
-            <option value="0">No Another Data Found</option>
-            {{/anotherJson2DArrayKey}}
-        </select>
-    </div>
-
 </div>

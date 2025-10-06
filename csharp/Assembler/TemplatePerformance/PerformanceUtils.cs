@@ -30,6 +30,8 @@ public static class PerformanceUtils
 
     public static List<PerfSummaryRow> RunPerformanceComparison(string assemblerWebDirPath, bool enableJsonProcessing, string? appSiteFilter = null, bool skipDetails = false)
     {
+        var startTime = Stopwatch.StartNew();
+        Console.WriteLine("\n========== RunPerformanceComparison ==========");
         int iterations = 1000;
         string appSitesPath = Path.Combine(assemblerWebDirPath, "AppSites");
         var summaryRows = new List<PerfSummaryRow>();
@@ -53,21 +55,10 @@ public static class PerformanceUtils
                     var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, testAppSite);
                     var siteTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, testAppSite);
                     if (templates == null || templates.Count == 0)
-                    {
-                        if (!skipDetails) Console.WriteLine($"❌ No templates found for {testAppSite}");
                         continue;
-                    }
                     var mainTemplateKey = (testAppSite + "_" + appFileName).ToLowerInvariant();
                     if (!templates.TryGetValue(mainTemplateKey, out var mainTemplate))
-                    {
-                        if (!skipDetails) Console.WriteLine($"❌ No main template found for {mainTemplateKey}");
                         continue;
-                    }
-                    if (!skipDetails)
-                    {
-                        Console.WriteLine($"Template Key: {mainTemplateKey}");
-                        Console.WriteLine($"Templates available: {templates.Count}");
-                    }
                     var appViewScenarios = new List<(string AppView, string AppViewPrefix)> { ("", "") };
                     var viewsPath = Path.Combine(appSiteDir, "Views");
                     if (Directory.Exists(viewsPath))
@@ -100,8 +91,8 @@ public static class PerformanceUtils
                         if (!skipDetails)
                         {
                             Console.WriteLine(new string('-', 60));
-                            Console.WriteLine($">>> C# SCENARIO : '{testAppSite}', '{appFileName}', '{scenario.AppView}', '{scenario.AppViewPrefix}'");
-                            Console.WriteLine($"Iterations per test: {iterations:N0}");
+                            Console.WriteLine($"[C#] Testing: AppSite={testAppSite}, AppFile={appFileName}, AppView={scenario.AppView}");
+                            Console.WriteLine($"[C#] Iterations: {iterations:N0}");
                         }
                         var normalEngine = new EngineNormal();
                         normalEngine.AppViewPrefix = scenario.AppViewPrefix;
@@ -123,8 +114,7 @@ public static class PerformanceUtils
                         var normalTicks = sw.ElapsedTicks;
                         if (!skipDetails)
                         {
-                            Console.WriteLine($"[Normal Engine] {iterations:N0} iterations: {normalTime}ms ({normalTicks:N0} ticks)");
-                            Console.WriteLine($"[Normal Engine] Avg: {(double)normalTime / iterations:F3}ms per op, Output size: {resultNormal.Length} chars");
+                            Console.WriteLine($"[C#] Normal Engine:     {normalTime}ms | Avg: {(double)normalTime / iterations:F3}ms/op | Size: {resultNormal.Length} chars");
                         }
                         LoaderNormal.ClearCache();
                         LoaderPreProcess.ClearCache();
@@ -148,17 +138,10 @@ public static class PerformanceUtils
                         var preProcessTicks = sw.ElapsedTicks;
                         if (!skipDetails)
                         {
-                            Console.WriteLine($"[PreProcess Engine] {iterations:N0} iterations: {preProcessTime}ms ({preProcessTicks:N0} ticks)");
-                            Console.WriteLine($"[PreProcess Engine] Avg: {(double)preProcessTime / iterations:F3}ms per op, Output size: {resultPreProcess.Length} chars");
-                            Console.WriteLine($">>> C# PERFORMANCE COMPARISON:");
-                            Console.WriteLine(new string('-', 50));
+                            Console.WriteLine($"[C#] PreProcess Engine: {preProcessTime}ms | Avg: {(double)preProcessTime / iterations:F3}ms/op | Size: {resultPreProcess.Length} chars");
                             var difference = preProcessTime - normalTime;
                             var differencePercent = normalTime > 0 ? ((double)difference / normalTime) * 100 : 0;
-                            var tickDifference = preProcessTicks - normalTicks;
-                            var tickDifferencePercent = normalTicks > 0 ? ((double)tickDifference / normalTicks) * 100 : 0;
-                            Console.WriteLine($"Time difference: {difference}ms ({differencePercent:F1}%)");
-                            Console.WriteLine($"Tick difference: {tickDifference:N0} ticks ({tickDifferencePercent:F1}%)");
-                            Console.WriteLine($"Results match: {(resultNormal == resultPreProcess ? "✅ YES" : "❌ NO")}");
+                            Console.WriteLine($"[C#] Performance: {(difference >= 0 ? "+" : "")}{difference}ms ({(differencePercent >= 0 ? "+" : "")}{differencePercent:F1}%) | Match: {(resultNormal == resultPreProcess ? "YES" : "NO")}");
                         }
                         summaryRows.Add(new PerfSummaryRow
                         {
@@ -174,12 +157,14 @@ public static class PerformanceUtils
                         });
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    if (!skipDetails) Console.WriteLine($"❌ Error in performance testing for {testAppSite}: {ex.Message}");
+                    // Silent error handling
                 }
             }
         }
+        startTime.Stop();
+        Console.WriteLine($"\n========== Performance Testing Completed in {startTime.ElapsedMilliseconds}ms ==========\n");
         return summaryRows;
     }
 

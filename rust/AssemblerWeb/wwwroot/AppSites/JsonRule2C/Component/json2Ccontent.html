@@ -1,16 +1,20 @@
-<div>
-    <span style="text-decoration:underline">
-        Array Content from [Json2CArrayKey] from Json Component [Json2CContent]
-    </span>
-    <hr />
-    <div>
-        <select>
-            {{@Json2CArrayKey}}
-            <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
-            {{/Json2CArrayKey}}
-            {{^Json2CArrayKey}}
-            <option value="0">No Data Found</option>
-            {{/Json2CArrayKey}}
-        </select>
+<div style="border: 2px dashed #667eea; border-radius: 6px; padding: 15px; background: #f8f9ff; margin: 10px 0;">
+    <p style="margin: 0 0 10px 0; text-align: center; color: #667eea; font-weight: 500;">🔷 Component: Json2CContent (Placeholder)</p>
+    <div style="background: white; padding: 10px; border-radius: 4px;">
+        <p style="margin: 0 0 10px 0; color: #495057;">Array Content from [Json2CArrayKey] from Json Component [Json2CContent]</p>
+        <hr style="margin: 10px 0; border: none; border-top: 1px solid #e0e0e0;" />
+        <div>
+            <select>
+                {{@Json2CArrayKey}}
+                <div style="border: 2px dashed #4caf50; border-radius: 6px; padding: 10px; background: #f1f8f4; margin: 5px 0;">
+                    <p style="margin: 0 0 5px 0; text-align: center; color: #4caf50; font-weight: 500; font-size: 0.85em;">🔁 Array Item Content</p>
+                    <option {{@Selected}}selected="selected" {{ /Selected}} value="{{$Value}}">{{$Name}}</option>
+                </div>
+                {{/Json2CArrayKey}}
+                {{^Json2CArrayKey}}
+                <option value="0">No Data Found</option>
+                {{/Json2CArrayKey}}
+            </select>
+        </div>
     </div>
 </div>

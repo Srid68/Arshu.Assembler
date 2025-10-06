@@ -1,6 +1,7 @@
 <?php
 
 use Psr\Http\Message\ServerRequestInterface;
+use Assembler\TemplateCommon\Logger;
 
 class IdleTrackingMiddleware {
     private static $lastRequestFile;
@@ -32,23 +33,23 @@ class IdleTrackingMiddleware {
         $idleSeconds = escapeshellarg(self::$idleSeconds);
         $osFamily = escapeshellarg(PHP_OS_FAMILY);
         $cmd = "php $monitorScriptPath $lastRequestFile $pidFile $idleSeconds $osFamily";
-            error_log("[IdleTrackingMiddleware] Launching monitor: $cmd");
+        Logger::info("Launching monitor: $cmd", 'IdleTracking');
         if (PHP_OS_FAMILY === 'Windows') {
-                $proc = @popen('start /B ' . $cmd, 'r');
-                if ($proc === false) {
-                    error_log("[IdleTrackingMiddleware] Failed to launch monitor process (Windows)");
-                } else {
-                    error_log("[IdleTrackingMiddleware] Monitor process started (Windows)");
-                    pclose($proc);
-                }
+            $proc = @popen('start /B ' . $cmd, 'r');
+            if ($proc === false) {
+                Logger::error("Failed to launch monitor process (Windows)", 'IdleTracking');
+            } else {
+                Logger::info("Monitor process started (Windows)", 'IdleTracking');
+                pclose($proc);
+            }
         } else {
-                $proc = @popen($cmd . ' > /dev/null 2>&1 &', 'r');
-                if ($proc === false) {
-                    error_log("[IdleTrackingMiddleware] Failed to launch monitor process (Unix)");
-                } else {
-                    error_log("[IdleTrackingMiddleware] Monitor process started (Unix)");
-                    pclose($proc);
-                }
+            $proc = @popen($cmd . ' > /dev/null 2>&1 &', 'r');
+            if ($proc === false) {
+                Logger::error("Failed to launch monitor process (Unix)", 'IdleTracking');
+            } else {
+                Logger::info("Monitor process started (Unix)", 'IdleTracking');
+                pclose($proc);
+            }
         }
     }
 

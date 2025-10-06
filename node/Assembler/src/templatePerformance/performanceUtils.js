@@ -17,13 +17,12 @@ export class PerformanceUtils {
      * @returns {Array}
      */
     static runPerformanceComparison(assemblerWebDirPath, enableJsonProcessing, appSiteFilter = null, skipDetails = false) {
+        const startTime = Date.now();
+        console.log('\n========== RunPerformanceComparison ==========');
         const iterations = 1000;
         const appSitesPath = path.join(assemblerWebDirPath, 'AppSites');
-        
+
         if (!fsSync.existsSync(appSitesPath)) {
-            if (!skipDetails) {
-                console.log(`❌ AppSites directory not found: ${appSitesPath}`);
-            }
             return [];
         }
 
@@ -54,23 +53,12 @@ export class PerformanceUtils {
                     const siteTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, testAppSite);
                     
                     if (!templates || templates.size === 0) {
-                        if (!skipDetails) {
-                            console.log(`❌ No templates found for ${testAppSite}`);
-                        }
                         continue;
                     }
                     
                     const mainTemplateKey = (testAppSite + '_' + appFileName).toLowerCase();
                     if (!templates.has(mainTemplateKey)) {
-                        if (!skipDetails) {
-                            console.log(`❌ No main template found for ${mainTemplateKey}`);
-                        }
                         continue;
-                    }
-                    
-                    if (!skipDetails) {
-                        console.log(`Template Key: ${mainTemplateKey}`);
-                        console.log(`Templates available: ${templates.size}`);
                     }
                     
                     // Build AppView scenarios
@@ -105,8 +93,8 @@ export class PerformanceUtils {
                     for (const [appView, appViewPrefix] of appViewScenarios) {
                         if (!skipDetails) {
                             console.log('-'.repeat(60));
-                            console.log(`>>> NODE SCENARIO : '${testAppSite}', '${appFileName}', '${appView}', '${appViewPrefix}'`);
-                            console.log(`Iterations per test: ${iterations.toLocaleString()}`);
+                            console.log(`[Node.js] Testing: AppSite=${testAppSite}, AppFile=${appFileName}, AppView=${appView}`);
+                            console.log(`[Node.js] Iterations: ${iterations.toLocaleString()}`);
                         }
                         
                         // Normal Engine
@@ -127,8 +115,8 @@ export class PerformanceUtils {
                         const normalTimeMs = Number(normalEnd - normalStart) / 1_000_000;
                         
                         if (!skipDetails) {
-                            console.log(`[Normal Engine] ${iterations.toLocaleString()} iterations: ${normalTimeMs.toFixed(0)}ms`);
-                            console.log(`[Normal Engine] Avg: ${(normalTimeMs / iterations).toFixed(3)}ms per op, Output size: ${resultNormal.length} chars`);
+                            const avg = normalTimeMs / iterations;
+                            console.log(`[Node.js] Normal Engine:     ${normalTimeMs.toFixed(0)}ms | Avg: ${avg.toFixed(3)}ms/op | Size: ${resultNormal.length} chars`);
                         }
                         
                         // PreProcess Engine
@@ -150,17 +138,15 @@ export class PerformanceUtils {
                         const preProcessTimeMs = Number(preProcessEnd - preProcessStart) / 1_000_000;
                         
                         if (!skipDetails) {
-                            console.log(`[PreProcess Engine] ${iterations.toLocaleString()} iterations: ${preProcessTimeMs.toFixed(0)}ms`);
-                            console.log(`[PreProcess Engine] Avg: ${(preProcessTimeMs / iterations).toFixed(3)}ms per op, Output size: ${resultPreProcess.length} chars`);
-                            
-                            // Comparison
-                            console.log('>>> NODE PERFORMANCE COMPARISON:');
-                            console.log('-'.repeat(50));
+                            const avg = preProcessTimeMs / iterations;
+                            console.log(`[Node.js] PreProcess Engine: ${preProcessTimeMs.toFixed(0)}ms | Avg: ${avg.toFixed(3)}ms/op | Size: ${resultPreProcess.length} chars`);
+
                             const difference = preProcessTimeMs - normalTimeMs;
                             const differencePercent = normalTimeMs > 0 ? (difference / normalTimeMs) * 100 : 0;
-                            
-                            console.log(`Time difference: ${difference.toFixed(0)}ms (${differencePercent.toFixed(1)}%)`);
-                            console.log(`Results match: ${(resultNormal === resultPreProcess ? '✅ YES' : '❌ NO')}`);
+                            const signMs = difference >= 0 ? '+' : '';
+                            const signPct = differencePercent >= 0 ? '+' : '';
+                            const matchStr = resultNormal === resultPreProcess ? 'YES' : 'NO';
+                            console.log(`[Node.js] Performance: ${signMs}${difference.toFixed(0)}ms (${signPct}${differencePercent.toFixed(1)}%) | Match: ${matchStr}`);
                         }
                         
                         this.perfSummaryRows.push({
@@ -176,13 +162,13 @@ export class PerformanceUtils {
                         });
                     }
                 } catch (error) {
-                    if (!skipDetails) {
-                        console.log(`❌ Error in performance testing for ${testAppSite}: ${error.message}`);
-                    }
+                    // Silent error handling
                 }
             }
         }
-        
+
+        const elapsed = Date.now() - startTime;
+        console.log(`\n========== Performance Testing Completed in ${elapsed}ms ==========\n`);
         return this.perfSummaryRows;
     }
 

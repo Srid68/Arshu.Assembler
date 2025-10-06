@@ -2,6 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { Logger } from '../templateCommon/logger.js';
 
 export class TemplateResult {
     constructor(html, json = null) {
@@ -20,37 +21,67 @@ export class LoaderNormal {
      * @returns {Map<string, TemplateResult>} Map of templates
      */
     static loadGetTemplateFiles(rootDirPath, appSite) {
+        Logger.debug(`LoadGetTemplateFiles called for appSite: ${appSite}`, 'LoaderNormal');
+
         const cacheKey = `${path.dirname(rootDirPath)}|${appSite}`;
-        
+
         if (this.#htmlTemplatesCache.has(cacheKey)) {
-            return this.#htmlTemplatesCache.get(cacheKey);
+            const cached = this.#htmlTemplatesCache.get(cacheKey);
+            Logger.debug(`Returning cached templates for ${appSite} (${cached.size} templates)`, 'LoaderNormal');
+            return cached;
         }
 
         const result = new Map();
         const appSitesPath = path.join(rootDirPath, 'AppSites', appSite);
-        
+
         if (!fs.existsSync(appSitesPath) || !fs.statSync(appSitesPath).isDirectory()) {
+            Logger.warn(`AppSites directory not found: ${appSitesPath}`, 'LoaderNormal');
             this.#htmlTemplatesCache.set(cacheKey, result);
             return result;
         }
+
+        Logger.debug(`Loading templates from: ${appSitesPath}`, 'LoaderNormal');
 
         // Recursively find all HTML files
         this.#walkDirectory(appSitesPath, (filePath, stats) => {
             if (stats.isFile() && path.extname(filePath) === '.html') {
                 const fileName = path.basename(filePath, '.html');
                 const key = `${appSite.toLowerCase()}_${fileName.toLowerCase()}`;
-                
+
                 const htmlContent = fs.readFileSync(filePath, 'utf8');
+                Logger.debug(`Loading template: ${key} (html size: ${htmlContent.length})`, 'LoaderNormal');
+
+                // Find JSON file case-insensitively
                 const jsonFile = filePath.replace('.html', '.json');
                 let jsonContent = null;
-                
+
                 if (fs.existsSync(jsonFile)) {
                     jsonContent = fs.readFileSync(jsonFile, 'utf8');
+                    Logger.debug(`Found JSON file for ${key} (size: ${jsonContent.length})`, 'LoaderNormal');
+                } else {
+                    // Try case-insensitive search in the same directory
+                    const dir = path.dirname(filePath);
+                    const baseName = path.basename(filePath, '.html').toLowerCase();
+                    const entries = fs.readdirSync(dir);
+
+                    for (const entry of entries) {
+                        const entryPath = path.join(dir, entry);
+                        if (fs.statSync(entryPath).isFile() && path.extname(entry).toLowerCase() === '.json') {
+                            const entryBase = path.basename(entry, path.extname(entry)).toLowerCase();
+                            if (entryBase === baseName) {
+                                jsonContent = fs.readFileSync(entryPath, 'utf8');
+                                Logger.debug(`Found JSON file (case-insensitive) for ${key} (size: ${jsonContent.length})`, 'LoaderNormal');
+                                break;
+                            }
+                        }
+                    }
                 }
-                
+
                 result.set(key, new TemplateResult(htmlContent, jsonContent));
             }
         });
+
+        Logger.info(`Loaded ${result.size} templates for ${appSite}`, 'LoaderNormal');
 
         this.#htmlTemplatesCache.set(cacheKey, result);
         return result;

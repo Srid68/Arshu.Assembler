@@ -1,6 +1,7 @@
 package template_loader
 
 import (
+	"assembler/template_common"
 	"fmt"
 	"io"
 	"os"
@@ -26,11 +27,14 @@ func LoadGetTemplateFiles(rootDirPath, appSite string) map[string]struct {
 	HTML string
 	JSON *string
 } {
+	template_common.Debug(fmt.Sprintf("LoadGetTemplateFiles called for appSite: %s", appSite), "LoaderNormal")
+
 	cacheKey := fmt.Sprintf("%s|%s", filepath.Dir(rootDirPath), appSite)
 
 	htmlTemplatesCache.RLock()
 	if cached, ok := htmlTemplatesCache.cache[cacheKey]; ok {
 		htmlTemplatesCache.RUnlock()
+		template_common.Debug(fmt.Sprintf("Returning cached templates for %s (%d templates)", appSite, len(cached)), "LoaderNormal")
 		return cached
 	}
 	htmlTemplatesCache.RUnlock()
@@ -41,11 +45,14 @@ func LoadGetTemplateFiles(rootDirPath, appSite string) map[string]struct {
 	})
 	appSitesPath := filepath.Join(rootDirPath, "AppSites", appSite)
 	if stat, err := os.Stat(appSitesPath); err != nil || !stat.IsDir() {
+		template_common.Warn(fmt.Sprintf("AppSites directory not found: %s", appSitesPath), "LoaderNormal")
 		htmlTemplatesCache.Lock()
 		htmlTemplatesCache.cache[cacheKey] = result
 		htmlTemplatesCache.Unlock()
 		return result
 	}
+
+	template_common.Debug(fmt.Sprintf("Loading templates from: %s", appSitesPath), "LoaderNormal")
 
 	_ = filepath.Walk(appSitesPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !strings.HasSuffix(info.Name(), ".html") {
@@ -57,6 +64,10 @@ func LoadGetTemplateFiles(rootDirPath, appSite string) map[string]struct {
 		htmlBytes, _ := io.ReadAll(f)
 		f.Close()
 		htmlContent := htmlBytes
+
+		template_common.Debug(fmt.Sprintf("Loading template: %s (html size: %d)", key, len(htmlContent)), "LoaderNormal")
+
+		// Find JSON file case-insensitively
 		jsonFile := strings.TrimSuffix(path, ".html") + ".json"
 		var jsonContent *string
 		if _, err := os.Stat(jsonFile); err == nil {
@@ -65,6 +76,29 @@ func LoadGetTemplateFiles(rootDirPath, appSite string) map[string]struct {
 			jf.Close()
 			jsonStr := string(jsonBytes)
 			jsonContent = &jsonStr
+			template_common.Debug(fmt.Sprintf("Found JSON file for %s (size: %d)", key, len(jsonStr)), "LoaderNormal")
+		} else {
+			// Try case-insensitive search in the same directory
+			dir := filepath.Dir(path)
+			baseName := strings.ToLower(strings.TrimSuffix(filepath.Base(path), ".html"))
+			entries, err := os.ReadDir(dir)
+			if err == nil {
+				for _, entry := range entries {
+					if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".json") {
+						entryBase := strings.ToLower(strings.TrimSuffix(entry.Name(), ".json"))
+						if entryBase == baseName {
+							matchedJsonPath := filepath.Join(dir, entry.Name())
+							jf, _ := os.Open(matchedJsonPath)
+							jsonBytes, _ := io.ReadAll(jf)
+							jf.Close()
+							jsonStr := string(jsonBytes)
+							jsonContent = &jsonStr
+							template_common.Debug(fmt.Sprintf("Found JSON file (case-insensitive) for %s (size: %d)", key, len(jsonStr)), "LoaderNormal")
+							break
+						}
+					}
+				}
+			}
 		}
 		result[key] = struct {
 			HTML string
@@ -73,13 +107,15 @@ func LoadGetTemplateFiles(rootDirPath, appSite string) map[string]struct {
 		return nil
 	})
 
+	template_common.Info(fmt.Sprintf("Loaded %d templates for %s", len(result), appSite), "LoaderNormal")
+
 	htmlTemplatesCache.Lock()
 	htmlTemplatesCache.cache[cacheKey] = result
 	htmlTemplatesCache.Unlock()
 	return result
 }
 
-// ClearCache clears all cached templates
+// ClearCache clears all cached normal templates
 func ClearCache() {
 	htmlTemplatesCache.Lock()
 	htmlTemplatesCache.cache = make(map[string]map[string]struct {

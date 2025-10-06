@@ -1,0 +1,18 @@
+{
+  "Title": "Go Web Assembler",
+  "Implementation": "Server-side Go",
+  "ColumnArray": [
+    {
+      "EngineTitle": "Normal Engine",
+      "TimingBarId": "normal-timing-bar",
+      "ResultId": "normal-result",
+      "LoadingMessage": "Select a scenario to see the Normal engine result"
+    },
+    {
+      "EngineTitle": "PreProcess Engine",
+      "TimingBarId": "preprocess-timing-bar",
+      "ResultId": "preprocess-result",
+      "LoadingMessage": "Select a scenario to see the PreProcess engine result"
+    }
+  ]
+}

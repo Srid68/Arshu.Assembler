@@ -2,6 +2,7 @@
 
 import { JsonConverter } from '../app/jsonConverter.js';
 import { TemplateUtils } from '../templateCommon/templateUtils.js';
+import { Logger } from '../templateCommon/logger.js';
 
 export class EngineNormal {
     constructor(appViewPrefix = '') {
@@ -34,9 +35,14 @@ export class EngineNormal {
      * @returns {string} HTML with placeholders replaced
      */
     mergeTemplates(appSite, appFile, appView, templates, enableJsonProcessing = true) {
+        Logger.info(`MergeTemplates called: appSite=${appSite}, appFile=${appFile}, appView=${appView || 'null'}, enableJson=${enableJsonProcessing}`, 'EngineNormal');
+
         if (!templates || templates.size === 0) {
+            Logger.warn('No templates available', 'EngineNormal');
             return '';
         }
+
+        Logger.debug(`Using ${templates.size} templates`, 'EngineNormal');
 
         // Use the getTemplate method to retrieve the main template (html and json)
         const { html: mainTemplateHtml, json: mainTemplateJson } = this.getTemplate(
@@ -49,14 +55,19 @@ export class EngineNormal {
         );
 
         if (!mainTemplateHtml) {
+            Logger.warn(`Main template not found for appSite=${appSite}, appFile=${appFile}`, 'EngineNormal');
             return '';
         }
+
+        Logger.debug(`Main template found, html size: ${mainTemplateHtml.length}, json: ${mainTemplateJson ? mainTemplateJson.length : 0}`, 'EngineNormal');
 
         let contentHtml = mainTemplateHtml;
 
         // Apply JSON merging to the main template if it has JSON and JSON processing is enabled
         if (enableJsonProcessing && mainTemplateJson) {
+            Logger.debug(`Merging main template with JSON (size: ${mainTemplateJson.length})`, 'EngineNormal');
             contentHtml = this.mergeTemplateWithJson(contentHtml, mainTemplateJson);
+            Logger.debug(`After main JSON merge: ${contentHtml.length} chars`, 'EngineNormal');
         }
 
         // Step 2: Process each template with its associated JSON (matching C# approach exactly)
@@ -78,12 +89,14 @@ export class EngineNormal {
         }
 
         // Process all templates with their JSON data
+        let jsonMergeCount = 0;
         for (const [key, template] of templates) {
             let htmlContent = template.html;
             const jsonContent = template.json;
 
             if (enableJsonProcessing && jsonContent) {
                 htmlContent = this.mergeTemplateWithJson(htmlContent, jsonContent);
+                jsonMergeCount++;
                 try {
                     const jsonObj = JsonConverter.parseJsonString(jsonContent);
                     for (const [jsonKey, jsonValue] of jsonObj) {
@@ -98,13 +111,31 @@ export class EngineNormal {
             processedTemplates.set(key, htmlContent);
         }
 
+        Logger.debug(`Pre-merged ${jsonMergeCount} templates with JSON, collected ${allJsonValues.size} JSON values`, 'EngineNormal');
+
         // Iterative processing with change detection until no more changes occur
         let previous;
-        do {
+        let actualPasses = 0;
+        const maxPasses = 10;
+        for (let pass = 0; pass < maxPasses; pass++) {
             previous = contentHtml;
+            actualPasses = pass + 1;
+
+            Logger.debug(`Pass ${actualPasses}, current size: ${contentHtml.length}`, 'EngineNormal');
+
             contentHtml = this.mergeTemplateSlots(contentHtml, appSite, appView, processedTemplates);
+            Logger.debug(`After slot merge: ${contentHtml.length} chars`, 'EngineNormal');
+
             contentHtml = this.replaceTemplatePlaceholdersWithJson(contentHtml, appSite, processedTemplates, allJsonValues, appView);
-        } while (contentHtml !== previous);
+            Logger.debug(`After placeholder replacement: ${contentHtml.length} chars`, 'EngineNormal');
+
+            if (contentHtml === previous) {
+                Logger.debug(`No changes in pass ${actualPasses}, stopping`, 'EngineNormal');
+                break;
+            }
+        }
+
+        Logger.info(`MergeTemplates complete after ${actualPasses} passes: output size=${contentHtml.length}`, 'EngineNormal');
 
         return contentHtml;
     }

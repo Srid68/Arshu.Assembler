@@ -5,188 +5,13 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/skratchdot/open-golang/open"
-
-	"assembler/template_common"
-	"assembler/template_engine"
-	"assembler/template_loader"
 )
-
-// MergeRequest represents the request structure for template merging
-type MergeRequest struct {
-	AppSite       *string `json:"appSite" binding:"required"`
-	AppView       *string `json:"appView"`
-	AppViewPrefix *string `json:"appViewPrefix"`
-	AppFile       *string `json:"appFile" binding:"required"`
-	EngineType    *string `json:"engineType" binding:"required"`
-}
-
-// mergeTemplates handles the POST /merge endpoint
-func mergeTemplates(c *gin.Context) {
-	var req MergeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	fmt.Printf("/merge endpoint called with: app_site=%v, app_file=%v, engine_type=%v, app_view=%v, app_view_prefix=%v\n",
-		safeString(req.AppSite), safeString(req.AppFile), safeString(req.EngineType), safeString(req.AppView), safeString(req.AppViewPrefix))
-
-	// Validate required fields
-	if req.AppSite == nil || *req.AppSite == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required field: appSite"})
-		return
-	}
-	if req.AppFile == nil || *req.AppFile == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required field: appFile"})
-		return
-	}
-	if req.EngineType == nil || *req.EngineType == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required field: engineType"})
-		return
-	}
-
-	assemblerWebDirPath, _ := template_common.GetAssemblerWebDirPath()
-	rootDirPath := assemblerWebDirPath // go/AssemblerWeb/wwwroot
-	fmt.Printf("[DEBUG] rootDirPath: %v\n", rootDirPath)
-
-	serverStart := time.Now()
-	engineStart := time.Now()
-	var mergedHTML string
-	if strings.EqualFold(*req.EngineType, "PreProcess") {
-		templates := template_loader.LoadProcessGetTemplateFiles(rootDirPath, *req.AppSite)
-		engine := template_engine.NewEnginePreProcess(safeString(req.AppViewPrefix))
-		mergedHTML = engine.MergeTemplates(*req.AppSite, *req.AppFile, safeString(req.AppView), templates.Templates, true)
-	} else {
-		templates := template_loader.LoadGetTemplateFiles(rootDirPath, *req.AppSite)
-		engine := template_engine.NewEngineNormal(safeString(req.AppViewPrefix))
-		mergedHTML = engine.MergeTemplates(*req.AppSite, *req.AppFile, safeString(req.AppView), templates, true)
-	}
-	engineTimeMs := float64(time.Since(engineStart).Microseconds()) / 1000.0
-	serverTimeMs := float64(time.Since(serverStart).Microseconds()) / 1000.0
-	responseObj := map[string]interface{}{
-		"html": mergedHTML,
-		"timing": map[string]interface{}{
-			"serverTimeMs": serverTimeMs,
-			"engineTimeMs": engineTimeMs,
-		},
-	}
-	c.Header("Content-Type", "application/json")
-	c.JSON(http.StatusOK, responseObj)
-}
-
-// index handles the GET / endpoint
-func index(c *gin.Context) {
-	// Use template_common to get the correct wwwroot/AppSites path
-	assemblerWebDirPath, _ := template_common.GetAssemblerWebDirPath()
-	appSitesPath := filepath.Join(assemblerWebDirPath, "AppSites")
-
-	var optionsList []string
-
-	if _, err := os.Stat(appSitesPath); err == nil {
-		testDirs, err := os.ReadDir(appSitesPath)
-		if err == nil {
-			for _, entry := range testDirs {
-				if !entry.IsDir() {
-					continue
-				}
-				testDir := entry.Name()
-				if strings.EqualFold(testDir, "roottemplate.html") {
-					continue
-				}
-
-				testDirPath := filepath.Join(appSitesPath, testDir)
-
-				// Find root html files
-				htmlFiles := getHTMLFiles(testDirPath)
-
-				// Views subdir
-				viewsPath := filepath.Join(testDirPath, "Views")
-				hasViews := exists(viewsPath)
-
-				for _, htmlFile := range htmlFiles {
-					appViewPrefix := ""
-					if len(htmlFile) >= 6 {
-						appViewPrefix = htmlFile[:6]
-					} else {
-						appViewPrefix = htmlFile
-					}
-					optionValue := fmt.Sprintf("%s,%s,,%s", testDir, htmlFile, appViewPrefix)
-					optionText := fmt.Sprintf("%s - %s", testDir, htmlFile)
-					optionsList = append(optionsList, fmt.Sprintf("<option value=\"%s\">%s</option>", optionValue, optionText))
-				}
-
-				if hasViews {
-					viewFiles := getHTMLFiles(viewsPath)
-
-					var appViewValues []string
-					for _, vf := range viewFiles {
-						idx := strings.Index(strings.ToLower(vf), "content")
-						if idx > 0 {
-							viewPart := vf[:idx]
-							if len(viewPart) > 0 {
-								appViewValues = append(appViewValues, strings.ToUpper(viewPart[:1])+viewPart[1:])
-							}
-						}
-					}
-
-					// Remove duplicates
-					appViewValues = removeDuplicates(appViewValues)
-
-					for _, rootFile := range htmlFiles {
-						rootAppViewPrefix := ""
-						if len(rootFile) >= 6 {
-							rootAppViewPrefix = rootFile[:6]
-						} else {
-							rootAppViewPrefix = rootFile
-						}
-
-						var matchingViewPrefix string
-						for _, vf := range viewFiles {
-							idx := strings.Index(strings.ToLower(vf), "content")
-							if idx > 0 {
-								prefix := vf[:idx]
-								if len(prefix) > 0 && strings.HasPrefix(strings.ToLower(rootFile), strings.ToLower(prefix)) {
-									matchingViewPrefix = prefix
-									break
-								}
-							}
-						}
-
-						if matchingViewPrefix != "" {
-							for _, appView := range appViewValues {
-								optionValueAppView := fmt.Sprintf("%s,%s,%s,%s", testDir, rootFile, appView, rootAppViewPrefix)
-								optionTextAppView := fmt.Sprintf("%s - %s (AppView: %s)", testDir, rootFile, appView)
-								optionsList = append(optionsList, fmt.Sprintf("<option value=\"%s\">%s</option>", optionValueAppView, optionTextAppView))
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	options := strings.Join(optionsList, "\n        ")
-	templatePath := filepath.Join(appSitesPath, "roottemplate.html")
-	htmlBytes, err := os.ReadFile(templatePath)
-	var html string
-	if err != nil {
-		html = fmt.Sprintf("<html><body>Template not found at %s</body></html>", templatePath)
-	} else {
-		html = string(htmlBytes)
-	}
-	html = strings.Replace(html, "<!--OPTIONS-->", options, -1)
-
-	c.Header("Content-Type", "text/html")
-	c.String(http.StatusOK, html)
-}
 
 // openapi handles the GET /openapi.json endpoint to serve OpenAPI specification
 func openapi(c *gin.Context) {
@@ -306,50 +131,6 @@ func IdleTrackingMiddleware(idleSeconds int) gin.HandlerFunc {
 	}
 }
 
-// Helper functions
-func safeString(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
-
-func getHTMLFiles(dirPath string) []string {
-	var htmlFiles []string
-	files, err := os.ReadDir(dirPath)
-	if err != nil {
-		return htmlFiles
-	}
-
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(strings.ToLower(file.Name()), ".html") {
-			name := file.Name()
-			ext := filepath.Ext(name)
-			htmlFiles = append(htmlFiles, name[:len(name)-len(ext)])
-		}
-	}
-
-	sort.Strings(htmlFiles)
-	return htmlFiles
-}
-
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return !os.IsNotExist(err)
-}
-
-func removeDuplicates(slice []string) []string {
-	keys := make(map[string]bool)
-	var result []string
-	for _, item := range slice {
-		if !keys[item] {
-			keys[item] = true
-			result = append(result, item)
-		}
-	}
-	return result
-}
-
 func main() {
 	// OS environment detection
 	if _, err := os.Stat("/proc/sys/kernel/osrelease"); err == nil {
@@ -376,8 +157,19 @@ func main() {
 	}
 	fmt.Println("Starting Go AssemblerWeb server...")
 
-	// Set Gin to release mode to reduce verbosity
-	gin.SetMode(gin.ReleaseMode)
+	// Check if running in VSCode debugger or explicitly in debug mode
+	isDebug := os.Getenv("DEBUG") == "true" ||
+	           os.Getenv("VSCODE_DEBUG") == "true" ||
+	           os.Getenv("GO_ENV") == "development"
+
+	if isDebug {
+		// Set Gin to debug mode for development
+		gin.SetMode(gin.DebugMode)
+		fmt.Println("[DEBUG] Running in development mode - idle tracking disabled")
+	} else {
+		// Set Gin to release mode (default/production)
+		gin.SetMode(gin.ReleaseMode)
+	}
 
 	idleSeconds := 10
 	if v := os.Getenv("IDLE_SECONDS"); v != "" {
@@ -388,23 +180,27 @@ func main() {
 
 	r := gin.Default()
 
-	// Idle Tracking Middleware
-	if gin.Mode() != gin.DebugMode {
+	// Idle Tracking Middleware - enabled by default, disabled only in debug mode
+	if !isDebug {
 		r.Use(IdleTrackingMiddleware(idleSeconds))
+		fmt.Printf("[PRODUCTION] Idle tracking enabled (%d seconds)\n", idleSeconds)
 	}
-
-	// Serve Scalar UI static files
-	r.Static("/scalar", "./wwwroot/scalar")
 
 	// Other routes
 	r.GET("/", index)
 	r.POST("/merge", mergeTemplates)
 	r.GET("/openapi.json", openapi)
 
+	// Serve Scalar UI static files
+	r.Static("/scalar", "./wwwroot/scalar")
+
+	// Serve all wwwroot files (for test summary HTML files, etc.) - must come after specific routes
+	r.StaticFS("/", http.Dir("./wwwroot"))
+
 	// Launch Scalar UI in browser after a short delay
 	go func() {
 		time.Sleep(500 * time.Millisecond)
-		open.Run("http://127.0.0.1:8080/scalar")
+		open.Run("http://127.0.0.1:8080")
 	}()
 
 	log.Fatal(r.Run(":8080"))

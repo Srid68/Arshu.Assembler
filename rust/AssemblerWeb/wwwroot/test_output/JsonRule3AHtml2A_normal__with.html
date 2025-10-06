@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+    <meta name="description" content="Arshu Polyglot Web Assembler - Server-side C# implementation for template merging and rendering with comparison between Normal Engine and PreProcess Engine">
+    <meta property="og:title" content="Arshu Polyglot C# Web Assembler">
+    <title>Arshu Polyglot C# Web Assembler</title>
+</head>
+<body>
+
+     <style>
+.content {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    min-height: calc(100vh - 220px);
+}
+
+.column {
+    flex: 1;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.column-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px 20px;
+}
+
+.column-header h2 {
+    margin: 0;
+    font-size: 1.3em;
+    font-weight: 600;
+    text-align: center;
+}
+
+.timing-bar {
+    text-align: center;
+    font-size: 0.85em;
+    margin-top: 8px;
+    color: rgba(255,255,255,0.95);
+    font-weight: 500;
+}
+
+.timing-bar b {
+    color: #fff;
+    background: rgba(0,0,0,0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.column-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.result-content {
+    border: 2px solid #e0e0e0;
+    padding: 16px;
+    min-height: 300px;
+    background: #fafafa;
+    border-radius: 8px;
+}
+
+.template-details {
+    display: none;
+}
+
+.template-details.show {
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .content {
+        flex-direction: column;
+        padding: 10px;
+    }
+
+    .column {
+        min-height: 400px;
+    }
+
+    .timing-bar {
+        font-size: 0.75em;
+        line-height: 1.4;
+    }
+}
+</style>
+
+<div class="content">
+    <div class="column">
+        
+            <div class="column-header">
+    <h2>Normal Engine</h2>
+    <div class="timing-bar" id="normal-timing-bar"></div>
+</div>
+<div class="column-content">
+    <div class="result-content" id="normal-result">
+        <div class="loading">Select a scenario to see the Normal engine result</div>
+    </div>
+</div>
+
+        
+    </div>
+    <div class="column">
+        
+            <div class="column-header">
+    <h2>PreProcess Engine</h2>
+    <div class="timing-bar" id="preprocess-timing-bar"></div>
+</div>
+<div class="column-content">
+    <div class="result-content" id="preprocess-result">
+        <div class="loading">Select a scenario to see the PreProcess engine result</div>
+    </div>
+</div>
+
+        
+    </div>
+</div>
+
+
+
+</body>
+</html>

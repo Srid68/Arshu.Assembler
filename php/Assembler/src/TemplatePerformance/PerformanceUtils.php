@@ -44,6 +44,8 @@ class PerformanceUtils
      */
     public static function runPerformanceComparison(string $assemblerWebDirPath, bool $enableJsonProcessing, ?string $appSiteFilter = null, bool $skipDetails = false): array
     {
+        $startTime = microtime(true);
+        echo "\n========== RunPerformanceComparison ==========\n";
         $iterations = 1000;
         $appSitesPath = $assemblerWebDirPath . DIRECTORY_SEPARATOR . 'AppSites';
         $summaryRows = [];
@@ -68,17 +70,11 @@ class PerformanceUtils
                     $templates = LoaderNormal::loadGetTemplateFiles($assemblerWebDirPath, $testAppSite);
                     $siteTemplates = LoaderPreProcess::loadProcessGetTemplateFiles($assemblerWebDirPath, $testAppSite);
                     if ($templates === null || count($templates) === 0) {
-                        if (!$skipDetails) echo "❌ No templates found for {$testAppSite}\n";
                         continue;
                     }
                     $mainTemplateKey = strtolower($testAppSite . '_' . $appFileName);
                     if (!isset($templates[$mainTemplateKey])) {
-                        if (!$skipDetails) echo "❌ No main template found for {$mainTemplateKey}\n";
                         continue;
-                    }
-                    if (!$skipDetails) {
-                        echo "Template Key: {$mainTemplateKey}\n";
-                        echo "Templates available: " . count($templates) . "\n";
                     }
                     $appViewScenarios = [['AppView' => '', 'AppViewPrefix' => '']];
                     $viewsPath = $appSiteDir . DIRECTORY_SEPARATOR . 'Views';
@@ -104,8 +100,8 @@ class PerformanceUtils
                     foreach ($appViewScenarios as $scenario) {
                         if (!$skipDetails) {
                             echo str_repeat('-', 60) . "\n";
-                            echo ">>> PHP SCENARIO : '{$testAppSite}', '{$appFileName}', '{$scenario['AppView']}', '{$scenario['AppViewPrefix']}'\n";
-                            echo "Iterations per test: " . number_format($iterations) . "\n";
+                            echo "[PHP] Testing: AppSite={$testAppSite}, AppFile={$appFileName}, AppView={$scenario['AppView']}\n";
+                            echo "[PHP] Iterations: " . number_format($iterations) . "\n";
                         }
                         LoaderNormal::clearCache();
                         LoaderPreProcess::clearCache();
@@ -118,8 +114,8 @@ class PerformanceUtils
                         }
                         $normalTime = round((microtime(true) - $start) * 1000, 2);
                         if (!$skipDetails) {
-                            echo "[Normal Engine] " . number_format($iterations) . " iterations: {$normalTime}ms\n";
-                            echo "[Normal Engine] Avg: " . number_format($normalTime / $iterations, 3) . "ms per op, Output size: " . strlen($resultNormal) . " chars\n";
+                            $avg = $normalTime / $iterations;
+                            echo "[PHP] Normal Engine:     {$normalTime}ms | Avg: " . number_format($avg, 3) . "ms/op | Size: " . strlen($resultNormal) . " chars\n";
                         }
                         LoaderNormal::clearCache();
                         LoaderPreProcess::clearCache();
@@ -132,14 +128,15 @@ class PerformanceUtils
                         }
                         $preProcessTime = round((microtime(true) - $start) * 1000, 2);
                         if (!$skipDetails) {
-                            echo "[PreProcess Engine] " . number_format($iterations) . " iterations: {$preProcessTime}ms\n";
-                            echo "[PreProcess Engine] Avg: " . number_format($preProcessTime / $iterations, 3) . "ms per op, Output size: " . strlen($resultPreProcess) . " chars\n";
-                            echo ">>> PHP PERFORMANCE COMPARISON:\n";
-                            echo str_repeat('-', 50) . "\n";
+                            $avg = $preProcessTime / $iterations;
+                            echo "[PHP] PreProcess Engine: {$preProcessTime}ms | Avg: " . number_format($avg, 3) . "ms/op | Size: " . strlen($resultPreProcess) . " chars\n";
+
                             $difference = round($preProcessTime - $normalTime, 2);
                             $differencePercent = $normalTime > 0 ? ($difference / $normalTime) * 100 : 0;
-                            echo "Time difference: {$difference}ms (" . number_format($differencePercent, 1) . "%)\n";
-                            echo "Results match: " . ($resultNormal === $resultPreProcess ? "✅ YES" : "❌ NO") . "\n";
+                            $signMs = $difference >= 0 ? '+' : '';
+                            $signPct = $differencePercent >= 0 ? '+' : '';
+                            $matchStr = $resultNormal === $resultPreProcess ? 'YES' : 'NO';
+                            echo "[PHP] Performance: {$signMs}{$difference}ms ({$signPct}" . number_format($differencePercent, 1) . "%) | Match: {$matchStr}\n";
                         }
                         $summaryRows[] = new PerfSummaryRow(
                             $testAppSite,
@@ -158,6 +155,8 @@ class PerformanceUtils
                 }
             }
         }
+        $elapsed = (microtime(true) - $startTime) * 1000;
+        echo sprintf("\n========== Performance Testing Completed in %.0fms ==========\n\n", $elapsed);
         return $summaryRows;
     }
 

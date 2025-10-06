@@ -47,15 +47,39 @@ class TemplateUtils
             ];
         }
 
-        // Local: resolve from workspace root
-        $workspaceRoot = realpath(__DIR__ . '/../../../..');
-        $assemblerWebDirPath = $workspaceRoot . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR . 'AssemblerWeb' . DIRECTORY_SEPARATOR . 'wwwroot';
-        if (!is_dir($assemblerWebDirPath)) {
-            // Fallback: workspaceRoot/AssemblerWeb/wwwroot
-            $assemblerWebDirPath = $workspaceRoot . DIRECTORY_SEPARATOR . 'AssemblerWeb' . DIRECTORY_SEPARATOR . 'wwwroot';
+        // Get current directory and determine project directory dynamically
+        $currentDirectory = getcwd();
+        $projectDirectory = $currentDirectory;
+
+        // Check if we're in vendor directory (typical for Composer autoload)
+        $vendorPos = strpos($currentDirectory, 'vendor');
+        if ($vendorPos !== false) {
+            // Extract path up to but not including vendor
+            $projectDirectory = substr($currentDirectory, 0, $vendorPos);
         }
-        $assemblerWebDirPath = realpath($assemblerWebDirPath);
-        $projectDirectory = $workspaceRoot . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR . 'AssemblerTest';
+        // Check if current directory ends with AssemblerTest or AssemblerWeb
+        else if (basename($currentDirectory) === 'AssemblerTest' || basename($currentDirectory) === 'AssemblerWeb') {
+            $projectDirectory = $currentDirectory;
+        }
+        // Check if current directory is php
+        else if (basename($currentDirectory) === 'php') {
+            $projectDirectory = $currentDirectory . DIRECTORY_SEPARATOR . 'AssemblerTest';
+        }
+        // Check if current directory starts with Arshu.Assembler
+        else if (strpos(basename($currentDirectory), 'Arshu.Assembler') === 0) {
+            $projectDirectory = $currentDirectory . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR . 'AssemblerTest';
+        }
+
+        // Determine assemblerWebDirPath from project directory
+        $assemblerWebDirPath = '';
+        if (!empty($projectDirectory)) {
+            $parentDir = dirname($projectDirectory);
+            $webDirPath = $parentDir . DIRECTORY_SEPARATOR . 'AssemblerWeb' . DIRECTORY_SEPARATOR . 'wwwroot';
+            if (is_dir($webDirPath)) {
+                $assemblerWebDirPath = realpath($webDirPath);
+            }
+        }
+
         return [
             'assemblerWebDirPath' => $assemblerWebDirPath,
             'projectDirectory' => $projectDirectory
@@ -140,6 +164,26 @@ class TemplateUtils
         }
 
         return $result;
+    }
+
+    /**
+     * Replaces the first occurrence of 'from' in 'text' (case-insensitive) with 'to'
+     * @param string $text Text to search in
+     * @param string $from Text to search for
+     * @param string $to Replacement text
+     * @return string Modified text
+     */
+    public static function replaceCaseInsensitive(string $text, string $from, string $to): string
+    {
+        if (empty($text) || empty($from)) {
+            return $text;
+        }
+
+        $index = stripos($text, $from);
+        if ($index !== false) {
+            return substr($text, 0, $index) . $to . substr($text, $index + strlen($from));
+        }
+        return $text;
     }
 }
 ?>
