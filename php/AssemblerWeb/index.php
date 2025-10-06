@@ -66,8 +66,8 @@ $isDebug = getenv('APP_ENV') === 'development'
     || in_array('--debug', $_SERVER['argv'] ?? [])
     || php_sapi_name() === 'cli-server'; // PHP built-in server
 
-// Also check if running under debugger (Xdebug)
-if (function_exists('xdebug_is_debugger_active') && xdebug_is_debugger_active()) {
+// Also check if Xdebug extension is loaded (indicates development environment)
+if (extension_loaded('xdebug')) {
     $isDebug = true;
 }
 
