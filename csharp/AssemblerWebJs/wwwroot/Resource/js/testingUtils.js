@@ -64,9 +64,12 @@ class TestingUtils {
                     });
                 }
 
+                // Calculate appViewPrefix from appFile when appView is not empty
+                const appViewPrefix = scenario.appView ? scenario.appFile : "";
+
                 // Test Normal engine
                 const normalEngine = new EngineNormal();
-                normalEngine.appViewPrefix = scenario.appViewPrefix;
+                normalEngine.appViewPrefix = appViewPrefix;
                 const resultNormal = normalEngine.mergeTemplates(scenario.appSite, scenario.appFile, scenario.appView, templatesMap, enableJsonProcessing);
 
                 if (!skipDetails) {
@@ -166,143 +169,194 @@ class TestingUtils {
             console.log('Logger initialized with DEBUG level');
         }
 
-        const summaryRows = [];
-
-        for (let i = 0; i < scenarios.length; i++) {
-            const scenario = scenarios[i];
-
-            if (progressCallback) {
-                progressCallback({
-                    current: i + 1,
-                    total: scenarios.length,
-                    scenario: scenario.displayText
-                });
+        // Group scenarios by AppSite and AppFile
+        const scenarioGroups = new Map();
+        for (const scenario of scenarios) {
+            const key = `${scenario.appSite}|${scenario.appFile}`;
+            if (!scenarioGroups.has(key)) {
+                scenarioGroups.set(key, []);
             }
+            scenarioGroups.get(key).push(scenario);
+        }
 
-            try {
-                console.log(`🔍 ADVANCED TEST : appsite: ${scenario.appSite} appfile: ${scenario.appFile}`);
+        const summaryRows = [];
+        let scenarioIndex = 0;
 
-                // Load templates for this scenario
-                const response = await fetch('/api/templates', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ appsite: scenario.appSite })
-                });
-                if (!response.ok) {
-                    throw new Error(`Failed to load templates: ${response.statusText}`);
-                }
+        // Process each group
+        for (const [groupKey, groupScenarios] of scenarioGroups) {
+            const scenarioResults = [];
 
-                const data = await response.json();
+            // Test each scenario in the group
+            for (const scenario of groupScenarios) {
+                scenarioIndex++;
 
-                // Convert templates to Map format expected by EngineNormal (matching ToolbarClientJs pattern)
-                const normalTemplatesMap = new Map();
-                for (const [key, template] of Object.entries(data.Templates)) {
-                    normalTemplatesMap.set(key, {
-                        html: template.Html || template.html || '',
-                        json: template.Json || template.json || null
+                if (progressCallback) {
+                    progressCallback({
+                        current: scenarioIndex,
+                        total: scenarios.length,
+                        scenario: scenario.displayText
                     });
                 }
 
-                // PreProcess engine can use plain object directly
-                const preprocessTemplates = data.PreProcessTemplates;
+                try {
+                    console.log(`🔍 ADVANCED TEST : appsite: ${scenario.appSite} appfile: ${scenario.appFile}`);
 
-                // Test Normal Engine
-                const normalEngine = new EngineNormal();
-                normalEngine.appViewPrefix = scenario.appViewPrefix;
-                const resultNormal = normalEngine.mergeTemplates(scenario.appSite, scenario.appFile, scenario.appView, normalTemplatesMap, enableJsonProcessing);
-
-                // Test PreProcess Engine
-                const preprocessEngine = new EnginePreProcess();
-                preprocessEngine.appViewPrefix = scenario.appViewPrefix;
-                const resultPreprocess = preprocessEngine.mergeTemplates(scenario.appSite, scenario.appFile, scenario.appView, preprocessTemplates, enableJsonProcessing);
-
-                const outputsMatch = resultNormal === resultPreprocess;
-
-                if (!skipDetails) {
-                    console.log(`\n${scenario.appSite}: 📊 RESULTS COMPARISON:`);
-                    console.log(`${scenario.appSite}: ---------------------------------------------`);
-                    console.log(`${scenario.appSite}: 🔹 Both Methods:`);
-                    console.log(`${scenario.appSite}:   Normal: ${resultNormal.length} chars`);
-                    console.log(`${scenario.appSite}:   PreProcess: ${resultPreprocess.length} chars`);
-                    console.log(`${scenario.appSite}:   ${outputsMatch ? '✅' : '❌'} Normal vs PreProcess: ${outputsMatch ? 'MATCH' : 'NO MATCH'}`);
-
-                    if (outputsMatch) {
-                        console.log(`\n${scenario.appSite}: 🎉 ALL METHODS PRODUCE IDENTICAL RESULTS! ✅`);
-                    } else {
-                        console.log(`\n${scenario.appSite}: ⚠️  METHODS PRODUCE DIFFERENT RESULTS! ❌`);
+                    // Load templates for this scenario
+                    const response = await fetch('/api/templates', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ appsite: scenario.appSite })
+                    });
+                    if (!response.ok) {
+                        throw new Error(`Failed to load templates: ${response.statusText}`);
                     }
-                }
 
-                if (printHtmlOutput) {
-                    if (scenario.appView) {
-                        console.log(`\nFULL HTML OUTPUT (Normal) for AppView '${scenario.appView}':\n${resultNormal}`);
-                        console.log(`\nFULL HTML OUTPUT (PreProcess) for AppView '${scenario.appView}':\n${resultPreprocess}`);
-                    } else {
-                        console.log(`\n📋 FINAL OUTPUT SAMPLE (full HTML):\n${scenario.appSite}: ${resultNormal}`);
+                    const data = await response.json();
+
+                    // Convert templates to Map format expected by EngineNormal (matching ToolbarClientJs pattern)
+                    const normalTemplatesMap = new Map();
+                    for (const [key, template] of Object.entries(data.Templates)) {
+                        normalTemplatesMap.set(key, {
+                            html: template.Html || template.html || '',
+                            json: template.Json || template.json || null
+                        });
                     }
-                }
 
-                // Save output files
-                await TestingUtils.saveOutput(scenario.appSite, scenario.appView, 'normal', resultNormal);
-                await TestingUtils.saveOutput(scenario.appSite, scenario.appView, 'preprocess', resultPreprocess);
+                    // PreProcess engine can use plain object directly
+                    const preprocessTemplates = data.PreProcessTemplates;
 
-                const matchResult = outputsMatch ? "PASS" : "FAIL";
-                summaryRows.push({
-                    AppSite: scenario.appSite,
-                    AppFile: scenario.appFile,
-                    AppView: scenario.appView,
-                    NormalPreProcess: matchResult,
-                    CrossViewUnMatch: "",
-                    Error: ""
-                });
+                    // Calculate appViewPrefix from appFile when appView is not empty
+                    const appViewPrefix = scenario.appView ? scenario.appFile : "";
 
-                // Show output analysis when there's a difference
-                if (!outputsMatch) {
-                    console.log(`\n🔎 Output Analysis:`);
-                    TestingUtils.analyzeOutputDifferences(resultNormal, resultPreprocess);
-                }
+                    // Test Normal Engine
+                    const normalEngine = new EngineNormal();
+                    normalEngine.appViewPrefix = appViewPrefix;
+                    const resultNormal = normalEngine.mergeTemplates(scenario.appSite, scenario.appFile, scenario.appView, normalTemplatesMap, enableJsonProcessing);
 
-                // Check for unmerged template fields
-                if (!skipDetails) {
-                    console.log(`\n${scenario.appSite}: 🔎 Checking for unmerged template fields in outputs...`);
-                }
+                    // Test PreProcess Engine
+                    const preprocessEngine = new EnginePreProcess();
+                    preprocessEngine.appViewPrefix = appViewPrefix;
+                    const resultPreprocess = preprocessEngine.mergeTemplates(scenario.appSite, scenario.appFile, scenario.appView, preprocessTemplates, enableJsonProcessing);
 
-                const outputInfos = [
-                    { name: 'Normal', result: resultNormal },
-                    { name: 'PreProcess', result: resultPreprocess }
-                ];
+                    const outputsMatch = resultNormal === resultPreprocess;
 
-                let foundUnmerged = false;
-                for (const outputInfo of outputInfos) {
-                    const unmergedFields = TestingUtils.findUnmergedTemplateFields(outputInfo.result);
-                    if (unmergedFields.length > 0) {
-                        const filteredFields = enableJsonProcessing ?
-                            unmergedFields :
-                            unmergedFields.filter(f => !f.startsWith('${{Json') && !f.startsWith('${{$Json'));
+                    if (!skipDetails) {
+                        console.log(`\n${scenario.appSite}: 📊 RESULTS COMPARISON:`);
+                        console.log(`${scenario.appSite}: ---------------------------------------------`);
+                        console.log(`${scenario.appSite}: 🔹 Both Methods:`);
+                        console.log(`${scenario.appSite}:   Normal: ${resultNormal.length} chars`);
+                        console.log(`${scenario.appSite}:   PreProcess: ${resultPreprocess.length} chars`);
+                        console.log(`${scenario.appSite}:   ${outputsMatch ? '✅' : '❌'} Normal vs PreProcess: ${outputsMatch ? 'MATCH' : 'NO MATCH'}`);
 
-                        if (filteredFields.length > 0) {
-                            if (!skipDetails) {
-                                console.log(`${scenario.appSite}:   ❌ ${outputInfo.name} output contains ${filteredFields.length} unmerged non-JSON template fields!`);
-                                for (const field of filteredFields) {
-                                    console.log(`${scenario.appSite}:      Unmerged field: ${field}`);
-                                }
-                            }
-                            foundUnmerged = true;
+                        if (outputsMatch) {
+                            console.log(`\n${scenario.appSite}: 🎉 ALL METHODS PRODUCE IDENTICAL RESULTS! ✅`);
+                        } else {
+                            console.log(`\n${scenario.appSite}: ⚠️  METHODS PRODUCE DIFFERENT RESULTS! ❌`);
                         }
                     }
-                }
 
-            } catch (error) {
-                console.error(`❌ Test failed for ${scenario.appSite}:${scenario.appFile}: ${error.message}`);
+                    if (printHtmlOutput) {
+                        if (scenario.appView) {
+                            console.log(`\nFULL HTML OUTPUT (Normal) for AppView '${scenario.appView}':\n${resultNormal}`);
+                            console.log(`\nFULL HTML OUTPUT (PreProcess) for AppView '${scenario.appView}':\n${resultPreprocess}`);
+                        } else {
+                            console.log(`\n📋 FINAL OUTPUT SAMPLE (full HTML):\n${scenario.appSite}: ${resultNormal}`);
+                        }
+                    }
+
+                    // Save output files
+                    await TestingUtils.saveOutput(scenario.appSite, scenario.appView, 'normal', resultNormal);
+                    await TestingUtils.saveOutput(scenario.appSite, scenario.appView, 'preprocess', resultPreprocess);
+
+                    const matchResult = outputsMatch ? "PASS" : "FAIL";
+
+                    // Store result for cross-view comparison
+                    scenarioResults.push({
+                        scenario: scenario,
+                        normalOutput: resultNormal,
+                        preprocessOutput: resultPreprocess,
+                        matchStatus: matchResult
+                    });
+
+                    // Show output analysis when there's a difference
+                    if (!outputsMatch) {
+                        console.log(`\n🔎 Output Analysis:`);
+                        TestingUtils.analyzeOutputDifferences(resultNormal, resultPreprocess);
+                    }
+
+                    // Check for unmerged template fields
+                    if (!skipDetails) {
+                        console.log(`\n${scenario.appSite}: 🔎 Checking for unmerged template fields in outputs...`);
+                    }
+
+                    const outputInfos = [
+                        { name: 'Normal', result: resultNormal },
+                        { name: 'PreProcess', result: resultPreprocess }
+                    ];
+
+                    let foundUnmerged = false;
+                    for (const outputInfo of outputInfos) {
+                        const unmergedFields = TestingUtils.findUnmergedTemplateFields(outputInfo.result);
+                        if (unmergedFields.length > 0) {
+                            const filteredFields = enableJsonProcessing ?
+                                unmergedFields :
+                                unmergedFields.filter(f => !f.startsWith('${{Json') && !f.startsWith('${{$Json'));
+
+                            if (filteredFields.length > 0) {
+                                if (!skipDetails) {
+                                    console.log(`${scenario.appSite}:   ❌ ${outputInfo.name} output contains ${filteredFields.length} unmerged non-JSON template fields!`);
+                                    for (const field of filteredFields) {
+                                        console.log(`${scenario.appSite}:      Unmerged field: ${field}`);
+                                    }
+                                }
+                                foundUnmerged = true;
+                            }
+                        }
+                    }
+
+                } catch (error) {
+                    console.error(`❌ Test failed for ${scenario.appSite}:${scenario.appFile}: ${error.message}`);
+                    scenarioResults.push({
+                        scenario: scenario,
+                        normalOutput: null,
+                        preprocessOutput: null,
+                        matchStatus: "FAIL",
+                        error: error.message.substring(0, 50)
+                    });
+                }
+            }
+
+            // Perform cross-view comparison for this group
+            let crossViewResult = "";
+            if (scenarioResults.length > 1) {
+                let allDiffer = true;
+                for (let i = 1; i < scenarioResults.length; i++) {
+                    for (let j = i + 1; j < scenarioResults.length; j++) {
+                        if (scenarioResults[i].normalOutput === scenarioResults[j].normalOutput ||
+                            scenarioResults[i].preprocessOutput === scenarioResults[j].preprocessOutput) {
+                            allDiffer = false;
+                            break;
+                        }
+                    }
+                    if (!allDiffer) break;
+                }
+                crossViewResult = allDiffer ? "PASS" : "FAIL";
+            }
+
+            // Add summary rows with cross-view results
+            for (let i = 0; i < scenarioResults.length; i++) {
+                const result = scenarioResults[i];
+                const crossView = (i > 0 && scenarioResults.length > 1) ? crossViewResult : "";
+
                 summaryRows.push({
-                    AppSite: scenario.appSite,
-                    AppFile: scenario.appFile,
-                    AppView: scenario.appView,
-                    NormalPreProcess: "FAIL",
-                    CrossViewUnMatch: "",
-                    Error: error.message.substring(0, 50)
+                    AppSite: result.scenario.appSite,
+                    AppFile: result.scenario.appFile,
+                    AppView: result.scenario.appView,
+                    NormalPreProcess: result.matchStatus,
+                    CrossViewUnMatch: crossView,
+                    Error: result.error || ""
                 });
             }
         }
