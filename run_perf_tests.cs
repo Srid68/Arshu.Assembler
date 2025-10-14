@@ -327,7 +327,7 @@ class RunAllPerfTest
         var htmlContent = htmlSb.ToString();
 
         // Write Markdown to workspace root
-        var markdownPath = Path.Combine(workspaceRoot, "perf_tests.md");
+        var markdownPath = Path.Combine(workspaceRoot, "all_perf_tests.md");
         File.WriteAllText(markdownPath, markdownContent);
         Console.WriteLine($"Markdown summary written to: {markdownPath}");
 
