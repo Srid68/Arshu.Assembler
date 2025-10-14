@@ -1,5 +1,8 @@
 # Ignore Rust build artifacts
 /target/
+rust/AssemblerWeb/target/
+rust/AssemblerTest/target/
+rust/Assembler/target/
 
 # Ignore C# build artifacts
 **/bin/
@@ -72,7 +75,3 @@ csharp/fly_deploy_csharp_web.bat
 csharp/fly_deploy_js_web.bat
 csharp/fly_run_csharp_web.bat
 csharp/fly_run_js_web.bat
-...existing code...
-
-
-

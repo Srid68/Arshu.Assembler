@@ -4,8 +4,7 @@ param(
     [switch]$All = $false
 )
 
-$allScenarios = @(
-    "HtmlRule1A", "HtmlRule1B", "HtmlRule2A", "HtmlRule2B", "HtmlRule2C",
+$allScenarios = @(    "HtmlRule1A", "HtmlRule1B", "HtmlRule2A", "HtmlRule2B", "HtmlRule2C",
     "HtmlRule2D", "HtmlRule2E", "HtmlRule2F", "HtmlRule3A", "HtmlRule3B",
     "Index",
     "JsonRule1A", "JsonRule1B", "JsonRule1C", "JsonRule1D", "JsonRule2A", "JsonRule2B",
@@ -24,78 +23,55 @@ if ($All) {
     Write-Host "Usage: .\compare_outputs.ps1 -Scenario <ScenarioName>  OR  .\compare_outputs.ps1 -All" -ForegroundColor Yellow
     Write-Host ""
 }
-
-$results = @()
-
-Write-Host "Testing HTML output comparison between C# and all other languages..." -ForegroundColor Magenta
-Write-Host "=====================================================================" -ForegroundColor Magenta
-
-foreach ($scenario in $scenarios) {
-    Write-Host "Testing scenario: $scenario" -ForegroundColor Yellow
-    
-    # Run C# test (reference implementation)
-    Write-Host "  Running C#..." -ForegroundColor Cyan
-    $csharpOutput = & dotnet run --project csharp/AssemblerTest/AssemblerTest.csproj -- --printhtml --appsite $scenario 2>&1
-    
-    # Extract C# output size - look for the performance line which shows "Size: X chars"
-    $csharpNormalMatch = $csharpOutput | Select-String "\[C#\] Normal Engine:.*Size: (\d+) chars" | Select-Object -First 1
-    $csharpNormalSize = if ($csharpNormalMatch) { $csharpNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
-
-    $csharpPreProcessMatch = $csharpOutput | Select-String "\[C#\] PreProcess Engine:.*Size: (\d+) chars" | Select-Object -First 1
-    $csharpPreProcessSize = if ($csharpPreProcessMatch) { $csharpPreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
     
     # Run Rust test
     Write-Host "  Running Rust..." -ForegroundColor Red
     Set-Location "rust\AssemblerTest"
-    $rustOutput = & cargo run --release -- --printhtml --appsite $scenario 2>&1
+    $rustOutput = & cargo run --release -- --skipdetails --printhtml --advancedtests --appsite $scenario 2>&1
     Set-Location "..\..\"
     
-    # Extract Rust output size
-    $rustNormalMatch = $rustOutput | Select-String "^\s*\w+:\s+Normal:\s+(\d+)\s+chars" | Select-Object -First 1
-    $rustNormalSize = if ($rustNormalMatch) { $rustNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+    # Extract Rust output size from DETAILED OUTPUT ANALYSIS
+    $rustAnalysis = $rustOutput | Select-String "Normal length: (\d+) chars" | Select-Object -First 1
+    $rustNormalSize = if ($rustAnalysis) { $rustAnalysis.Matches[0].Groups[1].Value } else { "ERROR" }
 
-    $rustPreProcessMatch = $rustOutput | Select-String "^\s*\w+:\s+PreProcess:\s+(\d+)\s+chars" | Select-Object -First 1
-    $rustPreProcessSize = if ($rustPreProcessMatch) { $rustPreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
-    
+    $rustPreProcessAnalysis = $rustOutput | Select-String "PreProcess length: (\d+) chars" | Select-Object -First 1
+    $rustPreProcessSize = if ($rustPreProcessAnalysis) { $rustPreProcessAnalysis.Matches[0].Groups[1].Value } else { "ERROR" }    
     # Run Go test
     Write-Host "  Running Go..." -ForegroundColor Green
     Set-Location "go\AssemblerTest"
-    $goOutput = & go run . --printhtml --appsite $scenario 2>&1
+    $goOutput = & go run . --skipdetails --printhtml --advancedtests --appsite $scenario 2>&1
     Set-Location "..\..\"
     
-    # Extract Go output size
-    $goNormalMatch = $goOutput | Select-String "Normal: (\d+) chars" | Select-Object -First 1
-    $goNormalSize = if ($goNormalMatch) { $goNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+    # Extract Go output size from DETAILED OUTPUT ANALYSIS
+    $goAnalysis = $goOutput | Select-String "Normal length: (\d+) chars" | Select-Object -First 1
+    $goNormalSize = if ($goAnalysis) { $goAnalysis.Matches[0].Groups[1].Value } else { "ERROR" }
 
-    $goPreProcessMatch = $goOutput | Select-String "PreProcess: (\d+) chars" | Select-Object -First 1
-    $goPreProcessSize = if ($goPreProcessMatch) { $goPreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
-    
+    $goPreProcessAnalysis = $goOutput | Select-String "PreProcess length: (\d+) chars" | Select-Object -First 1
+    $goPreProcessSize = if ($goPreProcessAnalysis) { $goPreProcessAnalysis.Matches[0].Groups[1].Value } else { "ERROR" }    
     # Run Node test
     Write-Host "  Running Node..." -ForegroundColor Magenta
     Set-Location "node\AssemblerTest"
-    $nodeOutput = & node index.js --printhtml --appsite $scenario 2>&1
+    $nodeOutput = & node index.js --skipdetails --printhtml --advancedtests --appsite $scenario 2>&1
     Set-Location "..\..\"
     
-    # Extract Node output size - look for the performance line which shows "Size: X chars"
-    $nodeNormalMatch = $nodeOutput | Select-String "\[Node\.js\] Normal Engine:.*Size: (\d+) chars" | Select-Object -First 1
-    $nodeNormalSize = if ($nodeNormalMatch) { $nodeNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+    # Extract Node output size from DETAILED OUTPUT ANALYSIS
+    $nodeAnalysis = $nodeOutput | Select-String "Normal length: (\d+) chars" | Select-Object -First 1
+    $nodeNormalSize = if ($nodeAnalysis) { $nodeAnalysis.Matches[0].Groups[1].Value } else { "ERROR" }
 
-    $nodePreProcessMatch = $nodeOutput | Select-String "\[Node\.js\] PreProcess Engine:.*Size: (\d+) chars" | Select-Object -First 1
-    $nodePreProcessSize = if ($nodePreProcessMatch) { $nodePreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
-    
+    $nodePreProcessAnalysis = $nodeOutput | Select-String "PreProcess length: (\d+) chars" | Select-Object -First 1
+    $nodePreProcessSize = if ($nodePreProcessAnalysis) { $nodePreProcessAnalysis.Matches[0].Groups[1].Value } else { "ERROR" }    
     # Run PHP test
     Write-Host "  Running PHP..." -ForegroundColor Blue
     Set-Location "php\AssemblerTest"
-    $phpOutput = & php index.php --printhtml --appsite $scenario 2>&1
+    $phpOutput = & php index.php --skipdetails --printhtml --advancedtests --appsite $scenario 2>&1
     Set-Location "..\..\"
     
-    # Extract PHP output size - look for the performance line which shows "Size: X chars"
-    $phpNormalMatch = $phpOutput | Select-String "\[PHP\] Normal Engine:.*Size: (\d+) chars" | Select-Object -First 1
-    $phpNormalSize = if ($phpNormalMatch) { $phpNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
+    # Extract PHP output size from DETAILED OUTPUT ANALYSIS
+    $phpAnalysis = $phpOutput | Select-String "Normal length: (\d+) chars" | Select-Object -First 1
+    $phpNormalSize = if ($phpAnalysis) { $phpAnalysis.Matches[0].Groups[1].Value } else { "ERROR" }
 
-    $phpPreProcessMatch = $phpOutput | Select-String "\[PHP\] PreProcess Engine:.*Size: (\d+) chars" | Select-Object -First 1
-    $phpPreProcessSize = if ($phpPreProcessMatch) { $phpPreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
-    
+    $phpPreProcessAnalysis = $phpOutput | Select-String "PreProcess length: (\d+) chars" | Select-Object -First 1
+    $phpPreProcessSize = if ($phpPreProcessAnalysis) { $phpPreProcessAnalysis.Matches[0].Groups[1].Value } else { "ERROR" }    
     # Compare results - all languages now count UTF-16 characters
     $rustNormalMatch = if ($csharpNormalSize -eq $rustNormalSize -and $csharpNormalSize -ne "ERROR") { "✅" } else { "❌" }
     $goNormalMatch = if ($csharpNormalSize -eq $goNormalSize -and $csharpNormalSize -ne "ERROR") { "✅" } else { "❌" }
