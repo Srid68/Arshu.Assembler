@@ -1,5 +1,5 @@
 <?php
-namespace Assembler\TemplateModel;
+namespace Assembler\Model;
 class SlotPlaceholder {
     public array $nestedSlots = [];
     public string $number = '';

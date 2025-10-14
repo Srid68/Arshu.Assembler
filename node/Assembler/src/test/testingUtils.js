@@ -69,6 +69,32 @@ export async function runStandardTests(assemblerWebDirPath, projectDirectory, sc
                 }
             }
 
+            // Validate for unresolved placeholders
+            const scenarioUnresolved = [];
+            for (const output of scenarioOutputs) {
+                let hasUnresolved = false;
+                const isEmpty = !output || output.trim() === "";
+
+                // Scan for any {{...}} patterns which indicate unresolved placeholders
+                let startIndex = 0;
+                while (true) {
+                    startIndex = output.indexOf("{{", startIndex);
+                    if (startIndex === -1) break;
+
+                    const endIndex = output.indexOf("}}", startIndex);
+                    if (endIndex === -1) break;
+
+                    // Any {{...}} pattern in final output is unresolved
+                    hasUnresolved = true;
+                    if (!skipDetails) {
+                        const content = output.substring(startIndex, endIndex + 2);
+                        console.log(`${testSite}: ❌ Found unresolved placeholder: ${content}`);
+                    }
+                    break;
+                }
+                scenarioUnresolved.push(hasUnresolved || isEmpty);
+            }
+
             // Compare outputs for cross-view
             let matchResult = "";
             if (group.length > 2) { // default + at least two AppViews
@@ -94,26 +120,27 @@ export async function runStandardTests(assemblerWebDirPath, projectDirectory, sc
             for (let i = 0; i < group.length; i++) {
                 const scenario = group[i];
                 const crossView = (i > 0 && group.length > 2) ? matchResult : "";
-                const normalPreProcess = (i === 0) ? "PASS" : "";
+                const hasUnresolved = scenarioUnresolved[i];
+                const normalPreProcess = (i === 0) ? (hasUnresolved ? "FAIL" : "PASS") : "";
 
                 summaryRows.push({
-                    appSite: testSite,
-                    appFile: appFileName,
-                    appView: scenario.appView,
-                    normalPreProcess: normalPreProcess,
-                    crossViewUnMatch: crossView,
-                    error: ""
+                    AppSite: testSite,
+                    AppFile: appFileName,
+                    AppView: scenario.appView,
+                    NormalPreProcess: normalPreProcess,
+                    CrossViewUnMatch: crossView,
+                    Error: ""
                 });
             }
         } catch (error) {
             console.log(`❌ Error in ${testSite}/${appFileName}: ${error.message}`);
             summaryRows.push({
-                appSite: testSite,
-                appFile: appFileName,
-                appView: "",
-                normalPreProcess: "",
-                crossViewUnMatch: "",
-                error: error.message
+                AppSite: testSite,
+                AppFile: appFileName,
+                AppView: "",
+                NormalPreProcess: "",
+                CrossViewUnMatch: "",
+                Error: error.message
             });
         }
     }
@@ -206,6 +233,17 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
                 }
             }
 
+            // Print detailed output analysis after processing all scenarios
+            if (scenarioResults.length > 0) {
+                const firstResult = scenarioResults[0];
+                const normalLen = firstResult.normalOutput.length;
+                const preprocessLen = firstResult.preProcessOutput.length;
+                console.log(`\n${testSite}: 📊 DETAILED OUTPUT ANALYSIS:`);
+                console.log(`   Normal length: ${normalLen} chars`);
+                console.log(`   PreProcess length: ${preprocessLen} chars`);
+                console.log(`   Difference: ${Math.abs(normalLen - preprocessLen)} chars`);
+            }
+
             // Cross-view comparison
             let crossViewResult = "";
             if (scenarioResults.length > 1) {
@@ -229,30 +267,30 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
                 const crossView = (i > 0 && scenarioResults.length > 1) ? crossViewResult : "";
 
                 summaryRows.push({
-                    appSite: testSite,
-                    appFile: appFileName,
-                    appView: result.appView,
-                    normalPreProcess: result.matchStatus,
-                    crossViewUnMatch: crossView,
-                    error: ""
+                    AppSite: testSite,
+                    AppFile: appFileName,
+                    AppView: result.appView,
+                    NormalPreProcess: result.matchStatus,
+                    CrossViewUnMatch: crossView,
+                    Error: ""
                 });
             }
         } catch (error) {
             console.log(`❌ Error testing ${testSite} ${appFileName}: ${error.message}`);
             summaryRows.push({
-                appSite: testSite,
-                appFile: appFileName,
-                appView: "",
-                normalPreProcess: "ERROR",
-                crossViewUnMatch: "",
-                error: error.message
+                AppSite: testSite,
+                AppFile: appFileName,
+                AppView: "",
+                NormalPreProcess: "ERROR",
+                CrossViewUnMatch: "",
+                Error: error.message
             });
         }
     }
     return summaryRows;
 }
 
-export function printTestSummaryTable(assemblerWebDirPath, summaryRows, testType) {
+export function printTestSummaryTable(assemblerWebDirPath, projectDirectory, summaryRows, testType) {
     if (!summaryRows || summaryRows.length === 0) return;
     if (!testType) testType = "TEST";
 
@@ -291,17 +329,17 @@ export function printTestSummaryTable(assemblerWebDirPath, summaryRows, testType
     // Print rows
     for (const row of summaryRows) {
         process.stdout.write("| ");
-        process.stdout.write((row.appSite || "").padEnd(widths[0]));
+        process.stdout.write((row.AppSite || "").padEnd(widths[0]));
         process.stdout.write(" | ");
-        process.stdout.write((row.appFile || "").padEnd(widths[1]));
+        process.stdout.write((row.AppFile || "").padEnd(widths[1]));
         process.stdout.write(" | ");
-        process.stdout.write((row.appView || "").padEnd(widths[2]));
+        process.stdout.write((row.AppView || "").padEnd(widths[2]));
         process.stdout.write(" | ");
-        process.stdout.write((row.normalPreProcess || "").padEnd(widths[3]));
+        process.stdout.write((row.NormalPreProcess || "").padEnd(widths[3]));
         process.stdout.write(" | ");
-        process.stdout.write((row.crossViewUnMatch || "").padEnd(widths[4]));
+        process.stdout.write((row.CrossViewUnMatch || "").padEnd(widths[4]));
         process.stdout.write(" | ");
-        process.stdout.write((row.error || "").padEnd(widths[5]));
+        process.stdout.write((row.Error || "").padEnd(widths[5]));
         console.log(" |");
     }
 
@@ -315,7 +353,7 @@ export function printTestSummaryTable(assemblerWebDirPath, summaryRows, testType
 
     // Save HTML and JSON files
     try {
-        const reportsDir = path.join(assemblerWebDirPath, 'Reports');
+        const reportsDir = path.join(projectDirectory, 'template_analysis', 'Reports');
         fs.mkdir(reportsDir, { recursive: true }).then(() => {
             const testTypeFile = testType.replace(/\s/g, "").replace(/-/g, "").toLowerCase();
             const outFile = path.join(reportsDir, `nodejs_${testTypeFile}_Summary.html`);
@@ -363,6 +401,7 @@ function generateSummaryHtml(summaryRows, testType) {
 </head>
 <body>
     <h1>Node.js ${testType} Summary</h1>
+    <div class="meta" style="color: #666; font-style: italic; margin-bottom: 10px;">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC</div>
     <div class="table-container">
     <table>
         <tr>
@@ -375,17 +414,17 @@ function generateSummaryHtml(summaryRows, testType) {
         </tr>`;
 
     for (const row of summaryRows) {
-        const outputMatchClass = row.normalPreProcess === "PASS" ? "pass" : (row.normalPreProcess === "FAIL" ? "fail" : "");
-        const viewUnMatchClass = row.crossViewUnMatch === "PASS" ? "pass" : (row.crossViewUnMatch === "FAIL" ? "fail" : "");
+        const outputMatchClass = row.NormalPreProcess === "PASS" ? "pass" : (row.NormalPreProcess === "FAIL" ? "fail" : "");
+        const viewUnMatchClass = row.CrossViewUnMatch === "PASS" ? "pass" : (row.CrossViewUnMatch === "FAIL" ? "fail" : "");
 
         html += `
         <tr>
-            <td>${row.appSite}</td>
-            <td>${row.appFile}</td>
-            <td>${row.appView}</td>
-            <td class="${outputMatchClass}">${row.normalPreProcess}</td>
-            <td class="${viewUnMatchClass}">${row.crossViewUnMatch}</td>
-            <td>${row.error}</td>
+            <td>${row.AppSite}</td>
+            <td>${row.AppFile}</td>
+            <td>${row.AppView}</td>
+            <td class="${outputMatchClass}">${row.NormalPreProcess}</td>
+            <td class="${viewUnMatchClass}">${row.CrossViewUnMatch}</td>
+            <td>${row.Error}</td>
         </tr>`;
     }
 
@@ -400,12 +439,12 @@ function generateSummaryHtml(summaryRows, testType) {
 
 function getValue(row, index) {
     switch (index) {
-        case 0: return row.appSite || "";
-        case 1: return row.appFile || "";
-        case 2: return row.appView || "";
-        case 3: return row.normalPreProcess || "";
-        case 4: return row.crossViewUnMatch || "";
-        case 5: return row.error || "";
+        case 0: return row.AppSite || "";
+        case 1: return row.AppFile || "";
+        case 2: return row.AppView || "";
+        case 3: return row.NormalPreProcess || "";
+        case 4: return row.CrossViewUnMatch || "";
+        case 5: return row.Error || "";
         default: return "";
     }
 }

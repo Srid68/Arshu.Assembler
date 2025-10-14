@@ -23,4 +23,4 @@ COPY ./AssemblerWebJs/wwwroot ./wwwroot
 
 EXPOSE 8080
 RUN echo 'js-assembler: ./AssemblerWebJs --urls http://0.0.0.0:8080' > Procfile
-CMD ["/bin/sh", "-c", "rm -f /app/.overmind.sock;//usr/local/bin/overmind start -f ./Procfile"]
+CMD ["/bin/sh", "-c", "rm -f /app/.overmind.sock; /usr/local/bin/overmind start -f ./Procfile"]

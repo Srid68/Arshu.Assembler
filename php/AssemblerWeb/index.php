@@ -1,7 +1,7 @@
 <?php
 
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 
 require_once __DIR__ . '/../Assembler/vendor/autoload.php';
@@ -115,24 +115,26 @@ $app->post('/merge', function (ServerRequest $request, Response $response) {
 })->setName('PostMergeTemplate');
 
 // Test endpoints
-$app->post('/test/standard', function (ServerRequest $request, Response $response) use ($container) {
-    $projectDirectory = $container->get('projectDirectory');
-    return AssemblerEndpoint::testStandardEndpoint($request, $response, $projectDirectory);
+$app->post('/test/standard', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
+    return AssemblerEndpoint::testStandardEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
 })->setName('RunStandardTests');
 
-$app->post('/test/advanced', function (ServerRequest $request, Response $response) use ($container) {
-    $projectDirectory = $container->get('projectDirectory');
-    return AssemblerEndpoint::testAdvancedEndpoint($request, $response, $projectDirectory);
+$app->post('/test/advanced', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
+    return AssemblerEndpoint::testAdvancedEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
 })->setName('RunAdvancedTests');
 
-$app->post('/test/performance', function (ServerRequest $request, Response $response) {
-    return AssemblerEndpoint::testPerformanceEndpoint($request, $response);
+$app->post('/test/performance', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
+    return AssemblerEndpoint::testPerformanceEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
 })->setName('RunPerformanceTests');
 
-$app->post('/test/consolidate-performance', function (ServerRequest $request, Response $response) use ($container) {
-    $projectDirectory = $container->get('projectDirectory');
-    return AssemblerEndpoint::testConsolidatePerformanceEndpoint($request, $response, $projectDirectory);
+$app->post('/test/consolidate-performance', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
+    return AssemblerEndpoint::testConsolidatePerformanceEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
 })->setName('ConsolidatePerformanceTests');
+
+// Report endpoint
+$app->post('/api/report', function (ServerRequest $request, Response $response) use ($projectDirectory) {
+    return AssemblerEndpoint::getReportEndpoint($request, $response, $projectDirectory);
+})->setName('GetReport');
 
 // Serve Scalar UI index.html at /scalar
 // Redirect /scalar to /scalar/index.html for proper UI loading
@@ -267,12 +269,10 @@ $app->get('/openapi.json', function (ServerRequest $request, Response $response)
             'schemas' => [
                 'MergeRequest' => [
                     'type' => 'object',
-                    'required' => ['appSite', 'appFile', 'engineType'],
+                    'required' => ['appSite', 'engineType'],
                     'properties' => [
                         'appSite' => ['type' => 'string'],
                         'appView' => ['type' => 'string'],
-                        'appViewPrefix' => ['type' => 'string'],
-                        'appFile' => ['type' => 'string'],
                         'engineType' => ['type' => 'string']
                     ]
                 ]

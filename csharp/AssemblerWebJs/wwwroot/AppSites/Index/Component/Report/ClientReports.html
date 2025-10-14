@@ -244,29 +244,34 @@
             ? useLangPrefix.toLowerCase() === 'true'
             : useLangPrefix === true;
 
-        // Construct file path
-        const prefix = (shouldUseLangPrefix && LANG) ? LANG + '_' : '';
-        const filePath = '/Reports/' + prefix + fileName;
-
         // Show modal with loading animation
         modal.style.display = 'block';
         content.innerHTML = '<div style="text-align: center; padding: 40px;"><div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 16px; color: #666;">' + LOADING_MSG + '</p></div>';
 
-        // Fetch report
-        fetch(filePath)
+        // Fetch report using POST request
+        fetch('/api/report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                fileName: fileName,
+                useLangPrefix: shouldUseLangPrefix
+            })
+        })
             .then(response => {
                 if (!response.ok) throw new Error(NOT_FOUND_MSG);
                 return response.text();
             })
             .then(html => {
-                if (filePath.endsWith('.md')) {
+                if (fileName.endsWith('.md')) {
                     // Simple markdown to HTML conversion for basic formatting
                     html = '<pre>' + html.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
                 }
                 content.innerHTML = html;
             })
             .catch(error => {
-                content.innerHTML = '<div style="padding: 40px; text-align: center; color: #d32f2f;"><h3>⚠️ ' + error.message + '</h3><p style="font-size: 0.9em; color: #666;">' + ERROR_PREFIX + ' ' + filePath + '</p></div>';
+                content.innerHTML = '<div style="padding: 40px; text-align: center; color: #d32f2f;"><h3>⚠️ ' + error.message + '</h3><p style="font-size: 0.9em; color: #666;">' + ERROR_PREFIX + ' ' + fileName + '</p></div>';
             });
     }
 
@@ -327,16 +332,18 @@
     }
 
     async function triggerTest(testId) {
-        const button = event.target;
-        const originalText = button.textContent;
+        const button = event ? event.target : null;
+        const originalText = button ? button.textContent : '';
 
         // Clear any existing notification
         hideNotification();
 
-        // Disable button and show loading state
-        button.disabled = true;
-        button.textContent = '⏳ Running...';
-        button.style.opacity = '0.6';
+        // Disable button and show loading state (if called from button)
+        if (button) {
+            button.disabled = true;
+            button.textContent = '⏳ Running...';
+            button.style.opacity = '0.6';
+        }
 
         // Show running notification
         showNotification('🔄 Test is running, please wait...', 'running');
@@ -386,7 +393,7 @@
                 }
 
                 const result = await response.json();
-                showNotification(`✅ ${result.message}`, 'success');
+                showNotification(`✅ ${result.Message}`, 'success');
                 return;
             }
 
@@ -400,6 +407,9 @@
 
             let summaryRows = [];
 
+            // Track timing for all tests
+            const testStartTime = Date.now();
+
             // Run tests based on type
             if (testType === 'standard') {
                 summaryRows = await TestingUtils.runStandardTests(scenarios, false, true, true);
@@ -408,21 +418,44 @@
                 summaryRows = await TestingUtils.runAdvancedTests(scenarios, false, true, true);
                 await TestingUtils.saveTestResults(summaryRows, 'advancedtest');
             } else if (testType === 'performance') {
+                // Disable logging during performance tests (same as backend)
+                const originalLogLevel = Logger.getLogLevel();
+                Logger.setLogLevel(Logger.LogLevel.NONE);
+
                 summaryRows = await PerformanceUtils.runPerformanceComparison(scenarios, true, true);
                 await PerformanceUtils.savePerformanceResults(summaryRows);
+
+                // Restore original log level
+                Logger.setLogLevel(originalLogLevel);
             }
 
+            const testElapsedSeconds = ((Date.now() - testStartTime) / 1000).toFixed(2);
+
             // Show success notification (stays visible until user clears it)
-            showNotification(`✅ ${testName} completed successfully! ${summaryRows.length} test(s) executed.`, 'success');
+            showNotification(`✅ Successful run of ${testName} in ${testElapsedSeconds} secs (${summaryRows.length} tests)`, 'success');
 
         } catch (error) {
             showNotification('❌ Error running test: ' + error.message, 'error');
             console.error('Test error:', error);
         } finally {
-            // Re-enable button
-            button.disabled = false;
-            button.textContent = originalText;
-            button.style.opacity = '1';
+            // Re-enable button (if called from button)
+            if (button) {
+                button.disabled = false;
+                button.textContent = originalText;
+                button.style.opacity = '1';
+            }
         }
     }
+
+    // Auto-trigger performance tests if ?runPerf=true is in URL
+    window.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('runPerf') === 'true') {
+            console.log('Auto-triggering performance tests from URL parameter...');
+            // Wait a moment for page to fully load
+            setTimeout(() => {
+                triggerTest('runPerfTests');
+            }, 1500);
+        }
+    });
 </script>

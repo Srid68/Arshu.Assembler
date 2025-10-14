@@ -27,15 +27,13 @@ function handleScenarioChangeServer() {
         if (preprocessTemplate) preprocessTemplate.innerHTML = '<div class="loading">Select a scenario to see the PreProcess engine templates</div>';
         // Clear timing bars
         if (normalTimingBar) normalTimingBar.innerHTML = '';
-        if (preprocessTimingBar) preprocessTimingBar.innerHTML = '';
-        return;
+        if (preprocessTimingBar) preprocessTimingBar.innerHTML = '';        return;
     }
 
     // Get data from data attributes
     const selectedOption = select.options[select.selectedIndex];
     const appSite = selectedOption.dataset.appsite || selectedValue;
-    const appView = selectedOption.dataset.appview || "";
-    const description = selectedOption.dataset.description || "";
+    const appView = selectedOption.dataset.appview || "";    const description = selectedOption.dataset.description || "";
 
     // Update rule description
     updateRuleDescription(appSite, description);
@@ -69,7 +67,6 @@ function handleScenarioChangeServer() {
     const mergeUrl = window.location.origin + '/merge';
     const normalClientStart = performance.now();
     const preprocessClientStart = performance.now();
-
     Promise.all([
         fetch(mergeUrl, {
             method: 'POST',
@@ -77,8 +74,7 @@ function handleScenarioChangeServer() {
             body: JSON.stringify({ appSite, appView, engineType: 'Normal' })
         }).then(response => {
             const normalClientEnd = performance.now();
-            return { response, clientTimeMs: (normalClientEnd - normalClientStart).toFixed(2) };
-        }),
+            return { response, clientTimeMs: (normalClientEnd - normalClientStart).toFixed(2) };        }),
         fetch(mergeUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -92,7 +88,6 @@ function handleScenarioChangeServer() {
         const normalClientTimeMs = normalData.clientTimeMs;
         const preprocessResponse = preprocessData.response;
         const preprocessClientTimeMs = preprocessData.clientTimeMs;
-
         let normalHtml = '', preprocessHtml = '';
         let normalTiming = null, preprocessTiming = null;
         let normalTemplates = null, preprocessTemplates = null;
@@ -148,8 +143,7 @@ function handleScenarioChangeServer() {
             normalTimingBar.innerHTML = `<div><span>Client: <b>${normalTiming.clientTimeMs}ms</b> | Server: <b>${normalTiming.serverTimeMs.toFixed(2)}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${normalTiming.engineTimeMs.toFixed(2)}ms</b> | Output: <b>${normalHtml.length} chars</b></div>`;
         }
         if (preprocessTimingBar && preprocessTiming) {
-            preprocessTimingBar.innerHTML = `<div><span>Client: <b>${preprocessTiming.clientTimeMs}ms</b> | Server: <b>${preprocessTiming.serverTimeMs.toFixed(2)}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${preprocessTiming.engineTimeMs.toFixed(2)}ms</b> | Output: <b>${preprocessHtml.length} chars</b></div>`;
-        }
+            preprocessTimingBar.innerHTML = `<div><span>Client: <b>${preprocessTiming.clientTimeMs}ms</b> | Server: <b>${preprocessTiming.serverTimeMs.toFixed(2)}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${preprocessTiming.engineTimeMs.toFixed(2)}ms</b> | Output: <b>${preprocessHtml.length} chars</b></div>`;        }
 
         // Update template displays if checkbox is checked
         const showTemplates = document.getElementById('show-templates')?.checked;

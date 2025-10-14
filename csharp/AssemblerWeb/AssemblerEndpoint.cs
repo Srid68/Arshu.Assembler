@@ -62,10 +62,20 @@ namespace AssemblerWeb
         public string Description { get; set; } = string.Empty;
     }
 
+    // Model for report request
+    public class ReportRequest
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("fileName")]
+        public string? FileName { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("useLangPrefix")]
+        public bool UseLangPrefix { get; set; }
+    }
+
 
     [JsonSerializable(typeof(MergeRequest))]
     [JsonSerializable(typeof(TestResponse))]
     [JsonSerializable(typeof(ScenarioDto[]))]
+    [JsonSerializable(typeof(ReportRequest))]
     public partial class ResponseJsonContext : JsonSerializerContext { }
 
     #endregion
@@ -93,10 +103,6 @@ namespace AssemblerWeb
                 // Validate EngineType against allowlist
                 if (!SecurityValidator.ValidEngineTypes.Contains(engineType))
                     return Results.BadRequest("Invalid engine type. Use 'Normal' or 'PreProcess'");
-
-                // TEMPORARY: Clear cache for development
-                LoaderNormal.ClearCache();
-                LoaderPreProcess.ClearCache();
 
                 // Load templates for Index AppSite
                 var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, "Index");
@@ -190,11 +196,7 @@ namespace AssemblerWeb
                     return Results.BadRequest($"No matching scenario found for AppSite='{input.AppSite}' and AppView='{appView}'");
 
                 var appFile = matchingScenario.AppFile;
-                var appViewPrefix = string.IsNullOrEmpty(appView) ? "" : appView.Substring(0, Math.Min(appView.Length, 6));
-
-                // TEMPORARY: Clear cache for development - remove this for production
-                LoaderNormal.ClearCache();
-                LoaderPreProcess.ClearCache();
+                var appViewPrefix = string.IsNullOrEmpty(appView) ? "" : appFile;
 
                 var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, input.AppSite);
                 var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, input.AppSite);
@@ -304,7 +306,7 @@ namespace AssemblerWeb
                     var summaryRows = TestingUtil.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
-                        TestingUtil.PrintTestSummaryTable(rootDirPath, summaryRows, "STANDARD TEST");
+                        TestingUtil.PrintTestSummaryTable(rootDirPath, projectDirectory,summaryRows, "STANDARD TEST");
                     }
 
                     sw.Stop();
@@ -385,7 +387,7 @@ namespace AssemblerWeb
                     var summaryRows = TestingUtil.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, false, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
-                        TestingUtil.PrintTestSummaryTable(rootDirPath, summaryRows, "ADVANCED TEST");
+                        TestingUtil.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "ADVANCED TEST");
                     }
 
                     sw.Stop();
@@ -444,10 +446,10 @@ namespace AssemblerWeb
                 try
                 {
                     var scenarios = ConfigUtil.GetScenarios();
-                    var summaryRows = PerformanceUtil.RunPerformanceComparison(rootDirPath, scenarios, true, true);
+                    var summaryRows = PerformanceUtil.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
-                        PerformanceUtil.PrintPerfSummaryTable(rootDirPath, summaryRows);
+                        PerformanceUtil.PrintPerfSummaryTable(rootDirPath, projectDirectory, summaryRows);
                     }
 
                     sw.Stop();
@@ -508,7 +510,7 @@ namespace AssemblerWeb
 
                     // Read server configuration from servers.csv
                     var serversConfigPath = Path.Combine(rootDirPath, "App_Data", "servers.csv");
-                    List<(string Language, string Url)> perfServers = new List<(string Language, string Url)>();
+                    List<(string Language, string Url, string Method, string FileName)> perfServers = new List<(string Language, string Url, string Method, string FileName)>();
 
                     if (File.Exists(serversConfigPath))
                     {
@@ -517,13 +519,15 @@ namespace AssemblerWeb
                         {
                             if (string.IsNullOrWhiteSpace(line)) continue;
                             var parts = line.Split(',');
-                            if (parts.Length >= 2)
+                            if (parts.Length >= 3)
                             {
                                 var language = parts[0].Trim();
-                                var url = parts[1].Trim();
-                                if (!string.IsNullOrEmpty(language) && !string.IsNullOrEmpty(url))
+                                var method = parts[1].Trim().ToUpper();
+                                var url = parts[2].Trim();
+                                var fileName = parts.Length >= 4 ? parts[3].Trim() : "";
+                                if (!string.IsNullOrEmpty(language) && !string.IsNullOrEmpty(method) && !string.IsNullOrEmpty(url))
                                 {
-                                    perfServers.Add((language, url));
+                                    perfServers.Add((language, url, method, fileName));
                                 }
                             }
                         }
@@ -531,86 +535,145 @@ namespace AssemblerWeb
 
                     if (perfServers.Count == 0)
                     {
-                        // Fallback to hardcoded values if config file doesn't exist or is empty
-                        perfServers = new List<(string Language, string Url)>
+                        var errorMsg = "No server configuration found. Please configure servers in App_Data/servers.csv";
+                        File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ❌ {errorMsg}\n");
+
+                        var errorResponse = new TestResponse
                         {
-                            ("CSharp", "https://csharpassembler.fly.dev/csharp_perfsummary.json"),
-                            ("Rust", "https://rustassembler.fly.dev/rust_perfsummary.json"),
-                            ("Node", "https://nodeassembler.fly.dev/nodejs_perfsummary.json"),
-                            ("PHP", "https://phpassembler.fly.dev/php_perfsummary.json"),
-                            ("Go", "https://goassembler.fly.dev/go_perfsummary.json")
+                            Success = false,
+                            Message = errorMsg,
+                            Elapsed = sw.Elapsed.TotalSeconds,
+                            TestCount = 0
                         };
+
+                        return Results.Json(errorResponse, ResponseJsonContext.Default.TestResponse);
                     }
 
                     var appPerf = new Dictionary<string, Dictionary<string, (double? NormalTimeMs, double? PreProcessTimeMs, int? OutputSize, string? AppView)>>();
                     var serversProcessed = new List<string>();
                     var serversFailed = new List<string>();
 
-                    using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                    using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
 
-                    foreach (var (lang, url) in perfServers)
+                    // Group servers by language
+                    var serversByLang = perfServers.GroupBy(s => s.Language).ToList();
+
+                    foreach (var langGroup in serversByLang)
                     {
-                        try
+                        var lang = langGroup.Key;
+                        bool langSuccess = false;
+                        var langErrors = new List<string>();
+
+                        foreach (var (_, url, method, fileName) in langGroup)
                         {
-                            File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Fetching {lang} from {url}\n");
-                            var httpResponse = await httpClient.GetAsync(url);
-                            if (httpResponse.IsSuccessStatusCode)
+                            try
                             {
-                                var content = await httpResponse.Content.ReadAsStringAsync();
-                                var arr = JsonDocument.Parse(content).RootElement;
+                                HttpResponseMessage httpResponse;
 
-                                if (arr.ValueKind == JsonValueKind.Array)
+                                if (method == "POST")
                                 {
-                                    int itemCount = 0;
-                                    foreach (var item in arr.EnumerateArray())
-                                    {
-                                        string appSite = item.TryGetProperty("AppSite", out var v1) ? v1.GetString() ?? "" :
-                                                        (item.TryGetProperty("app_site", out var v2) ? v2.GetString() ?? "" :
-                                                        (item.TryGetProperty("appSite", out var v3) ? v3.GetString() ?? "" : ""));
-
-                                        string appView = item.TryGetProperty("AppView", out var av1) ? av1.GetString() ?? "" :
-                                                        (item.TryGetProperty("app_view", out var av2) ? av2.GetString() ?? "" :
-                                                        (item.TryGetProperty("appView", out var av3) ? av3.GetString() ?? "" : ""));
-
-                                        double? normalTime = null;
-                                        if (item.TryGetProperty("NormalTimeMs", out var nt1)) normalTime = nt1.GetDouble();
-                                        else if (item.TryGetProperty("normal_time_ms", out var nt2)) normalTime = nt2.GetDouble();
-                                        else if (item.TryGetProperty("normalTimeMs", out var nt3)) normalTime = nt3.GetDouble();
-                                        else if (item.TryGetProperty("NormalTimeNanos", out var ntn1)) normalTime = ntn1.GetDouble() / 1_000_000.0;
-                                        else if (item.TryGetProperty("normal_time_nanos", out var ntn2)) normalTime = ntn2.GetDouble() / 1_000_000.0;
-
-                                        double? preprocessTime = null;
-                                        if (item.TryGetProperty("PreProcessTimeMs", out var pt1)) preprocessTime = pt1.GetDouble();
-                                        else if (item.TryGetProperty("preprocess_time_ms", out var pt2)) preprocessTime = pt2.GetDouble();
-                                        else if (item.TryGetProperty("preProcessTimeMs", out var pt3)) preprocessTime = pt3.GetDouble();
-                                        else if (item.TryGetProperty("PreProcessTimeNanos", out var ptn1)) preprocessTime = ptn1.GetDouble() / 1_000_000.0;
-                                        else if (item.TryGetProperty("preprocess_time_nanos", out var ptn2)) preprocessTime = ptn2.GetDouble() / 1_000_000.0;
-
-                                        int? outputSize = item.TryGetProperty("OutputSize", out var os1) ? os1.GetInt32() :
-                                                         (item.TryGetProperty("output_size", out var os2) ? os2.GetInt32() : null);
-
-                                        string key = string.IsNullOrEmpty(appView) ? appSite : appSite + " → " + appView;
-                                        if (!appPerf.ContainsKey(key)) appPerf[key] = new Dictionary<string, (double?, double?, int?, string?)>();
-                                        appPerf[key][lang] = (normalTime, preprocessTime, outputSize, appView);
-                                        itemCount++;
-                                    }
-                                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ✅ {lang}: Successfully processed {itemCount} items\n");
+                                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Fetching {lang} via POST {url} (fileName: {fileName})\n");
+                                    var reportRequest = new ReportRequest { FileName = fileName, UseLangPrefix = false };
+                                    var requestBody = JsonSerializer.Serialize(reportRequest, ResponseJsonContext.Default.ReportRequest);
+                                    var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
+                                    httpResponse = await httpClient.PostAsync(url, content);
                                 }
-                                serversProcessed.Add($"{lang}: {url}");
+                                else
+                                {
+                                    var fullUrl = url + fileName;
+                                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Fetching {lang} via GET {fullUrl}\n");
+                                    httpResponse = await httpClient.GetAsync(fullUrl);
+                                }
+
+                                if (httpResponse.IsSuccessStatusCode)
+                                {
+                                    var responseContent = await httpResponse.Content.ReadAsStringAsync();
+                                    var arr = JsonDocument.Parse(responseContent).RootElement;
+
+                                    if (arr.ValueKind == JsonValueKind.Array)
+                                    {
+                                        int itemCount = 0;
+                                        foreach (var item in arr.EnumerateArray())
+                                        {
+                                            string appSite = item.TryGetProperty("AppSite", out var v1) ? v1.GetString() ?? "" :
+                                                            (item.TryGetProperty("app_site", out var v2) ? v2.GetString() ?? "" :
+                                                            (item.TryGetProperty("appSite", out var v3) ? v3.GetString() ?? "" : ""));
+
+                                            string appView = item.TryGetProperty("AppView", out var av1) ? av1.GetString() ?? "" :
+                                                            (item.TryGetProperty("app_view", out var av2) ? av2.GetString() ?? "" :
+                                                            (item.TryGetProperty("appView", out var av3) ? av3.GetString() ?? "" : ""));
+
+                                            double? normalTime = null;
+                                            if (item.TryGetProperty("NormalTimeMs", out var nt1) && nt1.ValueKind == JsonValueKind.Number) normalTime = nt1.GetDouble();
+                                            else if (item.TryGetProperty("normal_time_ms", out var nt2) && nt2.ValueKind == JsonValueKind.Number) normalTime = nt2.GetDouble();
+                                            else if (item.TryGetProperty("normalTimeMs", out var nt3) && nt3.ValueKind == JsonValueKind.Number) normalTime = nt3.GetDouble();
+                                            else if (item.TryGetProperty("NormalTimeTicks", out var ntticks) && ntticks.ValueKind == JsonValueKind.Number) normalTime = ntticks.GetDouble() / 10000.0;
+                                            else if (item.TryGetProperty("NormalTimeNanos", out var ntn1) && ntn1.ValueKind == JsonValueKind.Number) normalTime = ntn1.GetDouble() / 1_000_000.0;
+                                            else if (item.TryGetProperty("normal_time_nanos", out var ntn2) && ntn2.ValueKind == JsonValueKind.Number) normalTime = ntn2.GetDouble() / 1_000_000.0;
+
+                                            double? preprocessTime = null;
+                                            if (item.TryGetProperty("PreProcessTimeMs", out var pt1) && pt1.ValueKind == JsonValueKind.Number) preprocessTime = pt1.GetDouble();
+                                            else if (item.TryGetProperty("preprocess_time_ms", out var pt2) && pt2.ValueKind == JsonValueKind.Number) preprocessTime = pt2.GetDouble();
+                                            else if (item.TryGetProperty("preProcessTimeMs", out var pt3) && pt3.ValueKind == JsonValueKind.Number) preprocessTime = pt3.GetDouble();
+                                            else if (item.TryGetProperty("PreProcessTimeTicks", out var ptticks) && ptticks.ValueKind == JsonValueKind.Number) preprocessTime = ptticks.GetDouble() / 10000.0;
+                                            else if (item.TryGetProperty("PreProcessTimeNanos", out var ptn1) && ptn1.ValueKind == JsonValueKind.Number) preprocessTime = ptn1.GetDouble() / 1_000_000.0;
+                                            else if (item.TryGetProperty("preprocess_time_nanos", out var ptn2) && ptn2.ValueKind == JsonValueKind.Number) preprocessTime = ptn2.GetDouble() / 1_000_000.0;
+
+                                            int? outputSize = null;
+                                            if (item.TryGetProperty("OutputSize", out var os1) && os1.ValueKind == JsonValueKind.Number) outputSize = os1.GetInt32();
+                                            else if (item.TryGetProperty("output_size", out var os2) && os2.ValueKind == JsonValueKind.Number) outputSize = os2.GetInt32();
+                                            else if (item.TryGetProperty("outputSize", out var os3) && os3.ValueKind == JsonValueKind.Number) outputSize = os3.GetInt32();
+
+                                            if (!string.IsNullOrEmpty(appSite))
+                                            {
+                                                // Normalize AppView to ensure case-insensitive matching across languages
+                                                string normalizedAppView = string.IsNullOrEmpty(appView) ? "" : appView;
+                                                string key = string.IsNullOrEmpty(normalizedAppView) ? appSite : appSite + " → " + normalizedAppView;
+
+                                                // Use case-insensitive comparison for key matching
+                                                var existingKey = appPerf.Keys.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
+                                                if (existingKey != null)
+                                                {
+                                                    key = existingKey; // Use existing key to maintain consistent casing
+                                                }
+                                                else
+                                                {
+                                                    appPerf[key] = new Dictionary<string, (double?, double?, int?, string?)>();
+                                                }
+                                                appPerf[key][lang] = (normalTime, preprocessTime, outputSize, appView);
+                                                itemCount++;
+                                            }
+                                        }
+                                        File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ✅ {lang} ({method}): Successfully processed {itemCount} items\n");
+                                        langSuccess = true;
+                                        break; // Success, no need to try other methods
+                                    }
+                                }
+                                else
+                                {
+                                    var errorMsg = $"{method} {url} (HTTP {httpResponse.StatusCode})";
+                                    langErrors.Add(errorMsg);
+                                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ⚠️ {lang}: {errorMsg}\n");
+                                }
                             }
-                            else
+                            catch (Exception ex)
                             {
-                                var failureMsg = $"{lang}: {url} (HTTP {httpResponse.StatusCode})";
-                                serversFailed.Add(failureMsg);
-                                File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ❌ {failureMsg}\n");
+                                var errorMsg = $"{method} {url} (ERROR: {ex.Message})";
+                                langErrors.Add(errorMsg);
+                                File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ⚠️ {lang}: {errorMsg}\n");
                             }
                         }
-                        catch (Exception ex)
+
+                        // After trying all methods for this language, determine overall result
+                        if (langSuccess)
                         {
-                            var failureMsg = $"{lang}: {url} (ERROR: {ex.Message})";
+                            serversProcessed.Add(lang);
+                        }
+                        else
+                        {
+                            var failureMsg = $"{lang}: All methods failed - {string.Join("; ", langErrors)}";
                             serversFailed.Add(failureMsg);
-                            File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ❌ {failureMsg}\n");
-                            File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Stack trace: {ex.StackTrace}\n");
+                            File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ❌ {lang}: All methods failed\n");
                         }
                     }
 
@@ -633,6 +696,7 @@ namespace AssemblerWeb
                     htmlSb.AppendLine("        th { background-color: #4CAF50; color: white; }");
                     htmlSb.AppendLine("        tr:nth-child(even) { background-color: #f2f2f2; }");
                     htmlSb.AppendLine("        td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7) { text-align: right; }");
+                    htmlSb.AppendLine("        .best-perf { background-color: #90EE90; font-weight: bold; }");
                     htmlSb.AppendLine("        @media (max-width: 768px) {");
                     htmlSb.AppendLine("            body { margin: 10px; }");
                     htmlSb.AppendLine("            th, td { padding: 8px; font-size: 14px; }");
@@ -646,35 +710,44 @@ namespace AssemblerWeb
                     htmlSb.AppendLine("    <h1>Consolidated Performance Summary</h1>");
                     htmlSb.AppendLine($"    <div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | All times in milliseconds (ms)</div>");
 
+                    // Get list of languages dynamically from configuration
+                    var languages = serversByLang.Select(g => g.Key).OrderBy(l => l).ToList();
+
                     // Normal Engine Table
                     htmlSb.AppendLine("    <h2>Normal Engine</h2>");
                     htmlSb.AppendLine("    <div class=\"table-container\">");
                     htmlSb.AppendLine("    <table>");
                     htmlSb.AppendLine("        <tr>");
                     htmlSb.AppendLine("            <th>AppSite/AppView</th>");
-                    htmlSb.AppendLine("            <th>CSharp</th>");
-                    htmlSb.AppendLine("            <th>Rust</th>");
-                    htmlSb.AppendLine("            <th>Go</th>");
-                    htmlSb.AppendLine("            <th>Node</th>");
-                    htmlSb.AppendLine("            <th>PHP</th>");
+                    foreach (var lang in languages)
+                    {
+                        htmlSb.AppendLine($"            <th>{lang}</th>");
+                    }
                     htmlSb.AppendLine("            <th>OutputSize</th>");
                     htmlSb.AppendLine("        </tr>");
                     foreach (var app in appPerf.Keys.OrderBy(k => k))
                     {
-                        var csharp = appPerf[app].ContainsKey("CSharp") && appPerf[app]["CSharp"].NormalTimeMs.HasValue ? appPerf[app]["CSharp"].NormalTimeMs!.Value.ToString("F2") : "-";
-                        var rust = appPerf[app].ContainsKey("Rust") && appPerf[app]["Rust"].NormalTimeMs.HasValue ? appPerf[app]["Rust"].NormalTimeMs!.Value.ToString("F2") : "-";
-                        var go = appPerf[app].ContainsKey("Go") && appPerf[app]["Go"].NormalTimeMs.HasValue ? appPerf[app]["Go"].NormalTimeMs!.Value.ToString("F2") : "-";
-                        var node = appPerf[app].ContainsKey("Node") && appPerf[app]["Node"].NormalTimeMs.HasValue ? appPerf[app]["Node"].NormalTimeMs!.Value.ToString("F2") : "-";
-                        var php = appPerf[app].ContainsKey("PHP") && appPerf[app]["PHP"].NormalTimeMs.HasValue ? appPerf[app]["PHP"].NormalTimeMs!.Value.ToString("F2") : "-";
-                        var outputSizeTuple = appPerf[app].Values.FirstOrDefault(v => v.OutputSize.HasValue);
-                        var outputSize = outputSizeTuple.OutputSize.HasValue ? outputSizeTuple.OutputSize.Value.ToString() : "-";
+                        // Find minimum time for highlighting
+                        var validTimes = languages
+                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue)
+                            .Select(lang => appPerf[app][lang].NormalTimeMs!.Value)
+                            .ToList();
+                        var minTime = validTimes.Any() ? validTimes.Min() : (double?)null;
+
                         htmlSb.AppendLine("        <tr>");
                         htmlSb.AppendLine($"            <td>{app}</td>");
-                        htmlSb.AppendLine($"            <td>{csharp}</td>");
-                        htmlSb.AppendLine($"            <td>{rust}</td>");
-                        htmlSb.AppendLine($"            <td>{go}</td>");
-                        htmlSb.AppendLine($"            <td>{node}</td>");
-                        htmlSb.AppendLine($"            <td>{php}</td>");
+                        foreach (var lang in languages)
+                        {
+                            var timeValue = appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue
+                                ? appPerf[app][lang].NormalTimeMs!.Value.ToString("F2")
+                                : "-";
+                            var isBest = minTime.HasValue && appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue
+                                && Math.Abs(appPerf[app][lang].NormalTimeMs!.Value - minTime.Value) < 0.001;
+                            var cssClass = isBest ? " class=\"best-perf\"" : "";
+                            htmlSb.AppendLine($"            <td{cssClass}>{timeValue}</td>");
+                        }
+                        var outputSizeTuple = appPerf[app].Values.Where(v => v.OutputSize.HasValue).FirstOrDefault();
+                        var outputSize = outputSizeTuple.OutputSize.HasValue ? outputSizeTuple.OutputSize.Value.ToString() : "-";
                         htmlSb.AppendLine($"            <td>{outputSize}</td>");
                         htmlSb.AppendLine("        </tr>");
                     }
@@ -687,29 +760,35 @@ namespace AssemblerWeb
                     htmlSb.AppendLine("    <table>");
                     htmlSb.AppendLine("        <tr>");
                     htmlSb.AppendLine("            <th>AppSite/AppView</th>");
-                    htmlSb.AppendLine("            <th>CSharp</th>");
-                    htmlSb.AppendLine("            <th>Rust</th>");
-                    htmlSb.AppendLine("            <th>Go</th>");
-                    htmlSb.AppendLine("            <th>Node</th>");
-                    htmlSb.AppendLine("            <th>PHP</th>");
+                    foreach (var lang in languages)
+                    {
+                        htmlSb.AppendLine($"            <th>{lang}</th>");
+                    }
                     htmlSb.AppendLine("            <th>OutputSize</th>");
                     htmlSb.AppendLine("        </tr>");
                     foreach (var app in appPerf.Keys.OrderBy(k => k))
                     {
-                        var csharp = appPerf[app].ContainsKey("CSharp") && appPerf[app]["CSharp"].PreProcessTimeMs.HasValue ? appPerf[app]["CSharp"].PreProcessTimeMs!.Value.ToString("F2") : "-";
-                        var rust = appPerf[app].ContainsKey("Rust") && appPerf[app]["Rust"].PreProcessTimeMs.HasValue ? appPerf[app]["Rust"].PreProcessTimeMs!.Value.ToString("F2") : "-";
-                        var go = appPerf[app].ContainsKey("Go") && appPerf[app]["Go"].PreProcessTimeMs.HasValue ? appPerf[app]["Go"].PreProcessTimeMs!.Value.ToString("F2") : "-";
-                        var node = appPerf[app].ContainsKey("Node") && appPerf[app]["Node"].PreProcessTimeMs.HasValue ? appPerf[app]["Node"].PreProcessTimeMs!.Value.ToString("F2") : "-";
-                        var php = appPerf[app].ContainsKey("PHP") && appPerf[app]["PHP"].PreProcessTimeMs.HasValue ? appPerf[app]["PHP"].PreProcessTimeMs!.Value.ToString("F2") : "-";
-                        var outputSizeTuple = appPerf[app].Values.FirstOrDefault(v => v.OutputSize.HasValue);
-                        var outputSize = outputSizeTuple.OutputSize.HasValue ? outputSizeTuple.OutputSize.Value.ToString() : "-";
+                        // Find minimum time for highlighting
+                        var validTimes = languages
+                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue)
+                            .Select(lang => appPerf[app][lang].PreProcessTimeMs!.Value)
+                            .ToList();
+                        var minTime = validTimes.Any() ? validTimes.Min() : (double?)null;
+
                         htmlSb.AppendLine("        <tr>");
                         htmlSb.AppendLine($"            <td>{app}</td>");
-                        htmlSb.AppendLine($"            <td>{csharp}</td>");
-                        htmlSb.AppendLine($"            <td>{rust}</td>");
-                        htmlSb.AppendLine($"            <td>{go}</td>");
-                        htmlSb.AppendLine($"            <td>{node}</td>");
-                        htmlSb.AppendLine($"            <td>{php}</td>");
+                        foreach (var lang in languages)
+                        {
+                            var timeValue = appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue
+                                ? appPerf[app][lang].PreProcessTimeMs!.Value.ToString("F2")
+                                : "-";
+                            var isBest = minTime.HasValue && appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue
+                                && Math.Abs(appPerf[app][lang].PreProcessTimeMs!.Value - minTime.Value) < 0.001;
+                            var cssClass = isBest ? " class=\"best-perf\"" : "";
+                            htmlSb.AppendLine($"            <td{cssClass}>{timeValue}</td>");
+                        }
+                        var outputSizeTuple = appPerf[app].Values.Where(v => v.OutputSize.HasValue).FirstOrDefault();
+                        var outputSize = outputSizeTuple.OutputSize.HasValue ? outputSizeTuple.OutputSize.Value.ToString() : "-";
                         htmlSb.AppendLine($"            <td>{outputSize}</td>");
                         htmlSb.AppendLine("        </tr>");
                     }
@@ -720,8 +799,8 @@ namespace AssemblerWeb
 
                     var htmlContent = htmlSb.ToString();
 
-                    // Write HTML to Reports directory
-                    var reportsDir = Path.Combine(rootDirPath, "Reports");
+                    // Write HTML to template_analysis/Reports directory
+                    var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
                     Directory.CreateDirectory(reportsDir);
                     var htmlPath = Path.Combine(reportsDir, "all_perf_tests.html");
                     File.WriteAllText(htmlPath, htmlContent);
@@ -731,37 +810,23 @@ namespace AssemblerWeb
 
                     File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Consolidation complete in {elapsedSeconds:F2}s - {appPerf.Count} AppSites from {serversProcessed.Count}/{perfServers.Count} servers\n");
 
+                    // Count unique languages
+                    var totalLanguages = serversByLang.Count;
+
                     // Build detailed message
                     var messageBuilder = new StringBuilder();
-                    messageBuilder.Append($"Consolidated {appPerf.Count} AppSites from {serversProcessed.Count}/{perfServers.Count} servers in {elapsedSeconds:F2} secs");
+                    messageBuilder.Append($"Consolidated {appPerf.Count} AppSites from {serversProcessed.Count}/{totalLanguages} languages in {elapsedSeconds:F2} secs");
 
                     if (serversProcessed.Count > 0)
                     {
                         messageBuilder.Append(" | ✅ Success: ");
-                        messageBuilder.Append(string.Join(", ", serversProcessed.Select(s => s.Split(':')[0])));
+                        messageBuilder.Append(string.Join(", ", serversProcessed));
                     }
 
                     if (serversFailed.Count > 0)
                     {
                         messageBuilder.Append("\n❌ Failed: ");
-                        var failedServers = serversFailed.Select(f =>
-                        {
-                            var parts = f.Split(new[] { ": " }, 2, StringSplitOptions.None);
-                            if (parts.Length == 2)
-                            {
-                                var lang = parts[0];
-                                var urlPart = parts[1];
-                                // Extract domain from URL
-                                var urlMatch = System.Text.RegularExpressions.Regex.Match(urlPart, @"https?://([^/]+)");
-                                var domain = urlMatch.Success ? urlMatch.Groups[1].Value : urlPart;
-                                // Get error message (everything after the URL)
-                                var errorMatch = System.Text.RegularExpressions.Regex.Match(urlPart, @"\((.+)\)");
-                                var error = errorMatch.Success ? errorMatch.Groups[1].Value : "";
-                                return $"{lang}: {domain} ({error})";
-                            }
-                            return f;
-                        });
-                        messageBuilder.Append(string.Join("; ", failedServers));
+                        messageBuilder.Append(string.Join("; ", serversFailed));
                     }
 
                     var response = new TestResponse
@@ -786,6 +851,50 @@ namespace AssemblerWeb
             .WithDisplayName("Consolidate All Performance Tests")
             .WithDescription("Fetches performance data from all language servers and consolidates into a single report")
             .WithTags("Test");
+
+            assemblerGroup.MapPost("/api/report", async (HttpContext context) =>
+            {
+                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+                using var reader = new StreamReader(context.Request.Body);
+                var body = await reader.ReadToEndAsync();
+                if (string.IsNullOrWhiteSpace(body))
+                    return Results.BadRequest("Empty request body");
+
+                var input = System.Text.Json.JsonSerializer.Deserialize<ReportRequest>(body, ResponseJsonContext.Default.ReportRequest);
+                if (input == null || string.IsNullOrWhiteSpace(input.FileName))
+                    return Results.BadRequest("Missing required field: fileName");
+
+                // Validate fileName for path traversal
+                if (!SecurityValidator.IsValidPathComponent(input.FileName))
+                    return Results.BadRequest("Invalid characters in fileName");
+
+                // Construct file path
+                string prefix = input.UseLangPrefix ? "csharp_" : "";
+                string fileName = prefix + input.FileName;
+                string reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
+                string filePath = Path.Combine(reportsDir, fileName);
+
+                // Check if file exists
+                if (!File.Exists(filePath))
+                    return Results.NotFound($"Report file not found: {fileName}");
+
+                // Read and return the file content
+                try
+                {
+                    string content = File.ReadAllText(filePath);
+                    return Results.Content(content, "text/html");
+                }
+                catch (Exception ex)
+                {
+                    return Results.Problem($"Error reading report file: {ex.Message}");
+                }
+            })
+            .Accepts<ReportRequest>("application/json")
+            .WithName("GetReport")
+            .WithDisplayName("Get Report")
+            .WithDescription("Retrieves a report file from template_analysis/Reports directory")
+            .WithTags("Report");
 
         }
     }

@@ -2,10 +2,11 @@
 
 namespace Assembler\Test;
 
-use Assembler\TemplateLoader\LoaderNormal;
-use Assembler\TemplateLoader\LoaderPreProcess;
-use Assembler\TemplateEngine\EngineNormal;
-use Assembler\TemplateEngine\EnginePreProcess;
+use Assembler\Loader\LoaderNormal;
+use Assembler\Loader\LoaderPreProcess;
+use Assembler\Engine\EngineNormal;
+use Assembler\Engine\EnginePreProcess;
+use Assembler\Common\CommonUtil;
 
 use Assembler\TemplateApi\ApiResponse;
 
@@ -31,7 +32,7 @@ class TestSummaryRow
 
 class TestingUtils
 {
-    public static function runStandardTests(string $assemblerWebDirPath, string $projectDirectory, array $scenarios, bool $enableJsonProcessing, bool $printHtmlOutput, bool $skipDetails = false): array
+    public static function runStandardTests(string $assemblerWebDirPath, string $projectDirectory, array $scenarios, bool $printHtmlOutput, bool $skipDetails, bool $enableJsonProcessing): array
     {
         $globalTestSummaryRows = [];
 
@@ -40,7 +41,7 @@ class TestingUtils
         }
 
         if (empty($scenarios)) {
-            echo "❌ No scenarios passed\n";
+            echo "Ã¢ÂÅ’ No scenarios passed\n";
             return $globalTestSummaryRows;
         }
 
@@ -65,7 +66,7 @@ class TestingUtils
             $appFileName = $group[0]->appFile;
 
             if (!$skipDetails) {
-                echo "$testSite: 🔍 STANDARD TEST : appsite: $testSite appfile: $appFileName\n";
+                echo "$testSite: Ã°Å¸â€Â STANDARD TEST : appsite: $testSite appfile: $appFileName\n";
                 echo "$testSite: " . str_repeat('=', 50) . "\n";
             }
 
@@ -87,7 +88,7 @@ class TestingUtils
                     file_put_contents($outputFile, $output ?? '');
 
                     if (!$skipDetails) {
-                        echo "$testSite: 🧪 STANDARD TEST : scenario: AppView='$appView'\n";
+                        echo "$testSite: Ã°Å¸Â§Âª STANDARD TEST : scenario: AppView='$appView'\n";
                         echo "Output length = " . strlen($output ?? '') . "\n";
                     }
 
@@ -95,6 +96,31 @@ class TestingUtils
                         echo "\nFULL HTML OUTPUT for AppView '$appView':\n";
                         echo $output . "\n";
                     }
+                }
+
+                // Validate for unresolved placeholders
+                $scenarioUnresolved = [];
+                foreach ($scenarioOutputs as $output) {
+                    $hasUnresolved = false;
+                    $isEmpty = empty(trim($output));
+
+                    // Scan for any {{...}} patterns which indicate unresolved placeholders
+                    $startIndex = 0;
+                    while (($startIndex = strpos($output, '{{', $startIndex)) !== false) {
+                        $endIndex = strpos($output, '}}', $startIndex);
+                        if ($endIndex !== false) {
+                            // Any {{...}} pattern in final output is unresolved
+                            $hasUnresolved = true;
+                            if (!$skipDetails) {
+                                $content = substr($output, $startIndex, $endIndex - $startIndex + 2);
+                                echo "$testSite: Ã¢ÂÅ’ Found unresolved placeholder: $content\n";
+                            }
+                            break;
+                        } else {
+                            break;
+                        }
+                    }
+                    $scenarioUnresolved[] = $hasUnresolved || $isEmpty;
                 }
 
                 // Cross-view validation logic (similar to C#)
@@ -111,9 +137,9 @@ class TestingUtils
                     $matchResult = $allDiffer ? "PASS" : "FAIL";
                     if (!$skipDetails) {
                         if ($allDiffer) {
-                            echo "✅ SUCCESS: Outputs for different AppViews DO NOT MATCH in $testSite as expected.\n";
+                            echo "Ã¢Å“â€¦ SUCCESS: Outputs for different AppViews DO NOT MATCH in $testSite as expected.\n";
                         } else {
-                            echo "❌ FAILURE: Some outputs for AppViews MATCH in $testSite. Expected them to differ.\n";
+                            echo "Ã¢ÂÅ’ FAILURE: Some outputs for AppViews MATCH in $testSite. Expected them to differ.\n";
                         }
                     }
                 }
@@ -122,7 +148,8 @@ class TestingUtils
                 for ($i = 0; $i < count($group); $i++) {
                     $scenario = $group[$i];
                     $crossView = ($i > 0 && count($group) > 2) ? $matchResult : "";
-                    $normalPreProcess = ($i == 0) ? "PASS" : "";
+                    $hasUnresolved = $scenarioUnresolved[$i];
+                    $normalPreProcess = ($i == 0) ? ($hasUnresolved ? "FAIL" : "PASS") : "";
 
                     $globalTestSummaryRows[] = new TestSummaryRow(
                         $testSite,
@@ -135,7 +162,7 @@ class TestingUtils
                 }
 
             } catch (\Exception $e) {
-                echo "❌ Error in $testSite/$appFileName: " . $e->getMessage() . "\n";
+                echo "Ã¢ÂÅ’ Error in $testSite/$appFileName: " . $e->getMessage() . "\n";
                 $globalTestSummaryRows[] = new TestSummaryRow(
                     $testSite,
                     $appFileName,
@@ -150,17 +177,17 @@ class TestingUtils
         return $globalTestSummaryRows;
     }
 
-    public static function runAdvancedTests(string $assemblerWebDirPath, string $projectDirectory, array $scenarios, bool $enableJsonProcessing, bool $printHtmlOutput, bool $skipDetails = false): array
+    public static function runAdvancedTests(string $assemblerWebDirPath, string $projectDirectory, array $scenarios, bool $printHtmlOutput, bool $skipDetails, bool $enableJsonProcessing): array
     {
         $globalTestSummaryRows = [];
 
         if (!$skipDetails) {
-            echo "🧪 Starting Advanced Tests\n\n";
+            echo "Ã°Å¸Â§Âª Starting Advanced Tests\n\n";
             echo "========== ENTER RunAdvancedTests ==========\n";
         }
 
         if (empty($scenarios)) {
-            echo "❌ No scenarios passed\n";
+            echo "Ã¢ÂÅ’ No scenarios passed\n";
             return $globalTestSummaryRows;
         }
 
@@ -185,7 +212,7 @@ class TestingUtils
             $appFileName = $group[0]->appFile;
 
             if (!$skipDetails) {
-                echo "🔍 ADVANCED TEST : appsite: $testSite appfile: $appFileName\n";
+                echo "Ã°Å¸â€Â ADVANCED TEST : appsite: $testSite appfile: $appFileName\n";
             }
 
             try {
@@ -199,207 +226,86 @@ class TestingUtils
 
                 foreach ($group as $scenario) {
                     $appView = $scenario->appView;
-                    // Load templates with timing
-                    $templates = self::testWithTiming("LoadGetTemplateFiles", function() use ($assemblerWebDirPath, $testSite) {
-                        return LoaderNormal::loadGetTemplateFiles($assemblerWebDirPath, $testSite);
-                    }, $skipDetails);
-                    $preprocessedSiteTemplates = LoaderPreProcess::loadProcessGetTemplateFiles($assemblerWebDirPath, $testSite);
 
-                    if (!$skipDetails) {
-                        echo "📂 Loaded " . count($templates) . " templates:\n";
-                        ksort($templates);
-                        foreach ($templates as $key => $template) {
-                            $htmlLength = $template->html ? strlen($template->html) : 0;
-                            $jsonLength = $template->json ? strlen($template->json) : 0;
-                            $jsonInfo = $template->json ? " + $jsonLength chars JSON" : "";
-                            echo "   • $key: $htmlLength chars HTML$jsonInfo\n";
-                        }
-                        echo "\n";
+                    $normalEngine = new EngineNormal();
+                    $normalEngine->setAppViewPrefix($appFileName);
+                    $preProcessEngine = new EnginePreProcess();
+                    $preProcessEngine->setAppViewPrefix($appFileName);
 
-                        echo "🔧 JSON Processing: " . ($enableJsonProcessing ? "ENABLED" : "DISABLED") . "\n";
+                    $resultNormal = $normalEngine->mergeTemplates($testSite, $appFileName, $appView, $templates, $enableJsonProcessing);
+                    $resultPreProcess = $preProcessEngine->mergeTemplates($testSite, $appFileName, $appView, $preprocessedSiteTemplates->templates, $enableJsonProcessing);
+
+                    $outputsMatch = $resultNormal === $resultPreProcess;
+                    $matchStatus = $outputsMatch ? "PASS" : "FAIL";
+
+                    $scenarioResults[] = [$appView, $resultNormal ?? "", $resultPreProcess ?? "", $matchStatus];
+
+                    // Save HTML outputs to template_analysis/output folder
+                    $appViewSuffix = empty($appView) ? "" : "_{$appView}";
+                    $normalOutputFile = $outputDir . DIRECTORY_SEPARATOR . "{$testSite}{$appViewSuffix}_normal.html";
+                    $preprocessOutputFile = $outputDir . DIRECTORY_SEPARATOR . "{$testSite}{$appViewSuffix}_preprocess.html";
+                    file_put_contents($normalOutputFile, $resultNormal ?? '');
+                    file_put_contents($preprocessOutputFile, $resultPreProcess ?? '');
+
+                    if (!$skipDetails || !$outputsMatch) {
+                        echo "$testSite: scenario: AppView='$appView' - $matchStatus\n";
                     }
 
-                    // Try all possible scenarios: with and without AppView/AppViewPrefix
-                    $appViewScenarios = [["", ""]]; // No AppView
-
-                    // Add AppView scenarios if Views folder exists
-                    $appSitePathInner = $assemblerWebDirPath . DIRECTORY_SEPARATOR . "AppSites" . DIRECTORY_SEPARATOR . $testSite;
-                    $viewsPath = $appSitePathInner . DIRECTORY_SEPARATOR . "Views";
-                    if (is_dir($viewsPath)) {
-                        $viewFiles = glob($viewsPath . DIRECTORY_SEPARATOR . '*.html');
-                        foreach ($viewFiles as $viewFile) {
-                            $viewName = pathinfo($viewFile, PATHINFO_FILENAME);
-                            $appView = "";
-                            $appViewPrefix = "";
-                            if (stripos(strtolower($viewName), "content") !== false) {
-                                $contentIndex = stripos(strtolower($viewName), "content");
-                                if ($contentIndex > 0) {
-                                    $viewPart = substr($viewName, 0, $contentIndex);
-                                    if (strlen($viewPart) > 0) {
-                                        $appView = ucfirst($viewPart);
-                                        $appViewPrefix = substr($appView, 0, min(strlen($appView), 6));
-                                    }
-                                }
-                            }
-                            if (!empty($appView)) {
-                                $appViewScenarios[] = [$appView, $appViewPrefix];
-                            }
-                        }
-                    }
-
-                    // Store outputs for each AppView scenario for cross-comparison
-                    $scenarioResults = [];
-                    foreach ($appViewScenarios as $scenario) {
-                        [$appView, $appViewPrefix] = $scenario;
-                        if (!$skipDetails) {
-                            echo "$testSite: 🧪 ADVANCED TEST : scenario: AppView='$appView', AppViewPrefix='$appViewPrefix'\n";
-                        }
-                        $results = [];
-
-                        // Standard implementation
-                        $normalEngine = new EngineNormal();
-                        $normalEngine->setAppViewPrefix($appFileName);
-                        $resultNormal = self::testWithTiming("Normal - MergeTemplates", function() use ($normalEngine, $testSite, $appFileName, $appView, $templates, $enableJsonProcessing) {
-                            return $normalEngine->mergeTemplates($testSite, $appFileName, $appView, $templates, $enableJsonProcessing);
-                        }, $skipDetails);
-                        $results["Normal"] = $resultNormal ?? "";
-
-                        // Preprocessing implementation
-                        $preProcessEngine = new EnginePreProcess();
-                        $preProcessEngine->setAppViewPrefix($appFileName);
-                        $resultPreProcess = self::testWithTiming("PreProcess - MergeTemplates", function() use ($preProcessEngine, $testSite, $appFileName, $appView, $preprocessedSiteTemplates, $enableJsonProcessing) {
-                            return $preProcessEngine->mergeTemplates($testSite, $appFileName, $appView, $preprocessedSiteTemplates->templates, $enableJsonProcessing);
-                        }, $skipDetails);
-                        $results["PreProcess"] = $resultPreProcess ?? "";
-                        if (!$skipDetails) {
-                            echo "\n";
-                        }
-
-                        // Store for cross-AppView comparison
-                        $scenarioResults[] = [$appView, $resultNormal ?? "", $resultPreProcess ?? ""];
-
-                        // Save HTML outputs to template_analysis/output folder
-                        $appViewSuffix = empty($appView) ? "" : "_{$appView}";
-                        $normalOutputFile = $outputDir . DIRECTORY_SEPARATOR . "{$testSite}{$appViewSuffix}_normal.html";
-                        $preprocessOutputFile = $outputDir . DIRECTORY_SEPARATOR . "{$testSite}{$appViewSuffix}_preprocess.html";
-                        file_put_contents($normalOutputFile, $resultNormal ?? '');
-                        file_put_contents($preprocessOutputFile, $resultPreProcess ?? '');
-
-                        if ($printHtmlOutput) {
-                            echo "\n📋 FULL HTML OUTPUT (Normal):\n" . $resultNormal . "\n";
-                            echo "\n📋 FULL HTML OUTPUT (PreProcess):\n" . $resultPreProcess . "\n";
-                        }
-
-                        // Compare results
-                        $match = ($resultNormal === $resultPreProcess) ? "✅ MATCH" : "❌ MISMATCH";
-                        $matchResult = ($resultNormal === $resultPreProcess) ? "PASS" : "FAIL";
-
-                        if (!$skipDetails) {
-                            echo "$testSite: 📊 RESULTS COMPARISON:\n";
-                            echo "$testSite: " . str_repeat('-', 45) . "\n";
-
-                            // Always show the detailed format like C#
-                            echo "$testSite: 🔹 All Two Methods:\n";
-                            echo "$testSite:   Normal: " . utf16Len($resultNormal) . " chars\n";
-                            echo "$testSite:   PreProcess: " . utf16Len($resultPreProcess) . " chars\n";
-                            echo "$testSite:   $match\n";
-                        }
-
-                        if (!$skipDetails) {
-                            if ($resultNormal === $resultPreProcess) {
-                                echo "\n$testSite: 🎉 ALL METHODS PRODUCE IDENTICAL RESULTS! ✅\n";
-                            }
-                        }
-
-                        // Always analyze differences when outputs don't match (outside skipDetails)
-                        if ($resultNormal !== $resultPreProcess) {
-                            if (!$skipDetails) {
-                                echo "\n$testSite: 🔍 Output Analysis:\n";
-                            }
-                            self::analyzeOutputDifferences($resultNormal, $resultPreProcess);
-                        }
-
-                        // Add summary row for this scenario
-                        $globalTestSummaryRows[] = new TestSummaryRow(
-                            $testSite,
-                            $appFileName,
-                            $appView,
-                            $matchResult,
-                            "",
-                            ""
-                        );
-
-                        echo "\n";
-                    }
-
-                    // Cross-AppView comparison
-                    if (count($scenarioResults) > 1) {
-                        if (!$skipDetails) {
-                            echo "$testSite: 🔄 CROSS-APPVIEW COMPARISON:\n";
-                            echo "$testSite: " . str_repeat('-', 45) . "\n";
-                        }
-
-                        $baseResult = $scenarioResults[0];
-                        $crossViewPass = true; // Assume cross-view logic works
-
-                        // Check if all AppViews produce different outputs (similar to standard tests)
-                        // Compare each AppView output against others
-                        for ($i = 1; $i < count($scenarioResults); $i++) {
-                            for ($j = $i + 1; $j < count($scenarioResults); $j++) {
-                                $appView1 = $scenarioResults[$i];
-                                $appView2 = $scenarioResults[$j];
-
-                                $normalMatch = ($appView1[1] === $appView2[1]) ? "✅ MATCH" : "❌ MISMATCH";
-                                $preProcessMatch = ($appView1[2] === $appView2[2]) ? "✅ MATCH" : "❌ MISMATCH";
-
-                                if (!$skipDetails) {
-                                    echo "$testSite: AppView='{$appView1[0]}' vs AppView='{$appView2[0]}':\n";
-                                    echo "$testSite:   Normal: $normalMatch\n";
-                                    echo "$testSite:   PreProcess: $preProcessMatch\n";
-                                }
-
-                                // Different AppViews should produce different outputs
-                                // If they match, it's a failure
-                                if ($appView1[1] === $appView2[1] || $appView1[2] === $appView2[2]) {
-                                    $crossViewPass = false;
-                                }
-                            }
-                        }
-
-                        // Update summary rows for AppView scenarios with cross-view result
-                        if ($crossViewPass) {
-                            if (!$skipDetails) {
-                                echo "$testSite: ✅ CROSS-VIEW LOGIC: PASS (Different AppViews produce different outputs as expected)\n";
-                            }
-                            // Update the CrossViewUnMatch field for AppView rows
-                            for ($i = count($globalTestSummaryRows) - count($scenarioResults); $i < count($globalTestSummaryRows); $i++) {
-                                if (!empty($globalTestSummaryRows[$i]->AppView)) {
-                                    $globalTestSummaryRows[$i]->CrossViewUnMatch = "PASS";
-                                }
-                            }
-                        } else {
-                            if (!$skipDetails) {
-                                echo "$testSite: ❌ CROSS-VIEW LOGIC: FAIL (Different AppViews should produce different outputs)\n";
-                            }
-                            // Update the CrossViewUnMatch field for AppView rows
-                            for ($i = count($globalTestSummaryRows) - count($scenarioResults); $i < count($globalTestSummaryRows); $i++) {
-                                if (!empty($globalTestSummaryRows[$i]->AppView)) {
-                                    $globalTestSummaryRows[$i]->CrossViewUnMatch = "FAIL";
-                                }
-                            }
-                        }
-                        if (!$skipDetails) {
-                            echo "\n";
-                        }
+                    if ($printHtmlOutput) {
+                        echo "\nNORMAL OUTPUT for AppView '$appView':\n$resultNormal\n";
+                        echo "\nPREPROCESS OUTPUT for AppView '$appView':\n$resultPreProcess\n";
                     }
                 }
+
+                // Print detailed output analysis after processing all scenarios
+                if (count($scenarioResults) > 0) {
+                    $firstResult = $scenarioResults[0];
+                    $normalLen = CommonUtil::utf16Len($firstResult[1]);
+                    $preprocessLen = CommonUtil::utf16Len($firstResult[2]);
+                    echo "\n$testSite: 📊 DETAILED OUTPUT ANALYSIS:\n";
+                    echo "   Normal length: $normalLen chars\n";
+                    echo "   PreProcess length: $preprocessLen chars\n";
+                    $diff = abs($normalLen - $preprocessLen);
+                    echo "   Difference: $diff chars\n";
+                }
+
+                // Cross-view comparison
+                $crossViewResult = "";
+                if (count($scenarioResults) > 1) {
+                    $allDiffer = true;
+                    for ($i = 1; $i < count($scenarioResults); $i++) {
+                        for ($j = $i + 1; $j < count($scenarioResults); $j++) {
+                            if ($scenarioResults[$i][1] === $scenarioResults[$j][1] ||
+                                $scenarioResults[$i][2] === $scenarioResults[$j][2]) {
+                                $allDiffer = false;
+                                break 2;
+                            }
+                        }
+                    }
+                    $crossViewResult = $allDiffer ? "PASS" : "FAIL";
+                }
+
+                // Add summary rows
+                for ($i = 0; $i < count($scenarioResults); $i++) {
+                    $result = $scenarioResults[$i];
+                    $crossView = ($i > 0 && count($scenarioResults) > 1) ? $crossViewResult : "";
+
+                    $globalTestSummaryRows[] = new TestSummaryRow(
+                        $testSite,
+                        $appFileName,
+                        $result[0],
+                        $result[3],
+                        $crossView,
+                        ""
+                    );
+                }
             } catch (\Exception $e) {
-                echo "❌ Error processing $testSite/$appFileName: " . $e->getMessage() . "\n";
+                echo "Ã¢ÂÅ’ Error testing $testSite $appFileName: " . $e->getMessage() . "\n";
                 $globalTestSummaryRows[] = new TestSummaryRow(
                     $testSite,
                     $appFileName,
                     "",
-                    "",
+                    "ERROR",
                     "",
                     $e->getMessage()
                 );
@@ -414,12 +320,21 @@ class TestingUtils
 
     public static function dumpPreprocessedTemplateStructures(string $assemblerWebDirPath, string $projectDirectory, array $scenarios, bool $skipDetails = false): void
     {
-        if (!$skipDetails) {
-            echo "🔍 Analyzing preprocessed template structures...\n\n";
+        if (empty($assemblerWebDirPath)) {
+            if (!$skipDetails)
+                echo "âŒ No assemblerWebDirPath passed for DumpPreprocessedTemplateStructures\n";
+            return;
+        }
+
+        if (empty($projectDirectory)) {
+            if (!$skipDetails)
+                echo "âŒ No projectDirectory passed for DumpPreprocessedTemplateStructures\n";
+            return;
         }
 
         if (empty($scenarios)) {
-            echo "❌ No scenarios passed\n";
+            if (!$skipDetails)
+                echo "âŒ No scenarios passed for DumpPreprocessedTemplateStructures\n";
             return;
         }
 
@@ -428,56 +343,14 @@ class TestingUtils
 
         foreach ($sites as $site) {
 
-            echo "🔍 Analyzing site: $site\n";
-            echo str_repeat('=', 60) . "\n";
-
             try {
-                // Clear cache to ensure fresh load
                 LoaderNormal::clearCache();
                 LoaderPreProcess::clearCache();
 
-                // Test the path resolution first
-                echo "Current Directory: " . getcwd() . "\n";
-                echo "AssemblerWebDirPath: $assemblerWebDirPath\n";
-
-                $sitePath = $appSitesPath . DIRECTORY_SEPARATOR . $site;
-                echo "AppSites path: $sitePath\n";
-                echo "AppSites exists: " . (is_dir($sitePath) ? "true" : "false") . "\n";
-
-                if (is_dir($sitePath)) {
-                    echo "Site directory found and accessible\n";
-                }
-
-                // Load templates using both methods
                 $templates = LoaderNormal::loadGetTemplateFiles($assemblerWebDirPath, $site);
-                echo "LoadGetTemplateFiles found " . count($templates) . " templates\n";
-
                 $preprocessedSiteTemplates = LoaderPreProcess::loadProcessGetTemplateFiles($assemblerWebDirPath, $site);
-                echo "LoadProcessGetTemplateFiles found " . count($preprocessedSiteTemplates->templates) . " templates\n";
 
-                // Main template key logic: ensure main template key is robust
-                $mainTemplateKey = strtolower($site . "_" . $site);
-                if (!array_key_exists($mainTemplateKey, $templates)) {
-                    // Fallback: use first template key
-                    $mainTemplateKey = !empty($templates) ? array_keys($templates)[0] : null;
-                    echo "⚠️ Main template key not found, using fallback: $mainTemplateKey\n";
-                }
-
-                if (count($preprocessedSiteTemplates->templates) == 0) {
-                    echo "⚠️  No templates found - check path resolution\n";
-                    continue;
-                }
-
-                // Create summary using ApiResponse
-                $summary = ApiResponse::createPreprocessedSummary($preprocessedSiteTemplates);
-                $summaryJson = ApiResponse::serializePreprocessedSummary($summary, true);
-
-                echo "\n📋 Summary for $site:\n";
-                echo $summaryJson . "\n";
-
-                echo "\n📄 Full Structure for $site:\n";
                 $fullJson = ApiResponse::serializePreprocessedSiteTemplates($preprocessedSiteTemplates, true);
-                echo $fullJson . "\n";
 
                 // Save to file for easier analysis
                 $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
@@ -488,7 +361,6 @@ class TestingUtils
                 $summaryFile = $outputDir . DIRECTORY_SEPARATOR . $site . '_summary.json';
                 $fullFile = $outputDir . DIRECTORY_SEPARATOR . $site . '_full.json';
 
-                // Delete existing files to ensure clean generation
                 if (file_exists($summaryFile)) {
                     unlink($summaryFile);
                 }
@@ -496,24 +368,23 @@ class TestingUtils
                     unlink($fullFile);
                 }
 
-                file_put_contents($summaryFile, $summaryJson);
+                $summary = ApiResponse::createPreprocessedSummary($preprocessedSiteTemplates);
+                file_put_contents($summaryFile, ApiResponse::serializePreprocessedSummary($summary, true));
                 file_put_contents($fullFile, $fullJson);
 
-                echo "💾 Analysis saved to:\n";
-                echo "   Summary: $summaryFile\n";
-                echo "   Full:    $fullFile\n";
+                if (!$skipDetails) {
+                    echo "âœ… Dumped structure for $site\n";
+                    echo "   Summary: $summaryFile\n";
+                    echo "   Full: $fullFile\n";
+                }
             } catch (\Exception $ex) {
-                echo "❌ Error analyzing $site: " . $ex->getMessage() . "\n";
-                echo "   Stack trace: " . $ex->getTraceAsString() . "\n";
+                if (!$skipDetails) {
+                    echo "âŒ Error dumping structure for $site: " . $ex->getMessage() . "\n";
+                }
             }
-
-            echo "\n"; // Empty line between sites
         }
-
-        echo "✅ Template structure analysis complete!\n\n";
     }
-
-    public static function printTestSummaryTable(string $assemblerWebDirPath, array $summaryRows, string $testType): void
+    public static function printTestSummaryTable(string $assemblerWebDirPath, string $projectDirectory, array $summaryRows, string $testType): void
     {
         if (empty($summaryRows)) return;
         if (empty($testType)) $testType = "TEST";
@@ -577,7 +448,7 @@ class TestingUtils
 
         // Save HTML file
         try {
-            $reportsDir = $assemblerWebDirPath . DIRECTORY_SEPARATOR . 'Reports';
+            $reportsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsDir)) {
                 mkdir($reportsDir, 0755, true);
             }
@@ -585,37 +456,48 @@ class TestingUtils
             $html = "<!DOCTYPE html>\n<html>\n<head>\n";
             $html .= "    <meta charset=\"UTF-8\">\n";
             $html .= "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
-            $html .= "    <title>Test Summary Table</title>\n";
+            $html .= "    <title>PHP " . strtoupper($testType) . " Summary</title>\n";
             $html .= "    <style>\n";
             $html .= "        body { font-family: Arial, sans-serif; margin: 20px; }\n";
-            $html .= "        h1, h2 { color: #333; }\n";
+            $html .= "        h1 { color: #333; }\n";
             $html .= "        .table-container { overflow-x: auto; }\n";
             $html .= "        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }\n";
             $html .= "        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n";
             $html .= "        th { background-color: #4CAF50; color: white; }\n";
             $html .= "        tr:nth-child(even) { background-color: #f2f2f2; }\n";
+            $html .= "        .pass { color: green; font-weight: bold; }\n";
+            $html .= "        .fail { color: red; font-weight: bold; }\n";
             $html .= "        @media (max-width: 768px) {\n";
             $html .= "            body { margin: 10px; }\n";
             $html .= "            th, td { padding: 8px; font-size: 14px; }\n";
-            $html .= "            h1, h2 { font-size: 20px; }\n";
+            $html .= "            h1 { font-size: 24px; }\n";
             $html .= "        }\n";
             $html .= "    </style>\n</head>\n<body>\n";
-            $html .= "<h2>PHP " . strtoupper($testType) . " SUMMARY TABLE</h2>\n";
-            $html .= "<div class=\"table-container\">\n<table>\n";
-            $html .= "<tr>";
-            foreach ($headers as $h) $html .= "<th>$h</th>";
-            $html .= "</tr>\n";
+            $html .= "    <h1>PHP " . strtoupper($testType) . " Summary</h1>\n";
+            $html .= "    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: " . gmdate('Y-m-d H:i:s') . " UTC</div>\n";
+            $html .= "    <div class=\"table-container\">\n    <table>\n";
+            $html .= "        <tr>\n";
+            $html .= "            <th>AppSite</th>\n";
+            $html .= "            <th>AppFile</th>\n";
+            $html .= "            <th>AppView</th>\n";
+            $html .= "            <th>OutputMatch</th>\n";
+            $html .= "            <th>ViewUnMatch</th>\n";
+            $html .= "            <th>Error</th>\n";
+            $html .= "        </tr>\n";
             foreach ($summaryRows as $row) {
-                $html .= "<tr>";
-                $html .= "<td>{$row->AppSite}</td>";
-                $html .= "<td>{$row->AppFile}</td>";
-                $html .= "<td>{$row->AppView}</td>";
-                $html .= "<td>{$row->NormalPreProcess}</td>";
-                $html .= "<td>{$row->CrossViewUnMatch}</td>";
-                $html .= "<td>{$row->Error}</td>";
-                $html .= "</tr>\n";
+                $outputMatchClass = ($row->NormalPreProcess === "PASS") ? "pass" : (($row->NormalPreProcess === "FAIL") ? "fail" : "");
+                $viewUnMatchClass = ($row->CrossViewUnMatch === "PASS") ? "pass" : (($row->CrossViewUnMatch === "FAIL") ? "fail" : "");
+
+                $html .= "        <tr>\n";
+                $html .= "            <td>{$row->AppSite}</td>\n";
+                $html .= "            <td>{$row->AppFile}</td>\n";
+                $html .= "            <td>{$row->AppView}</td>\n";
+                $html .= "            <td class=\"{$outputMatchClass}\">{$row->NormalPreProcess}</td>\n";
+                $html .= "            <td class=\"{$viewUnMatchClass}\">{$row->CrossViewUnMatch}</td>\n";
+                $html .= "            <td>{$row->Error}</td>\n";
+                $html .= "        </tr>\n";
             }
-            $html .= "</table>\n</div>\n</body>\n</html>\n";
+            $html .= "    </table>\n    </div>\n</body>\n</html>\n";
 
             // Sanitize testType for filename
             $testTypeFile = strtolower(str_replace([" ", "-"], "", $testType));
@@ -649,8 +531,8 @@ class TestingUtils
         for ($i = 0; $i < $commonLength; $i++) {
             if ($lines1[$i] !== $lines2[$i]) {
                 echo "\n   Difference at line " . ($i + 1) . ":\n";
-                echo "   Normal:    " . utf16Len($lines1[$i]) . " chars\n";
-                echo "   PreProcess:" . utf16Len($lines2[$i]) . " chars\n";
+                echo "   Normal:    " . CommonUtil::utf16Len($lines1[$i]) . " chars\n";
+                echo "   PreProcess:" . CommonUtil::utf16Len($lines2[$i]) . " chars\n";
 
                 // Show first position where they differ
                 $minLength = min(strlen($lines1[$i]), strlen($lines2[$i]));
@@ -666,7 +548,7 @@ class TestingUtils
 
     public static function compareJsonProcessing(string $assemblerWebDirPath, string $appSite, string $appFile, bool $enableJsonProcessing = true): void
     {
-        echo "\n📊 Testing JSON Processing Impact for $appSite : $appFile\n";
+        echo "\nÃ°Å¸â€œÅ  Testing JSON Processing Impact for $appSite : $appFile\n";
         echo str_repeat('-', 50) . "\n";
 
         $templates = LoaderNormal::loadGetTemplateFiles($assemblerWebDirPath, $appSite);
@@ -674,7 +556,7 @@ class TestingUtils
         $preprocessedTemplates = $preprocessedSiteTemplates->templates;
 
         if (empty($templates)) {
-            echo "❌ No templates found for $appSite\n";
+            echo "Ã¢ÂÅ’ No templates found for $appSite\n";
             return;
         }
 
@@ -706,7 +588,7 @@ class TestingUtils
 
         foreach ($appViewScenarios as $scenario) {
             [$appView, $appViewPrefix] = $scenario;
-            echo "\n🔍 Testing scenario: AppView='$appView', AppViewPrefix='$appViewPrefix'\n";
+            echo "\nÃ°Å¸â€Â Testing scenario: AppView='$appView', AppViewPrefix='$appViewPrefix'\n";
 
             $normalEngine = new EngineNormal();
             $preProcessEngine = new EnginePreProcess();
@@ -740,12 +622,12 @@ class TestingUtils
                 $resultPreProcess = $preProcessEngine->mergeTemplates($appSite, $appFileName, $appView, $preprocessedTemplates, $enableJsonProcessing);
             }
 
-            echo "   📏 Normal Engine Output: " . strlen($resultNormal) . " chars\n";
-            echo "   📏 PreProcess Engine Output: " . strlen($resultPreProcess) . " chars\n";
+            echo "   Ã°Å¸â€œÂ Normal Engine Output: " . strlen($resultNormal) . " chars\n";
+            echo "   Ã°Å¸â€œÂ PreProcess Engine Output: " . strlen($resultPreProcess) . " chars\n";
 
             // Compare results between engines
             $outputsMatch = $resultNormal === $resultPreProcess;
-            echo "\n✅ Outputs " . ($outputsMatch ? "Match! ✨" : "Differ ❌") . "\n";
+            echo "\nÃ¢Å“â€¦ Outputs " . ($outputsMatch ? "Match! Ã¢Å“Â¨" : "Differ Ã¢ÂÅ’") . "\n";
 
             if (!$outputsMatch) {
                 // Save outputs for comparison if they differ
@@ -758,10 +640,10 @@ class TestingUtils
                 file_put_contents($testOutputDir . DIRECTORY_SEPARATOR . "{$appSite}_normal_{$appView}_{$jsonSuffix}_json.html", $resultNormal);
                 file_put_contents($testOutputDir . DIRECTORY_SEPARATOR . "{$appSite}_preprocess_{$appView}_{$jsonSuffix}_json.html", $resultPreProcess);
 
-                echo "\n📄 Outputs saved to: $testOutputDir\n";
+                echo "\nÃ°Å¸â€œâ€ž Outputs saved to: $testOutputDir\n";
 
                 // Show a diff of lengths by section to help identify where they differ
-                echo "\n🔍 Output Analysis:\n";
+                echo "\nÃ°Å¸â€Â Output Analysis:\n";
                 self::analyzeOutputDifferences($resultNormal, $resultPreProcess);
             }
         }
@@ -788,32 +670,14 @@ class TestingUtils
             $elapsed = microtime(true) - $start;
             $elapsedMs = round($elapsed * 1000, 2);
             if (!$skipDetails) {
-                echo "✅ $methodName: $elapsedMs ms\n";
+                echo "Ã¢Å“â€¦ $methodName: $elapsedMs ms\n";
             }
             return $result;
         } catch (\Exception $ex) {
             $elapsed = microtime(true) - $start;
             $elapsedMs = round($elapsed * 1000, 2);
-            echo "❌ $methodName: FAILED - " . $ex->getMessage() . "\n";
+            echo "Ã¢ÂÅ’ $methodName: FAILED - " . $ex->getMessage() . "\n";
             return null;
         }
-    }
-}
-
-// utf16Len helper function for PHP (defined globally since it's used in index.php as well)
-if (!function_exists('utf16Len')) {
-    function utf16Len($str) {
-        $count = 0;
-        $len = mb_strlen($str, 'UTF-8');
-        for ($i = 0; $i < $len; $i++) {
-            $char = mb_substr($str, $i, 1, 'UTF-8');
-            $codePoint = mb_ord($char, 'UTF-8');
-            if ($codePoint <= 0xFFFF) {
-                $count++; // BMP character = 1 UTF-16 code unit
-            } else {
-                $count += 2; // Supplementary character = 2 UTF-16 code units (surrogate pair)
-            }
-        }
-        return $count;
     }
 }

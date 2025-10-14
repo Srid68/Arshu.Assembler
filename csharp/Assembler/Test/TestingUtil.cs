@@ -24,7 +24,7 @@ public class TestSummaryRow
 
 public static class TestingUtil
 {
-    public static List<TestSummaryRow> RunStandardTests(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios,  bool printHtmlOutput = false, bool skipDetails = false,  bool enableJsonProcessing = true)
+    public static List<TestSummaryRow> RunStandardTests(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, bool printHtmlOutput = false, bool skipDetails = false, bool enableJsonProcessing = true)
     {
         var summaryRows = new List<TestSummaryRow>();
 
@@ -50,7 +50,7 @@ public static class TestingUtil
         var groupedScenarios = scenarios
             .GroupBy(s => new { s.AppSite, s.AppFile })
             .ToList();
-        
+
         var outputDir = Path.Combine(projectDirectory ?? "", "template_analysis", "output");
         Directory.CreateDirectory(outputDir);
 
@@ -94,6 +94,37 @@ public static class TestingUtil
                     }
                 }
 
+                // Validate for unresolved placeholders
+                var scenarioUnresolved = new List<bool>();
+                foreach (var output in scenarioOutputs)
+                {
+                    bool hasUnresolved = false;
+                    bool isEmpty = string.IsNullOrWhiteSpace(output);
+
+                    // Scan for any {{...}} patterns which indicate unresolved placeholders
+                    int startIndex = 0;
+                    while ((startIndex = output.IndexOf("{{", startIndex)) >= 0)
+                    {
+                        int endIndex = output.IndexOf("}}", startIndex);
+                        if (endIndex >= 0)
+                        {
+                            // Any {{...}} pattern in final output is unresolved
+                            hasUnresolved = true;
+                            if (!skipDetails)
+                            {
+                                string content = output.Substring(startIndex, endIndex - startIndex + 2);
+                                Console.WriteLine($"{testSite}: ❌ Found unresolved placeholder: {content}");
+                            }
+                            break;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    scenarioUnresolved.Add(hasUnresolved || isEmpty);
+                }
+
                 // Compare outputs for cross-view
                 string matchResult = "";
                 if (group.Count() > 2) // default + at least two AppViews
@@ -123,7 +154,8 @@ public static class TestingUtil
                 {
                     var scenario = group.ElementAt(i);
                     var crossView = (i > 0 && group.Count() > 2) ? matchResult : "";
-                    var normalPreProcess = (i == 0) ? "PASS" : "";
+                    var hasUnresolved = scenarioUnresolved[i];
+                    var normalPreProcess = (i == 0) ? (hasUnresolved ? "FAIL" : "PASS") : "";
 
                     summaryRows.Add(new TestSummaryRow
                     {
@@ -179,7 +211,7 @@ public static class TestingUtil
         var groupedScenarios = scenarios
             .GroupBy(s => new { s.AppSite, s.AppFile })
             .ToList();
-        
+
         var outputDir = Path.Combine(projectDirectory ?? "", "template_analysis", "output");
         Directory.CreateDirectory(outputDir);
 
@@ -238,6 +270,16 @@ public static class TestingUtil
                     }
                 }
 
+                // Print detailed output analysis after processing all scenarios
+                if (scenarioResults.Count > 0)
+                {
+                    var firstResult = scenarioResults[0];
+                    Console.WriteLine($"\n{testSite}: 📊 DETAILED OUTPUT ANALYSIS:");
+                    Console.WriteLine($"   Normal length: {firstResult.NormalOutput.Length} chars");
+                    Console.WriteLine($"   PreProcess length: {firstResult.PreProcessOutput.Length} chars");
+                    Console.WriteLine($"   Difference: {Math.Abs(firstResult.NormalOutput.Length - firstResult.PreProcessOutput.Length)} chars");
+                }
+
                 // Cross-view comparison
                 string crossViewResult = "";
                 if (scenarioResults.Count > 1)
@@ -293,7 +335,7 @@ public static class TestingUtil
         return summaryRows;
     }
 
-    public static void PrintTestSummaryTable(string assemblerWebDirPath, List<TestSummaryRow> summaryRows, string testType)
+    public static void PrintTestSummaryTable(string assemblerWebDirPath, string projectDirectory, List<TestSummaryRow> summaryRows, string testType)
     {
         Console.WriteLine($"\n==================== C# {testType} SUMMARY ====================\n");
         Console.WriteLine($"| {"AppSite",-10} | {"AppFile",-10} | {"AppView",-10} | {"OutputMatch",-11} | {"ViewUnMatch",-11} | {"Error",-10} |");
@@ -307,7 +349,7 @@ public static class TestingUtil
         Console.WriteLine($"| {new string('-', 10)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 11)} | {new string('-', 11)} | {new string('-', 10)} |");
 
         string projectName = "csharp";
-        string reportsDir = Path.Combine(assemblerWebDirPath, "Reports");
+        string reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
         Directory.CreateDirectory(reportsDir);
         string summaryHtmlFile = Path.Combine(reportsDir, $"{projectName}_{testType.ToLower().Replace(" ", "")}_Summary.html");
         string summaryJsonFile = Path.Combine(reportsDir, $"{projectName}_{testType.ToLower().Replace(" ", "")}_Summary.json");
@@ -357,6 +399,7 @@ public static class TestingUtil
 </head>
 <body>
     <h1>C# {testType} Summary</h1>
+    <div class=""meta"" style=""color: #666; font-style: italic; margin-bottom: 10px;"">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
     <div class=""table-container"">
     <table>
         <tr>

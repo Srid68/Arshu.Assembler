@@ -168,11 +168,17 @@ class Logger
         // File output with rotation check
         // First, check if there's a context-specific log file
         if ($context !== null && isset(self::$contextLogFiles[$context])) {
-            try {
-                file_put_contents(self::$contextLogFiles[$context], $logLine . "\n", FILE_APPEND);
-                return; // Don't write to default log file if context file is used
-            } catch (\Exception $e) {
-                // Silently fail to avoid recursive logging issues
+            $logFile = self::$contextLogFiles[$context];
+            $directory = dirname($logFile);
+
+            // Check if directory exists and is writable
+            if (is_dir($directory) && is_writable($directory)) {
+                try {
+                    @file_put_contents($logFile, $logLine . "\n", FILE_APPEND);
+                    return; // Don't write to default log file if context file is used
+                } catch (\Exception $e) {
+                    // Silently fail to avoid recursive logging issues
+                }
             }
         }
 
@@ -186,13 +192,19 @@ class Logger
 
                     // Write header to new rotated file
                     if (self::$logFilePath !== null && !file_exists(self::$logFilePath)) {
-                        $timestamp = date('Y-m-d H:i:s');
-                        file_put_contents(self::$logFilePath, "=== Log started at {$timestamp} ===\n");
+                        $directory = dirname(self::$logFilePath);
+                        if (is_dir($directory) && is_writable($directory)) {
+                            $timestamp = date('Y-m-d H:i:s');
+                            @file_put_contents(self::$logFilePath, "=== Log started at {$timestamp} ===\n");
+                        }
                     }
                 }
 
                 if (self::$logFilePath !== null) {
-                    file_put_contents(self::$logFilePath, $logLine . "\n", FILE_APPEND);
+                    $directory = dirname(self::$logFilePath);
+                    if (is_dir($directory) && is_writable($directory)) {
+                        @file_put_contents(self::$logFilePath, $logLine . "\n", FILE_APPEND);
+                    }
                 }
             } catch (\Exception $e) {
                 // Silently fail to avoid recursive logging issues
@@ -250,13 +262,16 @@ class Logger
             try {
                 $directory = dirname($path);
                 if (!empty($directory) && !is_dir($directory)) {
-                    mkdir($directory, 0755, true);
+                    @mkdir($directory, 0755, true);
                 }
 
-                $timestamp = date('Y-m-d H:i:s');
-                file_put_contents($path, "=== Log started at {$timestamp} [{$context}] ===\n");
+                // Check if directory is writable before attempting to write
+                if (is_dir($directory) && is_writable($directory)) {
+                    $timestamp = date('Y-m-d H:i:s');
+                    @file_put_contents($path, "=== Log started at {$timestamp} [{$context}] ===\n");
+                }
             } catch (\Exception $e) {
-                error_log("Failed to initialize log file for context {$context}: " . $e->getMessage());
+                // Silently fail to avoid logging errors in production
             }
         }
     }

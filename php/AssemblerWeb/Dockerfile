@@ -24,18 +24,13 @@ WORKDIR /app
 COPY --from=build /src/AssemblerWeb /app/AssemblerWeb
 COPY --from=build /src/Assembler /app/Assembler
 
-# Set permissions
+# Create template_analysis logs directory and set permissions
+RUN mkdir -p /app/template_analysis/logs
 RUN chown -R www-data:www-data /app
 RUN chmod +x /app/AssemblerWeb/IdleTrackingMonitor.php
 
 RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf
 RUN ls -l /app/AssemblerWeb/wwwroot
-RUN sed -i 's/:80/:8080/' /etc/apache2/sites-enabled/000-default.conf
-# Set DocumentRoot to /app/AssemblerWeb in both configs
-RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /app/AssemblerWeb|' /etc/apache2/sites-enabled/000-default.conf
-RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /app/AssemblerWeb|' /etc/apache2/apache2.conf
-# Add AliasMatch for .html and .json files in wwwroot
-RUN echo 'AliasMatch ^/(.*\.html)$ /app/AssemblerWeb/wwwroot/$1\nAliasMatch ^/(.*\.json)$ /app/AssemblerWeb/wwwroot/$1\n<Directory /app/AssemblerWeb/wwwroot>\n    Options Indexes FollowSymLinks\n    AllowOverride All\n    Require all granted\n</Directory>' >> /etc/apache2/apache2.conf
 # Relax directory permissions
 RUN sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf
 RUN sed -i 's/Require all denied/Require all granted/g' /etc/apache2/apache2.conf

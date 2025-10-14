@@ -1,5 +1,7 @@
 <?php
 
+use Assembler\Config\ConfigUtil;
+
 class SecurityValidator
 {
     private const PARAM_MAX_LENGTH = 256;
@@ -12,7 +14,7 @@ class SecurityValidator
             return self::$cachedValidAppSites;
         }
 
-        self::$cachedValidAppSites = AppSitesConfig::loadAppSites($wwwrootPath);
+        self::$cachedValidAppSites = ConfigUtil::getAppSites();
         return self::$cachedValidAppSites;
     }
 

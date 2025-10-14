@@ -1,5 +1,5 @@
 <?php
-namespace Assembler\TemplateModel;
+namespace Assembler\Model;
 class PreprocessedSiteTemplates {
     public string $siteName = '';
     public array $templates = [];

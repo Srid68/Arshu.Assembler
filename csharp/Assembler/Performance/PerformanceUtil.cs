@@ -8,6 +8,7 @@ using Arshu.App.Json;
 using Assembler.Engine;
 using Assembler.Loader;
 using Assembler.Config;
+using System.Text.Json.Serialization;
 
 namespace Assembler.Performance;
 
@@ -15,24 +16,48 @@ public static class PerformanceUtil
 {
     public class PerfSummaryRow
     {
+        [JsonPropertyName("AppSite")]
         public string? AppSite { get; set; }
+
+        [JsonPropertyName("AppFile")]
         public string? AppFile { get; set; }
+
+        [JsonPropertyName("AppView")]
         public string? AppView { get; set; }
+
+        [JsonPropertyName("Iterations")]
         public int Iterations { get; set; }
+
+        [JsonPropertyName("NormalTimeTicks")]
         public long NormalTimeTicks { get; set; }
+
+        [JsonPropertyName("PreProcessTimeTicks")]
         public long PreProcessTimeTicks { get; set; }
+
+        [JsonPropertyName("OutputSize")]
         public int OutputSize { get; set; }
+
+        [JsonPropertyName("ResultsMatch")]
         public string? ResultsMatch { get; set; }
+
+        [JsonPropertyName("PerfDifference")]
         public string? PerfDifference { get; set; }
+
+        [JsonPropertyName("ScenarioTotalTimeMs")]
         public long ScenarioTotalTimeMs { get; set; }
+
+        [JsonPropertyName("ElapsedTimeMs")]
         public long ElapsedTimeMs { get; set; }
 
         // Helper properties for display
+        [JsonPropertyName("NormalTimeMs")]
         public double NormalTimeMs => (double)NormalTimeTicks / Stopwatch.Frequency * 1000;
+
+        [JsonPropertyName("PreProcessTimeMs")]
         public double PreProcessTimeMs => (double)PreProcessTimeTicks / Stopwatch.Frequency * 1000;
     }
 
-    public static List<PerfSummaryRow> RunPerformanceComparison(string assemblerWebDirPath, List<Scenario> scenarios, bool skipDetails = false, bool enableJsonProcessing = true)
+    public static List<PerfSummaryRow> RunPerformanceComparison(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, bool skipDetails = false, bool enableJsonProcessing = true)
     {
         var startTime = Stopwatch.StartNew();
 
@@ -163,7 +188,7 @@ public static class PerformanceUtil
         return summaryRows;
     }
 
-    public static void PrintPerfSummaryTable(string assemblerWebDirPath, List<PerfSummaryRow> summaryRows)
+    public static void PrintPerfSummaryTable(string assemblerWebDirPath, string projectDirectory, List<PerfSummaryRow> summaryRows)
     {
         if (summaryRows == null || summaryRows.Count == 0)
             return;
@@ -260,6 +285,7 @@ public static class PerformanceUtil
             html.AppendLine("</head>");
             html.AppendLine("<body>");
             html.AppendLine("    <h2>C# Performance Summary Table</h2>");
+            html.AppendLine($"    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | All times in milliseconds (ms)</div>");
             html.AppendLine("    <div class=\"table-container\">");
             html.AppendLine("    <table>");
             html.Append("        <tr>");
@@ -283,7 +309,7 @@ public static class PerformanceUtil
             html.AppendLine("</body>");
             html.AppendLine("</html>");
 
-            var reportsDir = Path.Combine(assemblerWebDirPath, "Reports");
+            var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
             Directory.CreateDirectory(reportsDir);
             var outFile = Path.Combine(reportsDir, "csharp_perfsummary.html");
             File.WriteAllText(outFile, html.ToString());
@@ -297,10 +323,12 @@ public static class PerformanceUtil
         // Save JSON file
         try
         {
-            var reportsDir = Path.Combine(assemblerWebDirPath, "Reports");
+            var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
             Directory.CreateDirectory(reportsDir);
             var jsonFile = Path.Combine(reportsDir, "csharp_perfsummary.json");
-            var json = JsonConverter.SerializeObject(summaryRows, true);
+
+            // Use custom serialization for NativeAOT compatibility
+            var json = SerializePerfSummaryRowsToJson(summaryRows, true);
             File.WriteAllText(jsonFile, json);
             Console.WriteLine($"Performance summary JSON saved to: {jsonFile}");
         }
@@ -308,5 +336,68 @@ public static class PerformanceUtil
         {
             Console.WriteLine($"Error saving performance summary JSON: {ex.Message}");
         }
+    }
+
+    private static string SerializePerfSummaryRowsToJson(List<PerfSummaryRow> rows, bool indented)
+    {
+        var sb = new StringBuilder();
+        sb.Append("[");
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            if (i > 0) sb.Append(",");
+            if (indented) sb.AppendLine();
+
+            var row = rows[i];
+            if (indented) sb.Append("  ");
+            sb.Append("{");
+            if (indented) sb.AppendLine();
+
+            // Serialize each property manually
+            AppendJsonProperty(sb, "AppSite", row.AppSite, indented, false);
+            AppendJsonProperty(sb, "AppFile", row.AppFile, indented, false);
+            AppendJsonProperty(sb, "AppView", row.AppView, indented, false);
+            AppendJsonProperty(sb, "Iterations", row.Iterations.ToString(), indented, false, false);
+            AppendJsonProperty(sb, "NormalTimeTicks", row.NormalTimeTicks.ToString(), indented, false, false);
+            AppendJsonProperty(sb, "PreProcessTimeTicks", row.PreProcessTimeTicks.ToString(), indented, false, false);
+            AppendJsonProperty(sb, "OutputSize", row.OutputSize.ToString(), indented, false, false);
+            AppendJsonProperty(sb, "ResultsMatch", row.ResultsMatch, indented, false);
+            AppendJsonProperty(sb, "PerfDifference", row.PerfDifference, indented, false);
+            AppendJsonProperty(sb, "ScenarioTotalTimeMs", row.ScenarioTotalTimeMs.ToString(), indented, false, false);
+            AppendJsonProperty(sb, "ElapsedTimeMs", row.ElapsedTimeMs.ToString(), indented, false, false);
+            AppendJsonProperty(sb, "NormalTimeMs", row.NormalTimeMs.ToString("F2"), indented, false, false);
+            AppendJsonProperty(sb, "PreProcessTimeMs", row.PreProcessTimeMs.ToString("F2"), indented, true, false);
+
+            if (indented) sb.Append("  ");
+            sb.Append("}");
+        }
+
+        if (indented) sb.AppendLine();
+        sb.Append("]");
+
+        return sb.ToString();
+    }
+
+    private static void AppendJsonProperty(StringBuilder sb, string propertyName, string? value, bool indented, bool isLast, bool isString = true)
+    {
+        if (indented) sb.Append("    ");
+        sb.Append("\"");
+        sb.Append(propertyName);
+        sb.Append("\":");
+        if (indented) sb.Append(" ");
+
+        if (isString)
+        {
+            sb.Append("\"");
+            sb.Append(value ?? "");
+            sb.Append("\"");
+        }
+        else
+        {
+            sb.Append(value ?? "0");
+        }
+
+        if (!isLast) sb.Append(",");
+        if (indented) sb.AppendLine();
     }
 }

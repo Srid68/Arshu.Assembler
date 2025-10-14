@@ -107,17 +107,17 @@ export class PerformanceUtils {
                 }
 
                 perfSummaryRows.push({
-                    appSite: testAppSite,
-                    appFile: appFileName,
-                    appView: appView,
-                    iterations: iterations,
-                    normalTimeMs: normalTimeMs,
-                    preProcessTimeMs: preProcessTimeMs,
-                    outputSize: resultNormal.length,
-                    resultsMatch: (resultNormal === resultPreProcess ? "YES" : "NO"),
-                    perfDifference: normalTimeMs > 0 ? `${((preProcessTimeMs - normalTimeMs) / normalTimeMs * 100).toFixed(1)}%` : "0%",
-                    scenarioTotalTimeMs: scenarioTotalTime,
-                    elapsedTimeMs: elapsedTime
+                    AppSite: testAppSite,
+                    AppFile: appFileName,
+                    AppView: appView,
+                    Iterations: iterations,
+                    NormalTimeNanos: normalTimeNs,
+                    PreProcessTimeNanos: preProcessTimeNs,
+                    OutputSize: resultNormal.length,
+                    ResultsMatch: (resultNormal === resultPreProcess ? "YES" : "NO"),
+                    PerfDifference: normalTimeMs > 0 ? `${((preProcessTimeMs - normalTimeMs) / normalTimeMs * 100).toFixed(1)}%` : "0%",
+                    ScenarioTotalTimeMs: scenarioTotalTime,
+                    ElapsedTimeMs: elapsedTime
                 });
             } catch (error) {
                 // Silent error handling
@@ -134,9 +134,10 @@ export class PerformanceUtils {
     /**
      * Prints the performance summary table in markdown format
      * @param {string} assemblerWebDirPath
+     * @param {string} projectDirectory
      * @param {Array} summaryRows
      */
-    static printPerfSummaryTable(assemblerWebDirPath, summaryRows) {
+    static printPerfSummaryTable(assemblerWebDirPath, projectDirectory, summaryRows) {
         if (!summaryRows || summaryRows.length === 0) {
             return;
         }
@@ -153,14 +154,16 @@ export class PerformanceUtils {
         }
 
         for (const row of summaryRows) {
-            widths[0] = Math.max(widths[0], (row.appSite || '').length);
-            widths[1] = Math.max(widths[1], (row.appView || '').length);
-            widths[2] = Math.max(widths[2], (row.normalTimeMs || 0).toFixed(2).length);
-            widths[3] = Math.max(widths[3], (row.preProcessTimeMs || 0).toFixed(2).length);
-            widths[4] = Math.max(widths[4], (row.resultsMatch || '').length);
-            widths[5] = Math.max(widths[5], (row.perfDifference || '').length);
-            widths[6] = Math.max(widths[6], (row.scenarioTotalTimeMs || 0).toString().length);
-            widths[7] = Math.max(widths[7], (row.elapsedTimeMs || 0).toString().length);
+            const normalMs = (row.NormalTimeNanos || 0) / 1_000_000;
+            const preProcessMs = (row.PreProcessTimeNanos || 0) / 1_000_000;
+            widths[0] = Math.max(widths[0], (row.AppSite || '').length);
+            widths[1] = Math.max(widths[1], (row.AppView || '').length);
+            widths[2] = Math.max(widths[2], normalMs.toFixed(2).length);
+            widths[3] = Math.max(widths[3], preProcessMs.toFixed(2).length);
+            widths[4] = Math.max(widths[4], (row.ResultsMatch || '').length);
+            widths[5] = Math.max(widths[5], (row.PerfDifference || '').length);
+            widths[6] = Math.max(widths[6], (row.ScenarioTotalTimeMs || 0).toString().length);
+            widths[7] = Math.max(widths[7], (row.ElapsedTimeMs || 0).toString().length);
         }
 
         // Print header
@@ -181,22 +184,24 @@ export class PerformanceUtils {
 
         // Print rows
         for (const row of summaryRows) {
+            const normalMs = (row.NormalTimeNanos || 0) / 1_000_000;
+            const preProcessMs = (row.PreProcessTimeNanos || 0) / 1_000_000;
             process.stdout.write('| ');
-            process.stdout.write((row.appSite || '').padEnd(widths[0]));
+            process.stdout.write((row.AppSite || '').padEnd(widths[0]));
             process.stdout.write(' | ');
-            process.stdout.write((row.appView || '').padEnd(widths[1]));
+            process.stdout.write((row.AppView || '').padEnd(widths[1]));
             process.stdout.write(' | ');
-            process.stdout.write((row.normalTimeMs || 0).toFixed(2).padEnd(widths[2]));
+            process.stdout.write(normalMs.toFixed(2).padEnd(widths[2]));
             process.stdout.write(' | ');
-            process.stdout.write((row.preProcessTimeMs || 0).toFixed(2).padEnd(widths[3]));
+            process.stdout.write(preProcessMs.toFixed(2).padEnd(widths[3]));
             process.stdout.write(' | ');
-            process.stdout.write((row.resultsMatch || '').padEnd(widths[4]));
+            process.stdout.write((row.ResultsMatch || '').padEnd(widths[4]));
             process.stdout.write(' | ');
-            process.stdout.write((row.perfDifference || '').padEnd(widths[5]));
+            process.stdout.write((row.PerfDifference || '').padEnd(widths[5]));
             process.stdout.write(' | ');
-            process.stdout.write((row.scenarioTotalTimeMs || 0).toString().padEnd(widths[6]));
+            process.stdout.write((row.ScenarioTotalTimeMs || 0).toString().padEnd(widths[6]));
             process.stdout.write(' | ');
-            process.stdout.write((row.elapsedTimeMs || 0).toString().padEnd(widths[7]));
+            process.stdout.write((row.ElapsedTimeMs || 0).toString().padEnd(widths[7]));
             console.log(' |');
         }
 
@@ -210,28 +215,31 @@ export class PerformanceUtils {
 
         // Save HTML file
         try {
-            const reportsDir = path.join(assemblerWebDirPath, 'Reports');
+            const reportsDir = path.join(projectDirectory, 'template_analysis', 'Reports');
             if (!fsSync.existsSync(reportsDir)) {
                 fsSync.mkdirSync(reportsDir, { recursive: true });
             }
 
             const html = [
-                '<html><head><title>Node.js Performance Summary Table</title><style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}</style></head><body>',
+                '<html><head><title>Node.js Performance Summary Table</title><style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>',
                 '<h2>Node.js Performance Summary Table</h2>',
+                `<div class="meta">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC | All times in milliseconds (ms)</div>`,
                 '<table>',
                 '<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>'
             ];
 
             for (const row of summaryRows) {
+                const normalMs = (row.NormalTimeNanos || 0) / 1_000_000;
+                const preProcessMs = (row.PreProcessTimeNanos || 0) / 1_000_000;
                 html.push('<tr>');
-                html.push(`<td>${row.appSite || ''}</td>`);
-                html.push(`<td>${row.appView || ''}</td>`);
-                html.push(`<td>${(row.normalTimeMs || 0).toFixed(2)}</td>`);
-                html.push(`<td>${(row.preProcessTimeMs || 0).toFixed(2)}</td>`);
-                html.push(`<td>${row.resultsMatch || ''}</td>`);
-                html.push(`<td>${row.perfDifference || ''}</td>`);
-                html.push(`<td>${row.scenarioTotalTimeMs || 0}</td>`);
-                html.push(`<td>${row.elapsedTimeMs || 0}</td>`);
+                html.push(`<td>${row.AppSite || ''}</td>`);
+                html.push(`<td>${row.AppView || ''}</td>`);
+                html.push(`<td>${normalMs.toFixed(2)}</td>`);
+                html.push(`<td>${preProcessMs.toFixed(2)}</td>`);
+                html.push(`<td>${row.ResultsMatch || ''}</td>`);
+                html.push(`<td>${row.PerfDifference || ''}</td>`);
+                html.push(`<td>${row.ScenarioTotalTimeMs || 0}</td>`);
+                html.push(`<td>${row.ElapsedTimeMs || 0}</td>`);
                 html.push('</tr>');
             }
 
@@ -246,7 +254,7 @@ export class PerformanceUtils {
 
         // Save JSON file
         try {
-            const reportsDir = path.join(assemblerWebDirPath, 'Reports');
+            const reportsDir = path.join(projectDirectory, 'template_analysis', 'Reports');
             if (!fsSync.existsSync(reportsDir)) {
                 fsSync.mkdirSync(reportsDir, { recursive: true });
             }

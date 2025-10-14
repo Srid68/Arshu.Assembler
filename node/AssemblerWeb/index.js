@@ -26,7 +26,7 @@ const configModule = await import(`${assemblerBasePath}/config/index.js`);
 ({ ConfigUtil } = configModule);
 
 // Import endpoint handlers
-import { indexEndpoint, mergeEndpoint, testStandardEndpoint, testAdvancedEndpoint, testPerformanceEndpoint, testConsolidatePerformanceEndpoint, scenariosEndpoint } from './assemblerEndpoint.js';
+import { indexEndpoint, mergeEndpoint, testStandardEndpoint, testAdvancedEndpoint, testPerformanceEndpoint, testConsolidatePerformanceEndpoint, scenariosEndpoint, getReportEndpoint } from './assemblerEndpoint.js';
 
 // Configure logger with context-specific log files
 const logRotation = LogRotation.NONE;
@@ -64,7 +64,7 @@ const USE_PREPROCESS_ENGINE = true;
 const skipIdleTracking = process.argv.includes('--skipIdleTracking');
 
 // Parse port from --port argument
-let port = process.env.PORT || 3001;
+let port = process.env.PORT || 8095;
 const portIndex = process.argv.indexOf('--port');
 if (portIndex !== -1 && portIndex + 1 < process.argv.length) {
   port = parseInt(process.argv[portIndex + 1], 10) || port;
@@ -198,7 +198,7 @@ const openApiSpec = {
     schemas: {
       MergeRequest: {
         type: 'object',
-        required: ['appSite', 'appFile', 'engineType'],
+        required: ['appSite', 'engineType'],
         properties: {
           appSite: {
             type: 'string',
@@ -207,14 +207,6 @@ const openApiSpec = {
           appView: {
             type: 'string',
             description: 'The application view name (optional)'
-          },
-          appViewPrefix: {
-            type: 'string',
-            description: 'The application view prefix (optional)'
-          },
-          appFile: {
-            type: 'string',
-            description: 'The application file name'
           },
           engineType: {
             type: 'string',
@@ -266,6 +258,9 @@ app.post('/test/standard', (req, res) => testStandardEndpoint(req, res, projectD
 app.post('/test/advanced', (req, res) => testAdvancedEndpoint(req, res, projectDirectory, ConfigUtil));
 app.post('/test/performance', (req, res) => testPerformanceEndpoint(req, res, projectDirectory, ConfigUtil));
 app.post('/test/consolidate-performance', (req, res) => testConsolidatePerformanceEndpoint(req, res, projectDirectory));
+
+// Report endpoint
+app.post('/api/report', (req, res) => getReportEndpoint(req, res, projectDirectory));
 
 app.listen(port, () => {
   // OS environment detection

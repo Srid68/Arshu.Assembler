@@ -1,6 +1,6 @@
 <?php
 
-namespace Assembler\TemplateLoader;
+namespace Assembler\Loader;
 
 use Assembler\Common\Logger;
 use Assembler\Common\CommonUtil;

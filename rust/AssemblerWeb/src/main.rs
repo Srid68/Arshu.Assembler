@@ -2,7 +2,6 @@
 use std::thread;
 use utoipa::OpenApi;
 use std::time::Duration;
-use assembler::common::common_util::CommonUtil;
 use actix_web::{web, App, HttpServer, Responder, HttpResponse};
 use actix_files as fs;
 use std::sync::{Arc, Mutex};
@@ -14,7 +13,7 @@ use actix_web::Error;
 mod security_validator;
 mod assembler_endpoint;
 
-use assembler_endpoint::{MergeRequest, index, merge_templates, test_standard, test_advanced, test_performance, test_consolidate_performance};
+use assembler_endpoint::{MergeRequest, ScenarioDto, ReportRequest, index, get_scenarios, merge_templates, test_standard, test_advanced, test_performance, test_consolidate_performance, get_report};
 
 
 async fn openapi_handler() -> impl Responder {
@@ -30,13 +29,15 @@ async fn openapi_handler() -> impl Responder {
 #[openapi(
     paths(
         assembler_endpoint::index,
+        assembler_endpoint::get_scenarios,
         assembler_endpoint::merge_templates,
         assembler_endpoint::test_standard,
         assembler_endpoint::test_advanced,
         assembler_endpoint::test_performance,
-        assembler_endpoint::test_consolidate_performance
+        assembler_endpoint::test_consolidate_performance,
+        assembler_endpoint::get_report
     ),
-    components(schemas(MergeRequest)),
+    components(schemas(MergeRequest, ScenarioDto, ReportRequest)),
     tags((name = "Assembler", description = "Assembler API endpoints"))
 )]
 struct ApiDoc;
@@ -47,42 +48,16 @@ async fn main() -> std::io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let skip_idle_tracking = args.iter().any(|arg| arg == "--skipIdleTracking");
 
-    // Parse port from --port argument, default to 8080
+    // Parse port from --port argument or PORT environment variable, default to 8090
     let port: u16 = args.iter()
         .position(|arg| arg == "--port")
         .and_then(|i| args.get(i + 1))
         .and_then(|p| p.parse().ok())
-        .unwrap_or(8080);
+        .or_else(|| std::env::var("PORT").ok().and_then(|p| p.parse().ok()))
+        .unwrap_or(8090);
 
-    // OS environment detection
-    if std::path::Path::new("/proc/sys/kernel/osrelease").exists() {
-        let os_release = std::fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default();
-        if os_release.contains("microsoft") {
-            println!("[WSL] Running in WSL environment");
-        } else if std::path::Path::new("/etc/os-release").exists() {
-            let os_info = std::fs::read_to_string("/etc/os-release").unwrap_or_default();
-            let distro = os_info.lines().find(|l| l.starts_with("ID=")).map(|l| l[3..].trim_matches('"')).unwrap_or("Unknown Linux");
-            println!("[Linux] Running in {} environment", distro);
-        } else {
-            println!("[Linux] Running in Linux environment");
-        }
-    } else {
-        println!("[Windows] Running in Windows environment");
-    }
-    println!("Starting Rust AssemblerWeb server...");
-
-    // Configure logger with context-specific log files
-    // On Fly.io, use /app directory. Locally, try to determine from executable path
-    let project_directory = if std::path::Path::new("/app").exists() {
-        // Production (Fly.io) - use /app directory
-        std::path::PathBuf::from("/app")
-    } else {
-        // Development - try to determine from executable path
-        std::env::current_exe()
-            .ok()
-            .and_then(|exe| exe.parent().and_then(|p| p.parent()).and_then(|p| p.parent()).map(|p| p.to_path_buf()))
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-    };
+    // Get project directory (current working directory for web projects)
+    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
     let template_analysis_dir = project_directory.join("template_analysis");
     let logs_dir = template_analysis_dir.join("logs");
@@ -90,14 +65,11 @@ async fn main() -> std::io::Result<()> {
         eprintln!("Failed to create logs directory: {}", e);
     }
 
-    // Configure separate log files for each context
+    // Configure separate log files for global contexts only
+    // Note: Endpoint-specific contexts and engine-specific logs are configured per-endpoint
     let mut context_log_files = std::collections::HashMap::new();
-    context_log_files.insert("LoaderNormal".to_string(), logs_dir.join("rust_loadernormal.log").to_string_lossy().to_string());
-    context_log_files.insert("LoaderPreProcess".to_string(), logs_dir.join("rust_loaderpreprocess.log").to_string_lossy().to_string());
-    context_log_files.insert("EngineNormal".to_string(), logs_dir.join("rust_enginenormal.log").to_string_lossy().to_string());
-    context_log_files.insert("EnginePreProcess".to_string(), logs_dir.join("rust_enginepreprocess.log").to_string_lossy().to_string());
     context_log_files.insert("Main".to_string(), logs_dir.join("rust_main.log").to_string_lossy().to_string());
-    context_log_files.insert("MergeEndpoint".to_string(), logs_dir.join("rust_mergeendpoint.log").to_string_lossy().to_string());
+    context_log_files.insert("IdleTracking".to_string(), logs_dir.join("rust_idletracking.log").to_string_lossy().to_string());
 
     assembler::common::logger::Logger::configure(
         assembler::common::logger::LogLevel::DEBUG,
@@ -109,8 +81,8 @@ async fn main() -> std::io::Result<()> {
     assembler::common::logger::Logger::info("AssemblerWeb starting up", Some("Main"));
 
     // Load ConfigUtil (AppSites and Scenarios) at startup
-    let (assembler_web_dir_path, _) = CommonUtil::get_assembler_web_dir_path();
-    let wwwroot_path_str = assembler_web_dir_path.to_str().unwrap_or("");
+    let wwwroot_path = project_directory.join("wwwroot");
+    let wwwroot_path_str = wwwroot_path.to_str().unwrap_or("");
     if let Err(e) = assembler::config::config_util::ConfigUtil::load(wwwroot_path_str) {
         eprintln!("[WARNING] Failed to load ConfigUtil: {}", e);
         assembler::common::logger::Logger::warn(&format!("Failed to load ConfigUtil: {}", e), Some("Main"));
@@ -142,7 +114,6 @@ async fn main() -> std::io::Result<()> {
     } else {
         println!("[IdleTracking] Idle tracking DISABLED");
     }
-
     let idle_seconds = std::env::var("IDLE_SECONDS")
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
@@ -150,10 +121,10 @@ async fn main() -> std::io::Result<()> {
     let idle_tracking = IdleTracking::new(idle_seconds, !is_debug);
 
     let project_dir_data = web::Data::new(project_directory.clone());
+    let wwwroot_path = project_directory.join("wwwroot");
     let server = HttpServer::new(move || {
-        let (assembler_web_dir_path, _) = CommonUtil::get_assembler_web_dir_path();
-        let scalar_path = assembler_web_dir_path.join("scalar");
-        let wwwroot_path = assembler_web_dir_path.clone();
+        let scalar_path = wwwroot_path.join("scalar");
+        let wwwroot_serve_path = wwwroot_path.clone();
 
         App::new()
             .app_data(project_dir_data.clone())
@@ -164,13 +135,14 @@ async fn main() -> std::io::Result<()> {
             .route("/test/advanced", web::post().to(test_advanced))
             .route("/test/performance", web::post().to(test_performance))
             .route("/test/consolidate-performance", web::post().to(test_consolidate_performance))
+            .route("/api/scenarios", web::get().to(get_scenarios))
+            .route("/api/report", web::post().to(get_report))
             .route("/openapi.json", web::get().to(openapi_handler))
             .service(fs::Files::new("/scalar", scalar_path).index_file("index.html"))
-            .service(fs::Files::new("/", wwwroot_path).index_file("index.html"))
+            .service(fs::Files::new("/", wwwroot_serve_path).index_file("index.html"))
     })
     .bind(("0.0.0.0", port))?;
     println!("Server listening on http://localhost:{}", port);
-
     server.run().await
 }
 

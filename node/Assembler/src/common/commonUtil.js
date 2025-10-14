@@ -16,6 +16,12 @@ export class CommonUtil {
         let projectDirectory = currentDirectory;
         const currentDirInfo = path.basename(currentDirectory);
 
+        // Check for Fly.io deployment structure first
+        const flyIoWwwroot = path.join(currentDirectory, 'wwwroot');
+        if (fs.existsSync(flyIoWwwroot) && fs.statSync(flyIoWwwroot).isDirectory()) {
+            return { assemblerWebDirPath: flyIoWwwroot, projectDirectory: currentDirectory };
+        }
+
         const idxBin = currentDirectory.indexOf('bin');
         if (idxBin > -1) {
             projectDirectory = currentDirectory.substring(0, idxBin);

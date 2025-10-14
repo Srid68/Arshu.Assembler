@@ -1,5 +1,5 @@
 <?php
-namespace Assembler\TemplateModel;
+namespace Assembler\Model;
 class JsonPlaceholder {
     public string $key = '';
     public string $placeholder = '';

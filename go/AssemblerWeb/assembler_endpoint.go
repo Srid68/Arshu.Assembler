@@ -22,6 +22,54 @@ import (
 	"assembler/test"
 )
 
+// PerfData represents performance data for consolidation
+type PerfData struct {
+	NormalTimeMs     *float64
+	PreProcessTimeMs *float64
+	OutputSize       *int
+	AppView          string
+}
+
+// MergeRequest represents the request structure for template merging
+type MergeRequest struct {
+	AppSite    *string `json:"appSite" binding:"required"`
+	AppView    *string `json:"appView"`
+	EngineType *string `json:"engineType" binding:"required"`
+}
+
+// index handles the GET / endpoint
+func index(c *gin.Context) {
+	// Use Index AppSite with engine toggle parameter
+	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
+	rootDirPath := assemblerWebDirPath
+
+	// Get engine type from query parameter (default to Normal)
+	engineType := c.DefaultQuery("engine", "Normal")
+
+	// Validate EngineType against allowlist
+	if !IsValidEngineType(engineType) {
+		c.String(http.StatusBadRequest, "Invalid engine type. Use 'Normal' or 'PreProcess'")
+		return
+	}
+
+	// Load templates for Index AppSite
+	normalTemplatesRaw := loader.LoadGetTemplateFiles(rootDirPath, "Index")
+	preprocessTemplatesRaw := loader.LoadProcessGetTemplateFiles(rootDirPath, "Index")
+
+	// Merge using selected engine (no AppView context for Index)
+	var mergedHtml string
+	if strings.EqualFold(engineType, "PreProcess") {
+		engine := engine.NewEnginePreProcess("")
+		mergedHtml = engine.MergeTemplates("Index", "Index", "", preprocessTemplatesRaw.Templates, true)
+	} else {
+		engine := engine.NewEngineNormal("")
+		mergedHtml = engine.MergeTemplates("Index", "Index", "", normalTemplatesRaw, true)
+	}
+
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, mergedHtml)
+}
+
 // scenarios handles the GET /api/scenarios endpoint
 func scenarios(c *gin.Context) {
 	allScenarios, err := config.GetScenarios()
@@ -50,59 +98,6 @@ func scenarios(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, scenarioDtos)
-}
-
-// PerfData represents performance data for consolidation
-type PerfData struct {
-	NormalTimeMs     *float64
-	PreProcessTimeMs *float64
-	OutputSize       *int
-	AppView          string
-}
-
-// MergeRequest represents the request structure for template merging
-type MergeRequest struct {
-	AppSite       *string `json:"appSite" binding:"required"`
-	AppView       *string `json:"appView"`
-	AppViewPrefix *string `json:"appViewPrefix"`
-	EngineType    *string `json:"engineType" binding:"required"`
-}
-
-// index handles the GET / endpoint
-func index(c *gin.Context) {
-	// Use Index AppSite with engine toggle parameter
-	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
-	rootDirPath := assemblerWebDirPath
-
-	// Get engine type from query parameter (default to Normal)
-	engineType := c.DefaultQuery("engine", "Normal")
-
-	// Validate EngineType against allowlist
-	if !IsValidEngineType(engineType) {
-		c.String(http.StatusBadRequest, "Invalid engine type. Use 'Normal' or 'PreProcess'")
-		return
-	}
-
-	// TEMPORARY: Clear cache for development
-	loader.ClearCache()
-	loader.ClearPreProcessCache()
-
-	// Load templates for Index AppSite
-	normalTemplatesRaw := loader.LoadGetTemplateFiles(rootDirPath, "Index")
-	preprocessTemplatesRaw := loader.LoadProcessGetTemplateFiles(rootDirPath, "Index")
-
-	// Merge using selected engine (no AppView context for Index)
-	var mergedHtml string
-	if strings.EqualFold(engineType, "PreProcess") {
-		engine := engine.NewEnginePreProcess("")
-		mergedHtml = engine.MergeTemplates("Index", "Index", "", preprocessTemplatesRaw.Templates, true)
-	} else {
-		engine := engine.NewEngineNormal("")
-		mergedHtml = engine.MergeTemplates("Index", "Index", "", normalTemplatesRaw, true)
-	}
-
-	c.Header("Content-Type", "text/html")
-	c.String(http.StatusOK, mergedHtml)
 }
 
 // mergeTemplates handles the POST /merge endpoint
@@ -147,8 +142,14 @@ func mergeTemplates(c *gin.Context) {
 
 	appFile := matchingScenario.AppFile
 
+	// Calculate appViewPrefix from appFile when appView is not empty
+	appViewPrefix := ""
+	if appViewValue != "" {
+		appViewPrefix = appFile
+	}
+
 	logMsg := fmt.Sprintf("/merge endpoint called with: app_site=%v, app_file=%v, engine_type=%v, app_view=%v, app_view_prefix=%v",
-		safeString(req.AppSite), appFile, safeString(req.EngineType), safeString(req.AppView), safeString(req.AppViewPrefix))
+		safeString(req.AppSite), appFile, safeString(req.EngineType), appViewValue, appViewPrefix)
 	fmt.Println(logMsg)
 	common.Info(logMsg, "MergeEndpoint")
 
@@ -191,26 +192,17 @@ func mergeTemplates(c *gin.Context) {
 		return
 	}
 
-	if req.AppViewPrefix != nil && *req.AppViewPrefix != "" && !IsValidPathComponent(req.AppViewPrefix) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in AppViewPrefix"})
-		return
-	}
-
-	// TEMPORARY: Clear cache for development
-	loader.ClearCache()
-	loader.ClearPreProcessCache()
-
 	serverStart := time.Now()
 	engineStart := time.Now()
 	var mergedHTML string
 	if strings.EqualFold(*req.EngineType, "PreProcess") {
 		templates := loader.LoadProcessGetTemplateFiles(rootDirPath, *req.AppSite)
-		engine := engine.NewEnginePreProcess(safeString(req.AppViewPrefix))
-		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, safeString(req.AppView), templates.Templates, true)
+		engine := engine.NewEnginePreProcess(appViewPrefix)
+		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, templates.Templates, true)
 	} else {
 		templates := loader.LoadGetTemplateFiles(rootDirPath, *req.AppSite)
-		engine := engine.NewEngineNormal(safeString(req.AppViewPrefix))
-		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, safeString(req.AppView), templates, true)
+		engine := engine.NewEngineNormal(appViewPrefix)
+		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, templates, true)
 	}
 	engineTimeMs := float64(time.Since(engineStart).Microseconds()) / 1000.0
 	serverTimeMs := float64(time.Since(serverStart).Microseconds()) / 1000.0
@@ -272,7 +264,7 @@ func testStandard(c *gin.Context) {
 
 	results := test.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true)
 	if len(results) > 0 {
-		test.PrintTestSummaryTable(rootDirPath, results, "STANDARD TEST")
+		test.PrintTestSummaryTable(rootDirPath, projectDirectory, results, "STANDARD TEST")
 	}
 
 	// Restore original log level
@@ -340,7 +332,7 @@ func testAdvanced(c *gin.Context) {
 
 	results := test.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, false, true, true)
 	if len(results) > 0 {
-		test.PrintTestSummaryTable(rootDirPath, results, "ADVANCED TEST")
+		test.PrintTestSummaryTable(rootDirPath, projectDirectory, results, "ADVANCED TEST")
 	}
 
 	// Restore original log level
@@ -375,7 +367,7 @@ func testAdvanced(c *gin.Context) {
 // testPerformance handles the POST /test/performance endpoint
 func testPerformance(c *gin.Context) {
 	start := time.Now()
-	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
+	assemblerWebDirPath, projectDir := common.GetAssemblerWebDirPath()
 	rootDirPath := assemblerWebDirPath
 
 	// Disable logging during performance tests
@@ -390,9 +382,9 @@ func testPerformance(c *gin.Context) {
 		return
 	}
 
-	results := performance.RunPerformanceComparison(rootDirPath, scenarios, true, true)
+	results := performance.RunPerformanceComparison(rootDirPath, projectDir, scenarios, true, true)
 	if len(results) > 0 {
-		performance.PrintPerfSummaryTable(rootDirPath, results)
+		performance.PrintPerfSummaryTable(rootDirPath, projectDir, results)
 	}
 
 	// Restore original log level
@@ -442,71 +434,113 @@ func testConsolidatePerformance(c *gin.Context) {
 		f.Close()
 	}
 
-	// Read server configuration from servers.json
-	serversConfigPath := filepath.Join(rootDirPath, "servers.json")
+	// Read server configuration from servers.csv
+	serversConfigPath := filepath.Join(rootDirPath, "App_Data", "servers.csv")
 	type ServerConfig struct {
-		Language string `json:"language"`
-		URL      string `json:"url"`
-	}
-	type ServersConfig struct {
-		PerformanceServers []ServerConfig `json:"performanceServers"`
+		Language string
+		Method   string
+		URL      string
+		FileName string
 	}
 
-	servers := []ServerConfig{
-		{Language: "CSharp", URL: "https://csharpassembler.fly.dev/csharp_perfsummary.json"},
-		{Language: "Rust", URL: "https://rustassembler.fly.dev/rust_perfsummary.json"},
-		{Language: "Node", URL: "https://nodeassembler.fly.dev/nodejs_perfsummary.json"},
-		{Language: "PHP", URL: "https://phpassembler.fly.dev/php_perfsummary.json"},
-		{Language: "Go", URL: "https://goassembler.fly.dev/go_perfsummary.json"},
-	}
+	var servers []ServerConfig
 
 	if configData, err := os.ReadFile(serversConfigPath); err == nil {
-		var config ServersConfig
-		if err := json.Unmarshal(configData, &config); err == nil {
-			servers = config.PerformanceServers
+		lines := strings.Split(string(configData), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			parts := strings.Split(line, ",")
+			if len(parts) >= 3 {
+				language := strings.TrimSpace(parts[0])
+				method := strings.ToUpper(strings.TrimSpace(parts[1]))
+				url := strings.TrimSpace(parts[2])
+				fileName := ""
+				if len(parts) >= 4 {
+					fileName = strings.TrimSpace(parts[3])
+				}
+				if language != "" && method != "" && url != "" {
+					servers = append(servers, ServerConfig{Language: language, Method: method, URL: url, FileName: fileName})
+				}
+			}
 		}
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	var serversProcessed []string
-	var serversFailed []string
-
-	// Map to store performance data: appKey -> language -> (normalMs, preprocessMs, outputSize, appView)
-	appPerf := make(map[string]map[string]PerfData)
-
-	for _, server := range servers {
-		// Log fetch attempt
-		logMsg := fmt.Sprintf("[%s] Fetching %s from %s\n", time.Now().UTC().Format(time.RFC3339), server.Language, server.URL)
+	if len(servers) == 0 {
+		errorMsg := "No server configuration found. Please configure servers in App_Data/servers.csv"
+		logMsg := fmt.Sprintf("[%s] ❌ %s\n", time.Now().UTC().Format(time.RFC3339), errorMsg)
 		f, _ := os.OpenFile(consolidateLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if f != nil {
 			f.WriteString(logMsg)
 			f.Close()
 		}
 
-		resp, err := client.Get(server.URL)
-		if err != nil {
-			domain := strings.Split(strings.TrimPrefix(strings.TrimPrefix(server.URL, "https://"), "http://"), "/")[0]
-			failureMsg := fmt.Sprintf("%s: %s (ERROR: %v)", server.Language, domain, err)
-			serversFailed = append(serversFailed, failureMsg)
-			// Log failure
-			logMsg := fmt.Sprintf("[%s] ❌ %s\n", time.Now().UTC().Format(time.RFC3339), failureMsg)
+		response := TestResponse{
+			Success:   false,
+			Message:   errorMsg,
+			Elapsed:   time.Since(start).Seconds(),
+			TestCount: 0,
+		}
+
+		c.JSON(http.StatusOK, response)
+		return
+	}
+
+	client := &http.Client{Timeout: 120 * time.Second}
+	var serversProcessed []string
+	var serversFailed []string
+
+	// Map to store performance data: appKey -> language -> (normalMs, preprocessMs, outputSize, appView)
+	appPerf := make(map[string]map[string]PerfData)
+
+	// Group servers by language
+	serversByLang := make(map[string][]ServerConfig)
+	for _, server := range servers {
+		serversByLang[server.Language] = append(serversByLang[server.Language], server)
+	}
+
+	for lang, langServers := range serversByLang {
+		langSuccess := false
+		var langErrors []string
+
+		for _, server := range langServers {
+			// Log fetch attempt
+			var logMsg string
+			if server.Method == "POST" {
+				logMsg = fmt.Sprintf("[%s] Fetching %s via POST %s (fileName: %s)\n", time.Now().UTC().Format(time.RFC3339), lang, server.URL, server.FileName)
+			} else {
+				fullURL := server.URL + server.FileName
+				logMsg = fmt.Sprintf("[%s] Fetching %s via GET %s\n", time.Now().UTC().Format(time.RFC3339), lang, fullURL)
+			}
 			f, _ := os.OpenFile(consolidateLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if f != nil {
 				f.WriteString(logMsg)
 				f.Close()
 			}
-			continue
-		}
-		defer resp.Body.Close()
 
-		if resp.StatusCode == http.StatusOK {
-			body, err := io.ReadAll(resp.Body)
+			var resp *http.Response
+			var err error
+
+			if server.Method == "POST" {
+				reportRequest := map[string]interface{}{
+					"fileName":      server.FileName,
+					"useLangPrefix": false,
+				}
+				jsonData, _ := json.Marshal(reportRequest)
+				resp, err = client.Post(server.URL, "application/json", strings.NewReader(string(jsonData)))
+			} else {
+				fullURL := server.URL + server.FileName
+				resp, err = client.Get(fullURL)
+			}
+
 			if err != nil {
 				domain := strings.Split(strings.TrimPrefix(strings.TrimPrefix(server.URL, "https://"), "http://"), "/")[0]
-				failureMsg := fmt.Sprintf("%s: %s (ERROR: %v)", server.Language, domain, err)
-				serversFailed = append(serversFailed, failureMsg)
-				// Log failure
-				logMsg := fmt.Sprintf("[%s] ❌ %s\n", time.Now().UTC().Format(time.RFC3339), failureMsg)
+				errorMsg := fmt.Sprintf("%s %s (ERROR: %v)", server.Method, domain, err)
+				langErrors = append(langErrors, errorMsg)
+				// Log warning
+				logMsg := fmt.Sprintf("[%s] ⚠️ %s: %s\n", time.Now().UTC().Format(time.RFC3339), lang, errorMsg)
 				f, _ := os.OpenFile(consolidateLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if f != nil {
 					f.WriteString(logMsg)
@@ -514,66 +548,113 @@ func testConsolidatePerformance(c *gin.Context) {
 				}
 				continue
 			}
+			defer resp.Body.Close()
 
-			// Parse JSON array
-			var perfRows []map[string]interface{}
-			if err := json.Unmarshal(body, &perfRows); err == nil {
-				itemCount := len(perfRows)
-				for _, item := range perfRows {
-					// Extract fields with case-insensitive property names
-					appSite := getStringField(item, "AppSite", "app_site", "appSite")
-					appView := getStringField(item, "AppView", "app_view", "appView")
-
-					normalTime := getFloatField(item, "NormalTimeMs", "normal_time_ms", "normalTimeMs", "NormalTimeNanos", "normal_time_nanos")
-					if _, hasNanos := item["NormalTimeNanos"]; hasNanos {
-						normalTime = normalTime / 1_000_000.0
-					} else if _, hasNanos := item["normal_time_nanos"]; hasNanos {
-						normalTime = normalTime / 1_000_000.0
+			if resp.StatusCode == http.StatusOK {
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					domain := strings.Split(strings.TrimPrefix(strings.TrimPrefix(server.URL, "https://"), "http://"), "/")[0]
+					errorMsg := fmt.Sprintf("%s %s (ERROR: %v)", server.Method, domain, err)
+					langErrors = append(langErrors, errorMsg)
+					// Log warning
+					logMsg := fmt.Sprintf("[%s] ⚠️ %s: %s\n", time.Now().UTC().Format(time.RFC3339), lang, errorMsg)
+					f, _ := os.OpenFile(consolidateLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+					if f != nil {
+						f.WriteString(logMsg)
+						f.Close()
 					}
+					continue
+				}
 
-					preprocessTime := getFloatField(item, "PreProcessTimeMs", "preprocess_time_ms", "preProcessTimeMs", "PreProcessTimeNanos", "preprocess_time_nanos")
-					if _, hasNanos := item["PreProcessTimeNanos"]; hasNanos {
-						preprocessTime = preprocessTime / 1_000_000.0
-					} else if _, hasNanos := item["preprocess_time_nanos"]; hasNanos {
-						preprocessTime = preprocessTime / 1_000_000.0
+				// Parse JSON array
+				var perfRows []map[string]interface{}
+				if err := json.Unmarshal(body, &perfRows); err == nil {
+					itemCount := len(perfRows)
+					for _, item := range perfRows {
+						// Extract fields with case-insensitive property names
+						appSite := getStringField(item, "AppSite", "app_site", "appSite")
+						appView := getStringField(item, "AppView", "app_view", "appView")
+
+						normalTime := getFloatField(item, "NormalTimeMs", "normal_time_ms", "normalTimeMs", "NormalTimeNanos", "normal_time_nanos")
+						if _, hasNanos := item["NormalTimeNanos"]; hasNanos {
+							normalTime = normalTime / 1_000_000.0
+						} else if _, hasNanos := item["normal_time_nanos"]; hasNanos {
+							normalTime = normalTime / 1_000_000.0
+						}
+
+						preprocessTime := getFloatField(item, "PreProcessTimeMs", "preprocess_time_ms", "preProcessTimeMs", "PreProcessTimeNanos", "preprocess_time_nanos")
+						if _, hasNanos := item["PreProcessTimeNanos"]; hasNanos {
+							preprocessTime = preprocessTime / 1_000_000.0
+						} else if _, hasNanos := item["preprocess_time_nanos"]; hasNanos {
+							preprocessTime = preprocessTime / 1_000_000.0
+						}
+
+						outputSize := getIntField(item, "OutputSize", "output_size", "outputSize")
+
+						if appSite != "" {
+							key := appSite
+							if appView != "" {
+								key = appSite + " → " + appView
+							}
+
+							// Use case-insensitive comparison for key matching
+							var existingKey string
+							for k := range appPerf {
+								if strings.EqualFold(k, key) {
+									existingKey = k
+									break
+								}
+							}
+							if existingKey != "" {
+								key = existingKey
+							}
+
+							if appPerf[key] == nil {
+								appPerf[key] = make(map[string]PerfData)
+							}
+
+							normPtr := &normalTime
+							prepPtr := &preprocessTime
+							outPtr := &outputSize
+							appPerf[key][lang] = PerfData{
+								NormalTimeMs:     normPtr,
+								PreProcessTimeMs: prepPtr,
+								OutputSize:       outPtr,
+								AppView:          appView,
+							}
+						}
 					}
-
-					outputSize := getIntField(item, "OutputSize", "output_size", "outputSize")
-
-					key := appSite
-					if appView != "" {
-						key = appSite + " → " + appView
-					}
-
-					if appPerf[key] == nil {
-						appPerf[key] = make(map[string]PerfData)
-					}
-
-					normPtr := &normalTime
-					prepPtr := &preprocessTime
-					outPtr := &outputSize
-					appPerf[key][server.Language] = PerfData{
-						NormalTimeMs:     normPtr,
-						PreProcessTimeMs: prepPtr,
-						OutputSize:       outPtr,
-						AppView:          appView,
+					// Log success
+					logMsg := fmt.Sprintf("[%s] ✅ %s: Successfully processed %d items\n", time.Now().UTC().Format(time.RFC3339), lang, itemCount)
+					f, _ := os.OpenFile(consolidateLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+					if f != nil {
+						f.WriteString(logMsg)
+						f.Close()
 					}
 				}
-				// Log success
-				logMsg := fmt.Sprintf("[%s] ✅ %s: Successfully processed %d items\n", time.Now().UTC().Format(time.RFC3339), server.Language, itemCount)
+				langSuccess = true
+				break // Success, no need to try other methods
+			} else {
+				domain := strings.Split(strings.TrimPrefix(strings.TrimPrefix(server.URL, "https://"), "http://"), "/")[0]
+				errorMsg := fmt.Sprintf("%s %s (HTTP %d)", server.Method, domain, resp.StatusCode)
+				langErrors = append(langErrors, errorMsg)
+				// Log warning
+				logMsg := fmt.Sprintf("[%s] ⚠️ %s: %s\n", time.Now().UTC().Format(time.RFC3339), lang, errorMsg)
 				f, _ := os.OpenFile(consolidateLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if f != nil {
 					f.WriteString(logMsg)
 					f.Close()
 				}
 			}
-			serversProcessed = append(serversProcessed, server.Language)
+		}
+
+		// After trying all methods for this language, determine overall result
+		if langSuccess {
+			serversProcessed = append(serversProcessed, lang)
 		} else {
-			domain := strings.Split(strings.TrimPrefix(strings.TrimPrefix(server.URL, "https://"), "http://"), "/")[0]
-			failureMsg := fmt.Sprintf("%s: %s (HTTP %d)", server.Language, domain, resp.StatusCode)
+			failureMsg := fmt.Sprintf("%s: All methods failed - %s", lang, strings.Join(langErrors, "; "))
 			serversFailed = append(serversFailed, failureMsg)
-			// Log failure
-			logMsg := fmt.Sprintf("[%s] ❌ %s\n", time.Now().UTC().Format(time.RFC3339), failureMsg)
+			logMsg := fmt.Sprintf("[%s] ❌ %s: All methods failed\n", time.Now().UTC().Format(time.RFC3339), lang)
 			f, _ := os.OpenFile(consolidateLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if f != nil {
 				f.WriteString(logMsg)
@@ -589,32 +670,46 @@ func testConsolidatePerformance(c *gin.Context) {
 	htmlBuilder.WriteString("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n")
 	htmlBuilder.WriteString("    <title>Consolidated Performance Summary</title>\n")
 	htmlBuilder.WriteString("    <style>\n")
-	htmlBuilder.WriteString("        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f7fa; }\n")
-	htmlBuilder.WriteString("        h1 { color: #667eea; text-align: center; }\n")
-	htmlBuilder.WriteString("        h2 { color: #764ba2; margin-top: 40px; }\n")
-	htmlBuilder.WriteString("        .meta { text-align: center; color: #666; font-style: italic; margin-bottom: 30px; }\n")
+	htmlBuilder.WriteString("        body { font-family: Arial, sans-serif; margin: 20px; }\n")
+	htmlBuilder.WriteString("        h1 { color: #333; }\n")
+	htmlBuilder.WriteString("        h2 { color: #333; margin-top: 40px; }\n")
+	htmlBuilder.WriteString("        .meta { color: #666; font-style: italic; margin-bottom: 10px; }\n")
 	htmlBuilder.WriteString("        .table-container { overflow-x: auto; }\n")
-	htmlBuilder.WriteString("        table { border-collapse: collapse; width: 100%; max-width: 1200px; margin: 20px auto; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); min-width: 600px; }\n")
-	htmlBuilder.WriteString("        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: left; }\n")
-	htmlBuilder.WriteString("        th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; position: sticky; top: 0; }\n")
-	htmlBuilder.WriteString("        tr:nth-child(even) { background-color: #f9f9f9; }\n")
-	htmlBuilder.WriteString("        tr:hover { background-color: #f0f0f0; }\n")
+	htmlBuilder.WriteString("        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 700px; }\n")
+	htmlBuilder.WriteString("        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n")
+	htmlBuilder.WriteString("        th { background-color: #4CAF50; color: white; }\n")
+	htmlBuilder.WriteString("        tr:nth-child(even) { background-color: #f2f2f2; }\n")
 	htmlBuilder.WriteString("        td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7) { text-align: right; }\n")
+	htmlBuilder.WriteString("        .best-perf { background-color: #90EE90; font-weight: bold; }\n")
 	htmlBuilder.WriteString("        @media (max-width: 768px) {\n")
 	htmlBuilder.WriteString("            body { margin: 10px; }\n")
 	htmlBuilder.WriteString("            th, td { padding: 8px; font-size: 14px; }\n")
 	htmlBuilder.WriteString("            h1 { font-size: 24px; }\n")
 	htmlBuilder.WriteString("            h2 { font-size: 20px; }\n")
+	htmlBuilder.WriteString("            .meta { font-size: 12px; }\n")
 	htmlBuilder.WriteString("        }\n")
 	htmlBuilder.WriteString("    </style>\n</head>\n<body>\n")
-	htmlBuilder.WriteString("<h1>Consolidated Performance Summary</h1>\n")
-	htmlBuilder.WriteString(fmt.Sprintf("<div class=\"meta\">Generated: %s UTC</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05")))
-	htmlBuilder.WriteString("<div class=\"meta\">All times in milliseconds (ms)</div>\n")
+	htmlBuilder.WriteString("    <h1>Consolidated Performance Summary</h1>\n")
+	htmlBuilder.WriteString(fmt.Sprintf("    <div class=\"meta\">Generated: %s UTC | All times in milliseconds (ms)</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05")))
+
+	// Get list of languages dynamically from configuration
+	var languages []string
+	for lang := range serversByLang {
+		languages = append(languages, lang)
+	}
+	sort.Strings(languages)
 
 	// Normal Engine Table
-	htmlBuilder.WriteString("<h2>Normal Engine</h2>\n")
-	htmlBuilder.WriteString("<div class=\"table-container\">\n<table>\n")
-	htmlBuilder.WriteString("<tr><th>AppSite/AppView</th><th>CSharp</th><th>Rust</th><th>Go</th><th>Node</th><th>PHP</th><th>OutputSize</th></tr>\n")
+	htmlBuilder.WriteString("    <h2>Normal Engine</h2>\n")
+	htmlBuilder.WriteString("    <div class=\"table-container\">\n")
+	htmlBuilder.WriteString("    <table>\n")
+	htmlBuilder.WriteString("        <tr>\n")
+	htmlBuilder.WriteString("            <th>AppSite/AppView</th>\n")
+	for _, lang := range languages {
+		htmlBuilder.WriteString(fmt.Sprintf("            <th>%s</th>\n", lang))
+	}
+	htmlBuilder.WriteString("            <th>OutputSize</th>\n")
+	htmlBuilder.WriteString("        </tr>\n")
 
 	// Sort app keys
 	var appKeys []string
@@ -623,40 +718,101 @@ func testConsolidatePerformance(c *gin.Context) {
 	}
 	sort.Strings(appKeys)
 
+	// Cache OutputSize per app to ensure consistency across both tables
+	appOutputSizes := make(map[string]*int)
 	for _, app := range appKeys {
-		csharp := formatFloat(appPerf[app]["CSharp"].NormalTimeMs)
-		rust := formatFloat(appPerf[app]["Rust"].NormalTimeMs)
-		goPerfData := formatFloat(appPerf[app]["Go"].NormalTimeMs)
-		node := formatFloat(appPerf[app]["Node"].NormalTimeMs)
-		php := formatFloat(appPerf[app]["PHP"].NormalTimeMs)
-		outputSize := formatInt(getFirstOutputSize(appPerf[app]))
-
-		htmlBuilder.WriteString(fmt.Sprintf("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
-			app, csharp, rust, goPerfData, node, php, outputSize))
+		appOutputSizes[app] = getFirstOutputSize(appPerf[app])
 	}
-	htmlBuilder.WriteString("</table>\n</div>\n")
+
+	for _, app := range appKeys {
+		// Find minimum time for highlighting
+		var validTimes []float64
+		for _, lang := range languages {
+			if appPerf[app][lang].NormalTimeMs != nil {
+				validTimes = append(validTimes, *appPerf[app][lang].NormalTimeMs)
+			}
+		}
+		var minTime *float64
+		if len(validTimes) > 0 {
+			min := validTimes[0]
+			for _, t := range validTimes {
+				if t < min {
+					min = t
+				}
+			}
+			minTime = &min
+		}
+
+		htmlBuilder.WriteString("        <tr>\n")
+		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", app))
+		for _, lang := range languages {
+			timeValue := formatFloat(appPerf[app][lang].NormalTimeMs)
+			isBest := minTime != nil && appPerf[app][lang].NormalTimeMs != nil && (*appPerf[app][lang].NormalTimeMs - *minTime) < 0.001 && (*appPerf[app][lang].NormalTimeMs - *minTime) > -0.001
+			cssClass := ""
+			if isBest {
+				cssClass = " class=\"best-perf\""
+			}
+			htmlBuilder.WriteString(fmt.Sprintf("            <td%s>%s</td>\n", cssClass, timeValue))
+		}
+		outputSize := formatInt(appOutputSizes[app])
+		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", outputSize))
+		htmlBuilder.WriteString("        </tr>\n")
+	}
+	htmlBuilder.WriteString("    </table>\n")
+	htmlBuilder.WriteString("    </div>\n")
 
 	// PreProcess Engine Table
-	htmlBuilder.WriteString("<h2>PreProcess Engine</h2>\n")
-	htmlBuilder.WriteString("<div class=\"table-container\">\n<table>\n")
-	htmlBuilder.WriteString("<tr><th>AppSite/AppView</th><th>CSharp</th><th>Rust</th><th>Go</th><th>Node</th><th>PHP</th><th>OutputSize</th></tr>\n")
+	htmlBuilder.WriteString("    <h2>PreProcess Engine</h2>\n")
+	htmlBuilder.WriteString("    <div class=\"table-container\">\n")
+	htmlBuilder.WriteString("    <table>\n")
+	htmlBuilder.WriteString("        <tr>\n")
+	htmlBuilder.WriteString("            <th>AppSite/AppView</th>\n")
+	for _, lang := range languages {
+		htmlBuilder.WriteString(fmt.Sprintf("            <th>%s</th>\n", lang))
+	}
+	htmlBuilder.WriteString("            <th>OutputSize</th>\n")
+	htmlBuilder.WriteString("        </tr>\n")
 
 	for _, app := range appKeys {
-		csharp := formatFloat(appPerf[app]["CSharp"].PreProcessTimeMs)
-		rust := formatFloat(appPerf[app]["Rust"].PreProcessTimeMs)
-		goPerfData := formatFloat(appPerf[app]["Go"].PreProcessTimeMs)
-		node := formatFloat(appPerf[app]["Node"].PreProcessTimeMs)
-		php := formatFloat(appPerf[app]["PHP"].PreProcessTimeMs)
-		outputSize := formatInt(getFirstOutputSize(appPerf[app]))
+		// Find minimum time for highlighting
+		var validTimes []float64
+		for _, lang := range languages {
+			if appPerf[app][lang].PreProcessTimeMs != nil {
+				validTimes = append(validTimes, *appPerf[app][lang].PreProcessTimeMs)
+			}
+		}
+		var minTime *float64
+		if len(validTimes) > 0 {
+			min := validTimes[0]
+			for _, t := range validTimes {
+				if t < min {
+					min = t
+				}
+			}
+			minTime = &min
+		}
 
-		htmlBuilder.WriteString(fmt.Sprintf("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
-			app, csharp, rust, goPerfData, node, php, outputSize))
+		htmlBuilder.WriteString("        <tr>\n")
+		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", app))
+		for _, lang := range languages {
+			timeValue := formatFloat(appPerf[app][lang].PreProcessTimeMs)
+			isBest := minTime != nil && appPerf[app][lang].PreProcessTimeMs != nil && (*appPerf[app][lang].PreProcessTimeMs - *minTime) < 0.001 && (*appPerf[app][lang].PreProcessTimeMs - *minTime) > -0.001
+			cssClass := ""
+			if isBest {
+				cssClass = " class=\"best-perf\""
+			}
+			htmlBuilder.WriteString(fmt.Sprintf("            <td%s>%s</td>\n", cssClass, timeValue))
+		}
+		outputSize := formatInt(appOutputSizes[app])
+		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", outputSize))
+		htmlBuilder.WriteString("        </tr>\n")
 	}
-	htmlBuilder.WriteString("</table>\n</div>\n")
+	htmlBuilder.WriteString("    </table>\n")
+	htmlBuilder.WriteString("    </div>\n")
 	htmlBuilder.WriteString("</body>\n</html>\n")
 
-	// Write HTML to Reports directory
-	reportsDir := filepath.Join(rootDirPath, "Reports")
+	// Write HTML to template_analysis/Reports directory
+	reportsDir := filepath.Join(projectDirectory, "template_analysis", "Reports")
 	if err := os.MkdirAll(reportsDir, 0755); err != nil {
 		log.Printf("Error creating Reports directory: %v", err)
 	}
@@ -668,15 +824,16 @@ func testConsolidatePerformance(c *gin.Context) {
 	elapsed := time.Since(start).Seconds()
 
 	// Log completion
-	logMsg = fmt.Sprintf("[%s] Consolidation complete in %.2fs - %d AppSites from %d/%d servers\n",
-		time.Now().UTC().Format(time.RFC3339), elapsed, len(appPerf), len(serversProcessed), len(servers))
+	totalLanguages := len(serversByLang)
+	logMsg = fmt.Sprintf("[%s] Consolidation complete in %.2fs - %d AppSites from %d/%d languages\n",
+		time.Now().UTC().Format(time.RFC3339), elapsed, len(appPerf), len(serversProcessed), totalLanguages)
 	f, _ = os.OpenFile(consolidateLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if f != nil {
 		f.WriteString(logMsg)
 		f.Close()
 	}
 
-	message := fmt.Sprintf("Consolidated %d AppSites from %d/%d servers in %.2f secs", len(appPerf), len(serversProcessed), len(servers), elapsed)
+	message := fmt.Sprintf("Consolidated %d AppSites from %d/%d languages in %.2f secs", len(appPerf), len(serversProcessed), totalLanguages, elapsed)
 	if len(serversProcessed) > 0 {
 		message += fmt.Sprintf(" | ✅ Success: %s", strings.Join(serversProcessed, ", "))
 	}
@@ -692,6 +849,67 @@ func testConsolidatePerformance(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// ReportRequest represents the request structure for report retrieval
+type ReportRequest struct {
+	FileName      *string `json:"fileName" binding:"required"`
+	UseLangPrefix *bool   `json:"useLangPrefix"`
+}
+
+// getReport handles the POST /api/report endpoint
+func getReport(c *gin.Context) {
+	var req ReportRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required field: fileName"})
+		return
+	}
+
+	// Validate required fields
+	if req.FileName == nil || *req.FileName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required field: fileName"})
+		return
+	}
+
+	// Validate fileName for path traversal
+	if !IsValidPathComponent(req.FileName) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in fileName"})
+		return
+	}
+
+	// Construct file path
+	prefix := ""
+	if req.UseLangPrefix != nil && *req.UseLangPrefix {
+		prefix = "go_"
+	}
+	fileName := prefix + *req.FileName
+	reportsDir := filepath.Join(projectDirectory, "template_analysis", "Reports")
+	filePath := filepath.Join(reportsDir, fileName)
+
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Report file not found: %s", fileName)})
+		return
+	}
+
+	// Read and return the file content
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error reading report file: %v", err)})
+		return
+	}
+
+	// Determine content type based on file extension
+	contentType := "text/plain"
+	if strings.HasSuffix(fileName, ".html") {
+		contentType = "text/html"
+	} else if strings.HasSuffix(fileName, ".json") {
+		contentType = "application/json"
+	} else if strings.HasSuffix(fileName, ".md") {
+		contentType = "text/markdown"
+	}
+
+	c.Data(http.StatusOK, contentType, content)
 }
 
 // Helper functions for consolidate performance

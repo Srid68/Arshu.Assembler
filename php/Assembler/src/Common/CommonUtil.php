@@ -211,5 +211,27 @@ class CommonUtil
 
         return $content;
     }
+
+    /**
+     * Count UTF-16 code units (same as C# string.Length)
+     * This is for test reporting only to match C#'s character counting
+     * @param string $str The string to count
+     * @return int Number of UTF-16 code units
+     */
+    public static function utf16Len(string $str): int
+    {
+        $count = 0;
+        $len = mb_strlen($str, 'UTF-8');
+        for ($i = 0; $i < $len; $i++) {
+            $char = mb_substr($str, $i, 1, 'UTF-8');
+            $codePoint = mb_ord($char, 'UTF-8');
+            if ($codePoint <= 0xFFFF) {
+                $count++; // BMP character = 1 UTF-16 code unit
+            } else {
+                $count += 2; // Supplementary character = 2 UTF-16 code units (surrogate pair)
+            }
+        }
+        return $count;
+    }
 }
 ?>

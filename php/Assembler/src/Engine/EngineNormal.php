@@ -1,13 +1,13 @@
 <?php
 
-namespace Assembler\TemplateEngine;
+namespace Assembler\Engine;
 
 use Assembler\App\JsonConverter;
 use Assembler\App\Json\JsonObject;
 use Assembler\App\Json\JsonArray;
 use Assembler\Common\CommonUtil;
 use Assembler\Common\Logger;
-use Assembler\TemplateLoader\TemplateResult;
+use Assembler\Loader\TemplateResult;
 
 /**
  * IndexOf-based template engine implementation for improved performance

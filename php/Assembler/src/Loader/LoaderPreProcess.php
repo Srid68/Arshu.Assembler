@@ -1,18 +1,18 @@
 <?php
 
-namespace Assembler\TemplateLoader;
+namespace Assembler\Loader;
 
 use Assembler\App\JsonConverter;
 use Assembler\Common\Logger;
 use Assembler\Common\CommonUtil;
-use Assembler\TemplateModel\PreprocessedSiteTemplates;
-use Assembler\TemplateModel\PreprocessedTemplate;
-use Assembler\TemplateModel\TemplatePlaceholder;
-use Assembler\TemplateModel\SlottedTemplate;
-use Assembler\TemplateModel\SlotPlaceholder;
-use Assembler\TemplateModel\JsonPlaceholder;
-use Assembler\TemplateModel\ReplacementMapping;
-use Assembler\TemplateModel\ReplacementType;
+use Assembler\Model\PreprocessedSiteTemplates;
+use Assembler\Model\PreprocessedTemplate;
+use Assembler\Model\TemplatePlaceholder;
+use Assembler\Model\SlottedTemplate;
+use Assembler\Model\SlotPlaceholder;
+use Assembler\Model\JsonPlaceholder;
+use Assembler\Model\ReplacementMapping;
+use Assembler\Model\ReplacementType;
 
 /**
  * Handles loading and preprocessing of HTML templates from the file system

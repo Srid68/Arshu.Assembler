@@ -49,8 +49,8 @@ function handleScenarioChangeClient() {
     const appView = selectedOption.dataset.appview || "";
     const description = selectedOption.dataset.description || "";
 
-    // Compute appViewPrefix
-    const appViewPrefix = appView ? appView.substring(0, Math.min(appView.length, 6)) : "";
+    // Compute appViewPrefix from appFile when appView is not empty
+    const appViewPrefix = appView ? appFile : "";
 
     // Update rule description
     updateRuleDescription(appSite, description);

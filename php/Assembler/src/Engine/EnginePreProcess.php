@@ -1,11 +1,11 @@
 <?php
 
-namespace Assembler\TemplateEngine;
+namespace Assembler\Engine;
 
 use Assembler\Common\Logger;
 use Assembler\Common\CommonUtil;
-use Assembler\TemplateModel\PreprocessedTemplate;
-use Assembler\TemplateModel\ReplacementType;
+use Assembler\Model\PreprocessedTemplate;
+use Assembler\Model\ReplacementType;
 
 /**
  * PreProcess template engine implementation that only does merging using preprocessed data structures

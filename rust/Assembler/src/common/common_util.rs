@@ -135,4 +135,17 @@ impl CommonUtil {
 
         result
     }
+
+    /// Count UTF-16 code units (same as C# string.Length)
+    /// This is for test reporting only to match C#'s character counting
+    pub fn utf16_len(s: &str) -> usize {
+        s.chars().map(|c| {
+            let code_point = c as u32;
+            if code_point <= 0xFFFF {
+                1 // BMP character = 1 UTF-16 code unit
+            } else {
+                2 // Supplementary character = 2 UTF-16 code units (surrogate pair)
+            }
+        }).sum()
+    }
 }

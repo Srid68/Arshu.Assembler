@@ -4,6 +4,7 @@
 package performance
 
 import (
+	"assembler/common"
 	"assembler/config"
 	"assembler/engine"
 	"assembler/loader"
@@ -38,7 +39,7 @@ func (p *PerfSummaryRow) PreProcessTimeMs() float64 {
 	return float64(p.PreProcessTimeNanos) / 1_000_000.0
 }
 
-func RunPerformanceComparison(assemblerWebDir string, scenarios []config.Scenario, skipDetails bool, enableJsonProcessing bool) []PerfSummaryRow {
+func RunPerformanceComparison(assemblerWebDir, projectDirectory string, scenarios []config.Scenario, skipDetails bool, enableJsonProcessing bool) []PerfSummaryRow {
 	startTime := time.Now()
 
 	if assemblerWebDir == "" {
@@ -106,7 +107,7 @@ func RunPerformanceComparison(assemblerWebDir string, scenarios []config.Scenari
 		if !skipDetails {
 			normalTimeMs := float64(normalTimeNanos) / 1_000_000.0
 			avg := normalTimeMs / float64(iterations)
-			fmt.Printf("[Go] Normal Engine:     %.0fms | Avg: %.3fms/op | Size: %d chars\n", normalTimeMs, avg, len(resultNormal))
+			fmt.Printf("[Go] Normal Engine:     %.0fms | Avg: %.3fms/op | Size: %d chars\n", normalTimeMs, avg, common.Utf16Len(resultNormal))
 		}
 
 		loader.ClearCache()
@@ -129,7 +130,7 @@ func RunPerformanceComparison(assemblerWebDir string, scenarios []config.Scenari
 		if !skipDetails {
 			preprocessTimeMs := float64(preprocessTimeNanos) / 1_000_000.0
 			avg := preprocessTimeMs / float64(iterations)
-			fmt.Printf("[Go] PreProcess Engine: %.0fms | Avg: %.3fms/op | Size: %d chars\n", preprocessTimeMs, avg, len(resultPreprocess))
+			fmt.Printf("[Go] PreProcess Engine: %.0fms | Avg: %.3fms/op | Size: %d chars\n", preprocessTimeMs, avg, common.Utf16Len(resultPreprocess))
 
 			differenceMs := preprocessTimeMs - float64(normalTimeNanos)/1_000_000.0
 			differencePercent := 0.0
@@ -169,7 +170,7 @@ func RunPerformanceComparison(assemblerWebDir string, scenarios []config.Scenari
 			Iterations:          iterations,
 			NormalTimeNanos:     normalTimeNanos,
 			PreProcessTimeNanos: preprocessTimeNanos,
-			OutputSize:          len(resultNormal),
+			OutputSize:          common.Utf16Len(resultNormal),
 			ResultsMatch:        map[bool]string{true: "YES", false: "NO"}[resultsMatch],
 			PerfDifference:      perfDiff,
 			ScenarioTotalTimeMs: scenarioTotalTime,
@@ -184,7 +185,7 @@ func RunPerformanceComparison(assemblerWebDir string, scenarios []config.Scenari
 	return perfSummaryRows
 }
 
-func PrintPerfSummaryTable(assemblerWebDir string, perfSummaryRows []PerfSummaryRow) {
+func PrintPerfSummaryTable(assemblerWebDir, projectDirectory string, perfSummaryRows []PerfSummaryRow) {
 	if len(perfSummaryRows) == 0 {
 		return
 	}
@@ -253,7 +254,7 @@ func PrintPerfSummaryTable(assemblerWebDir string, perfSummaryRows []PerfSummary
 	}
 	fmt.Println("|")
 	// Save performance summary to file
-	reportsDir := filepath.Join(assemblerWebDir, "Reports")
+	reportsDir := filepath.Join(projectDirectory, "template_analysis", "Reports")
 	if err := os.MkdirAll(reportsDir, 0755); err != nil {
 		fmt.Printf("❌ Error creating Reports directory: %v\n", err)
 		return
@@ -279,6 +280,7 @@ func PrintPerfSummaryTable(assemblerWebDir string, perfSummaryRows []PerfSummary
 	html += "        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n"
 	html += "        th { background-color: #4CAF50; color: white; }\n"
 	html += "        tr:nth-child(even) { background-color: #f2f2f2; }\n"
+	html += "        .meta { color: #666; font-style: italic; margin-bottom: 10px; }\n"
 	html += "        @media (max-width: 768px) {\n"
 	html += "            body { margin: 10px; }\n"
 	html += "            th, td { padding: 8px; font-size: 14px; }\n"
@@ -286,6 +288,7 @@ func PrintPerfSummaryTable(assemblerWebDir string, perfSummaryRows []PerfSummary
 	html += "        }\n"
 	html += "    </style>\n</head>\n<body>\n"
 	html += "<h2>Go Performance Summary</h2>\n"
+	html += fmt.Sprintf("<div class=\"meta\">Generated: %s UTC | All times in milliseconds (ms)</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05"))
 	html += "<div class=\"table-container\">\n<table>\n"
 	html += "<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>\n"
 	for _, row := range perfSummaryRows {

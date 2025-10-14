@@ -1,5 +1,5 @@
 <?php
-namespace Assembler\TemplateModel;
+namespace Assembler\Model;
 use Assembler\App\Json\JsonObject;
 class TemplatePlaceholder {
     public string $name = '';

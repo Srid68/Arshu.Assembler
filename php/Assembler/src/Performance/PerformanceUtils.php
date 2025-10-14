@@ -2,10 +2,11 @@
 
 namespace Assembler\Performance;
 
-use Assembler\TemplateLoader\LoaderNormal;
-use Assembler\TemplateLoader\LoaderPreProcess;
-use Assembler\TemplateEngine\EngineNormal;
-use Assembler\TemplateEngine\EnginePreProcess;
+use Assembler\Loader\LoaderNormal;
+use Assembler\Loader\LoaderPreProcess;
+use Assembler\Engine\EngineNormal;
+use Assembler\Engine\EnginePreProcess;
+use Assembler\Common\CommonUtil;
 
 class PerfSummaryRow
 {
@@ -107,7 +108,7 @@ class PerformanceUtils
 
             if (!$skipDetails) {
                 $avg = $normalTime / $iterations;
-                echo "[PHP] Normal Engine:     {$normalTime}ms | Avg: " . number_format($avg, 3) . "ms/op | Size: " . utf16Len($resultNormal) . " chars\n";
+                echo "[PHP] Normal Engine:     {$normalTime}ms | Avg: " . number_format($avg, 3) . "ms/op | Size: " . CommonUtil::utf16Len($resultNormal) . " chars\n";
             }
 
             LoaderNormal::clearCache();
@@ -129,7 +130,7 @@ class PerformanceUtils
 
             if (!$skipDetails) {
                 $avg = $preProcessTime / $iterations;
-                echo "[PHP] PreProcess Engine: {$preProcessTime}ms | Avg: " . number_format($avg, 3) . "ms/op | Size: " . utf16Len($resultPreProcess) . " chars\n";
+                echo "[PHP] PreProcess Engine: {$preProcessTime}ms | Avg: " . number_format($avg, 3) . "ms/op | Size: " . CommonUtil::utf16Len($resultPreProcess) . " chars\n";
 
                 $difference = round($preProcessTime - $normalTime, 2);
                 $differencePercent = $normalTime > 0 ? ($difference / $normalTime) * 100 : 0;
@@ -153,7 +154,7 @@ class PerformanceUtils
                 $iterations,
                 $normalTime,
                 $preProcessTime,
-                utf16Len($resultNormal),
+                CommonUtil::utf16Len($resultNormal),
                 ($resultNormal === $resultPreProcess ? "YES" : "NO"),
                 $normalTime > 0 ? number_format(($preProcessTime - $normalTime) / $normalTime * 100, 1) . "%" : "0%",
                 $scenarioTotalTime,
@@ -170,9 +171,10 @@ class PerformanceUtils
 
     /**
      * @param string $assemblerWebDirPath
+     * @param string $projectDirectory
      * @param PerfSummaryRow[] $summaryRows
      */
-    public static function printPerfSummaryTable(string $assemblerWebDirPath, array $summaryRows): void
+    public static function printPerfSummaryTable(string $assemblerWebDirPath, string $projectDirectory, array $summaryRows): void
     {
         if (empty($summaryRows)) {
             return;
@@ -239,13 +241,14 @@ class PerformanceUtils
 
         // Save HTML file
         try {
-            $reportsDir = $assemblerWebDirPath . DIRECTORY_SEPARATOR . 'Reports';
+            $reportsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsDir)) {
                 mkdir($reportsDir, 0755, true);
             }
 
-            $html = '<html><head><title>PHP Performance Summary Table</title><style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}</style></head><body>';
+            $html = '<html><head><title>PHP Performance Summary Table</title><style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>';
             $html .= '<h2>PHP Performance Summary Table</h2>';
+            $html .= '<div class="meta">Generated: ' . gmdate('Y-m-d H:i:s') . ' UTC | All times in milliseconds (ms)</div>';
             $html .= '<table>';
             $html .= '<tr>';
             foreach ($headers as $h) {
@@ -275,7 +278,7 @@ class PerformanceUtils
 
         // Save JSON file
         try {
-            $reportsDir = $assemblerWebDirPath . DIRECTORY_SEPARATOR . 'Reports';
+            $reportsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsDir)) {
                 mkdir($reportsDir, 0755, true);
             }

@@ -3,27 +3,21 @@ use crate::loader::loader_normal::LoaderNormal;
 use crate::loader::loader_preprocess::LoaderPreProcess;
 use crate::engine::engine_normal::EngineNormal;
 use crate::engine::engine_preprocess::EnginePreProcess;
-
-/// Count UTF-16 code units (same as C# string.Length)
-/// This is for test reporting only to match C#'s character counting
-fn utf16_len(s: &str) -> usize {
-    s.chars().map(|c| {
-        let code_point = c as u32;
-        if code_point <= 0xFFFF {
-            1 // BMP character = 1 UTF-16 code unit
-        } else {
-            2 // Supplementary character = 2 UTF-16 code units (surrogate pair)
-        }
-    }).sum()
-}
+use crate::common::common_util::CommonUtil;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TestSummaryRow {
+    #[serde(rename = "AppSite")]
     pub app_site: String,
+    #[serde(rename = "AppFile")]
     pub app_file: String,
+    #[serde(rename = "AppView")]
     pub app_view: String,
+    #[serde(rename = "NormalPreProcess")]
     pub normal_preprocess: String,
+    #[serde(rename = "CrossViewUnMatch")]
     pub cross_view_unmatch: String,
+    #[serde(rename = "Error")]
     pub error: String,
 }
 
@@ -38,8 +32,8 @@ impl TestingUtils {
         run_advanced_tests(assembler_web_dir, project_directory, scenarios, print_html_output, skip_details, enable_json_processing)
     }
 
-    pub fn print_test_summary_table(assembler_web_dir_path: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str) {
-        print_test_summary_table(assembler_web_dir_path, summary_rows, test_type)
+    pub fn print_test_summary_table(assembler_web_dir_path: &str, project_directory: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str) {
+        print_test_summary_table(assembler_web_dir_path, project_directory, summary_rows, test_type)
     }
 
     /// Dumps preprocessed template structures to JSON files (matching C# DumpPreprocessedTemplateStructures)
@@ -83,7 +77,12 @@ pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scen
 
     let mut global_test_summary_rows: Vec<TestSummaryRow> = Vec::new();
 
-    for ((test_site, app_file_name), group) in grouped {
+    // Sort the grouped keys to ensure consistent ordering
+    let mut sorted_keys: Vec<_> = grouped.keys().cloned().collect();
+    sorted_keys.sort();
+
+    for (test_site, app_file_name) in sorted_keys {
+        let group = grouped.get(&(test_site.clone(), app_file_name.clone())).unwrap();
             if !skip_details {
                 println!("{}: STANDARD TEST : appsite: {} appfile: {}", test_site, test_site, app_file_name);
                 println!("{}: AppSite: {}, AppViewPrefix: Html3A", test_site, test_site);
@@ -94,7 +93,7 @@ pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scen
             let mut scenario_outputs = Vec::new();
             let mut scenario_unresolved: Vec<bool> = Vec::new();
 
-            for scenario in &group {
+            for scenario in group {
                 let app_view = &scenario.app_view;
                 let normal_engine = EngineNormal::new(app_file_name.clone());
                 let result_normal = normal_engine.merge_templates(&test_site, &app_file_name, Some(app_view), &mut templates.clone(), enable_json_processing);
@@ -120,12 +119,9 @@ pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scen
                     let absolute_pos = start_index + pos;
                     if let Some(end_pos) = result_normal[absolute_pos..].find("}}") {
                         let end_absolute = absolute_pos + end_pos + 2;
-                        let content = &result_normal[absolute_pos + 2..absolute_pos + end_pos];
-                        // Only flag as unresolved if it doesn't start with $ (same logic as C#)
-                        if !content.starts_with('$') {
-                            let placeholder = &result_normal[absolute_pos..end_absolute];
-                            unresolved.push(placeholder.to_string());
-                        }
+                        // Any {{...}} pattern in final output is unresolved
+                        let placeholder = &result_normal[absolute_pos..end_absolute];
+                        unresolved.push(placeholder.to_string());
                         start_index = end_absolute;
                     } else {
                         break;
@@ -227,7 +223,13 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
 
     let mut global_test_summary_rows: Vec<TestSummaryRow> = Vec::new();
 
-    for ((test_site, app_file_name), group) in grouped {
+    // Sort the grouped keys to ensure consistent ordering
+    let mut sorted_keys: Vec<_> = grouped.keys().cloned().collect();
+    sorted_keys.sort();
+
+    for (test_site, app_file_name) in sorted_keys {
+        let group = grouped.get(&(test_site.clone(), app_file_name.clone())).unwrap();
+
         if !skip_details {
             println!("🔍 ADVANCED TEST : appsite: {} appfile: {}", test_site, app_file_name);
         }
@@ -255,7 +257,7 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
 
         let mut scenario_results = Vec::new();
 
-        for scenario in &group {
+        for scenario in group {
             let app_view = &scenario.app_view;
             // Use empty AppViewPrefix for default scenario (when app_view is empty), otherwise use app_file_name
             let app_view_prefix = if app_view.is_empty() { "" } else { &app_file_name };
@@ -300,8 +302,8 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
                 println!("{}: {}", test_site, "-".repeat(45));
 
                 println!("{}: 🔹 All Two Methods:", test_site);
-                println!("{}:   Normal: {} chars", test_site, utf16_len(&result_normal));
-                println!("{}:   PreProcess: {} chars", test_site, utf16_len(&result_preprocess));
+                println!("{}:   Normal: {} chars", test_site, CommonUtil::utf16_len(&result_normal));
+                println!("{}:   PreProcess: {} chars", test_site, CommonUtil::utf16_len(&result_preprocess));
 
                 if outputs_match {
                     println!("{}:   ✅ Normal vs PreProcess: MATCH", test_site);
@@ -455,7 +457,7 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
     global_test_summary_rows
 }
 
-pub fn print_test_summary_table(assembler_web_dir_path: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str)
+pub fn print_test_summary_table(assembler_web_dir_path: &str, project_directory: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str)
 {
     if summary_rows.is_empty() {
         return;
@@ -523,64 +525,80 @@ pub fn print_test_summary_table(assembler_web_dir_path: &str, summary_rows: &Vec
     println!("|");
 
     // Save HTML file
-    match save_test_summary_html(assembler_web_dir_path, summary_rows, test_type) {
+    match save_test_summary_html(assembler_web_dir_path, project_directory, summary_rows, test_type) {
         Ok(path) => println!("Test summary HTML saved to: {}", path),
         Err(e) => println!("Error saving test summary HTML: {}", e),
     }
 
     // Save JSON file
-    match save_test_summary_json(assembler_web_dir_path, summary_rows, test_type) {
+    match save_test_summary_json(assembler_web_dir_path, project_directory, summary_rows, test_type) {
         Ok(path) => println!("Test summary JSON saved to: {}", path),
         Err(e) => println!("Error saving test summary JSON: {}", e),
     }
 }
 
-fn save_test_summary_html(assembler_web_dir_path: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str) -> Result<String, Box<dyn std::error::Error>> {
+fn save_test_summary_html(_assembler_web_dir_path: &str, project_directory: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut html = String::new();
     html.push_str("<!DOCTYPE html>\n<html>\n<head>\n");
     html.push_str("    <meta charset=\"UTF-8\">\n");
     html.push_str("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-    html.push_str("    <title>Test Summary Table</title>\n");
+    html.push_str(&format!("    <title>Rust {} Summary</title>\n", test_type.to_uppercase()));
     html.push_str("    <style>\n");
     html.push_str("        body { font-family: Arial, sans-serif; margin: 20px; }\n");
-    html.push_str("        h1, h2 { color: #333; }\n");
+    html.push_str("        h1 { color: #333; }\n");
     html.push_str("        .table-container { overflow-x: auto; }\n");
     html.push_str("        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }\n");
     html.push_str("        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n");
     html.push_str("        th { background-color: #4CAF50; color: white; }\n");
     html.push_str("        tr:nth-child(even) { background-color: #f2f2f2; }\n");
+    html.push_str("        .pass { color: green; font-weight: bold; }\n");
+    html.push_str("        .fail { color: red; font-weight: bold; }\n");
     html.push_str("        @media (max-width: 768px) {\n");
     html.push_str("            body { margin: 10px; }\n");
     html.push_str("            th, td { padding: 8px; font-size: 14px; }\n");
-    html.push_str("            h1, h2 { font-size: 20px; }\n");
+    html.push_str("            h1 { font-size: 24px; }\n");
     html.push_str("        }\n");
     html.push_str("    </style>\n</head>\n<body>\n");
-    html.push_str(&format!("<h2>RUST {} SUMMARY TABLE</h2>\n", test_type.to_uppercase()));
-    html.push_str("<div class=\"table-container\">\n<table>\n");
-    html.push_str("<tr><th>AppSite</th><th>AppFile</th><th>AppView</th><th>OutputMatch</th><th>ViewUnMatch</th><th>Error</th></tr>\n");
+    html.push_str(&format!("    <h1>Rust {} Summary</h1>\n", test_type.to_uppercase()));
+    html.push_str(&format!("    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: {} UTC</div>\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
+    html.push_str("    <div class=\"table-container\">\n    <table>\n");
+    html.push_str("        <tr>\n");
+    html.push_str("            <th>AppSite</th>\n");
+    html.push_str("            <th>AppFile</th>\n");
+    html.push_str("            <th>AppView</th>\n");
+    html.push_str("            <th>OutputMatch</th>\n");
+    html.push_str("            <th>ViewUnMatch</th>\n");
+    html.push_str("            <th>Error</th>\n");
+    html.push_str("        </tr>\n");
 
     for row in summary_rows {
-        html.push_str(&format!(
-            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
-            row.app_site, row.app_file, row.app_view,
-            row.normal_preprocess, row.cross_view_unmatch, row.error
-        ));
+        let output_match_class = if row.normal_preprocess == "PASS" { "pass" } else if row.normal_preprocess == "FAIL" { "fail" } else { "" };
+        let view_unmatch_class = if row.cross_view_unmatch == "PASS" { "pass" } else if row.cross_view_unmatch == "FAIL" { "fail" } else { "" };
+
+        html.push_str("        <tr>\n");
+        html.push_str(&format!("            <td>{}</td>\n", row.app_site));
+        html.push_str(&format!("            <td>{}</td>\n", row.app_file));
+        html.push_str(&format!("            <td>{}</td>\n", row.app_view));
+        html.push_str(&format!("            <td class=\"{}\">{}</td>\n", output_match_class, row.normal_preprocess));
+        html.push_str(&format!("            <td class=\"{}\">{}</td>\n", view_unmatch_class, row.cross_view_unmatch));
+        html.push_str(&format!("            <td>{}</td>\n", row.error));
+        html.push_str("        </tr>\n");
     }
 
-    html.push_str("</table>\n</div>\n</body>\n</html>\n");
+    html.push_str("    </table>\n    </div>\n</body>\n</html>\n");
 
     // Sanitize testType for filename
     let test_type_file = test_type.replace(" ", "").replace("-", "").to_lowercase();
-    let reports_dir = format!("{}/Reports", assembler_web_dir_path);
+    let reports_dir = format!("{}/template_analysis/Reports", project_directory);
     std::fs::create_dir_all(&reports_dir)?;
     let out_file = format!("{}/rust_{}_Summary.html", reports_dir, test_type_file);
     std::fs::write(&out_file, html)?;
     Ok(out_file)
 }
 
-fn save_test_summary_json(assembler_web_dir_path: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str) -> Result<String, Box<dyn std::error::Error>> {
+fn save_test_summary_json(_assembler_web_dir_path: &str, project_directory: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str) -> Result<String, Box<dyn std::error::Error>> {
     let test_type_file = test_type.replace(" ", "").replace("-", "").to_lowercase();
-    let reports_dir = format!("{}/Reports", assembler_web_dir_path);
+    let reports_dir = format!("{}/template_analysis/Reports", project_directory);
     std::fs::create_dir_all(&reports_dir)?;
     let json_file = format!("{}/rust_{}_Summary.json", reports_dir, test_type_file);
     let json = serde_json::to_string_pretty(summary_rows)?;
@@ -590,9 +608,11 @@ fn save_test_summary_json(assembler_web_dir_path: &str, summary_rows: &Vec<TestS
 
 pub fn analyze_output_differences(output1: &str, output2: &str, print_detailed_diff: bool)
 {
-    println!("   Normal length: {} chars", output1.len());
-    println!("   PreProcess length: {} chars", output2.len());
-    println!("   Difference: {} chars", output1.len() as i64 - output2.len() as i64);
+    let normal_len = CommonUtil::utf16_len(output1);
+    let preprocess_len = CommonUtil::utf16_len(output2);
+    println!("   Normal length: {} chars", normal_len);
+    println!("   PreProcess length: {} chars", preprocess_len);
+    println!("   Difference: {} chars", normal_len as i64 - preprocess_len as i64);
 
     if print_detailed_diff {
         // Find first character-level difference
@@ -644,8 +664,8 @@ pub fn analyze_output_differences(output1: &str, output2: &str, print_detailed_d
         for i in 0..common_length {
             if lines1[i] != lines2[i] {
                 println!("\n   Difference at line {}:", i + 1);
-                println!("   Normal:    {} chars", utf16_len(&lines1[i]));
-                println!("   PreProcess:{} chars", utf16_len(&lines2[i]));
+                println!("   Normal:    {} chars", CommonUtil::utf16_len(&lines1[i]));
+                println!("   PreProcess:{} chars", CommonUtil::utf16_len(&lines2[i]));
 
                 // Show first position where they differ
                 let min_length = std::cmp::min(lines1[i].len(), lines2[i].len());

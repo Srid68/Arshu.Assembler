@@ -21,12 +21,12 @@ WORKDIR /app
 COPY --from=build /src/AssemblerWeb/index.js .
 COPY --from=build /src/AssemblerWeb/assemblerEndpoint.js .
 COPY --from=build /src/AssemblerWeb/securityValidator.js .
-COPY --from=build /src/AssemblerWeb/appSitesConfig.js .
 COPY --from=build /src/Assembler/src ./Assembler/src
 COPY --from=build /src/AssemblerWeb/node_modules ./node_modules
 COPY --from=build /src/AssemblerWeb/wwwroot ./wwwroot
+COPY --from=build /src/AssemblerWeb/template_analysis ./template_analysis
 
 EXPOSE 8080
 ENV PORT=8080
-RUN echo 'node-assembler: node /app/index.js'  > Procfile
+RUN echo 'node-assembler: node /app/index.js' > Procfile
 CMD ["/bin/sh", "-c", "rm -f /app/.overmind.sock; /usr/local/bin/overmind start -f ./Procfile"]

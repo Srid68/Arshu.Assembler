@@ -1,5 +1,6 @@
-CSharp,https://csharpassembler.fly.dev/csharp_perfsummary.json
-Rust,https://rustassembler.fly.dev/rust_perfsummary.json
-Node,https://nodeassembler.fly.dev/nodejs_perfsummary.json
-PHP,https://phpassembler.fly.dev/php_perfsummary.json
-Go,https://goassembler.fly.dev/go_perfsummary.json
+CSharp,POST,https://csharpassembler.fly.dev/api/report,csharp_perfsummary.json
+Rust,POST,https://rustassembler.fly.dev/api/report,rust_perfsummary.json
+Node,POST,https://nodeassembler.fly.dev/api/report,nodejs_perfsummary.json
+PHP,POST,https://phpassembler.fly.dev/api/report,php_perfsummary.json
+Go,POST,https://goassembler.fly.dev/api/report,go_perfsummary.json
+Javascript,POST,https://jsassembler.fly.dev/api/report,javascript_perfsummary.json

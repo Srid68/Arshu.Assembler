@@ -15,20 +15,6 @@ import (
 	"time"
 )
 
-// Utf16Len counts UTF-16 code units (same as C# string.Length)
-// This is for test reporting only to match C#'s character counting
-func Utf16Len(s string) int {
-	count := 0
-	for _, r := range s {
-		if r <= 0xFFFF {
-			count++ // BMP character = 1 UTF-16 code unit
-		} else {
-			count += 2 // Supplementary character = 2 UTF-16 code units (surrogate pair)
-		}
-	}
-	return count
-}
-
 type TestSummaryRow struct {
 	AppSite          string
 	AppFile          string
@@ -89,7 +75,20 @@ func RunStandardTests(assemblerWebDirPath, projectDirectory string, scenarios []
 
 	var globalTestSummaryRows []TestSummaryRow
 
-	for key, group := range grouped {
+	// Sort keys to ensure consistent order
+	var sortedKeys []groupKey
+	for key := range grouped {
+		sortedKeys = append(sortedKeys, key)
+	}
+	sort.Slice(sortedKeys, func(i, j int) bool {
+		if sortedKeys[i].appSite != sortedKeys[j].appSite {
+			return sortedKeys[i].appSite < sortedKeys[j].appSite
+		}
+		return sortedKeys[i].appFile < sortedKeys[j].appFile
+	})
+
+	for _, key := range sortedKeys {
+		group := grouped[key]
 		testSite := key.appSite
 		appFileName := key.appFile
 		if !skipDetails {
@@ -138,12 +137,9 @@ func RunStandardTests(assemblerWebDirPath, projectDirectory string, scenarios []
 					break
 				}
 				endAbsolute := absolutePos + endPos + 2
-				content := resultNormal[absolutePos+2 : absolutePos+endPos]
-				// Only flag as unresolved if it doesn't start with $ (same logic as C#)
-				if !strings.HasPrefix(content, "$") {
-					placeholder := resultNormal[absolutePos:endAbsolute]
-					unresolved = append(unresolved, placeholder)
-				}
+				// Any {{...}} pattern in final output is unresolved
+				placeholder := resultNormal[absolutePos:endAbsolute]
+				unresolved = append(unresolved, placeholder)
 				startIndex = endAbsolute
 			}
 			if len(unresolved) > 0 || isEmpty {
@@ -262,7 +258,20 @@ func RunAdvancedTests(assemblerWebDirPath, projectDirectory string, scenarios []
 	outputDir := filepath.Join(projectDirectory, "template_analysis", "output")
 	os.MkdirAll(outputDir, 0755)
 
-	for key, group := range grouped {
+	// Sort keys to ensure consistent order
+	var sortedKeys []groupKey
+	for key := range grouped {
+		sortedKeys = append(sortedKeys, key)
+	}
+	sort.Slice(sortedKeys, func(i, j int) bool {
+		if sortedKeys[i].appSite != sortedKeys[j].appSite {
+			return sortedKeys[i].appSite < sortedKeys[j].appSite
+		}
+		return sortedKeys[i].appFile < sortedKeys[j].appFile
+	})
+
+	for _, key := range sortedKeys {
+		group := grouped[key]
 		testSite := key.appSite
 		appFileName := key.appFile
 		if !skipDetails {
@@ -355,6 +364,36 @@ func RunAdvancedTests(assemblerWebDirPath, projectDirectory string, scenarios []
 				fmt.Printf("\n📋 FULL HTML OUTPUT (Normal):\n%s\n", resultNormal)
 				fmt.Printf("\n📋 FULL HTML OUTPUT (PreProcess):\n%s\n", resultPreProcess)
 			}
+		}
+
+		// Print detailed output analysis after processing all scenarios
+		if len(scenarioResults) > 0 {
+			firstResult := scenarioResults[0]
+			normalLen := common.Utf16Len(firstResult.ResultNormal)
+			preprocessLen := common.Utf16Len(firstResult.ResultPreProcess)
+			fmt.Printf("\n%s: 📊 DETAILED OUTPUT ANALYSIS:\n", testSite)
+			fmt.Printf("   Normal length: %d chars\n", normalLen)
+			fmt.Printf("   PreProcess length: %d chars\n", preprocessLen)
+			diff := normalLen - preprocessLen
+			if diff < 0 {
+				diff = -diff
+			}
+			fmt.Printf("   Difference: %d chars\n", diff)
+		}
+
+		for _, scenario := range group {
+			appView := scenario.AppView
+			// Find the matching result for this scenario
+			var resultNormal, resultPreProcess string
+			var outputsMatch bool
+			for _, result := range scenarioResults {
+				if result.AppView == appView {
+					resultNormal = result.ResultNormal
+					resultPreProcess = result.ResultPreProcess
+					outputsMatch = resultNormal == resultPreProcess
+					break
+				}
+			}
 
 			// Compare results
 			if !skipDetails {
@@ -362,12 +401,12 @@ func RunAdvancedTests(assemblerWebDirPath, projectDirectory string, scenarios []
 				fmt.Printf("%s: %s\n", testSite, strings.Repeat("-", 45))
 
 				fmt.Printf("%s: 🔹 All Two Methods:\n", testSite)
-				fmt.Printf("%s:   Normal: %d chars\n", testSite, Utf16Len(resultNormal))
-				fmt.Printf("%s:   PreProcess: %d chars\n", testSite, Utf16Len(resultPreProcess))
+				fmt.Printf("%s:   Normal: %d chars\n", testSite, common.Utf16Len(resultNormal))
+				fmt.Printf("%s:   PreProcess: %d chars\n", testSite, common.Utf16Len(resultPreProcess))
 			}
 
 			// Check if results match
-			outputsMatch := resultNormal == resultPreProcess
+			outputsMatch = resultNormal == resultPreProcess
 			if !skipDetails {
 				if outputsMatch {
 					fmt.Printf("%s:   ✅ Normal vs PreProcess: MATCH\n", testSite)
@@ -676,7 +715,7 @@ func DumpPreprocessedTemplateStructures(assemblerWebDirPath, projectDirectory st
 }
 
 // PrintTestSummaryTable prints a formatted summary table matching C# output
-func PrintTestSummaryTable(assemblerWebDirPath string, summaryRows []TestSummaryRow, testType string) {
+func PrintTestSummaryTable(assemblerWebDirPath, projectDirectory string, summaryRows []TestSummaryRow, testType string) {
 	if len(summaryRows) == 0 {
 		return
 	}
@@ -749,7 +788,7 @@ func PrintTestSummaryTable(assemblerWebDirPath string, summaryRows []TestSummary
 	fmt.Println("|")
 
 	// Save summary to file with go prefix and test type in Reports directory
-	reportsDir := assemblerWebDirPath + "/Reports"
+	reportsDir := filepath.Join(projectDirectory, "template_analysis", "Reports")
 	if err := os.MkdirAll(reportsDir, 0755); err != nil {
 		fmt.Printf("❌ Error creating Reports directory: %v\n", err)
 		return
@@ -772,36 +811,58 @@ func PrintTestSummaryTable(assemblerWebDirPath string, summaryRows []TestSummary
 	html += "<!DOCTYPE html>\n<html>\n<head>\n"
 	html += "    <meta charset=\"UTF-8\">\n"
 	html += "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-	html += "    <title>Test Summary Table</title>\n"
+	html += fmt.Sprintf("    <title>Go %s Summary</title>\n", strings.ToUpper(testType))
 	html += "    <style>\n"
 	html += "        body { font-family: Arial, sans-serif; margin: 20px; }\n"
-	html += "        h1, h2 { color: #333; }\n"
+	html += "        h1 { color: #333; }\n"
 	html += "        .table-container { overflow-x: auto; }\n"
 	html += "        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }\n"
 	html += "        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n"
 	html += "        th { background-color: #4CAF50; color: white; }\n"
 	html += "        tr:nth-child(even) { background-color: #f2f2f2; }\n"
+	html += "        .pass { color: green; font-weight: bold; }\n"
+	html += "        .fail { color: red; font-weight: bold; }\n"
 	html += "        @media (max-width: 768px) {\n"
 	html += "            body { margin: 10px; }\n"
 	html += "            th, td { padding: 8px; font-size: 14px; }\n"
-	html += "            h1, h2 { font-size: 20px; }\n"
+	html += "            h1 { font-size: 24px; }\n"
 	html += "        }\n"
 	html += "    </style>\n</head>\n<body>\n"
-	html += fmt.Sprintf("<h2>GO %s SUMMARY TABLE</h2>\n", strings.ToUpper(testType))
-	html += "<div class=\"table-container\">\n<table>\n"
-	html += "<tr><th>AppSite</th><th>AppFile</th><th>AppView</th><th>OutputMatch</th><th>ViewUnMatch</th><th>Error</th></tr>\n"
+	html += fmt.Sprintf("    <h1>Go %s Summary</h1>\n", strings.ToUpper(testType))
+	html += fmt.Sprintf("    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: %s UTC</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05"))
+	html += "    <div class=\"table-container\">\n    <table>\n"
+	html += "        <tr>\n"
+	html += "            <th>AppSite</th>\n"
+	html += "            <th>AppFile</th>\n"
+	html += "            <th>AppView</th>\n"
+	html += "            <th>OutputMatch</th>\n"
+	html += "            <th>ViewUnMatch</th>\n"
+	html += "            <th>Error</th>\n"
+	html += "        </tr>\n"
 	for _, row := range summaryRows {
-		html += fmt.Sprintf(
-			"<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
-			row.AppSite,
-			row.AppFile,
-			row.AppView,
-			row.NormalPreProcess,
-			row.CrossViewUnMatch,
-			row.Error,
-		)
+		outputMatchClass := ""
+		if row.NormalPreProcess == "PASS" {
+			outputMatchClass = "pass"
+		} else if row.NormalPreProcess == "FAIL" {
+			outputMatchClass = "fail"
+		}
+		viewUnMatchClass := ""
+		if row.CrossViewUnMatch == "PASS" {
+			viewUnMatchClass = "pass"
+		} else if row.CrossViewUnMatch == "FAIL" {
+			viewUnMatchClass = "fail"
+		}
+
+		html += "        <tr>\n"
+		html += fmt.Sprintf("            <td>%s</td>\n", row.AppSite)
+		html += fmt.Sprintf("            <td>%s</td>\n", row.AppFile)
+		html += fmt.Sprintf("            <td>%s</td>\n", row.AppView)
+		html += fmt.Sprintf("            <td class=\"%s\">%s</td>\n", outputMatchClass, row.NormalPreProcess)
+		html += fmt.Sprintf("            <td class=\"%s\">%s</td>\n", viewUnMatchClass, row.CrossViewUnMatch)
+		html += fmt.Sprintf("            <td>%s</td>\n", row.Error)
+		html += "        </tr>\n"
 	}
-	html += "</table>\n</div>\n</body>\n</html>\n"
+	html += "    </table>\n    </div>\n</body>\n</html>\n"
 	if err := os.WriteFile(summaryHTMLFile, []byte(html), 0644); err != nil {
 		fmt.Printf("❌ Error writing summary HTML file: %v\n", err)
 	} else {
@@ -881,8 +942,8 @@ func AnalyzeOutputDifferences(output1, output2 string) {
 	for i := 0; i < commonLength; i++ {
 		if lines1[i] != lines2[i] {
 			fmt.Printf("\n   Difference at line %d:\n", i+1)
-			fmt.Printf("   Normal:    %d chars\n", Utf16Len(lines1[i]))
-			fmt.Printf("   PreProcess:%d chars\n", Utf16Len(lines2[i]))
+			fmt.Printf("   Normal:    %d chars\n", common.Utf16Len(lines1[i]))
+			fmt.Printf("   PreProcess:%d chars\n", common.Utf16Len(lines2[i]))
 
 			minLength := min(len(lines1[i]), len(lines2[i]))
 			for j := 0; j < minLength; j++ {

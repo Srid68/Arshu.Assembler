@@ -1,7 +1,6 @@
 <?php
 
 require_once __DIR__ . '/SecurityValidator.php';
-require_once __DIR__ . '/AppSitesConfig.php';
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as ServerRequest;
@@ -98,7 +97,6 @@ class AssemblerEndpoint
 
             $appSite = $data['appSite'] ?? null;
             $appView = $data['appView'] ?? null;
-            $appViewPrefix = $data['appViewPrefix'] ?? null;
             $engineType = $data['engineType'] ?? null;
 
             if (empty($appSite) || empty($engineType)) {
@@ -124,6 +122,9 @@ class AssemblerEndpoint
             }
 
             $appFile = $matchingScenario->appFile;
+
+            // Calculate appViewPrefix from appFile when appView is not empty
+            $appViewPrefix = (!empty($appView)) ? $appFile : '';
 
             $logMsg = sprintf(
                 "/merge endpoint called with: app_site=%s, app_file=%s, engine_type=%s, app_view=%s, app_view_prefix=%s",
@@ -169,11 +170,6 @@ class AssemblerEndpoint
 
             if ($appView !== null && $appView !== '' && !SecurityValidator::isValidPathComponent($appView)) {
                 $response->getBody()->write(json_encode(['error' => 'Invalid characters in AppView']));
-                return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
-            }
-
-            if ($appViewPrefix !== null && $appViewPrefix !== '' && !SecurityValidator::isValidPathComponent($appViewPrefix)) {
-                $response->getBody()->write(json_encode(['error' => 'Invalid characters in AppViewPrefix']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
 
@@ -244,16 +240,15 @@ class AssemblerEndpoint
         }
     }
 
-    public static function testStandardEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
+	 public static function testStandardEndpoint(ServerRequest $request, Response $response, string $wwwrootPath, string $projectRootPath): Response
     {
         $start = microtime(true);
-        $rootDirPath = $projectDirectory . DIRECTORY_SEPARATOR . 'wwwroot';
 
         // Enable logging temporarily for tests
         $originalLogLevel = Logger::getLogLevel();
 
         // Configure logger with context-specific log files for StandardTests
-        $templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
+        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis';
         $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
         if (!is_dir($logsDir)) {
             mkdir($logsDir, 0755, true);
@@ -267,13 +262,17 @@ class AssemblerEndpoint
         Logger::configure(Logger::DEBUG, null, false);
         Logger::configureContextLogFiles($contextLogFiles);
 
+        // Log start
+        $startMsg = sprintf("/test/standard endpoint called at %s", gmdate('Y-m-d H:i:s'));
+        Logger::info($startMsg, 'TestStandard');
+
         try {
             // Capture output to prevent it from mixing with JSON response
             ob_start();
             $scenarios = ConfigUtil::getScenarios();
-            $results = TestingUtils::runStandardTests($rootDirPath, $projectDirectory, $scenarios, false, true, true);
+            $results = TestingUtils::runStandardTests($wwwrootPath, $projectRootPath, $scenarios, false, true, true);
             if (!empty($results)) {
-                TestingUtils::printTestSummaryTable($rootDirPath, $results, 'STANDARD TEST');
+                TestingUtils::printTestSummaryTable($wwwrootPath, $projectRootPath, $results, 'STANDARD TEST');
             }
             ob_end_clean();
 
@@ -305,6 +304,10 @@ class AssemblerEndpoint
                 'testCount' => $testCount
             ];
 
+            // Log completion
+            $completeMsg = sprintf("/test/standard endpoint completed: elapsed=%.2fs, tests=%d, failed=%d", $elapsed, $testCount, $failedCount);
+            Logger::info($completeMsg, 'TestStandard');
+
             $response->getBody()->write(json_encode($responseData));
             return $response->withHeader('Content-Type', 'application/json');
         } catch (Exception $error) {
@@ -316,16 +319,15 @@ class AssemblerEndpoint
         }
     }
 
-    public static function testAdvancedEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
+    public static function testAdvancedEndpoint(ServerRequest $request, Response $response, string $wwwrootPath, string $projectRootPath): Response
     {
         $start = microtime(true);
-        $rootDirPath = $projectDirectory . DIRECTORY_SEPARATOR . 'wwwroot';
 
         // Enable logging temporarily for tests
         $originalLogLevel = Logger::getLogLevel();
 
         // Configure logger with context-specific log files for AdvancedTests
-        $templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
+        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis';
         $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
         if (!is_dir($logsDir)) {
             mkdir($logsDir, 0755, true);
@@ -341,14 +343,18 @@ class AssemblerEndpoint
         Logger::configure(Logger::DEBUG, null, false);
         Logger::configureContextLogFiles($contextLogFiles);
 
+        // Log start
+        $startMsg = sprintf("/test/advanced endpoint called at %s", gmdate('Y-m-d H:i:s'));
+        Logger::info($startMsg, 'TestAdvanced');
+
         try {
             // Capture output to prevent it from mixing with JSON response
             ob_start();
             $scenarios = ConfigUtil::getScenarios();
-            TestingUtils::dumpPreprocessedTemplateStructures($rootDirPath, $projectDirectory, $scenarios, true);
-            $results = TestingUtils::runAdvancedTests($rootDirPath, $projectDirectory, $scenarios, false, true, true);
+            TestingUtils::dumpPreprocessedTemplateStructures($wwwrootPath, $projectRootPath, $scenarios, true);
+            $results = TestingUtils::runAdvancedTests($wwwrootPath, $projectRootPath, $scenarios, false, true, true);
             if (!empty($results)) {
-                TestingUtils::printTestSummaryTable($rootDirPath, $results, 'ADVANCED TEST');
+                TestingUtils::printTestSummaryTable($wwwrootPath, $projectRootPath, $results, 'ADVANCED TEST');
             }
             ob_end_clean();
 
@@ -380,6 +386,10 @@ class AssemblerEndpoint
                 'testCount' => $testCount
             ];
 
+            // Log completion
+            $completeMsg = sprintf("/test/advanced endpoint completed: elapsed=%.2fs, tests=%d, failed=%d", $elapsed, $testCount, $failedCount);
+            Logger::info($completeMsg, 'TestAdvanced');
+
             $response->getBody()->write(json_encode($responseData));
             return $response->withHeader('Content-Type', 'application/json');
         } catch (Exception $error) {
@@ -391,13 +401,15 @@ class AssemblerEndpoint
         }
     }
 
-    public static function testPerformanceEndpoint(ServerRequest $request, Response $response): Response
+    public static function testPerformanceEndpoint(ServerRequest $request, Response $response, string $wwwrootPath, string $projectRootPath): Response
     {
         $start = microtime(true);
-        $paths = CommonUtil::getAssemblerWebDirPath();
-        $rootDirPath = $paths['assemblerWebDirPath'];
 
         try {
+            // Log start before disabling logging
+            $startMsg = sprintf("/test/performance endpoint called at %s", gmdate('Y-m-d H:i:s'));
+            Logger::info($startMsg, 'TestPerformance');
+
             // Disable logging during performance tests for better performance
             $originalLogLevel = Logger::getLogLevel();
             Logger::setLogLevel(Logger::NONE);
@@ -405,9 +417,9 @@ class AssemblerEndpoint
             // Capture output to prevent it from mixing with JSON response
             ob_start();
             $scenarios = ConfigUtil::getScenarios();
-            $results = PerformanceUtils::runPerformanceComparison($rootDirPath, $scenarios, true, true);
+            $results = PerformanceUtils::runPerformanceComparison($wwwrootPath, $scenarios, true, true);
             if (!empty($results)) {
-                PerformanceUtils::printPerfSummaryTable($rootDirPath, $results);
+                PerformanceUtils::printPerfSummaryTable($wwwrootPath, $projectRootPath, $results);
             }
             ob_end_clean();
 
@@ -437,6 +449,10 @@ class AssemblerEndpoint
                 'testCount' => $testCount
             ];
 
+            // Log completion after restoring log level
+            $completeMsg = sprintf("/test/performance endpoint completed: elapsed=%.2fs, tests=%d, mismatches=%d", $elapsed, $testCount, $mismatchCount);
+            Logger::info($completeMsg, 'TestPerformance');
+
             $response->getBody()->write(json_encode($responseData));
             return $response->withHeader('Content-Type', 'application/json');
         } catch (Exception $error) {
@@ -446,13 +462,12 @@ class AssemblerEndpoint
         }
     }
 
-    public static function testConsolidatePerformanceEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
+    public static function testConsolidatePerformanceEndpoint(ServerRequest $request, Response $response, string $wwwrootPath, string $projectRootPath): Response
     {
         $start = microtime(true);
-        $rootDirPath = $projectDirectory . DIRECTORY_SEPARATOR . 'wwwroot';
 
         // Configure logging for consolidate endpoint
-        $templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
+        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis';
         $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
         if (!is_dir($logsDir)) {
             mkdir($logsDir, 0755, true);
@@ -460,113 +475,190 @@ class AssemblerEndpoint
         $consolidateLogFile = $logsDir . DIRECTORY_SEPARATOR . 'php_consolidate_perf.log';
 
         // Log start
+        $startMsg = sprintf("/test/consolidate-performance endpoint called at %s", gmdate('Y-m-d H:i:s'));
+        Logger::info($startMsg, 'TestConsolidatePerf');
         $logMsg = sprintf("\n[%s] Starting consolidate-performance endpoint\n", gmdate('Y-m-d\TH:i:s\Z'));
         file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
 
         try {
-            // Read server configuration from servers.json
-            $serversConfigPath = $rootDirPath . DIRECTORY_SEPARATOR . 'servers.json';
-            $servers = [
-                ['language' => 'CSharp', 'url' => 'https://csharpassembler.fly.dev/csharp_perfsummary.json'],
-                ['language' => 'Rust', 'url' => 'https://rustassembler.fly.dev/rust_perfsummary.json'],
-                ['language' => 'Node', 'url' => 'https://nodeassembler.fly.dev/nodejs_perfsummary.json'],
-                ['language' => 'PHP', 'url' => 'https://phpassembler.fly.dev/php_perfsummary.json'],
-                ['language' => 'Go', 'url' => 'https://goassembler.fly.dev/go_perfsummary.json']
-            ];
+            // Read server configuration from servers.csv
+            $serversConfigPath = $wwwrootPath . DIRECTORY_SEPARATOR . 'App_Data' . DIRECTORY_SEPARATOR . 'servers.csv';
+            $servers = [];
 
             if (file_exists($serversConfigPath)) {
-                try {
-                    $configJson = file_get_contents($serversConfigPath);
-                    $config = json_decode($configJson, true);
-                    if (isset($config['performanceServers']) && is_array($config['performanceServers'])) {
-                        $servers = $config['performanceServers'];
+                $csvContent = file_get_contents($serversConfigPath);
+                $lines = explode("\n", $csvContent);
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if ($line === '') continue;
+                    $parts = explode(',', $line);
+                    if (count($parts) >= 3) {
+                        $language = trim($parts[0]);
+                        $method = strtoupper(trim($parts[1]));
+                        $url = trim($parts[2]);
+                        $fileName = count($parts) >= 4 ? trim($parts[3]) : '';
+                        if ($language !== '' && $method !== '' && $url !== '') {
+                            $servers[] = ['language' => $language, 'method' => $method, 'url' => $url, 'fileName' => $fileName];
+                        }
                     }
-                } catch (Exception $err) {
-                    error_log('Failed to read servers.json, using defaults: ' . $err->getMessage());
                 }
+            }
+
+            if (empty($servers)) {
+                $errorMsg = 'No server configuration found. Please configure servers in App_Data/servers.csv';
+                $logMsg = sprintf("[%s] ❌ %s\n", gmdate('Y-m-d\TH:i:s\Z'), $errorMsg);
+                file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
+
+                $responseData = [
+                    'success' => false,
+                    'message' => $errorMsg,
+                    'elapsed' => microtime(true) - $start,
+                    'testCount' => 0
+                ];
+
+                $response->getBody()->write(json_encode($responseData));
+                return $response->withHeader('Content-Type', 'application/json');
             }
 
             $serversProcessed = [];
             $serversFailed = [];
             $performanceData = []; // Map<appSite, Map<language, perfData>>
 
-            // Fetch data from each server
+            // Group servers by language
+            $serversByLang = [];
             foreach ($servers as $server) {
-                // Log fetch attempt
-                $logMsg = sprintf("[%s] Fetching %s from %s\n", gmdate('Y-m-d\TH:i:s\Z'), $server['language'], $server['url']);
-                file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
+                $lang = $server['language'];
+                if (!isset($serversByLang[$lang])) {
+                    $serversByLang[$lang] = [];
+                }
+                $serversByLang[$lang][] = $server;
+            }
 
-                $ch = curl_init();
-                curl_setopt($ch, CURLOPT_URL, $server['url']);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            // Fetch data from each language (trying all methods)
+            foreach ($serversByLang as $lang => $langServers) {
+                $langSuccess = false;
+                $langErrors = [];
 
-                $result = curl_exec($ch);
-                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                $error = curl_error($ch);
-                curl_close($ch);
-
-                if ($result !== false && $httpCode == 200) {
-                    $data = json_decode($result, true);
-
-                    // Process each performance entry
-                    if (is_array($data)) {
-                        $itemCount = count($data);
-                        foreach ($data as $entry) {
-                            $appSite = $entry['AppSite'] ?? $entry['appSite'] ?? $entry['app_site'] ?? '';
-                            $appView = $entry['AppView'] ?? $entry['appView'] ?? $entry['app_view'] ?? '';
-
-                            // Handle both milliseconds and nanoseconds
-                            $normalTimeMs = $entry['NormalTimeMs'] ?? $entry['normalTimeMs'] ?? $entry['normal_time_ms'] ?? null;
-                            $normalTimeNanos = $entry['NormalTimeNanos'] ?? $entry['normal_time_nanos'] ?? null;
-                            if ($normalTimeNanos !== null) {
-                                $normalTimeMs = $normalTimeNanos / 1_000_000;
-                            }
-
-                            $preProcessTimeMs = $entry['PreProcessTimeMs'] ?? $entry['preProcessTimeMs'] ?? $entry['preprocess_time_ms'] ?? null;
-                            $preProcessTimeNanos = $entry['PreProcessTimeNanos'] ?? $entry['preprocess_time_nanos'] ?? null;
-                            if ($preProcessTimeNanos !== null) {
-                                $preProcessTimeMs = $preProcessTimeNanos / 1_000_000;
-                            }
-
-                            $outputSize = $entry['OutputSize'] ?? $entry['outputSize'] ?? $entry['output_size'] ?? null;
-
-                            if (!isset($performanceData[$appSite])) {
-                                $performanceData[$appSite] = [];
-                            }
-
-                            $performanceData[$appSite][$server['language']] = [
-                                'normalTimeMs' => $normalTimeMs,
-                                'preProcessTimeMs' => $preProcessTimeMs,
-                                'outputSize' => $outputSize,
-                                'appView' => $appView
-                            ];
-                        }
-                        // Log success
-                        $logMsg = sprintf("[%s] ✅ %s: Successfully processed %d items\n", gmdate('Y-m-d\TH:i:s\Z'), $server['language'], $itemCount);
-                        file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
-                    }
-
-                    $serversProcessed[] = $server['language'];
-                } else {
-                    // Extract domain from URL
-                    $domain = preg_replace('#^https?://([^/]+).*$#', '$1', $server['url']);
-                    if ($error) {
-                        $failureMsg = "{$server['language']}: {$domain} (ERROR: {$error})";
-                        $serversFailed[] = $failureMsg;
-                        // Log failure
-                        $logMsg = sprintf("[%s] ❌ %s\n", gmdate('Y-m-d\TH:i:s\Z'), $failureMsg);
-                        file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
+                foreach ($langServers as $server) {
+                    // Log fetch attempt
+                    if ($server['method'] === 'POST') {
+                        $logMsg = sprintf("[%s] Fetching %s via POST %s (fileName: %s)\n", gmdate('Y-m-d\TH:i:s\Z'), $lang, $server['url'], $server['fileName']);
                     } else {
-                        $failureMsg = "{$server['language']}: {$domain} (HTTP {$httpCode})";
-                        $serversFailed[] = $failureMsg;
-                        // Log failure
-                        $logMsg = sprintf("[%s] ❌ %s\n", gmdate('Y-m-d\TH:i:s\Z'), $failureMsg);
-                        file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
+                        $fullUrl = $server['url'] . $server['fileName'];
+                        $logMsg = sprintf("[%s] Fetching %s via GET %s\n", gmdate('Y-m-d\TH:i:s\Z'), $lang, $fullUrl);
                     }
+                    file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
+
+                    $ch = curl_init();
+                    if ($server['method'] === 'POST') {
+                        $reportRequest = [
+                            'fileName' => $server['fileName'],
+                            'useLangPrefix' => false
+                        ];
+                        curl_setopt($ch, CURLOPT_URL, $server['url']);
+                        curl_setopt($ch, CURLOPT_POST, true);
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($reportRequest));
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                    } else {
+                        $fullUrl = $server['url'] . $server['fileName'];
+                        curl_setopt($ch, CURLOPT_URL, $fullUrl);
+                    }
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+                    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+
+                    $result = curl_exec($ch);
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $error = curl_error($ch);
+                    curl_close($ch);
+
+                    if ($result !== false && $httpCode == 200) {
+                        $data = json_decode($result, true);
+
+                        // Process each performance entry
+                        if (is_array($data)) {
+                            $itemCount = count($data);
+                            foreach ($data as $entry) {
+                                $appSite = $entry['AppSite'] ?? $entry['appSite'] ?? $entry['app_site'] ?? '';
+                                $appView = $entry['AppView'] ?? $entry['appView'] ?? $entry['app_view'] ?? '';
+
+                                // Handle both milliseconds and nanoseconds
+                                $normalTimeMs = $entry['NormalTimeMs'] ?? $entry['normalTimeMs'] ?? $entry['normal_time_ms'] ?? null;
+                                $normalTimeNanos = $entry['NormalTimeNanos'] ?? $entry['normal_time_nanos'] ?? null;
+                                if ($normalTimeNanos !== null) {
+                                    $normalTimeMs = $normalTimeNanos / 1_000_000;
+                                }
+
+                                $preProcessTimeMs = $entry['PreProcessTimeMs'] ?? $entry['preProcessTimeMs'] ?? $entry['preprocess_time_ms'] ?? null;
+                                $preProcessTimeNanos = $entry['PreProcessTimeNanos'] ?? $entry['preprocess_time_nanos'] ?? null;
+                                if ($preProcessTimeNanos !== null) {
+                                    $preProcessTimeMs = $preProcessTimeNanos / 1_000_000;
+                                }
+
+                                $outputSize = $entry['OutputSize'] ?? $entry['outputSize'] ?? $entry['output_size'] ?? null;
+
+                                // Create composite key: AppSite + AppView to handle scenarios with different views
+                                if ($appSite !== '') {
+                                    $key = ($appView !== '') ? "{$appSite} → {$appView}" : $appSite;
+
+                                    // Use case-insensitive comparison for key matching
+                                    $existingKey = null;
+                                    foreach (array_keys($performanceData) as $k) {
+                                        if (strcasecmp($k, $key) === 0) {
+                                            $existingKey = $k;
+                                            break;
+                                        }
+                                    }
+                                    $finalKey = $existingKey ?? $key;
+
+                                    if (!isset($performanceData[$finalKey])) {
+                                        $performanceData[$finalKey] = [];
+                                    }
+
+                                    $performanceData[$finalKey][$lang] = [
+                                        'normalTimeMs' => $normalTimeMs,
+                                        'preProcessTimeMs' => $preProcessTimeMs,
+                                        'outputSize' => $outputSize,
+                                        'appView' => $appView
+                                    ];
+                                }
+                            }
+                            // Log success
+                            $logMsg = sprintf("[%s] ✅ %s: Successfully processed %d items\n", gmdate('Y-m-d\TH:i:s\Z'), $lang, $itemCount);
+                            file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
+                        }
+
+                        $langSuccess = true;
+                        break; // Success, no need to try other methods
+                    } else {
+                        // Extract domain from URL
+                        $domain = preg_replace('#^https?://([^/]+).*$#', '$1', $server['url']);
+                        if ($error) {
+                            $errorMsg = "{$server['method']} {$domain} (ERROR: {$error})";
+                            $langErrors[] = $errorMsg;
+                            // Log warning
+                            $logMsg = sprintf("[%s] ⚠️ %s: %s\n", gmdate('Y-m-d\TH:i:s\Z'), $lang, $errorMsg);
+                            file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
+                        } else {
+                            $errorMsg = "{$server['method']} {$domain} (HTTP {$httpCode})";
+                            $langErrors[] = $errorMsg;
+                            // Log warning
+                            $logMsg = sprintf("[%s] ⚠️ %s: %s\n", gmdate('Y-m-d\TH:i:s\Z'), $lang, $errorMsg);
+                            file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
+                        }
+                    }
+                }
+
+                // After trying all methods for this language, determine overall result
+                if ($langSuccess) {
+                    $serversProcessed[] = $lang;
+                } else {
+                    $failureMsg = "{$lang}: All methods failed - " . implode('; ', $langErrors);
+                    $serversFailed[] = $failureMsg;
+                    $logMsg = sprintf("[%s] ❌ %s: All methods failed\n", gmdate('Y-m-d\TH:i:s\Z'), $lang);
+                    file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
                 }
             }
 
@@ -586,6 +678,7 @@ class AssemblerEndpoint
             $html[] = '        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }';
             $html[] = '        th { background-color: #4CAF50; color: white; }';
             $html[] = '        tr:nth-child(even) { background-color: #f2f2f2; }';
+            $html[] = '        .best-perf { background-color: #90EE90; font-weight: bold; }';
             $html[] = '        @media (max-width: 768px) {';
             $html[] = '            body { margin: 10px; }';
             $html[] = '            th, td { padding: 8px; font-size: 14px; }';
@@ -599,7 +692,10 @@ class AssemblerEndpoint
             // Sort appSites
             $sortedAppSites = array_keys($performanceData);
             sort($sortedAppSites);
-            $languages = ['CSharp', 'Rust', 'Go', 'Node', 'PHP'];
+
+            // Get list of languages dynamically from configuration
+            $languages = array_keys($serversByLang);
+            sort($languages);
 
             // Normal Engine Table
             $html[] = '<h2>Normal Engine Performance (ms)</h2>';
@@ -612,12 +708,25 @@ class AssemblerEndpoint
 
             foreach ($sortedAppSites as $appSite) {
                 $langData = $performanceData[$appSite];
+
+                // Find minimum time for highlighting
+                $validTimes = [];
+                foreach ($languages as $lang) {
+                    $val = $langData[$lang]['normalTimeMs'] ?? null;
+                    if ($val !== null) {
+                        $validTimes[] = $val;
+                    }
+                }
+                $minTime = !empty($validTimes) ? min($validTimes) : null;
+
                 $html[] = "<tr><td>{$appSite}</td>";
 
                 foreach ($languages as $lang) {
                     $data = $langData[$lang] ?? null;
                     $val = $data['normalTimeMs'] ?? null;
-                    $html[] = '<td>' . ($val !== null ? number_format($val, 2, '.', '') : '-') . '</td>';
+                    $isBest = ($minTime !== null && $val !== null && abs($val - $minTime) < 0.001);
+                    $cssClass = $isBest ? ' class="best-perf"' : '';
+                    $html[] = '<td' . $cssClass . '>' . ($val !== null ? number_format($val, 2, '.', '') : '-') . '</td>';
                 }
 
                 // Output size from first available language
@@ -645,12 +754,25 @@ class AssemblerEndpoint
 
             foreach ($sortedAppSites as $appSite) {
                 $langData = $performanceData[$appSite];
+
+                // Find minimum time for highlighting
+                $validTimes = [];
+                foreach ($languages as $lang) {
+                    $val = $langData[$lang]['preProcessTimeMs'] ?? null;
+                    if ($val !== null) {
+                        $validTimes[] = $val;
+                    }
+                }
+                $minTime = !empty($validTimes) ? min($validTimes) : null;
+
                 $html[] = "<tr><td>{$appSite}</td>";
 
                 foreach ($languages as $lang) {
                     $data = $langData[$lang] ?? null;
                     $val = $data['preProcessTimeMs'] ?? null;
-                    $html[] = '<td>' . ($val !== null ? number_format($val, 2, '.', '') : '-') . '</td>';
+                    $isBest = ($minTime !== null && $val !== null && abs($val - $minTime) < 0.001);
+                    $cssClass = $isBest ? ' class="best-perf"' : '';
+                    $html[] = '<td' . $cssClass . '>' . ($val !== null ? number_format($val, 2, '.', '') : '-') . '</td>';
                 }
 
                 // Output size from first available language
@@ -670,7 +792,7 @@ class AssemblerEndpoint
             $html[] = '</html>';
 
             // Write HTML file to Reports directory
-            $reportsDir = $rootDirPath . DIRECTORY_SEPARATOR . 'Reports';
+            $reportsDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsDir)) {
                 mkdir($reportsDir, 0755, true);
             }
@@ -680,11 +802,15 @@ class AssemblerEndpoint
             $elapsed = microtime(true) - $start;
 
             // Log completion
-            $logMsg = sprintf("[%s] Consolidation complete in %.2fs - %d AppSites from %d/%d servers\n",
-                gmdate('Y-m-d\TH:i:s\Z'), $elapsed, count($performanceData), count($serversProcessed), count($servers));
+            $totalLanguages = count($serversByLang);
+            $completeMsg = sprintf("/test/consolidate-performance endpoint completed: elapsed=%.2fs, languages=%d/%d, appsites=%d",
+                $elapsed, count($serversProcessed), $totalLanguages, count($performanceData));
+            Logger::info($completeMsg, 'TestConsolidatePerf');
+            $logMsg = sprintf("[%s] Consolidation complete in %.2fs - %d AppSites from %d/%d languages\n",
+                gmdate('Y-m-d\TH:i:s\Z'), $elapsed, count($performanceData), count($serversProcessed), $totalLanguages);
             file_put_contents($consolidateLogFile, $logMsg, FILE_APPEND);
 
-            $message = sprintf("Consolidated performance data from %d/%d servers in %.2f secs", count($serversProcessed), count($servers), $elapsed);
+            $message = sprintf("Consolidated %d AppSites from %d/%d languages in %.2f secs", count($performanceData), count($serversProcessed), $totalLanguages, $elapsed);
             if (count($serversProcessed) > 0) {
                 $message .= " | ✅ Success: " . implode(', ', $serversProcessed);
             }
@@ -703,6 +829,70 @@ class AssemblerEndpoint
             return $response->withHeader('Content-Type', 'application/json');
         } catch (Exception $error) {
             error_log('Error in consolidate performance: ' . $error->getMessage());
+            $response->getBody()->write(json_encode(['error' => 'Internal server error']));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+        }
+    }
+
+    public static function getReportEndpoint(ServerRequest $request, Response $response, string $projectRootPath): Response
+    {
+        try {
+            $body = $request->getBody()->getContents();
+            $data = json_decode($body, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $response->getBody()->write(json_encode(['error' => 'Invalid JSON']));
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+            }
+
+            $fileName = $data['fileName'] ?? null;
+            $useLangPrefix = $data['useLangPrefix'] ?? false;
+
+            if (empty($fileName)) {
+                $response->getBody()->write(json_encode(['error' => 'Missing required field: fileName']));
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+            }
+
+            // Validate fileName for path traversal
+            if (!SecurityValidator::isValidPathComponent($fileName)) {
+                $response->getBody()->write(json_encode(['error' => 'Invalid characters in fileName']));
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+            }
+
+            // Construct file path
+            $prefix = $useLangPrefix ? 'php_' : '';
+            $fullFileName = $prefix . $fileName;
+            $reportsDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
+            $filePath = $reportsDir . DIRECTORY_SEPARATOR . $fullFileName;
+
+            // Check if file exists
+            if (!file_exists($filePath)) {
+                $response->getBody()->write(json_encode(['error' => "Report file not found: {$fullFileName}"]));
+                return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+            }
+
+            // Read and return the file content
+            $content = file_get_contents($filePath);
+            if ($content === false) {
+                $response->getBody()->write(json_encode(['error' => 'Error reading report file']));
+                return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+            }
+
+            // Determine content type based on file extension
+            $contentType = 'text/plain';
+            $extension = pathinfo($fullFileName, PATHINFO_EXTENSION);
+            if ($extension === 'html') {
+                $contentType = 'text/html';
+            } elseif ($extension === 'json') {
+                $contentType = 'application/json';
+            } elseif ($extension === 'md') {
+                $contentType = 'text/markdown';
+            }
+
+            $response->getBody()->write($content);
+            return $response->withHeader('Content-Type', $contentType);
+        } catch (Exception $error) {
+            error_log('Error in getReport endpoint: ' . $error->getMessage());
             $response->getBody()->write(json_encode(['error' => 'Internal server error']));
             return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
         }

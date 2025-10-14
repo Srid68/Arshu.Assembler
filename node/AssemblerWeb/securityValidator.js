@@ -1,4 +1,9 @@
-import { loadAppSites } from './appSitesConfig.js';
+import fsSync from 'fs';
+
+// Import ConfigUtil dynamically based on environment
+const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? './Assembler/src' : '../Assembler/src';
+const configModule = await import(`${assemblerBasePath}/config/index.js`);
+const { ConfigUtil } = configModule;
 
 // Maximum parameter length to prevent DoS attacks
 const PARAM_MAX_LENGTH = 256;
@@ -17,7 +22,7 @@ export function getValidAppSites(wwwrootPath) {
     return cachedValidAppSites;
   }
 
-  cachedValidAppSites = loadAppSites(wwwrootPath);
+  cachedValidAppSites = ConfigUtil.getAppSites();
   return cachedValidAppSites;
 }
 

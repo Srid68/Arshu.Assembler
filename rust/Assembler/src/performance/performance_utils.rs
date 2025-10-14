@@ -1,23 +1,36 @@
 use std::time::Instant;
 use std::fs;
 use serde::{Serialize, Deserialize};
+use chrono;
 use crate::loader::loader_normal::LoaderNormal;
 use crate::loader::loader_preprocess::LoaderPreProcess;
 use crate::engine::engine_normal::EngineNormal;
 use crate::engine::engine_preprocess::EnginePreProcess;
+use crate::common::common_util::CommonUtil;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerfSummaryRow {
+    #[serde(rename = "AppSite")]
     pub app_site: String,
+    #[serde(rename = "AppFile")]
     pub app_file: String,
+    #[serde(rename = "AppView")]
     pub app_view: String,
+    #[serde(rename = "Iterations")]
     pub iterations: i32,
+    #[serde(rename = "NormalTimeNanos")]
     pub normal_time_nanos: u128,
+    #[serde(rename = "PreProcessTimeNanos")]
     pub preprocess_time_nanos: u128,
+    #[serde(rename = "OutputSize")]
     pub output_size: usize,
+    #[serde(rename = "ResultsMatch")]
     pub results_match: String,
+    #[serde(rename = "PerfDifference")]
     pub perf_difference: String,
+    #[serde(rename = "ScenarioTotalTimeMs")]
     pub scenario_total_time_ms: u128,
+    #[serde(rename = "ElapsedTimeMs")]
     pub elapsed_time_ms: u128,
 }
 
@@ -36,7 +49,7 @@ pub struct PerformanceUtils;
 impl PerformanceUtils 
 {
     /// Runs performance comparison and returns summary rows
-    pub fn run_performance_comparison(assembler_web_dir_path: &str, scenarios: &[crate::config::Scenario], skip_details: bool, enable_json_processing: bool) -> Vec<PerfSummaryRow>
+    pub fn run_performance_comparison(assembler_web_dir_path: &str, _project_directory: &str, scenarios: &[crate::config::Scenario], skip_details: bool, enable_json_processing: bool) -> Vec<PerfSummaryRow>
 	{
         let start_time = Instant::now();
 
@@ -106,11 +119,11 @@ impl PerformanceUtils
             }
             let normal_duration = start.elapsed();
             let normal_time_nanos = normal_duration.as_nanos();
+            let normal_time_ms = normal_time_nanos as f64 / 1_000_000.0;
 
             if !skip_details {
-                let normal_time_ms = normal_time_nanos as f64 / 1_000_000.0;
                 let avg = normal_time_ms / iterations as f64;
-                println!("[Rust] Normal Engine:     {:.0}ms | Avg: {:.3}ms/op | Size: {} chars", normal_time_ms, avg, result_normal.len());
+                println!("[Rust] Normal Engine:     {:.0}ms | Avg: {:.3}ms/op | Size: {} chars", normal_time_ms, avg, CommonUtil::utf16_len(&result_normal));
             }
 
             // PreProcess Engine
@@ -133,16 +146,15 @@ impl PerformanceUtils
             }
             let preprocess_duration = start.elapsed();
             let preprocess_time_nanos = preprocess_duration.as_nanos();
+            let preprocess_time_ms = preprocess_time_nanos as f64 / 1_000_000.0;
 
             if !skip_details {
-                let preprocess_time_ms = preprocess_time_nanos as f64 / 1_000_000.0;
                 let avg = preprocess_time_ms / iterations as f64;
-                println!("[Rust] PreProcess Engine: {:.0}ms | Avg: {:.3}ms/op | Size: {} chars", preprocess_time_ms, avg, result_preprocess.len());
+                println!("[Rust] PreProcess Engine: {:.0}ms | Avg: {:.3}ms/op | Size: {} chars", preprocess_time_ms, avg, CommonUtil::utf16_len(&result_preprocess));
 
-                let difference_nanos = preprocess_time_nanos as i128 - normal_time_nanos as i128;
-                let difference_ms = difference_nanos as f64 / 1_000_000.0;
-                let difference_percent = if normal_time_nanos > 0 {
-                    (difference_nanos as f64 / normal_time_nanos as f64) * 100.0
+                let difference_ms = preprocess_time_ms - normal_time_ms;
+                let difference_percent = if normal_time_ms > 0.0 {
+                    (difference_ms / normal_time_ms) * 100.0
                 } else {
                     0.0
                 };
@@ -160,8 +172,8 @@ impl PerformanceUtils
             }
 
             let results_match = result_normal == result_preprocess;
-            let perf_diff = if normal_time_nanos > 0 {
-                format!("{:.1}%", (preprocess_time_nanos as f64 - normal_time_nanos as f64) / normal_time_nanos as f64 * 100.0)
+            let perf_diff = if normal_time_ms > 0.0 {
+                format!("{:.1}%", (preprocess_time_ms - normal_time_ms) / normal_time_ms * 100.0)
             } else {
                 "0%".to_string()
             };
@@ -173,7 +185,7 @@ impl PerformanceUtils
                 iterations,
                 normal_time_nanos,
                 preprocess_time_nanos,
-                output_size: result_normal.len(),
+                output_size: CommonUtil::utf16_len(&result_normal),
                 results_match: if results_match { "YES".to_string() } else { "NO".to_string() },
                 perf_difference: perf_diff,
                 scenario_total_time_ms: scenario_total_time,
@@ -189,7 +201,7 @@ impl PerformanceUtils
     }
 
     /// Prints the performance summary table in markdown format
-    pub fn print_perf_summary_table(assembler_web_dir_path: &str, summary_rows: &Vec<PerfSummaryRow>) 
+    pub fn print_perf_summary_table(_assembler_web_dir_path: &str, project_directory: &str, summary_rows: &Vec<PerfSummaryRow>) 
 	{
         if summary_rows.is_empty() {
             return;
@@ -267,7 +279,7 @@ impl PerformanceUtils
         println!("|");
         
         // Save performance summary to file
-        let reports_dir = format!("{}/Reports", assembler_web_dir_path);
+        let reports_dir = format!("{}/template_analysis/Reports", project_directory);
         if let Err(e) = std::fs::create_dir_all(&reports_dir) {
             println!("❌ Error creating Reports directory: {}", e);
             return;
@@ -297,6 +309,7 @@ impl PerformanceUtils
         html.push_str("        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n");
         html.push_str("        th { background-color: #4CAF50; color: white; }\n");
         html.push_str("        tr:nth-child(even) { background-color: #f2f2f2; }\n");
+        html.push_str("        .meta { color: #666; font-style: italic; margin-bottom: 10px; }\n");
         html.push_str("        @media (max-width: 768px) {\n");
         html.push_str("            body { margin: 10px; }\n");
         html.push_str("            th, td { padding: 8px; font-size: 14px; }\n");
@@ -304,6 +317,7 @@ impl PerformanceUtils
         html.push_str("        }\n");
         html.push_str("    </style>\n</head>\n<body>\n");
         html.push_str("<h2>Rust Performance Summary Table</h2>\n");
+        html.push_str(&format!("<div class=\"meta\">Generated: {} UTC | All times in milliseconds (ms)</div>\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
         html.push_str("<div class=\"table-container\">\n<table>\n");
         html.push_str("<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>\n");
 

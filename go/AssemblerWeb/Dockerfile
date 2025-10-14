@@ -19,8 +19,10 @@ COPY --from=build /usr/local/bin/overmind /usr/local/bin/overmind
 
 WORKDIR /app
 COPY --from=build /src/AssemblerWeb/assemblerweb .
+COPY --from=build /src/AssemblerWeb/template_analysis ./template_analysis
 COPY --from=build /src/AssemblerWeb/wwwroot ./wwwroot
 
 EXPOSE 8080
-RUN echo 'go-assembler: /app/assemblerweb'  > Procfile
+ENV PORT=8080
+RUN echo 'go-assembler: /app/assemblerweb' > Procfile
 CMD ["/bin/sh", "-c", "rm -f /app/.overmind.sock; /usr/local/bin/overmind start -f ./Procfile"]

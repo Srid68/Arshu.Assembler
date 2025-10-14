@@ -1,5 +1,5 @@
 <?php
-namespace Assembler\TemplateModel;
+namespace Assembler\Model;
 class ReplacementMapping {
     public int $startIndex = 0;
     public int $endIndex = 0;

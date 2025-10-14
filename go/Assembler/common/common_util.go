@@ -149,3 +149,17 @@ func NormalizeFileContent(content string) string {
 
 	return content
 }
+
+// Utf16Len counts UTF-16 code units (same as C# string.Length)
+// This is for test reporting only to match C#'s character counting
+func Utf16Len(s string) int {
+	count := 0
+	for _, r := range s {
+		if r <= 0xFFFF {
+			count++ // BMP character = 1 UTF-16 code unit
+		} else {
+			count += 2 // Supplementary character = 2 UTF-16 code units (surrogate pair)
+		}
+	}
+	return count
+}

@@ -387,7 +387,7 @@ public class Program
 
         #endregion
 
-        #region Load Assembler Config
+        #region Assembler Config
 
         var wwwrootPath = System.IO.Path.Combine(contentRootPath, "wwwroot");
         ConfigUtil.Load(wwwrootPath);

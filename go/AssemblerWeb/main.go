@@ -81,18 +81,12 @@ func openapi(c *gin.Context) {
 			"schemas": map[string]interface{}{
 				"MergeRequest": map[string]interface{}{
 					"type":     "object",
-					"required": []string{"appSite", "appFile", "engineType"},
+					"required": []string{"appSite", "engineType"},
 					"properties": map[string]interface{}{
 						"appSite": map[string]interface{}{
 							"type": "string",
 						},
 						"appView": map[string]interface{}{
-							"type": "string",
-						},
-						"appViewPrefix": map[string]interface{}{
-							"type": "string",
-						},
-						"appFile": map[string]interface{}{
 							"type": "string",
 						},
 						"engineType": map[string]interface{}{
@@ -168,6 +162,13 @@ func main() {
 	// Parse command line args
 	skipIdleTracking := false
 	port := "8080" // Default port
+
+	// Check PORT environment variable first
+	if envPort := os.Getenv("PORT"); envPort != "" {
+		port = envPort
+	}
+
+	// Command line --port flag overrides environment variable
 	for i, arg := range os.Args[1:] {
 		if arg == "--skipIdleTracking" {
 			skipIdleTracking = true
@@ -247,6 +248,9 @@ func main() {
 	r.POST("/test/advanced", testAdvanced)
 	r.POST("/test/performance", testPerformance)
 	r.POST("/test/consolidate-performance", testConsolidatePerformance)
+
+	// Report endpoint
+	r.POST("/api/report", getReport)
 
 	// Serve static files from wwwroot (HTML, JSON, etc.) - use NoRoute to avoid conflicts
 	r.NoRoute(func(c *gin.Context) {
