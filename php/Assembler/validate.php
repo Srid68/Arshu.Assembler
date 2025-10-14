@@ -2,7 +2,7 @@
 // Simple validation script to test autoloading
 require_once 'vendor/autoload.php';
 // Direct include for TemplateModel classes (autoloader issue)
-require_once 'src/TemplateModel/ModelPreProcess.php';
+require_once 'src/Model/ModelPreProcess.php';
 
 // Test that all classes can be loaded
 try {
@@ -11,13 +11,13 @@ try {
         'Assembler\\App\\Json\\JsonObject', 
         'Assembler\\App\\Json\\JsonArray',
         'Assembler\\App\\JsonConverter',
-        'Assembler\\TemplateLoader\\LoaderNormal',
-        'Assembler\\TemplateLoader\\LoaderPreProcess',
-        'Assembler\\TemplateEngine\\EngineNormal',
-        'Assembler\\TemplateEngine\\EnginePreProcess',
-        'Assembler\\TemplateModel\\PreprocessedSiteTemplates',
-        'Assembler\\TemplateModel\\PreprocessedTemplate',
-        'Assembler\\TemplateModel\\ReplacementType'
+        'Assembler\\Loader\\LoaderNormal',
+        'Assembler\\Loader\\LoaderPreProcess',
+        'Assembler\\Engine\\EngineNormal',
+        'Assembler\\Engine\\EnginePreProcess',
+        'Assembler\\Model\\PreprocessedSiteTemplates',
+        'Assembler\\Model\\PreprocessedTemplate',
+        'Assembler\\Model\\ReplacementType'
     ];
     
     foreach ($classes as $class) {

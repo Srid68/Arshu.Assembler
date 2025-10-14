@@ -1,11 +1,15 @@
+# INSTRUCTIONS
+
 There are two engines, the normal engine and preprocess engine. 
 
 Normal Loader
+
 * The loader does the loading
 Normal engine 
 * Does both parsing and merging. 
 
 PreProcess Loader role:
+
 * Parse templates and structure
 * Parse JSON into data structures
 * Should NOT do any JSON merging/processing
@@ -57,3 +61,9 @@ Create a Backup of the main component in another languages.
 Trunctate the main component to include only one component in another languages
 Test as above and if pass add components one by one to find the issue component
 Once issue component found include that alone and try to find the issue and fix it
+
+Use Explicit Namespaces and Plain class names without Namespace Prefix
+
+All Servers has to be started with --skipIdleTracking option
+
+After every change build only and fix any compile errors, do not test unless specificaally instructured to test

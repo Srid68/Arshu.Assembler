@@ -1,0 +1,202 @@
+[
+  {
+    "appSite": "HtmlRule1A",
+    "appFile": "html1A",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule1B",
+    "appFile": "html1B",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule2A",
+    "appFile": "html2A",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule2B",
+    "appFile": "html2B",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule2C",
+    "appFile": "html2C",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule2D",
+    "appFile": "html2D",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule2E",
+    "appFile": "html2E",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule2F",
+    "appFile": "html2F",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule3A",
+    "appFile": "html3A",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule3A",
+    "appFile": "html3A",
+    "appView": "Html3A",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "PASS",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule3A",
+    "appFile": "html3A",
+    "appView": "Html3B",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "PASS",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule3B",
+    "appFile": "html3B",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule3B",
+    "appFile": "html3B",
+    "appView": "Html3A",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "PASS",
+    "error": ""
+  },
+  {
+    "appSite": "HtmlRule3B",
+    "appFile": "html3B",
+    "appView": "Html3B",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "PASS",
+    "error": ""
+  },
+  {
+    "appSite": "Index",
+    "appFile": "index",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "JsonRule1A",
+    "appFile": "json1A",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "JsonRule1B",
+    "appFile": "json1B",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "JsonRule1C",
+    "appFile": "json1C",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "JsonRule1D",
+    "appFile": "index",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "JsonRule2A",
+    "appFile": "json2A",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "JsonRule2B",
+    "appFile": "json2B",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "JsonRule2C",
+    "appFile": "json2C",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "JsonRule2D",
+    "appFile": "json2D",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "JsonRule3AHtml2A",
+    "appFile": "Index",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  },
+  {
+    "appSite": "JsonRule3AHtml2B",
+    "appFile": "Index",
+    "appView": "",
+    "normalPreProcess": "PASS",
+    "crossViewUnMatch": "",
+    "error": ""
+  }
+]

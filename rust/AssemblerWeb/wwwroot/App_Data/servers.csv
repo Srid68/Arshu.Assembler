@@ -1,0 +1,5 @@
+CSharp,https://csharpassembler.fly.dev/csharp_perfsummary.json
+Rust,https://rustassembler.fly.dev/rust_perfsummary.json
+Node,https://nodeassembler.fly.dev/nodejs_perfsummary.json
+PHP,https://phpassembler.fly.dev/php_perfsummary.json
+Go,https://goassembler.fly.dev/go_perfsummary.json

@@ -26,7 +26,14 @@ class EngineNormal {
      * @returns {string} HTML with placeholders replaced
      */
     mergeTemplates(appSite, appFile, appView, templates, enableJsonProcessing = true) {
+        if (typeof Logger !== 'undefined') {
+            Logger.debug(`EngineNormal.MergeTemplates START: appSite=${appSite}, appFile=${appFile}, appView=${appView || ''}, enableJsonProcessing=${enableJsonProcessing}`, 'EngineNormal');
+        }
+
         if (!templates || templates.size === 0) {
+            if (typeof Logger !== 'undefined') {
+                Logger.warn('No templates provided', 'EngineNormal');
+            }
             return '';
         }
 
@@ -41,7 +48,14 @@ class EngineNormal {
         );
 
         if (!mainTemplateHtml) {
+            if (typeof Logger !== 'undefined') {
+                Logger.warn(`Main template not found for ${appSite}_${appFile}`, 'EngineNormal');
+            }
             return '';
+        }
+
+        if (typeof Logger !== 'undefined') {
+            Logger.debug(`Main template loaded: ${mainTemplateHtml.length} chars`, 'EngineNormal');
         }
 
         let contentHtml = mainTemplateHtml;
@@ -55,20 +69,6 @@ class EngineNormal {
         const processedTemplates = new Map();
         const allJsonValues = new Map();
 
-        // Add main template JSON values to the global collection if it exists
-        if (enableJsonProcessing && mainTemplateJson) {
-            try {
-                const jsonObj = this.parseJsonString(mainTemplateJson);
-                for (const [k, v] of Object.entries(jsonObj)) {
-                    if (typeof v === 'string') {
-                        allJsonValues.set(k.toLowerCase(), v);
-                    }
-                }
-            } catch (e) {
-                // Ignore JSON parsing errors
-            }
-        }
-
         // Process all templates with their JSON data
         for (const [key, template] of templates) {
             let htmlContent = template.html;
@@ -76,6 +76,7 @@ class EngineNormal {
 
             if (enableJsonProcessing && jsonContent) {
                 htmlContent = this.mergeTemplateWithJson(htmlContent, jsonContent);
+
                 try {
                     const jsonObj = this.parseJsonString(jsonContent);
                     for (const [jsonKey, jsonValue] of Object.entries(jsonObj)) {
@@ -90,17 +91,39 @@ class EngineNormal {
             processedTemplates.set(key, htmlContent);
         }
 
+        // CRITICAL: Add main template JSON values LAST so they override component JSON with same keys
+        // This ensures main template's Title is not overwritten by Header component's Title
+        if (enableJsonProcessing && mainTemplateJson) {
+            try {
+                const jsonObj = this.parseJsonString(mainTemplateJson);
+                for (const [k, v] of Object.entries(jsonObj)) {
+                    if (typeof v === 'string') {
+                        allJsonValues.set(k.toLowerCase(), v);
+                    }
+                }
+            } catch (e) {
+                // Ignore JSON parsing errors
+            }
+        }
+
         // Iterative processing with change detection until no more changes occur
         let previous;
         let maxIterations = 10;
         let iteration = 0;
-        
+
         do {
             previous = contentHtml;
             contentHtml = this.mergeTemplateSlots(contentHtml, appSite, appView, processedTemplates);
             contentHtml = this.replaceTemplatePlaceholdersWithJson(contentHtml, appSite, processedTemplates, allJsonValues, appView);
             iteration++;
+            if (typeof Logger !== 'undefined') {
+                Logger.debug(`Iteration ${iteration}: output length = ${contentHtml.length}`, 'EngineNormal');
+            }
         } while (contentHtml !== previous && iteration < maxIterations);
+
+        if (typeof Logger !== 'undefined') {
+            Logger.debug(`EngineNormal.MergeTemplates COMPLETE: final output length = ${contentHtml.length}`, 'EngineNormal');
+        }
 
         return contentHtml;
     }
@@ -481,7 +504,12 @@ class EngineNormal {
             for (const [key, value] of Object.entries(jsonObject)) {
                 if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
                     const placeholder = `{{$${key}}}`;
-                    result = result.replace(new RegExp(this.escapeRegExp(placeholder), 'gi'), String(value));
+                    // Match C# boolean ToString() behavior: False/True instead of false/true
+                    let replacement = String(value);
+                    if (typeof value === 'boolean') {
+                        replacement = value ? 'True' : 'False';
+                    }
+                    result = result.replace(new RegExp(this.escapeRegExp(placeholder), 'gi'), replacement);
                 }
             }
 
@@ -532,7 +560,13 @@ class EngineNormal {
                     // Replace placeholders with item values AFTER conditional processing
                     for (const [key, value] of Object.entries(item)) {
                         const placeholder = `{{$${key}}}`;
-                        itemBlock = itemBlock.replace(new RegExp(this.escapeRegExp(placeholder), 'gi'), String(value || ''));
+                        // Properly handle boolean false - don't convert to empty string
+                        let replacement = (value !== null && value !== undefined) ? String(value) : '';
+                        // Match C# boolean ToString() behavior: False/True instead of false/true
+                        if (typeof value === 'boolean') {
+                            replacement = value ? 'True' : 'False';
+                        }
+                        itemBlock = itemBlock.replace(new RegExp(this.escapeRegExp(placeholder), 'gi'), replacement);
                     }
                     
                     mergedBlock += itemBlock;

@@ -1,8 +1,8 @@
 package main
 
 import (
+	"assembler/config"
 	"strings"
-	"sync"
 )
 
 // Maximum parameter length to prevent DoS attacks
@@ -14,43 +14,9 @@ var ValidEngineTypes = map[string]bool{
 	"PreProcess": true,
 }
 
-// Cache for valid AppSites
-var (
-	cachedValidAppSites map[string]bool
-	cacheMutex          sync.RWMutex
-)
-
-// GetValidAppSites gets the valid AppSites from cache, or loads from appsites.csv
-func GetValidAppSites(wwwrootPath string) (map[string]bool, error) {
-	cacheMutex.RLock()
-	if cachedValidAppSites != nil {
-		defer cacheMutex.RUnlock()
-		return cachedValidAppSites, nil
-	}
-	cacheMutex.RUnlock()
-
-	cacheMutex.Lock()
-	defer cacheMutex.Unlock()
-
-	// Double-check after acquiring write lock
-	if cachedValidAppSites != nil {
-		return cachedValidAppSites, nil
-	}
-
-	appSites, err := LoadAppSites(wwwrootPath)
-	if err != nil {
-		return nil, err
-	}
-
-	cachedValidAppSites = appSites
-	return appSites, nil
-}
-
-// ClearAppSitesCache clears the AppSites cache
-func ClearAppSitesCache() {
-	cacheMutex.Lock()
-	defer cacheMutex.Unlock()
-	cachedValidAppSites = nil
+// GetValidAppSites gets the valid AppSites from ConfigUtil
+func GetValidAppSites() (map[string]bool, error) {
+	return config.GetAppSites()
 }
 
 // IsValidPathComponent validates if a path component is safe

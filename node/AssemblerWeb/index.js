@@ -6,28 +6,34 @@ import fsSync from 'fs';
 // Import Assembler modules - conditional path based on environment
 let EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess;
 let ApiResponse, TemplateData, PreProcessTemplateMetadata;
-let Logger, LogRotation, TemplateUtils;
+let Logger, LogRotation, CommonUtil, ConfigUtil;
 
 const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? './Assembler/src' : '../Assembler/src';
 
 const assemblerModule = await import(`${assemblerBasePath}/index.js`);
 ({ EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess } = assemblerModule);
 
-const apiResponseModule = await import(`${assemblerBasePath}/templateApi/apiResponse.js`);
+const apiResponseModule = await import(`${assemblerBasePath}/api/index.js`);
 ({ ApiResponse, TemplateData, PreProcessTemplateMetadata } = apiResponseModule);
 
-const loggerModule = await import(`${assemblerBasePath}/templateCommon/logger.js`);
+const loggerModule = await import(`${assemblerBasePath}/common/logger.js`);
 ({ Logger, LogRotation } = loggerModule);
 
-const templateUtilsModule = await import(`${assemblerBasePath}/templateCommon/templateUtils.js`);
-({ TemplateUtils } = templateUtilsModule);
+const commonUtilModule = await import(`${assemblerBasePath}/common/commonUtil.js`);
+({ CommonUtil } = commonUtilModule);
+
+const configModule = await import(`${assemblerBasePath}/config/index.js`);
+({ ConfigUtil } = configModule);
 
 // Import endpoint handlers
-import { indexEndpoint, mergeEndpoint } from './assemblerEndpoint.js';
+import { indexEndpoint, mergeEndpoint, testStandardEndpoint, testAdvancedEndpoint, testPerformanceEndpoint, testConsolidatePerformanceEndpoint, scenariosEndpoint } from './assemblerEndpoint.js';
 
 // Configure logger with context-specific log files
 const logRotation = LogRotation.NONE;
-const { assemblerWebDirPath, projectDirectory } = TemplateUtils.getAssemblerWebDirPath();
+const { assemblerWebDirPath, projectDirectory } = CommonUtil.getAssemblerWebDirPath();
+
+// Load ConfigUtil with wwwroot path
+await ConfigUtil.load(assemblerWebDirPath);
 const templateAnalysisDir = path.join(projectDirectory, 'template_analysis');
 const logsDir = path.join(templateAnalysisDir, 'logs');
 if (!fsSync.existsSync(logsDir)) {
@@ -54,8 +60,17 @@ const __dirname = path.dirname(__filename);
 // Global constant to select template engine
 const USE_PREPROCESS_ENGINE = true;
 
+// Parse command line args
+const skipIdleTracking = process.argv.includes('--skipIdleTracking');
+
+// Parse port from --port argument
+let port = process.env.PORT || 3001;
+const portIndex = process.argv.indexOf('--port');
+if (portIndex !== -1 && portIndex + 1 < process.argv.length) {
+  port = parseInt(process.argv[portIndex + 1], 10) || port;
+}
+
 const app = express();
-const port = process.env.PORT || 3001;
 
 // Middleware
 app.use(express.json());
@@ -83,17 +98,19 @@ function idleTrackingMiddleware(idleSeconds = 10) {
   };
 }
 
-const idleSeconds = process.env.IDLE_SECONDS ? parseInt(process.env.IDLE_SECONDS) : 10;
 // Check if running in debug mode - disabled idle tracking for development
 const isDebug = process.env.DEBUG === 'true' ||
                 process.env.VSCODE_DEBUG === 'true' ||
-                process.env.NODE_ENV === 'development' ||
+                process.env.IDLE_TRACKER_DISABLED === 'true' ||
+                process.env.APP_ENV === 'development' ||
                 typeof v8debug !== 'undefined' ||
-                process.execArgv.some(arg => arg.includes('--inspect'));
+                process.execArgv.some(arg => arg.includes('--inspect')) ||
+                skipIdleTracking;
 
 if (isDebug) {
   console.log('[DEBUG] Running in development mode - idle tracking disabled');
 } else {
+  const idleSeconds = process.env.IDLE_SECONDS ? parseInt(process.env.IDLE_SECONDS) : 10;
   app.use(idleTrackingMiddleware(idleSeconds));
   console.log(`[PRODUCTION] Idle tracking enabled (${idleSeconds} seconds)`);
 }
@@ -240,7 +257,15 @@ app.get('/openapi.json', (req, res) => {
 // Routes
 app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess));
 
-app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata));
+app.get('/api/scenarios', (req, res) => scenariosEndpoint(req, res, ConfigUtil));
+
+app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil));
+
+// Test endpoints - pass projectDirectory to endpoints
+app.post('/test/standard', (req, res) => testStandardEndpoint(req, res, projectDirectory, ConfigUtil));
+app.post('/test/advanced', (req, res) => testAdvancedEndpoint(req, res, projectDirectory, ConfigUtil));
+app.post('/test/performance', (req, res) => testPerformanceEndpoint(req, res, projectDirectory, ConfigUtil));
+app.post('/test/consolidate-performance', (req, res) => testConsolidatePerformanceEndpoint(req, res, projectDirectory));
 
 app.listen(port, () => {
   // OS environment detection

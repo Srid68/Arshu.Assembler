@@ -6,8 +6,8 @@ ini_set('log_errors', 1);
 
 require_once __DIR__ . '/../Assembler/vendor/autoload.php';
 require_once __DIR__ . '/vendor/autoload.php';
-require_once __DIR__ . '/../Assembler/src/TemplateModel/ModelPreProcess.php';
-require_once __DIR__ . '/../Assembler/src/TemplateApi/ApiResponse.php';
+require_once __DIR__ . '/../Assembler/src/Model/ModelPreProcess.php';
+require_once __DIR__ . '/../Assembler/src/Api/ApiResponse.php';
 require_once __DIR__ . '/MergeRequest.php';
 require_once __DIR__ . '/IdleTrackingMiddleware.php';
 require_once __DIR__ . '/AssemblerEndpoint.php';
@@ -15,20 +15,25 @@ require_once __DIR__ . '/AssemblerEndpoint.php';
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as ServerRequest;
 use Slim\Factory\AppFactory;
-use Assembler\TemplateCommon\TemplateUtils;
-use Assembler\TemplateEngine\EngineNormal;
-use Assembler\TemplateEngine\EnginePreProcess;
-use Assembler\TemplateLoader\LoaderNormal;
-use Assembler\TemplateLoader\LoaderPreProcess;
+use Assembler\Common\CommonUtil;
+use Assembler\Engine\EngineNormal;
+use Assembler\Engine\EnginePreProcess;
+use Assembler\Loader\LoaderNormal;
+use Assembler\Loader\LoaderPreProcess;
 use Assembler\TemplateApi\ApiResponse;
 use Assembler\TemplateApi\TemplateData;
 use Assembler\TemplateApi\PreProcessTemplateMetadata;
-use Assembler\TemplateCommon\Logger;
+use Assembler\Common\Logger;
+use Assembler\Config\ConfigUtil;
 
 // Configure logger with context-specific log files
 $logRotation = Logger::ROTATION_NONE;
-$paths = TemplateUtils::getAssemblerWebDirPath();
+$paths = CommonUtil::getAssemblerWebDirPath();
 $projectDirectory = $paths['projectDirectory'];
+$assemblerWebDirPath = $paths['assemblerWebDirPath'];
+
+// Load ConfigUtil with wwwroot path
+ConfigUtil::load($assemblerWebDirPath);
 $templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
 $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
 if (!is_dir($logsDir)) {
@@ -50,10 +55,17 @@ Logger::configure(Logger::DEBUG, null, false, $logRotation);
 Logger::configureContextLogFiles($contextLogFiles);
 Logger::info('AssemblerWeb starting up', 'Index');
 
-// ...existing code...
-
 // Create App
 $app = AppFactory::create();
+
+// Store project directory in container for use in endpoints
+$container = $app->getContainer();
+if ($container === null) {
+    $container = new \DI\Container();
+    AppFactory::setContainer($container);
+    $app = AppFactory::create();
+}
+$container->set('projectDirectory', $projectDirectory);
 
 // Add middleware
 $app->addRoutingMiddleware();
@@ -61,10 +73,12 @@ $app->addErrorMiddleware(true, true, true);
 
 // Configure and add idle tracking middleware
 // Check if running in debug mode via environment variables or CLI
-$isDebug = getenv('APP_ENV') === 'development'
-    || getenv('APP_DEBUG') === 'true'
-    || in_array('--debug', $_SERVER['argv'] ?? [])
-    || php_sapi_name() === 'cli-server'; // PHP built-in server
+$skipIdleTracking = in_array('--skipIdleTracking', $argv ?? []);
+$isDebug = getenv('DEBUG') === 'true'
+    || getenv('VSCODE_DEBUG') === 'true'
+    || getenv('IDLE_TRACKER_DISABLED') === 'true'
+    || getenv('APP_ENV') === 'development'
+    || $skipIdleTracking;
 
 // Also check if Xdebug extension is loaded (indicates development environment)
 if (extension_loaded('xdebug')) {
@@ -90,10 +104,35 @@ $app->get('/', function (ServerRequest $request, Response $response) {
     return AssemblerEndpoint::indexEndpoint($request, $response);
 })->setName('GetRootUrl');
 
+// GET /api/scenarios - Get all scenarios
+$app->get('/api/scenarios', function (ServerRequest $request, Response $response) {
+    return AssemblerEndpoint::scenariosEndpoint($request, $response);
+})->setName('GetScenarios');
+
 // POST /merge - Merge templates
 $app->post('/merge', function (ServerRequest $request, Response $response) {
     return AssemblerEndpoint::mergeEndpoint($request, $response);
 })->setName('PostMergeTemplate');
+
+// Test endpoints
+$app->post('/test/standard', function (ServerRequest $request, Response $response) use ($container) {
+    $projectDirectory = $container->get('projectDirectory');
+    return AssemblerEndpoint::testStandardEndpoint($request, $response, $projectDirectory);
+})->setName('RunStandardTests');
+
+$app->post('/test/advanced', function (ServerRequest $request, Response $response) use ($container) {
+    $projectDirectory = $container->get('projectDirectory');
+    return AssemblerEndpoint::testAdvancedEndpoint($request, $response, $projectDirectory);
+})->setName('RunAdvancedTests');
+
+$app->post('/test/performance', function (ServerRequest $request, Response $response) {
+    return AssemblerEndpoint::testPerformanceEndpoint($request, $response);
+})->setName('RunPerformanceTests');
+
+$app->post('/test/consolidate-performance', function (ServerRequest $request, Response $response) use ($container) {
+    $projectDirectory = $container->get('projectDirectory');
+    return AssemblerEndpoint::testConsolidatePerformanceEndpoint($request, $response, $projectDirectory);
+})->setName('ConsolidatePerformanceTests');
 
 // Serve Scalar UI index.html at /scalar
 // Redirect /scalar to /scalar/index.html for proper UI loading
@@ -243,6 +282,27 @@ $app->get('/openapi.json', function (ServerRequest $request, Response $response)
 
     $response->getBody()->write(json_encode($openapiSpec));
     return $response->withHeader('Content-Type', 'application/json');
+});
+
+// Serve static HTML/JSON files from wwwroot root (for test summaries, performance reports, etc.)
+// This must be last to avoid shadowing other routes
+$app->get('/{file:(?:php|csharp|rust|go|nodejs|node|all)_.+\.(?:html|json)}', function (ServerRequest $request, Response $response, array $args) {
+    $file = $args['file'];
+    $filePath = __DIR__ . '/wwwroot/' . basename($file);  // basename to prevent directory traversal
+
+    if (file_exists($filePath) && is_file($filePath)) {
+        $content = file_get_contents($filePath);
+        $contentType = match (pathinfo($file, PATHINFO_EXTENSION)) {
+            'html' => 'text/html',
+            'json' => 'application/json',
+            default => 'text/plain'
+        };
+
+        $response->getBody()->write($content);
+        return $response->withHeader('Content-Type', $contentType);
+    }
+
+    return $response->withStatus(404);
 });
 
 // Run app

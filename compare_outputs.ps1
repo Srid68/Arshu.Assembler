@@ -1,11 +1,29 @@
 # PowerShell script to compare C# vs Rust, Node, Go, and PHP HTML outputs for all scenarios
-$scenarios = @(
+param(
+    [string]$Scenario = "",
+    [switch]$All = $false
+)
+
+$allScenarios = @(
     "HtmlRule1A", "HtmlRule1B", "HtmlRule2A", "HtmlRule2B", "HtmlRule2C",
     "HtmlRule2D", "HtmlRule2E", "HtmlRule2F", "HtmlRule3A", "HtmlRule3B",
     "Index",
     "JsonRule1A", "JsonRule1B", "JsonRule1C", "JsonRule1D", "JsonRule2A", "JsonRule2B",
     "JsonRule2C", "JsonRule2D", "JsonRule3AHtml2A"
 )
+
+# Determine which scenarios to test
+if ($All) {
+    $scenarios = $allScenarios
+} elseif ($Scenario -ne "") {
+    $scenarios = @($Scenario)
+} else {
+    # Default to first scenario if no parameter provided
+    $scenarios = @("HtmlRule1A")
+    Write-Host "No scenario specified. Testing first scenario: HtmlRule1A" -ForegroundColor Yellow
+    Write-Host "Usage: .\compare_outputs.ps1 -Scenario <ScenarioName>  OR  .\compare_outputs.ps1 -All" -ForegroundColor Yellow
+    Write-Host ""
+}
 
 $results = @()
 
@@ -19,11 +37,11 @@ foreach ($scenario in $scenarios) {
     Write-Host "  Running C#..." -ForegroundColor Cyan
     $csharpOutput = & dotnet run --project csharp/AssemblerTest/AssemblerTest.csproj -- --printhtml --appsite $scenario 2>&1
     
-    # Extract C# output size - look for the performance line which shows "Normal: X chars" and "PreProcess: Y chars"
-    $csharpNormalMatch = $csharpOutput | Select-String "Normal: (\d+) chars" | Select-Object -First 1
+    # Extract C# output size - look for the performance line which shows "Size: X chars"
+    $csharpNormalMatch = $csharpOutput | Select-String "\[C#\] Normal Engine:.*Size: (\d+) chars" | Select-Object -First 1
     $csharpNormalSize = if ($csharpNormalMatch) { $csharpNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
 
-    $csharpPreProcessMatch = $csharpOutput | Select-String "PreProcess: (\d+) chars" | Select-Object -First 1
+    $csharpPreProcessMatch = $csharpOutput | Select-String "\[C#\] PreProcess Engine:.*Size: (\d+) chars" | Select-Object -First 1
     $csharpPreProcessSize = if ($csharpPreProcessMatch) { $csharpPreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
     
     # Run Rust test
@@ -58,11 +76,11 @@ foreach ($scenario in $scenarios) {
     $nodeOutput = & node index.js --printhtml --appsite $scenario 2>&1
     Set-Location "..\..\"
     
-    # Extract Node output size - look for the performance line which shows "Normal: X chars" and "PreProcess: Y chars"
-    $nodeNormalMatch = $nodeOutput | Select-String "Normal: (\d+) chars" | Select-Object -First 1
+    # Extract Node output size - look for the performance line which shows "Size: X chars"
+    $nodeNormalMatch = $nodeOutput | Select-String "\[Node\.js\] Normal Engine:.*Size: (\d+) chars" | Select-Object -First 1
     $nodeNormalSize = if ($nodeNormalMatch) { $nodeNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
 
-    $nodePreProcessMatch = $nodeOutput | Select-String "PreProcess: (\d+) chars" | Select-Object -First 1
+    $nodePreProcessMatch = $nodeOutput | Select-String "\[Node\.js\] PreProcess Engine:.*Size: (\d+) chars" | Select-Object -First 1
     $nodePreProcessSize = if ($nodePreProcessMatch) { $nodePreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
     
     # Run PHP test
@@ -71,11 +89,11 @@ foreach ($scenario in $scenarios) {
     $phpOutput = & php index.php --printhtml --appsite $scenario 2>&1
     Set-Location "..\..\"
     
-    # Extract PHP output size - look for the performance line which shows "Normal: X chars" and "PreProcess: Y chars"
-    $phpNormalMatch = $phpOutput | Select-String "Normal: (\d+) chars" | Select-Object -First 1
+    # Extract PHP output size - look for the performance line which shows "Size: X chars"
+    $phpNormalMatch = $phpOutput | Select-String "\[PHP\] Normal Engine:.*Size: (\d+) chars" | Select-Object -First 1
     $phpNormalSize = if ($phpNormalMatch) { $phpNormalMatch.Matches[0].Groups[1].Value } else { "ERROR" }
 
-    $phpPreProcessMatch = $phpOutput | Select-String "PreProcess: (\d+) chars" | Select-Object -First 1
+    $phpPreProcessMatch = $phpOutput | Select-String "\[PHP\] PreProcess Engine:.*Size: (\d+) chars" | Select-Object -First 1
     $phpPreProcessSize = if ($phpPreProcessMatch) { $phpPreProcessMatch.Matches[0].Groups[1].Value } else { "ERROR" }
     
     # Compare results - all languages now count UTF-16 characters

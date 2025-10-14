@@ -1,7 +1,9 @@
 pub mod app;
-pub mod template_common;
-pub mod template_engine;
-pub mod template_loader;
-pub mod template_model;
-pub mod template_performance;
-pub mod template_api;
+pub mod api;
+pub mod common;
+pub mod config;
+pub mod engine;
+pub mod loader;
+pub mod model;
+pub mod performance;
+pub mod test;

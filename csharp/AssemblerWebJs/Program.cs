@@ -1,9 +1,10 @@
+using Assembler.Common;
+using Assembler.Config;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Threading;
@@ -247,6 +248,21 @@ public class Program
 
     public static void Main(string[] args)
     {
+        var contentRootPath = Directory.GetCurrentDirectory();
+
+        #region Parse Command Line Args
+
+        bool skipIdleTracking = false;
+        foreach (var arg in args)
+        {
+            if (arg == "--skipIdleTracking")
+            {
+                skipIdleTracking = true;
+            }
+        }
+
+        #endregion
+
         #region Print Environment Info
 
         // Print environment info
@@ -294,19 +310,18 @@ public class Program
         #region Logger Configuration
 
         // Configure custom logger
-        var logLevel = Assembler.TemplateCommon.Logger.LogLevel.NONE; // Default: no logging for production
+        var logLevel = Logger.LogLevel.NONE; // Default: no logging for production
         var logLevelEnv = Environment.GetEnvironmentVariable("LOG_LEVEL");
 
         if (!string.IsNullOrEmpty(logLevelEnv))
         {
-            if (Enum.TryParse<Assembler.TemplateCommon.Logger.LogLevel>(logLevelEnv.ToUpper(), out var parsedLevel))
+            if (Enum.TryParse<Logger.LogLevel>(logLevelEnv.ToUpper(), out var parsedLevel))
             {
                 logLevel = parsedLevel;
             }
         }
 
         // Configure logger with context-specific log files
-        var contentRootPath = Directory.GetCurrentDirectory();
         var templateAnalysisDir = System.IO.Path.Combine(contentRootPath, "template_analysis");
         var logsDir = System.IO.Path.Combine(templateAnalysisDir, "logs");
         Directory.CreateDirectory(logsDir);
@@ -315,12 +330,13 @@ public class Program
         var contextLogFiles = new System.Collections.Generic.Dictionary<string, string>
         {
             { "Program", System.IO.Path.Combine(logsDir, "csharp_webjs_program.log") },
-            { "AssemblerEndpoint", System.IO.Path.Combine(logsDir, "csharp_webjs_assemblerendpoint.log") }
+            { "AssemblerEndpoint", System.IO.Path.Combine(logsDir, "csharp_webjs_assemblerendpoint.log") },
+            { "IdleTrackingMiddleware", System.IO.Path.Combine(logsDir, "csharp_webjs_idletracking.log") }
         };
 
-        Assembler.TemplateCommon.Logger.Configure(logLevel, null, consoleOutput: false);
-        Assembler.TemplateCommon.Logger.ConfigureContextLogFiles(contextLogFiles);
-        Assembler.TemplateCommon.Logger.Info("AssemblerWebJs starting up", "Program");
+        Logger.Configure(logLevel, null, consoleOutput: false);
+        Logger.ConfigureContextLogFiles(contextLogFiles);
+        Logger.Info("AssemblerWebJs starting up", "Program");
 
         #endregion
 
@@ -341,19 +357,26 @@ public class Program
         #region Idle Tracking Middleware
 
         // Idle Tracking Middleware
-        if (!app.Environment.IsDevelopment())
+        var isDebug = Environment.GetEnvironmentVariable("DEBUG") == "true"
+            || Environment.GetEnvironmentVariable("VSCODE_DEBUG") == "true"
+            || Environment.GetEnvironmentVariable("IDLE_TRACKER_DISABLED") == "true"
+            || skipIdleTracking;
+
+        if (!isDebug)
         {
+            Console.WriteLine("[IdleTracking] Idle tracking ENABLED");
             var idleSecondsEnv = Environment.GetEnvironmentVariable("IDLE_SECONDS");
             var idleSeconds = 10;
             if (!string.IsNullOrEmpty(idleSecondsEnv) && int.TryParse(idleSecondsEnv, out var envIdleSeconds))
                 idleSeconds = envIdleSeconds;
             IdleTrackingMiddleware.Configure(idleSeconds);
             var appLifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
-            var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
-            var logger = loggerFactory.CreateLogger("IdleTrackingMiddleware");
-            IdleTrackingMiddleware.SetLogger(logger);
             IdleTrackingMiddleware.StartTimer(appLifetime);
             app.Use((context, next) => IdleTrackingMiddleware.InvokeAsync(context, next, appLifetime));
+        }
+        else
+        {
+            Console.WriteLine("[IdleTracking] Idle tracking DISABLED");
         }
 
         #endregion
@@ -361,6 +384,13 @@ public class Program
         #region Use Static Files
 
         app.UseStaticFiles();
+
+        #endregion
+
+        #region Load Assembler Config
+
+        var wwwrootPath = System.IO.Path.Combine(contentRootPath, "wwwroot");
+        ConfigUtil.Load(wwwrootPath);
 
         #endregion
 
@@ -382,28 +412,24 @@ public class IdleTrackingMiddleware
     private static DateTime _lastRequest = DateTime.UtcNow;
     private static Timer? _timer;
     private static bool _shutdownInitiated = false;
-    private static int _idleSeconds = 10; 
+    private static int _idleSeconds = 10;
     private static object _lock = new object();
-    private static ILogger? _logger;
-    public static void SetLogger(ILogger logger)
-    {
-        _logger = logger;
-    }
+
     private static void Log(string message)
     {
-        _logger?.LogInformation($"[IdleTrackingMiddleware] {DateTime.UtcNow:O} {message}");
+        Logger.Info($"{DateTime.UtcNow:O} {message}", "IdleTrackingMiddleware");
     }
 
     public static void Configure(int idleSeconds)
     {
-    _idleSeconds = idleSeconds;
-    Log($"Configured idleSeconds = {_idleSeconds}");
+        _idleSeconds = idleSeconds;
+        Log($"Configured idleSeconds = {_idleSeconds}");
     }
 
     public static void StartTimer(IHostApplicationLifetime appLifetime)
     {
-    Log("Starting idle timer");
-    _timer = new Timer(_ => CheckIdle(appLifetime), null, 10000, 10000);
+        Log("Starting idle timer");
+        _timer = new Timer(_ => CheckIdle(appLifetime), null, 10000, 10000);
     }
 
     public static void UpdateLastRequest()

@@ -104,6 +104,29 @@ function moveScenario(offset) {
     const select = document.getElementById('test-select');
     if (!select || select.options.length <= 1) return; // Only placeholder
 
+    // FORCE CLEAR ALL DISPLAYS IMMEDIATELY before changing selection
+    const normalResult = document.querySelector('#{{$NormalResultId}}');
+    const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
+    const normalTemplate = document.querySelector('#{{$NormalTemplateId}}');
+    const preprocessTemplate = document.querySelector('#{{$PreProcessTemplateId}}');
+
+    if (normalResult) {
+        normalResult.innerHTML = '';
+        normalResult.offsetHeight; // Force reflow
+    }
+    if (preprocessResult) {
+        preprocessResult.innerHTML = '';
+        preprocessResult.offsetHeight; // Force reflow
+    }
+    if (normalTemplate) {
+        normalTemplate.innerHTML = '';
+        normalTemplate.offsetHeight; // Force reflow
+    }
+    if (preprocessTemplate) {
+        preprocessTemplate.innerHTML = '';
+        preprocessTemplate.offsetHeight; // Force reflow
+    }
+
     let idx = select.selectedIndex;
     if (idx === -1 || idx === 0) idx = 1; // skip placeholder
     else idx += offset;
@@ -134,8 +157,61 @@ function updateTemplateVisibility() {
     }
 }
 
+// Load scenarios from API
+async function loadScenariosFromApi() {
+    const testSelect = document.getElementById('test-select');
+    if (!testSelect) return;
+
+    try {
+        const response = await fetch('/api/scenarios');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const scenarios = await response.json();
+
+        // Clear existing options
+        testSelect.innerHTML = '';
+
+        // Add placeholder option
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = 'Select a Scenario...';
+        testSelect.appendChild(placeholderOption);
+
+        // Add scenario options
+        scenarios.forEach(scenario => {
+            const option = document.createElement('option');
+            option.value = `${scenario.appSite}_${scenario.appView || ''}`;
+            option.dataset.appsite = scenario.appSite;
+            option.dataset.appfile = scenario.appFile;
+            option.dataset.appview = scenario.appView || '';
+            option.dataset.description = scenario.description || '';
+            option.textContent = scenario.displayName || `${scenario.appSite}${scenario.appView ? ' → ' + scenario.appView : ''}`;
+            testSelect.appendChild(option);
+        });
+
+        console.log(`[Scenarios] Loaded ${scenarios.length} scenarios from API`);
+    } catch (error) {
+        console.error('[Scenarios] Error loading scenarios:', error);
+        testSelect.innerHTML = '<option value="">Error loading scenarios</option>';
+    }
+}
+
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
+    // Load scenarios from API first
+    loadScenariosFromApi().then(() => {
+        // Restore selection after scenarios are loaded
+        const savedSelection = sessionStorage.getItem('selectedScenario');
+        const testSelect = document.getElementById('test-select');
+        if (savedSelection && testSelect) {
+            sessionStorage.removeItem('selectedScenario');
+            testSelect.value = savedSelection;
+            // Trigger change event to load the scenario
+            testSelect.dispatchEvent(new Event('change'));
+        }
+    });
+
     // Scenario selector
     const testSelect = document.getElementById('test-select');
     if (testSelect) {
@@ -187,28 +263,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', function() {
-            // Save current selection
+            // Set flag to enable saving (only for client-side merging)
+            if (typeof shouldSaveOnMerge !== 'undefined') {
+                shouldSaveOnMerge = true;
+            }
+            // Re-execute the merge for the currently selected scenario
             const select = document.getElementById('test-select');
-            const currentValue = select ? select.value : '';
-
-            // Reload the page
-            window.location.reload();
-
-            // Note: After reload, we'd need to restore selection, but since page reloads,
-            // we use sessionStorage to preserve the selection
-            if (currentValue) {
-                sessionStorage.setItem('selectedScenario', currentValue);
+            if (select && select.value) {
+                handleScenarioChange();
             }
         });
-    }
-
-    // Restore selection after page load
-    const savedSelection = sessionStorage.getItem('selectedScenario');
-    if (savedSelection && testSelect) {
-        sessionStorage.removeItem('selectedScenario');
-        testSelect.value = savedSelection;
-        // Trigger change event to load the scenario
-        testSelect.dispatchEvent(new Event('change'));
     }
 });
 </script>

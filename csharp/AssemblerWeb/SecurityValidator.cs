@@ -1,3 +1,4 @@
+using Assembler.Config;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,38 +20,12 @@ namespace AssemblerWeb
             "Normal", "PreProcess"
         };
 
-        // Cached ValidAppSites - loaded on first request
-        private static HashSet<string>? _cachedValidAppSites = null;
-        private static readonly object _cacheLock = new object();
-
         /// <summary>
-        /// Gets the valid AppSites from cache, or loads from appsites.csv (generating if needed)
+        /// Gets the valid AppSites from TemplateConfig. Throws if not loaded.
         /// </summary>
-        public static HashSet<string> GetValidAppSites(string wwwrootPath)
+        public static HashSet<string> GetValidAppSites()
         {
-            if (_cachedValidAppSites != null)
-                return _cachedValidAppSites;
-
-            lock (_cacheLock)
-            {
-                // Double-check after acquiring lock
-                if (_cachedValidAppSites != null)
-                    return _cachedValidAppSites;
-
-                _cachedValidAppSites = AppSitesConfig.LoadAppSites(wwwrootPath);
-                return _cachedValidAppSites;
-            }
-        }
-
-        /// <summary>
-        /// Clears the AppSites cache - useful for development/testing
-        /// </summary>
-        public static void ClearAppSitesCache()
-        {
-            lock (_cacheLock)
-            {
-                _cachedValidAppSites = null;
-            }
+            return ConfigUtil.GetAppSites();
         }
 
         /// <summary>

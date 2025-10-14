@@ -104,6 +104,29 @@ function moveScenario(offset) {
     const select = document.getElementById('test-select');
     if (!select || select.options.length <= 1) return; // Only placeholder
 
+    // FORCE CLEAR ALL DISPLAYS IMMEDIATELY before changing selection
+    const normalResult = document.querySelector('#{{$NormalResultId}}');
+    const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
+    const normalTemplate = document.querySelector('#{{$NormalTemplateId}}');
+    const preprocessTemplate = document.querySelector('#{{$PreProcessTemplateId}}');
+
+    if (normalResult) {
+        normalResult.innerHTML = '';
+        normalResult.offsetHeight; // Force reflow
+    }
+    if (preprocessResult) {
+        preprocessResult.innerHTML = '';
+        preprocessResult.offsetHeight; // Force reflow
+    }
+    if (normalTemplate) {
+        normalTemplate.innerHTML = '';
+        normalTemplate.offsetHeight; // Force reflow
+    }
+    if (preprocessTemplate) {
+        preprocessTemplate.innerHTML = '';
+        preprocessTemplate.offsetHeight; // Force reflow
+    }
+
     let idx = select.selectedIndex;
     if (idx === -1 || idx === 0) idx = 1; // skip placeholder
     else idx += offset;
@@ -134,8 +157,61 @@ function updateTemplateVisibility() {
     }
 }
 
+// Load scenarios from API
+async function loadScenariosFromApi() {
+    const testSelect = document.getElementById('test-select');
+    if (!testSelect) return;
+
+    try {
+        const response = await fetch('/api/scenarios');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const scenarios = await response.json();
+
+        // Clear existing options
+        testSelect.innerHTML = '';
+
+        // Add placeholder option
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = 'Select a Scenario...';
+        testSelect.appendChild(placeholderOption);
+
+        // Add scenario options
+        scenarios.forEach(scenario => {
+            const option = document.createElement('option');
+            option.value = `${scenario.appSite}_${scenario.appView || ''}`;
+            option.dataset.appsite = scenario.appSite;
+            option.dataset.appfile = scenario.appFile;
+            option.dataset.appview = scenario.appView || '';
+            option.dataset.description = scenario.description || '';
+            option.textContent = scenario.displayName || `${scenario.appSite}${scenario.appView ? ' → ' + scenario.appView : ''}`;
+            testSelect.appendChild(option);
+        });
+
+        console.log(`[Scenarios] Loaded ${scenarios.length} scenarios from API`);
+    } catch (error) {
+        console.error('[Scenarios] Error loading scenarios:', error);
+        testSelect.innerHTML = '<option value="">Error loading scenarios</option>';
+    }
+}
+
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
+    // Load scenarios from API first
+    loadScenariosFromApi().then(() => {
+        // Restore selection after scenarios are loaded
+        const savedSelection = sessionStorage.getItem('selectedScenario');
+        const testSelect = document.getElementById('test-select');
+        if (savedSelection && testSelect) {
+            sessionStorage.removeItem('selectedScenario');
+            testSelect.value = savedSelection;
+            // Trigger change event to load the scenario
+            testSelect.dispatchEvent(new Event('change'));
+        }
+    });
+
     // Scenario selector
     const testSelect = document.getElementById('test-select');
     if (testSelect) {
@@ -183,32 +259,100 @@ document.addEventListener('DOMContentLoaded', function() {
         updateMergeModeLabel();
     }
 
-    // Refresh button
+    // Refresh button with save functionality
     const refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', function() {
-            // Save current selection
+            // Re-execute the merge for the currently selected scenario
             const select = document.getElementById('test-select');
-            const currentValue = select ? select.value : '';
-
-            // Reload the page
-            window.location.reload();
-
-            // Note: After reload, we'd need to restore selection, but since page reloads,
-            // we use sessionStorage to preserve the selection
-            if (currentValue) {
-                sessionStorage.setItem('selectedScenario', currentValue);
+            if (select && select.value) {
+                // Save current output before refresh
+                saveCurrentOutput();
+                // Re-execute the merge
+                handleScenarioChange();
             }
         });
     }
-
-    // Restore selection after page load
-    const savedSelection = sessionStorage.getItem('selectedScenario');
-    if (savedSelection && testSelect) {
-        sessionStorage.removeItem('selectedScenario');
-        testSelect.value = savedSelection;
-        // Trigger change event to load the scenario
-        testSelect.dispatchEvent(new Event('change'));
-    }
 });
+
+// Function to save current output to file
+async function saveCurrentOutput() {
+    const select = document.getElementById('test-select');
+    if (!select || !select.value) return;
+
+    const selectedOption = select.options[select.selectedIndex];
+    const appSite = selectedOption.dataset.appsite || select.value;
+    const appView = selectedOption.dataset.appview || "";
+
+    const normalResult = document.querySelector('#{{$NormalResultId}}');
+    const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
+
+    if (!normalResult || !preprocessResult) return;
+
+    const normalHtml = normalResult.innerHTML;
+    const preprocessHtml = preprocessResult.innerHTML;
+
+    // Create HTML document with both outputs
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Debug Output - ${appSite}${appView ? '_' + appView : ''}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #667eea; }
+        h2 { color: #764ba2; margin-top: 30px; }
+        .column { border: 2px solid #e0e0e0; padding: 16px; margin: 10px 0; border-radius: 8px; }
+        .normal { border-color: #4CAF50; background: #f9fff9; }
+        .preprocess { border-color: #667eea; background: #f6f9ff; }
+        .info { background: #ffffea; padding: 12px; border-radius: 6px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Debug Output: ${appSite}${appView ? ' → ' + appView : ''}</h1>
+    <div class="info">
+        <strong>Generated:</strong> ${new Date().toLocaleString()}<br>
+        <strong>AppSite:</strong> ${appSite}<br>
+        ${appView ? `<strong>AppView:</strong> ${appView}<br>` : ''}
+        <strong>Normal Output Length:</strong> ${normalHtml.length} chars<br>
+        <strong>PreProcess Output Length:</strong> ${preprocessHtml.length} chars<br>
+        <strong>Match:</strong> ${normalHtml.length === preprocessHtml.length ? 'YES' : 'NO'}
+    </div>
+
+    <h2>Normal Engine Output</h2>
+    <div class="column normal">
+        ${normalHtml}
+    </div>
+
+    <h2>PreProcess Engine Output</h2>
+    <div class="column preprocess">
+        ${preprocessHtml}
+    </div>
+</body>
+</html>`;
+
+    // Save to server
+    try {
+        const response = await fetch('/api/save-debug-output', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                appSite: appSite,
+                appView: appView || '',
+                content: htmlContent
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Debug output saved:', result.filePath);
+        } else {
+            console.warn('Failed to save debug output');
+        }
+    } catch (error) {
+        console.error('Error saving debug output:', error);
+    }
+}
 </script>

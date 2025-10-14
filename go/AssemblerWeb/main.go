@@ -5,13 +5,19 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"assembler/common"
+	"assembler/config"
 	"github.com/gin-gonic/gin"
 	"github.com/skratchdot/open-golang/open"
 )
+
+// Global variable to store project directory path (similar to C#'s ContentRootPath)
+var projectDirectory string
 
 // openapi handles the GET /openapi.json endpoint to serve OpenAPI specification
 func openapi(c *gin.Context) {
@@ -132,6 +138,45 @@ func IdleTrackingMiddleware(idleSeconds int) gin.HandlerFunc {
 }
 
 func main() {
+	// Configure Logger - set global projectDirectory variable
+	_, projectDirectory = common.GetAssemblerWebDirPath()
+	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
+	logsDir := filepath.Join(templateAnalysisDir, "logs")
+	os.MkdirAll(logsDir, 0755)
+
+	// Configure separate log files for each context
+	contextLogFiles := map[string]string{
+		"LoaderNormal":      filepath.Join(logsDir, "go_loadernormal.log"),
+		"LoaderPreProcess":  filepath.Join(logsDir, "go_loaderpreprocess.log"),
+		"EngineNormal":      filepath.Join(logsDir, "go_enginenormal.log"),
+		"EnginePreProcess":  filepath.Join(logsDir, "go_enginepreprocess.log"),
+		"Main":              filepath.Join(logsDir, "go_main.log"),
+		"MergeEndpoint":     filepath.Join(logsDir, "go_mergeendpoint.log"),
+	}
+
+	common.Configure(common.DEBUG, "", false, common.ROTATION_NONE)
+	common.ConfigureContextLogFiles(contextLogFiles)
+	common.Info("AssemblerWeb starting up", "Main")
+
+	// Load ConfigUtil (AppSites and Scenarios)
+	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
+	if err := config.Load(assemblerWebDirPath); err != nil {
+		fmt.Printf("[WARNING] Failed to load ConfigUtil: %v\n", err)
+		common.Warn(fmt.Sprintf("Failed to load ConfigUtil: %v", err), "Main")
+	}
+
+	// Parse command line args
+	skipIdleTracking := false
+	port := "8080" // Default port
+	for i, arg := range os.Args[1:] {
+		if arg == "--skipIdleTracking" {
+			skipIdleTracking = true
+		}
+		if arg == "--port" && i+1 < len(os.Args[1:]) {
+			port = os.Args[1:][i+1]
+		}
+	}
+
 	// OS environment detection
 	if _, err := os.Stat("/proc/sys/kernel/osrelease"); err == nil {
 		data, err := os.ReadFile("/proc/sys/kernel/osrelease")
@@ -159,29 +204,31 @@ func main() {
 
 	// Check if running in VSCode debugger or explicitly in debug mode
 	isDebug := os.Getenv("DEBUG") == "true" ||
-	           os.Getenv("VSCODE_DEBUG") == "true" ||
-	           os.Getenv("GO_ENV") == "development"
+		os.Getenv("VSCODE_DEBUG") == "true" ||
+		os.Getenv("IDLE_TRACKER_DISABLED") == "true" ||
+		os.Getenv("APP_ENV") == "development" ||
+		skipIdleTracking
 
 	if isDebug {
 		// Set Gin to debug mode for development
 		gin.SetMode(gin.DebugMode)
-		fmt.Println("[DEBUG] Running in development mode - idle tracking disabled")
+		fmt.Println("[IdleTracking] Idle tracking DISABLED")
 	} else {
 		// Set Gin to release mode (default/production)
 		gin.SetMode(gin.ReleaseMode)
-	}
-
-	idleSeconds := 10
-	if v := os.Getenv("IDLE_SECONDS"); v != "" {
-		if parsed, err := strconv.Atoi(v); err == nil {
-			idleSeconds = parsed
-		}
+		fmt.Println("[IdleTracking] Idle tracking ENABLED")
 	}
 
 	r := gin.Default()
 
 	// Idle Tracking Middleware - enabled by default, disabled only in debug mode
 	if !isDebug {
+		idleSeconds := 10
+		if v := os.Getenv("IDLE_SECONDS"); v != "" {
+			if parsed, err := strconv.Atoi(v); err == nil {
+				idleSeconds = parsed
+			}
+		}
 		r.Use(IdleTrackingMiddleware(idleSeconds))
 		fmt.Printf("[PRODUCTION] Idle tracking enabled (%d seconds)\n", idleSeconds)
 	}
@@ -191,8 +238,15 @@ func main() {
 
 	// API routes
 	r.GET("/", index)
+	r.GET("/api/scenarios", scenarios)
 	r.POST("/merge", mergeTemplates)
 	r.GET("/openapi.json", openapi)
+
+	// Test endpoints
+	r.POST("/test/standard", testStandard)
+	r.POST("/test/advanced", testAdvanced)
+	r.POST("/test/performance", testPerformance)
+	r.POST("/test/consolidate-performance", testConsolidatePerformance)
 
 	// Serve static files from wwwroot (HTML, JSON, etc.) - use NoRoute to avoid conflicts
 	r.NoRoute(func(c *gin.Context) {
@@ -210,8 +264,8 @@ func main() {
 	// Launch Scalar UI in browser after a short delay
 	go func() {
 		time.Sleep(500 * time.Millisecond)
-		open.Run("http://127.0.0.1:8080")
+		open.Run(fmt.Sprintf("http://127.0.0.1:%s", port))
 	}()
 
-	log.Fatal(r.Run(":8080"))
+	log.Fatal(r.Run(":" + port))
 }

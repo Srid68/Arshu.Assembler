@@ -24,6 +24,9 @@ function convertKeyValueArrayToObject(data) {
     return data; // Return as-is if not an array
 }
 
+// Global flag to track if save should happen (only on refresh button click)
+let shouldSaveOnMerge = false;
+
 // Function to handle scenario selection with client-side merging
 function handleScenarioChangeClient() {
     const select = document.getElementById('test-select');
@@ -42,10 +45,12 @@ function handleScenarioChangeClient() {
     // Get data from data attributes
     const selectedOption = select.options[select.selectedIndex];
     const appSite = selectedOption.dataset.appsite || selectedValue;
-    const appFile = selectedOption.dataset.appfile || "";
+    const appFile = selectedOption.dataset.appfile || appSite;
     const appView = selectedOption.dataset.appview || "";
-    const appViewPrefix = selectedOption.dataset.appviewprefix || "";
     const description = selectedOption.dataset.description || "";
+
+    // Compute appViewPrefix
+    const appViewPrefix = appView ? appView.substring(0, Math.min(appView.length, 6)) : "";
 
     // Update rule description
     updateRuleDescription(appSite, description);
@@ -62,11 +67,25 @@ function handleScenarioChangeClient() {
     if (normalTimingBar) normalTimingBar.innerHTML = '';
     if (preprocessTimingBar) preprocessTimingBar.innerHTML = '';
 
+    // Initialize logger for debugging (enable only when saving)
+    if (shouldSaveOnMerge && typeof Logger !== 'undefined') {
+        Logger.configure(Logger.LogLevel.DEBUG, true);
+        Logger.initializeContexts(['EngineNormal', 'EnginePreProcess']);
+        Logger.clearAllLogs();
+        console.log('Logger initialized with DEBUG level for refresh');
+    }
+
     // Fetch templates from API and merge client-side
     const clientStartTime = performance.now();
-    const apiUrl = `/api/templates/${appSite}?appFile=${encodeURIComponent(appFile)}&appView=${encodeURIComponent(appView)}`;
+    const apiUrl = '/api/templates';
 
-    fetch(apiUrl)
+    fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ appsite: appSite })
+    })
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -164,6 +183,12 @@ function handleScenarioChangeClient() {
                 displayTemplateDetails(templates, 'normal');
                 displayTemplateDetails(preprocessTemplates, 'preprocess');
             }
+
+            // Save outputs and logs only when refresh button is clicked
+            if (shouldSaveOnMerge) {
+                saveMergeOutputsAndLogs(appSite, appView, normalMergedResult, preprocessMergedResult);
+                shouldSaveOnMerge = false; // Reset flag after saving
+            }
         })
         .catch(error => {
             if (normalResult) normalResult.innerHTML = '<div class="error">Error: ' + error.message + '</div>';
@@ -172,5 +197,40 @@ function handleScenarioChangeClient() {
             if (preprocessTimingBar) preprocessTimingBar.innerHTML = '';
             console.error('Error loading templates:', error);
         });
+}
+
+// Function to save merge outputs and logs to server
+async function saveMergeOutputsAndLogs(appSite, appView, normalOutput, preprocessOutput) {
+    try {
+        // Save Normal engine output
+        if (normalOutput && typeof TestingUtils !== 'undefined' && typeof TestingUtils.saveOutput === 'function') {
+            await TestingUtils.saveOutput(appSite, appView, 'normal', normalOutput);
+            console.log(`Saved Normal engine output for ${appSite}${appView ? ':' + appView : ''}`);
+        }
+
+        // Save PreProcess engine output
+        if (preprocessOutput && typeof TestingUtils !== 'undefined' && typeof TestingUtils.saveOutput === 'function') {
+            await TestingUtils.saveOutput(appSite, appView, 'preprocess', preprocessOutput);
+            console.log(`Saved PreProcess engine output for ${appSite}${appView ? ':' + appView : ''}`);
+        }
+
+        // Save logs if Logger is available
+        if (typeof Logger !== 'undefined') {
+            const engineNormalLog = Logger.getContextLogs('EngineNormal');
+            const enginePreProcessLog = Logger.getContextLogs('EnginePreProcess');
+
+            if (engineNormalLog && engineNormalLog.length > 0 && typeof TestingUtils !== 'undefined' && typeof TestingUtils.saveLog === 'function') {
+                await TestingUtils.saveLog('EngineNormal', engineNormalLog);
+                console.log('Saved EngineNormal logs');
+            }
+
+            if (enginePreProcessLog && enginePreProcessLog.length > 0 && typeof TestingUtils !== 'undefined' && typeof TestingUtils.saveLog === 'function') {
+                await TestingUtils.saveLog('EnginePreProcess', enginePreProcessLog);
+                console.log('Saved EnginePreProcess logs');
+            }
+        }
+    } catch (error) {
+        console.error('Error saving outputs/logs:', error);
+    }
 }
 </script>

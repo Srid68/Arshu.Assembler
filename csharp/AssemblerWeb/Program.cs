@@ -1,14 +1,14 @@
+using Assembler.Common;
+using Assembler.Config;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Scalar.AspNetCore;
 using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Assembler.TemplateCommon;
 
 namespace AssemblerWeb
 {
@@ -21,14 +21,10 @@ namespace AssemblerWeb
         private static bool _shutdownInitiated = false;
         private static int _idleSeconds = 10;
         private static object _lock = new object();
-        private static ILogger? _logger;
-        public static void SetLogger(ILogger logger)
-        {
-            _logger = logger;
-        }
+
         private static void Log(string message)
         {
-            _logger?.LogInformation($"[IdleTrackingMiddleware] {DateTime.UtcNow:O} {message}");
+            Logger.Info($"{DateTime.UtcNow:O} {message}", "IdleTrackingMiddleware");
         }
 
         public static void Configure(int idleSeconds)
@@ -82,6 +78,21 @@ namespace AssemblerWeb
     {
         public static void Main(string[] args)
         {
+            var contentRootPath = Directory.GetCurrentDirectory();
+
+            #region Parse Command Line Args
+
+            bool skipIdleTracking = false;
+            foreach (var arg in args)
+            {
+                if (arg == "--skipIdleTracking")
+                {
+                    skipIdleTracking = true;
+                }
+            }
+
+            #endregion
+
             #region Print Environment Info
 
             // Print environment info
@@ -141,8 +152,7 @@ namespace AssemblerWeb
             }
 
             // Configure logger with context-specific log files
-            var (assemblerWebDirPath, projectDirectory) = TemplateUtils.GetAssemblerWebDirPath();
-            var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+            var templateAnalysisDir = Path.Combine(contentRootPath, "template_analysis");
             var logsDir = Path.Combine(templateAnalysisDir, "logs");
             Directory.CreateDirectory(logsDir);
 
@@ -154,7 +164,8 @@ namespace AssemblerWeb
                 { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") },
                 { "EnginePreProcess", Path.Combine(logsDir, "csharp_enginepreprocess.log") },
                 { "Program", Path.Combine(logsDir, "csharp_program.log") },
-                { "AssemblerEndpoint", Path.Combine(logsDir, "csharp_assemblerendpoint.log") }
+                { "AssemblerEndpoint", Path.Combine(logsDir, "csharp_assemblerendpoint.log") },
+                { "IdleTrackingMiddleware", Path.Combine(logsDir, "csharp_idletracking.log") }
             };
 
             Logger.Configure(logLevel, null, consoleOutput: false);
@@ -175,7 +186,6 @@ namespace AssemblerWeb
 
             builder.Services.ConfigureHttpJsonOptions(options =>
             {
-                options.SerializerOptions.TypeInfoResolverChain.Insert(0, MergeRequestJsonContext.Default);
                 options.SerializerOptions.TypeInfoResolverChain.Insert(0, ResponseJsonContext.Default);
             });
 
@@ -187,19 +197,26 @@ namespace AssemblerWeb
             #region Idle Tracking Middleware
 
             // Idle Tracking Middleware
-            if (!app.Environment.IsDevelopment())
+            var isDebug = Environment.GetEnvironmentVariable("DEBUG") == "true"
+                || Environment.GetEnvironmentVariable("VSCODE_DEBUG") == "true"
+                || Environment.GetEnvironmentVariable("IDLE_TRACKER_DISABLED") == "true"
+                || skipIdleTracking;
+
+            if (!isDebug)
             {
+                Console.WriteLine("[IdleTracking] Idle tracking ENABLED");
                 var idleSecondsEnv = Environment.GetEnvironmentVariable("IDLE_SECONDS");
                 var idleSeconds = 10;
                 if (!string.IsNullOrEmpty(idleSecondsEnv) && int.TryParse(idleSecondsEnv, out var envIdleSeconds))
                     idleSeconds = envIdleSeconds;
                 IdleTrackingMiddleware.Configure(idleSeconds);
                 var appLifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
-                var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
-                var logger = loggerFactory.CreateLogger("IdleTrackingMiddleware");
-                IdleTrackingMiddleware.SetLogger(logger);
                 IdleTrackingMiddleware.StartTimer(appLifetime);
                 app.Use((context, next) => IdleTrackingMiddleware.InvokeAsync(context, next, appLifetime));
+            }
+            else
+            {
+                Console.WriteLine("[IdleTracking] Idle tracking DISABLED");
             }
 
             #endregion
@@ -222,6 +239,13 @@ namespace AssemblerWeb
 
             // Serve static files from wwwroot/Resource
             app.UseStaticFiles();
+
+            #endregion
+
+            #region Assembler Config
+
+            var wwwrootPath = System.IO.Path.Combine(contentRootPath, "wwwroot");
+            ConfigUtil.Load(wwwrootPath);
 
             #endregion
 

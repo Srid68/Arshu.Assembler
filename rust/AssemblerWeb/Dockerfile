@@ -3,7 +3,7 @@
 
 # Build stage
 FROM rust:alpine AS build
-RUN apk add --no-cache musl-dev openssl-dev pkgconfig curl
+RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconfig curl
 RUN curl -L https://github.com/DarthSim/overmind/releases/download/v2.4.0/overmind-v2.4.0-linux-amd64.gz | gunzip -c > /usr/local/bin/overmind && chmod +x /usr/local/bin/overmind
 
 WORKDIR /src

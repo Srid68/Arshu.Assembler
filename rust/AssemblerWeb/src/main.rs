@@ -2,7 +2,7 @@
 use std::thread;
 use utoipa::OpenApi;
 use std::time::Duration;
-use assembler::template_common::template_utils::TemplateUtils;
+use assembler::common::common_util::CommonUtil;
 use actix_web::{web, App, HttpServer, Responder, HttpResponse};
 use actix_files as fs;
 use std::sync::{Arc, Mutex};
@@ -11,11 +11,10 @@ use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use futures_util::future::{self, LocalBoxFuture};
 use actix_web::Error;
 
-mod app_sites_config;
 mod security_validator;
 mod assembler_endpoint;
 
-use assembler_endpoint::{MergeRequest, index, merge_templates};
+use assembler_endpoint::{MergeRequest, index, merge_templates, test_standard, test_advanced, test_performance, test_consolidate_performance};
 
 
 async fn openapi_handler() -> impl Responder {
@@ -29,7 +28,14 @@ async fn openapi_handler() -> impl Responder {
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(assembler_endpoint::index, assembler_endpoint::merge_templates),
+    paths(
+        assembler_endpoint::index,
+        assembler_endpoint::merge_templates,
+        assembler_endpoint::test_standard,
+        assembler_endpoint::test_advanced,
+        assembler_endpoint::test_performance,
+        assembler_endpoint::test_consolidate_performance
+    ),
     components(schemas(MergeRequest)),
     tags((name = "Assembler", description = "Assembler API endpoints"))
 )]
@@ -37,6 +43,17 @@ struct ApiDoc;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Parse command line args
+    let args: Vec<String> = std::env::args().collect();
+    let skip_idle_tracking = args.iter().any(|arg| arg == "--skipIdleTracking");
+
+    // Parse port from --port argument, default to 8080
+    let port: u16 = args.iter()
+        .position(|arg| arg == "--port")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(8080);
+
     // OS environment detection
     if std::path::Path::new("/proc/sys/kernel/osrelease").exists() {
         let os_release = std::fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default();
@@ -82,70 +99,77 @@ async fn main() -> std::io::Result<()> {
     context_log_files.insert("Main".to_string(), logs_dir.join("rust_main.log").to_string_lossy().to_string());
     context_log_files.insert("MergeEndpoint".to_string(), logs_dir.join("rust_mergeendpoint.log").to_string_lossy().to_string());
 
-    assembler::template_common::logger::Logger::configure(
-        assembler::template_common::logger::LogLevel::DEBUG,
+    assembler::common::logger::Logger::configure(
+        assembler::common::logger::LogLevel::DEBUG,
         None,
         false,
-        assembler::template_common::logger::LogRotation::NONE
+        assembler::common::logger::LogRotation::NONE
     );
-    assembler::template_common::logger::Logger::configure_context_log_files(context_log_files);
-    assembler::template_common::logger::Logger::info("AssemblerWeb starting up", Some("Main"));
+    assembler::common::logger::Logger::configure_context_log_files(context_log_files);
+    assembler::common::logger::Logger::info("AssemblerWeb starting up", Some("Main"));
 
-    // Pre-generate appsites.csv at startup to ensure it's available
-    let (assembler_web_dir_path, _) = TemplateUtils::get_assembler_web_dir_path();
+    // Load ConfigUtil (AppSites and Scenarios) at startup
+    let (assembler_web_dir_path, _) = CommonUtil::get_assembler_web_dir_path();
     let wwwroot_path_str = assembler_web_dir_path.to_str().unwrap_or("");
-    if let Err(e) = app_sites_config::load_app_sites(wwwroot_path_str) {
-        eprintln!("[WARNING] Failed to load/generate appsites.csv: {}", e);
-        assembler::template_common::logger::Logger::warn(&format!("Failed to load appsites.csv: {}", e), Some("Main"));
+    if let Err(e) = assembler::config::config_util::ConfigUtil::load(wwwroot_path_str) {
+        eprintln!("[WARNING] Failed to load ConfigUtil: {}", e);
+        assembler::common::logger::Logger::warn(&format!("Failed to load ConfigUtil: {}", e), Some("Main"));
     }
 
-    println!("Starting server on http://localhost:8080");
-    println!("Scalar UI will be available at http://localhost:8080/scalar");
+    println!("Starting server on http://localhost:{}", port);
+    println!("Scalar UI will be available at http://localhost:{}/scalar", port);
 
     // Launch browser after a short delay (only in debug mode)
     #[cfg(debug_assertions)]
-    thread::spawn(|| {
-        thread::sleep(Duration::from_millis(500));
-        if let Err(e) = webbrowser::open("http:/localhost:8080/") {
-            println!("Failed to open browser: {}", e);
-        }
-    });
+    {
+        let browser_port = port;
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(500));
+            if let Err(e) = webbrowser::open(&format!("http://localhost:{}/", browser_port)) {
+                println!("Failed to open browser: {}", e);
+            }
+        });
+    }
     
-    #[cfg(not(debug_assertions))]
+    let is_debug = std::env::var("DEBUG").as_deref() == Ok("true")
+    || std::env::var("VSCODE_DEBUG").unwrap_or_default() == "true"
+    || std::env::var("IDLE_TRACKER_DISABLED").unwrap_or_default() == "true"
+    || std::env::var("APP_ENV").unwrap_or_default() == "development"
+    || skip_idle_tracking;
+
+    if !is_debug {
+        println!("[IdleTracking] Idle tracking ENABLED");
+    } else {
+        println!("[IdleTracking] Idle tracking DISABLED");
+    }
+
     let idle_seconds = std::env::var("IDLE_SECONDS")
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
         .unwrap_or(10);
-    #[cfg(not(debug_assertions))]
-    let idle_tracking = IdleTracking::new(idle_seconds);
+    let idle_tracking = IdleTracking::new(idle_seconds, !is_debug);
 
+    let project_dir_data = web::Data::new(project_directory.clone());
     let server = HttpServer::new(move || {
-        let (assembler_web_dir_path, _) = TemplateUtils::get_assembler_web_dir_path();
+        let (assembler_web_dir_path, _) = CommonUtil::get_assembler_web_dir_path();
         let scalar_path = assembler_web_dir_path.join("scalar");
         let wwwroot_path = assembler_web_dir_path.clone();
 
-        #[cfg(not(debug_assertions))]
-        {
-            App::new()
-                .service(web::resource("/").route(web::get().to(index)))
-                .service(merge_templates)
-                .route("/openapi.json", web::get().to(openapi_handler))
-                .service(fs::Files::new("/scalar", scalar_path).index_file("index.html"))
-                .service(fs::Files::new("/", wwwroot_path).index_file("index.html"))
-                .wrap(idle_tracking.clone())
-        }
-        #[cfg(debug_assertions)]
-        {
-            App::new()
-                .service(web::resource("/").route(web::get().to(index)))
-                .service(merge_templates)
-                .route("/openapi.json", web::get().to(openapi_handler))
-                .service(fs::Files::new("/scalar", scalar_path).index_file("index.html"))
-                .service(fs::Files::new("/", wwwroot_path).index_file("index.html"))
-        }
+        App::new()
+            .app_data(project_dir_data.clone())
+            .wrap(idle_tracking.clone())
+            .service(web::resource("/").route(web::get().to(index)))
+            .service(merge_templates)
+            .route("/test/standard", web::post().to(test_standard))
+            .route("/test/advanced", web::post().to(test_advanced))
+            .route("/test/performance", web::post().to(test_performance))
+            .route("/test/consolidate-performance", web::post().to(test_consolidate_performance))
+            .route("/openapi.json", web::get().to(openapi_handler))
+            .service(fs::Files::new("/scalar", scalar_path).index_file("index.html"))
+            .service(fs::Files::new("/", wwwroot_path).index_file("index.html"))
     })
-    .bind(("0.0.0.0", 8080))?;
-    println!("Server listening on http://localhost:8080");
+    .bind(("0.0.0.0", port))?;
+    println!("Server listening on http://localhost:{}", port);
 
     server.run().await
 }
@@ -156,14 +180,16 @@ pub struct IdleTracking {
     last_request: Arc<Mutex<Instant>>,
     shutdown_initiated: Arc<Mutex<bool>>,
     idle_seconds: u64,
+    enabled: bool,
 }
 
 impl IdleTracking {
-    pub fn new(idle_seconds: u64) -> Self {
+    pub fn new(idle_seconds: u64, enabled: bool) -> Self {
         IdleTracking {
             last_request: Arc::new(Mutex::new(Instant::now())),
             shutdown_initiated: Arc::new(Mutex::new(false)),
             idle_seconds,
+            enabled,
         }
     }
 }
@@ -183,24 +209,27 @@ where
         let last_request = self.last_request.clone();
         let shutdown_initiated = self.shutdown_initiated.clone();
         let idle_seconds = self.idle_seconds;
-        // Start idle checker thread
-        std::thread::spawn({
-            let last_request = last_request.clone();
-            let shutdown_initiated = shutdown_initiated.clone();
-            move || {
-                loop {
-                    std::thread::sleep(Duration::from_secs(10));
-                    let last = *last_request.lock().unwrap();
-                    let idle = last.elapsed().as_secs();
-                    let mut shutdown = shutdown_initiated.lock().unwrap();
-                    if !*shutdown && idle > idle_seconds {
-                        *shutdown = true;
-                        println!("Idle timeout reached ({}s), shutting down server...", idle_seconds);
-                        std::process::exit(0);
+        let enabled = self.enabled;
+        // Start idle checker thread only if enabled
+        if enabled {
+            std::thread::spawn({
+                let last_request = last_request.clone();
+                let shutdown_initiated = shutdown_initiated.clone();
+                move || {
+                    loop {
+                        std::thread::sleep(Duration::from_secs(10));
+                        let last = *last_request.lock().unwrap();
+                        let idle = last.elapsed().as_secs();
+                        let mut shutdown = shutdown_initiated.lock().unwrap();
+                        if !*shutdown && idle > idle_seconds {
+                            *shutdown = true;
+                            println!("Idle timeout reached ({}s), shutting down server...", idle_seconds);
+                            std::process::exit(0);
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
         future::ok(IdleTrackingMiddleware {
             service,
             last_request,

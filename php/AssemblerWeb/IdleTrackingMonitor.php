@@ -5,12 +5,12 @@
 
 require_once __DIR__ . '/../Assembler/vendor/autoload.php';
 
-use Assembler\TemplateCommon\Logger;
-use Assembler\TemplateCommon\TemplateUtils;
+use Assembler\Common\Logger;
+use Assembler\Common\CommonUtil;
 
 // Configure logger for this monitor process
 $logRotation = Logger::ROTATION_NONE;
-$paths = TemplateUtils::getAssemblerWebDirPath();
+$paths = CommonUtil::getAssemblerWebDirPath();
 $projectDirectory = $paths['projectDirectory'];
 $templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
 $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';

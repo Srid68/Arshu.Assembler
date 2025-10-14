@@ -1,7 +1,7 @@
 <?php
 
 use Psr\Http\Message\ServerRequestInterface;
-use Assembler\TemplateCommon\Logger;
+use Assembler\Common\Logger;
 
 class IdleTrackingMiddleware {
     private static $lastRequestFile;

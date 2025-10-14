@@ -14,3 +14,5 @@ utoipa = "4"
 utoipa-scalar = { version = "0.3", features = ["actix-web"] }
 webbrowser = "0.8"
 futures-util = "0.3"
+reqwest = "0.11"
+chrono = "0.4"

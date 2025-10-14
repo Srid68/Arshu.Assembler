@@ -1,0 +1,262 @@
+// Node.js PerformanceUtils - Shared performance comparison and summary table logic
+// Matches C#/Rust/Go structure
+
+import { promises as fs } from 'fs';
+import fsSync from 'fs';
+import path from 'path';
+import { LoaderNormal, LoaderPreProcess, EngineNormal, EnginePreProcess } from '../index.js';
+
+export class PerformanceUtils {
+    /**
+     * Runs performance comparison and returns summary rows
+     * @param {string} assemblerWebDirPath
+     * @param {Array} scenarios
+     * @param {boolean} skipDetails
+     * @param {boolean} enableJsonProcessing
+     * @returns {Array}
+     */
+    static runPerformanceComparison(assemblerWebDirPath, scenarios, skipDetails = false, enableJsonProcessing = true) {
+        const startTime = Date.now();
+
+        if (!assemblerWebDirPath) {
+            console.log("❌ No assemblerWebDirPath passed");
+            return [];
+        }
+
+        if (!scenarios || scenarios.length === 0) {
+            console.log("❌ No scenarios passed");
+            return [];
+        }
+
+        const iterations = 1000;
+        const perfSummaryRows = [];
+
+        for (const scenario of scenarios) {
+            const scenarioStartTime = Date.now();
+            const testAppSite = scenario.appSite;
+            const appFileName = scenario.appFile;
+            const appView = scenario.appView;
+            const appViewPrefix = appView ? appView.substring(0, Math.min(appView.length, 6)) : "";
+
+            try {
+                LoaderNormal.clearCache();
+                LoaderPreProcess.clearCache();
+                const templates = LoaderNormal.loadGetTemplateFiles(assemblerWebDirPath, testAppSite);
+                const siteTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, testAppSite);
+                if (!templates || templates.size === 0)
+                    continue;
+                const mainTemplateKey = (testAppSite + "_" + appFileName).toLowerCase();
+                if (!templates.has(mainTemplateKey))
+                    continue;
+
+                if (!skipDetails) {
+                    console.log('-'.repeat(60));
+                    console.log(`[Node.js] Testing: AppSite=${testAppSite}, AppFile=${appFileName}, AppView=${appView}`);
+                    console.log(`[Node.js] Iterations: ${iterations.toLocaleString()}`);
+                }
+                const normalEngine = new EngineNormal();
+                normalEngine.appViewPrefix = appViewPrefix;
+
+                // JIT Warmup - run a few iterations first to warm up the V8 engine
+                for (let warmup = 0; warmup < 100; warmup++) {
+                    normalEngine.mergeTemplates(testAppSite, appFileName, appView, templates, enableJsonProcessing);
+                }
+
+                const normalStart = process.hrtime.bigint();
+                let resultNormal = "";
+                for (let i = 0; i < iterations; i++) {
+                    resultNormal = normalEngine.mergeTemplates(testAppSite, appFileName, appView, templates, enableJsonProcessing);
+                }
+                const normalEnd = process.hrtime.bigint();
+                const normalTimeNs = Number(normalEnd - normalStart);
+                const normalTimeMs = normalTimeNs / 1_000_000;
+                if (!skipDetails) {
+                    console.log(`[Node.js] Normal Engine:     ${normalTimeMs.toFixed(0)}ms | Avg: ${(normalTimeMs / iterations).toFixed(3)}ms/op | Size: ${resultNormal.length} chars`);
+                }
+                LoaderNormal.clearCache();
+                LoaderPreProcess.clearCache();
+                const preProcessEngine = new EnginePreProcess();
+                preProcessEngine.appViewPrefix = appViewPrefix;
+
+                // JIT Warmup for PreProcess engine
+                const preprocessedTemplatesObj = Object.fromEntries(siteTemplates.templates);
+                for (let warmup = 0; warmup < 100; warmup++) {
+                    preProcessEngine.mergeTemplates(testAppSite, appFileName, appView, preprocessedTemplatesObj, enableJsonProcessing);
+                }
+
+                const preProcessStart = process.hrtime.bigint();
+                let resultPreProcess = "";
+                for (let i = 0; i < iterations; i++) {
+                    resultPreProcess = preProcessEngine.mergeTemplates(testAppSite, appFileName, appView, preprocessedTemplatesObj, enableJsonProcessing);
+                }
+                const preProcessEnd = process.hrtime.bigint();
+                const preProcessTimeNs = Number(preProcessEnd - preProcessStart);
+                const preProcessTimeMs = preProcessTimeNs / 1_000_000;
+                if (!skipDetails) {
+                    console.log(`[Node.js] PreProcess Engine: ${preProcessTimeMs.toFixed(0)}ms | Avg: ${(preProcessTimeMs / iterations).toFixed(3)}ms/op | Size: ${resultPreProcess.length} chars`);
+                    const difference = preProcessTimeMs - normalTimeMs;
+                    const differencePercent = normalTimeMs > 0 ? (difference / normalTimeMs) * 100 : 0;
+                    console.log(`[Node.js] Performance: ${difference >= 0 ? "+" : ""}${difference.toFixed(0)}ms (${differencePercent >= 0 ? "+" : ""}${differencePercent.toFixed(1)}%) | Match: ${resultNormal === resultPreProcess ? "YES" : "NO"}`);
+                }
+
+                const scenarioTotalTime = Date.now() - scenarioStartTime;
+                const elapsedTime = Date.now() - startTime;
+
+                if (!skipDetails) {
+                    console.log(`[Node.js] Scenario Total Time: ${scenarioTotalTime}ms | Elapsed: ${elapsedTime}ms`);
+                }
+
+                perfSummaryRows.push({
+                    appSite: testAppSite,
+                    appFile: appFileName,
+                    appView: appView,
+                    iterations: iterations,
+                    normalTimeMs: normalTimeMs,
+                    preProcessTimeMs: preProcessTimeMs,
+                    outputSize: resultNormal.length,
+                    resultsMatch: (resultNormal === resultPreProcess ? "YES" : "NO"),
+                    perfDifference: normalTimeMs > 0 ? `${((preProcessTimeMs - normalTimeMs) / normalTimeMs * 100).toFixed(1)}%` : "0%",
+                    scenarioTotalTimeMs: scenarioTotalTime,
+                    elapsedTimeMs: elapsedTime
+                });
+            } catch (error) {
+                // Silent error handling
+            }
+        }
+
+        if (!skipDetails) {
+            const elapsed = Date.now() - startTime;
+            console.log(`\n========== Performance Testing Completed in ${elapsed}ms ==========\n`);
+        }
+        return perfSummaryRows;
+    }
+
+    /**
+     * Prints the performance summary table in markdown format
+     * @param {string} assemblerWebDirPath
+     * @param {Array} summaryRows
+     */
+    static printPerfSummaryTable(assemblerWebDirPath, summaryRows) {
+        if (!summaryRows || summaryRows.length === 0) {
+            return;
+        }
+
+        console.log('\n==================== NODE.JS PERFORMANCE SUMMARY ====================\n');
+
+        const headers = ['AppSite', 'AppView', 'Normal(ms)', 'PreProc(ms)', 'Match', 'PerfDiff', 'ScnTime(ms)', 'Elapsed(ms)'];
+        const colCount = headers.length;
+        const widths = new Array(colCount).fill(0);
+
+        // Calculate column widths
+        for (let i = 0; i < colCount; i++) {
+            widths[i] = headers[i].length;
+        }
+
+        for (const row of summaryRows) {
+            widths[0] = Math.max(widths[0], (row.appSite || '').length);
+            widths[1] = Math.max(widths[1], (row.appView || '').length);
+            widths[2] = Math.max(widths[2], (row.normalTimeMs || 0).toFixed(2).length);
+            widths[3] = Math.max(widths[3], (row.preProcessTimeMs || 0).toFixed(2).length);
+            widths[4] = Math.max(widths[4], (row.resultsMatch || '').length);
+            widths[5] = Math.max(widths[5], (row.perfDifference || '').length);
+            widths[6] = Math.max(widths[6], (row.scenarioTotalTimeMs || 0).toString().length);
+            widths[7] = Math.max(widths[7], (row.elapsedTimeMs || 0).toString().length);
+        }
+
+        // Print header
+        process.stdout.write('| ');
+        for (let i = 0; i < colCount; i++) {
+            process.stdout.write(headers[i].padEnd(widths[i]));
+            if (i < colCount - 1) process.stdout.write(' | ');
+        }
+        console.log(' |');
+
+        // Print divider
+        process.stdout.write('|');
+        for (let i = 0; i < colCount; i++) {
+            process.stdout.write(' ' + '-'.repeat(widths[i]) + ' ');
+            if (i < colCount - 1) process.stdout.write('|');
+        }
+        console.log('|');
+
+        // Print rows
+        for (const row of summaryRows) {
+            process.stdout.write('| ');
+            process.stdout.write((row.appSite || '').padEnd(widths[0]));
+            process.stdout.write(' | ');
+            process.stdout.write((row.appView || '').padEnd(widths[1]));
+            process.stdout.write(' | ');
+            process.stdout.write((row.normalTimeMs || 0).toFixed(2).padEnd(widths[2]));
+            process.stdout.write(' | ');
+            process.stdout.write((row.preProcessTimeMs || 0).toFixed(2).padEnd(widths[3]));
+            process.stdout.write(' | ');
+            process.stdout.write((row.resultsMatch || '').padEnd(widths[4]));
+            process.stdout.write(' | ');
+            process.stdout.write((row.perfDifference || '').padEnd(widths[5]));
+            process.stdout.write(' | ');
+            process.stdout.write((row.scenarioTotalTimeMs || 0).toString().padEnd(widths[6]));
+            process.stdout.write(' | ');
+            process.stdout.write((row.elapsedTimeMs || 0).toString().padEnd(widths[7]));
+            console.log(' |');
+        }
+
+        // Print bottom divider
+        process.stdout.write('|');
+        for (let i = 0; i < colCount; i++) {
+            process.stdout.write(' ' + '-'.repeat(widths[i]) + ' ');
+            if (i < colCount - 1) process.stdout.write('|');
+        }
+        console.log('|');
+
+        // Save HTML file
+        try {
+            const reportsDir = path.join(assemblerWebDirPath, 'Reports');
+            if (!fsSync.existsSync(reportsDir)) {
+                fsSync.mkdirSync(reportsDir, { recursive: true });
+            }
+
+            const html = [
+                '<html><head><title>Node.js Performance Summary Table</title><style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}</style></head><body>',
+                '<h2>Node.js Performance Summary Table</h2>',
+                '<table>',
+                '<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>'
+            ];
+
+            for (const row of summaryRows) {
+                html.push('<tr>');
+                html.push(`<td>${row.appSite || ''}</td>`);
+                html.push(`<td>${row.appView || ''}</td>`);
+                html.push(`<td>${(row.normalTimeMs || 0).toFixed(2)}</td>`);
+                html.push(`<td>${(row.preProcessTimeMs || 0).toFixed(2)}</td>`);
+                html.push(`<td>${row.resultsMatch || ''}</td>`);
+                html.push(`<td>${row.perfDifference || ''}</td>`);
+                html.push(`<td>${row.scenarioTotalTimeMs || 0}</td>`);
+                html.push(`<td>${row.elapsedTimeMs || 0}</td>`);
+                html.push('</tr>');
+            }
+
+            html.push('</table></body></html>');
+
+            const outFile = path.join(reportsDir, 'nodejs_perfsummary.html');
+            fsSync.writeFileSync(outFile, html.join('\n'), 'utf8');
+            console.log(`Performance summary HTML saved to: ${outFile}`);
+        } catch (error) {
+            console.error(`Error saving performance summary HTML: ${error.message}`);
+        }
+
+        // Save JSON file
+        try {
+            const reportsDir = path.join(assemblerWebDirPath, 'Reports');
+            if (!fsSync.existsSync(reportsDir)) {
+                fsSync.mkdirSync(reportsDir, { recursive: true });
+            }
+
+            const jsonFile = path.join(reportsDir, 'nodejs_perfsummary.json');
+            const jsonData = JSON.stringify(summaryRows, null, 2);
+            fsSync.writeFileSync(jsonFile, jsonData, 'utf8');
+            console.log(`Performance summary JSON saved to: ${jsonFile}`);
+        } catch (error) {
+            console.error(`Error saving performance summary JSON: ${error.message}`);
+        }
+    }
+}

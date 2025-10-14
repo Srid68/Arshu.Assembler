@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::sync::Mutex;
 use std::sync::OnceLock;
 
 // Maximum parameter length to prevent DoS attacks
@@ -17,36 +16,9 @@ fn get_valid_engine_types() -> &'static HashSet<String> {
     })
 }
 
-/// Cached ValidAppSites - loaded on first request
-static CACHED_VALID_APP_SITES: OnceLock<Mutex<Option<HashSet<String>>>> = OnceLock::new();
-
-fn get_app_sites_cache() -> &'static Mutex<Option<HashSet<String>>> {
-    CACHED_VALID_APP_SITES.get_or_init(|| Mutex::new(None))
-}
-
-/// Gets the valid AppSites from cache, or loads from appsites.csv (generating if needed)
-pub fn get_valid_app_sites(wwwroot_path: &str) -> Result<HashSet<String>, String> {
-    let cache = get_app_sites_cache();
-    let mut cache_guard = cache.lock()
-        .map_err(|e| format!("Failed to acquire lock: {}", e))?;
-
-    if cache_guard.is_some() {
-        return Ok(cache_guard.clone().unwrap());
-    }
-
-    // Load AppSites
-    let app_sites = crate::app_sites_config::load_app_sites(wwwroot_path)?;
-    *cache_guard = Some(app_sites.clone());
-    Ok(app_sites)
-}
-
-/// Clears the AppSites cache - useful for development/testing
-#[allow(dead_code)]
-pub fn clear_app_sites_cache() {
-    let cache = get_app_sites_cache();
-    if let Ok(mut cache_guard) = cache.lock() {
-        *cache_guard = None;
-    }
+/// Gets the valid AppSites from ConfigUtil
+pub fn get_valid_app_sites(_wwwroot_path: &str) -> Result<HashSet<String>, String> {
+    assembler::config::config_util::ConfigUtil::get_app_sites()
 }
 
 /// Validates if a path component is safe (no traversal, invalid chars, or excessive length)
