@@ -76,10 +76,5 @@ csharp/fly_deploy_js_web.bat
 csharp/fly_run_csharp_web.bat
 csharp/fly_run_js_web.bat
 
-# Ignore performance test consolidated reports
-*_perf_tests.md
-perf_tests.md
-all_perf_tests.md
-
 # Ignore local Claude settings
 .claude/settings.local.json
