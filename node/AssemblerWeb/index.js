@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fsSync from 'fs';
+import { randomUUID } from 'crypto';
 
 // Import Assembler modules - conditional path based on environment
 let EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess;
@@ -30,7 +31,12 @@ import { indexEndpoint, mergeEndpoint, testStandardEndpoint, testAdvancedEndpoin
 
 // Configure logger with context-specific log files
 const logRotation = LogRotation.NONE;
-const { assemblerWebDirPath, projectDirectory } = CommonUtil.getAssemblerWebDirPath();
+
+// Determine paths based on environment
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectDirectory = __dirname;
+const assemblerWebDirPath = path.join(__dirname, 'wwwroot');
 
 // Load ConfigUtil with wwwroot path
 await ConfigUtil.load(assemblerWebDirPath);
@@ -53,9 +59,6 @@ const contextLogFiles = {
 Logger.configure(0, null, false, logRotation); // 0 = DEBUG
 Logger.configureContextLogFiles(contextLogFiles);
 Logger.info('AssemblerWeb starting up', 'Index');
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Global constant to select template engine
 const USE_PREPROCESS_ENGINE = true;
@@ -80,20 +83,70 @@ app.use(express.static(path.join(__dirname, 'wwwroot')));
 function idleTrackingMiddleware(idleSeconds = 10) {
   let lastRequest = Date.now();
   let shutdownInitiated = false;
+  const activeHolds = new Map();
+  const holdTimeoutSeconds = 300; // Safety timeout for stuck holds
+
+  console.log(`[STARTUP] Configured idleSeconds = ${idleSeconds}`);
+  console.log('[STARTUP] Starting idle monitor with 10-second check interval');
 
   // Start idle checker interval
   setInterval(() => {
     if (shutdownInitiated) return;
+
     const idle = (Date.now() - lastRequest) / 1000;
-    if (idle > idleSeconds) {
+    const now = Date.now();
+
+    // Clean up expired holds and count active holds
+    const expiredHolds = [];
+    for (const [holdId, holdTime] of activeHolds.entries()) {
+      const holdAge = (now - holdTime) / 1000;
+      if (holdAge >= holdTimeoutSeconds) {
+        expiredHolds.push(holdId);
+      }
+    }
+
+    for (const holdId of expiredHolds) {
+      activeHolds.delete(holdId);
+      console.log(`[MONITOR] Removed expired hold: ${holdId} (age: ${holdTimeoutSeconds}s)`);
+    }
+
+    const activeHoldsCount = activeHolds.size;
+    console.log(`[MONITOR] IdleTime: ${idle.toFixed(1)}s, Threshold: ${idleSeconds}s, ActiveHolds: ${activeHoldsCount}`);
+
+    // Only trigger shutdown if idle time exceeded AND no active holds
+    if (idle > idleSeconds && activeHoldsCount === 0) {
       shutdownInitiated = true;
-      console.log(`Idle timeout reached (${idleSeconds}s), shutting down server...`);
+      console.log('[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown');
+      Logger.info(`Idle timeout reached (${idleSeconds}s) with no active requests, shutting down server...`, 'IdleTracking');
       process.exit(0);
     }
   }, 10000);
 
   return (req, res, next) => {
+    // Generate unique hold ID for this request
+    const holdId = `hold_${randomUUID().replace(/-/g, '')}`;
+
+    // Set hold before processing to prevent shutdown during long-running requests
+    activeHolds.set(holdId, Date.now());
+    console.log(`[REQUEST] Request started, hold set: ${holdId}`);
     lastRequest = Date.now();
+
+    // Remove hold after response finishes (even if error occurs)
+    res.on('finish', () => {
+      activeHolds.delete(holdId);
+      console.log(`[REQUEST] Request completed, hold removed: ${holdId}`);
+      lastRequest = Date.now();
+    });
+
+    // Also handle aborted requests
+    res.on('close', () => {
+      if (activeHolds.has(holdId)) {
+        activeHolds.delete(holdId);
+        console.log(`[REQUEST] Request aborted, hold removed: ${holdId}`);
+        lastRequest = Date.now();
+      }
+    });
+
     next();
   };
 }
