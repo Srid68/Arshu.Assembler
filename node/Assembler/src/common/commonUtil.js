@@ -1,50 +1,6 @@
 // Node.js CommonUtil - Shared utility methods for template processing
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 export class CommonUtil {
-    /**
-     * Get the path to the AssemblerWeb wwwroot directory and the project directory
-     * @returns {Object} Object containing assemblerWebDirPath and projectDirectory
-     */
-    static getAssemblerWebDirPath() {
-        const currentDirectory = process.cwd();
-        let projectDirectory = currentDirectory;
-        const currentDirInfo = path.basename(currentDirectory);
-
-        // Check for Fly.io deployment structure first
-        const flyIoWwwroot = path.join(currentDirectory, 'wwwroot');
-        if (fs.existsSync(flyIoWwwroot) && fs.statSync(flyIoWwwroot).isDirectory()) {
-            return { assemblerWebDirPath: flyIoWwwroot, projectDirectory: currentDirectory };
-        }
-
-        const idxBin = currentDirectory.indexOf('bin');
-        if (idxBin > -1) {
-            projectDirectory = currentDirectory.substring(0, idxBin);
-        } else if (currentDirInfo.endsWith('AssemblerTest')) {
-            projectDirectory = currentDirectory;
-        } else if (currentDirInfo.endsWith('node')) {
-            projectDirectory = path.join(currentDirectory, 'AssemblerTest');
-        } else if (currentDirInfo.startsWith('Arshu.Assembler')) {
-            projectDirectory = path.join(currentDirectory, 'node', 'AssemblerTest');
-        }
-
-        let assemblerWebDirPath = '';
-        if (projectDirectory) {
-            const parent = path.dirname(projectDirectory);
-            const webDirPath = path.join(parent, 'AssemblerWeb', 'wwwroot');
-            if (fs.existsSync(webDirPath) && fs.statSync(webDirPath).isDirectory()) {
-                assemblerWebDirPath = webDirPath;
-            }
-        }
-
-        return { assemblerWebDirPath, projectDirectory };
-    }
-
     /**
      * Check if string contains only alphanumeric characters
      * @param {string} str - The string to check

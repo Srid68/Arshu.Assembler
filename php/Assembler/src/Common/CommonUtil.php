@@ -31,62 +31,6 @@ class CommonUtil
     }
 
     /**
-     * Get the path to the AssemblerWeb wwwroot directory and the project directory
-     * @return array Array containing 'assemblerWebDirPath' and 'projectDirectory'
-     */
-    public static function getAssemblerWebDirPath(): array
-    {
-        // Docker/Fly.io: /app/AssemblerWeb/wwwroot
-        $dockerWebroot = '/app/AssemblerWeb/wwwroot';
-        if (is_dir($dockerWebroot)) {
-            $assemblerWebDirPath = realpath($dockerWebroot);
-            $projectDirectory = '/app';
-            return [
-                'assemblerWebDirPath' => $assemblerWebDirPath,
-                'projectDirectory' => $projectDirectory
-            ];
-        }
-
-        // Get current directory and determine project directory dynamically
-        $currentDirectory = getcwd();
-        $projectDirectory = $currentDirectory;
-
-        // Check if we're in vendor directory (typical for Composer autoload)
-        $vendorPos = strpos($currentDirectory, 'vendor');
-        if ($vendorPos !== false) {
-            // Extract path up to but not including vendor
-            $projectDirectory = substr($currentDirectory, 0, $vendorPos);
-        }
-        // Check if current directory ends with AssemblerTest or AssemblerWeb
-        else if (basename($currentDirectory) === 'AssemblerTest' || basename($currentDirectory) === 'AssemblerWeb') {
-            $projectDirectory = $currentDirectory;
-        }
-        // Check if current directory is php
-        else if (basename($currentDirectory) === 'php') {
-            $projectDirectory = $currentDirectory . DIRECTORY_SEPARATOR . 'AssemblerTest';
-        }
-        // Check if current directory starts with Arshu.Assembler
-        else if (strpos(basename($currentDirectory), 'Arshu.Assembler') === 0) {
-            $projectDirectory = $currentDirectory . DIRECTORY_SEPARATOR . 'php' . DIRECTORY_SEPARATOR . 'AssemblerTest';
-        }
-
-        // Determine assemblerWebDirPath from project directory
-        $assemblerWebDirPath = '';
-        if (!empty($projectDirectory)) {
-            $parentDir = dirname($projectDirectory);
-            $webDirPath = $parentDir . DIRECTORY_SEPARATOR . 'AssemblerWeb' . DIRECTORY_SEPARATOR . 'wwwroot';
-            if (is_dir($webDirPath)) {
-                $assemblerWebDirPath = realpath($webDirPath);
-            }
-        }
-
-        return [
-            'assemblerWebDirPath' => $assemblerWebDirPath,
-            'projectDirectory' => $projectDirectory
-        ];
-    }
-
-    /**
      * Check if string contains only alphanumeric characters
      * @param string $str The string to check
      * @return bool True if string contains only alphanumeric characters

@@ -7,50 +7,6 @@ impl CommonUtil {
     pub fn is_alphanumeric(str_: &str) -> bool {
         !str_.is_empty() && str_.chars().all(|c| c.is_ascii_alphanumeric())
     }
-    
-    /// Returns the path to the rust AssemblerWeb wwwroot directory and the project directory.
-    pub fn get_assembler_web_dir_path() -> (std::path::PathBuf, std::path::PathBuf) {
-        use std::env;
-        use std::path::PathBuf;
-
-        // Docker: /app/wwwroot
-        let docker_wwwroot = PathBuf::from("/app/wwwroot");
-        if docker_wwwroot.exists() {
-            let assembler_test_dir = PathBuf::from("/app"); // Docker project directory
-            return (docker_wwwroot, assembler_test_dir);
-        }
-
-        let current_directory = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        let current_dir_str = current_directory.to_str().unwrap_or("");
-        let mut project_directory = current_directory.clone();
-
-        // Check if running from bin directory (like AssemblerWeb when running)
-        if current_dir_str.contains("bin") {
-            if let Some(idx) = current_dir_str.find("bin") {
-                project_directory = PathBuf::from(&current_dir_str[..idx]);
-            }
-        } else if let Some(dir_name) = current_directory.file_name() {
-            let dir_name_str = dir_name.to_str().unwrap_or("");
-            if dir_name_str.ends_with("AssemblerTest") {
-                project_directory = current_directory.clone();
-            } else if dir_name_str == "rust" {
-                project_directory = current_directory.join("AssemblerTest");
-            } else if dir_name_str.starts_with("Arshu.Assembler") {
-                project_directory = current_directory.join("rust").join("AssemblerTest");
-            }
-        }
-
-        // Find AssemblerWeb wwwroot directory
-        let mut assembler_web_dir_path = PathBuf::new();
-        if let Some(parent) = project_directory.parent() {
-            let web_dir_path = parent.join("AssemblerWeb").join("wwwroot");
-            if web_dir_path.exists() {
-                assembler_web_dir_path = web_dir_path;
-            }
-        }
-
-        (assembler_web_dir_path, project_directory)
-    }
 
     /// Find matching closing tag with proper nesting support
     pub fn find_matching_close_tag(content: &str, start_pos: usize, open_tag: &str, close_tag: &str) -> Option<usize> {

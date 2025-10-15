@@ -420,8 +420,7 @@ func RunAdvancedTests(assemblerWebDirPath, projectDirectory string, scenarios []
 				matchResult = "FAIL"
 
 				// Always show output analysis when there's a difference (independent of skipDetails)
-				assemblerWebDir, _ := common.GetAssemblerWebDirPath()
-				testOutputDir := fmt.Sprintf("%s/test_output", assemblerWebDir)
+				testOutputDir := fmt.Sprintf("%s/test_output", assemblerWebDirPath)
 				os.MkdirAll(testOutputDir, 0755)
 				normalPath := fmt.Sprintf("%s/%s_normal_%s_json.html", testOutputDir, testSite, appView)
 				preprocessPath := fmt.Sprintf("%s/%s_preprocess_%s_json.html", testOutputDir, testSite, appView)

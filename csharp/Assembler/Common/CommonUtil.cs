@@ -9,44 +9,6 @@ namespace Assembler.Common;
 /// </summary>
 public static class CommonUtil
 {
-    public static (string assemblerWebDirPath, string projectDirectory) GetAssemblerWebDirPath()
-    {
-        string currentDirectory = Environment.CurrentDirectory;
-        string projectDirectory = currentDirectory;
-        DirectoryInfo currentDirInfo = new DirectoryInfo(currentDirectory);
-        int idxBin = currentDirectory.IndexOf("bin");
-        if (idxBin > -1)
-        {
-            projectDirectory = currentDirectory.Substring(0, idxBin);
-        }
-        else if (currentDirInfo.Name.EndsWith("AssemblerTest"))
-        {
-            projectDirectory = currentDirectory;
-        }
-        else if (currentDirInfo.Name.EndsWith("csharp"))
-        {
-            projectDirectory = Path.Combine(currentDirectory, "AssemblerTest");
-        }
-        else if (currentDirInfo.Name.StartsWith("Arshu.Assembler"))
-        {
-            projectDirectory = Path.Combine(currentDirectory, "csharp", "AssemblerTest");
-        }
-        string assemblerWebDirPath = string.Empty;
-        if (!string.IsNullOrEmpty(projectDirectory))
-        {
-            DirectoryInfo projectDirInfo = new DirectoryInfo(projectDirectory);
-            if (projectDirInfo.Parent != null)
-            {
-                string webDirPath = Path.Combine(projectDirInfo.Parent.FullName, "AssemblerWeb", "wwwroot");
-                if (Directory.Exists(webDirPath))
-                {
-                    assemblerWebDirPath = webDirPath;
-                }
-            }
-        }
-        return (assemblerWebDirPath, projectDirectory);
-    }
-
     /// <summary>
     /// Check if string contains only alphanumeric characters
     /// </summary>
