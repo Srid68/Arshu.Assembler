@@ -690,7 +690,7 @@ func testConsolidatePerformance(c *gin.Context) {
 	htmlBuilder.WriteString("        }\n")
 	htmlBuilder.WriteString("    </style>\n</head>\n<body>\n")
 	htmlBuilder.WriteString("    <h1>Consolidated Performance Summary</h1>\n")
-	htmlBuilder.WriteString(fmt.Sprintf("    <div class=\"meta\">Generated: %s UTC | All times in milliseconds (ms)</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05")))
+	htmlBuilder.WriteString(fmt.Sprintf("    <div class=\"meta\">Generated: %s UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05")))
 
 	// Get list of languages dynamically from configuration
 	var languages []string
