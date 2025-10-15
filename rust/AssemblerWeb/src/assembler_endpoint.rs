@@ -3,7 +3,6 @@ use actix_web::http::header::ContentType;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::time::Instant;
-use assembler::common::common_util::CommonUtil;
 use assembler::loader::loader_normal::LoaderNormal;
 use assembler::loader::loader_preprocess::LoaderPreProcess;
 use assembler::engine::engine_normal::EngineNormal;
@@ -49,7 +48,8 @@ pub struct ScenarioDto {
 )]
 pub async fn index(req: HttpRequest) -> impl Responder {
     // Use Index AppSite with engine toggle parameter
-    let (root_dir_path, _project_directory) = CommonUtil::get_assembler_web_dir_path();
+    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let root_dir_path = project_directory.join("wwwroot");
     let root_dir_path_str = root_dir_path.to_str().unwrap_or("");
 
     // Get engine type from query parameter (default to Normal)
@@ -143,7 +143,8 @@ pub async fn merge_templates(req: web::Json<MergeRequest>) -> impl Responder {
     };
 
     // Get wwwroot directory
-    let (assembler_web_dir_path, _project_directory) = CommonUtil::get_assembler_web_dir_path();
+    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let assembler_web_dir_path = project_directory.join("wwwroot");
     let root_dir_path = assembler_web_dir_path.to_str().unwrap_or("");
 
     // Validate EngineType against allowlist
@@ -272,7 +273,6 @@ pub async fn merge_templates(req: web::Json<MergeRequest>) -> impl Responder {
     let server_time_ms = server_start.elapsed().as_secs_f64() * 1000.0;
 
     // Save HTML output to template_analysis/output folder (parent of wwwroot)
-    let (_, project_directory) = CommonUtil::get_assembler_web_dir_path();
     let output_dir = project_directory.join("template_analysis").join("output");
     let _ = std::fs::create_dir_all(&output_dir);
 

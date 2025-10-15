@@ -151,7 +151,9 @@ async fn main() -> std::io::Result<()> {
 pub struct IdleTracking {
     last_request: Arc<Mutex<Instant>>,
     shutdown_initiated: Arc<Mutex<bool>>,
+    active_holds: Arc<Mutex<std::collections::HashMap<String, Instant>>>,
     idle_seconds: u64,
+    hold_timeout_seconds: u64,
     enabled: bool,
 }
 
@@ -160,7 +162,9 @@ impl IdleTracking {
         IdleTracking {
             last_request: Arc::new(Mutex::new(Instant::now())),
             shutdown_initiated: Arc::new(Mutex::new(false)),
+            active_holds: Arc::new(Mutex::new(std::collections::HashMap::new())),
             idle_seconds,
+            hold_timeout_seconds: 300, // Safety timeout for stuck holds
             enabled,
         }
     }
@@ -180,22 +184,54 @@ where
     fn new_transform(&self, service: S) -> Self::Future {
         let last_request = self.last_request.clone();
         let shutdown_initiated = self.shutdown_initiated.clone();
+        let active_holds = self.active_holds.clone();
         let idle_seconds = self.idle_seconds;
+        let hold_timeout_seconds = self.hold_timeout_seconds;
         let enabled = self.enabled;
+
         // Start idle checker thread only if enabled
         if enabled {
+            println!("[STARTUP] Configured idleSeconds = {}", idle_seconds);
+            println!("[STARTUP] Starting idle monitor with 10-second check interval");
+
             std::thread::spawn({
                 let last_request = last_request.clone();
                 let shutdown_initiated = shutdown_initiated.clone();
+                let active_holds = active_holds.clone();
                 move || {
                     loop {
                         std::thread::sleep(Duration::from_secs(10));
                         let last = *last_request.lock().unwrap();
                         let idle = last.elapsed().as_secs();
+
+                        // Clean up expired holds and count active holds
+                        let mut holds = active_holds.lock().unwrap();
+                        let now = Instant::now();
+                        let mut expired_holds = Vec::new();
+
+                        for (hold_id, hold_time) in holds.iter() {
+                            let hold_age = now.duration_since(*hold_time).as_secs();
+                            if hold_age >= hold_timeout_seconds {
+                                expired_holds.push(hold_id.clone());
+                            }
+                        }
+
+                        for hold_id in &expired_holds {
+                            holds.remove(hold_id);
+                            println!("[MONITOR] Removed expired hold: {} (age: {}s)", hold_id, hold_timeout_seconds);
+                        }
+
+                        let active_holds_count = holds.len();
+                        drop(holds); // Release lock before potentially exiting
+
+                        println!("[MONITOR] IdleTime: {}s, Threshold: {}s, ActiveHolds: {}", idle, idle_seconds, active_holds_count);
+
                         let mut shutdown = shutdown_initiated.lock().unwrap();
-                        if !*shutdown && idle > idle_seconds {
+                        // Only trigger shutdown if idle time exceeded AND no active holds
+                        if !*shutdown && idle > idle_seconds && active_holds_count == 0 {
                             *shutdown = true;
-                            println!("Idle timeout reached ({}s), shutting down server...", idle_seconds);
+                            println!("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown");
+                            assembler::common::logger::Logger::info(&format!("Idle timeout reached ({}s) with no active requests, shutting down server...", idle_seconds), Some("IdleTracking"));
                             std::process::exit(0);
                         }
                     }
@@ -205,6 +241,7 @@ where
         future::ok(IdleTrackingMiddleware {
             service,
             last_request,
+            active_holds,
         })
     }
 }
@@ -212,6 +249,7 @@ where
 pub struct IdleTrackingMiddleware<S> {
     service: S,
     last_request: Arc<Mutex<Instant>>,
+    active_holds: Arc<Mutex<std::collections::HashMap<String, Instant>>>,
 }
 
 impl<S, B> Service<ServiceRequest> for IdleTrackingMiddleware<S>
@@ -232,14 +270,43 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let last_request = self.last_request.clone();
+        let active_holds = self.active_holds.clone();
+
+        // Generate unique hold ID for this request
+        let hold_id = format!("hold_{}", uuid::Uuid::new_v4().to_string().replace("-", ""));
+
+        // Set hold before processing to prevent shutdown during long-running requests
+        {
+            let mut holds = active_holds.lock().unwrap();
+            holds.insert(hold_id.clone(), Instant::now());
+            println!("[REQUEST] Request started, hold set: {}", hold_id);
+        }
+
         // Update last request time
         {
             let mut last = last_request.lock().unwrap();
             *last = Instant::now();
         }
+
         let fut = self.service.call(req);
+        let hold_id_for_cleanup = hold_id.clone();
+
         Box::pin(async move {
             let res = fut.await;
+
+            // Update timestamp after processing
+            {
+                let mut last = last_request.lock().unwrap();
+                *last = Instant::now();
+            }
+
+            // Always remove hold after processing (even if error occurs)
+            {
+                let mut holds = active_holds.lock().unwrap();
+                holds.remove(&hold_id_for_cleanup);
+                println!("[REQUEST] Request completed, hold removed: {}", hold_id_for_cleanup);
+            }
+
             res
         })
     }
