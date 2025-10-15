@@ -243,6 +243,13 @@ export async function testStandardEndpoint(req, res, projectDirectory, ConfigUti
     Logger.configure(0, null, false) // DEBUG level
     Logger.configureContextLogFiles(contextLogFiles)
 
+    // TESTING: Add 30-second delay to test hold mechanism for long-running requests
+    console.log('[TEST] Sleeping for 30 seconds to test hold mechanism')
+    Logger.info('Sleeping for 30 seconds to test hold mechanism', 'TestStandard')
+    await new Promise(resolve => setTimeout(resolve, 30000))
+    console.log('[TEST] Sleep completed, continuing with tests')
+    Logger.info('Sleep completed, continuing with tests', 'TestStandard')
+
     try {
         const scenarios = ConfigUtil.getScenarios()
         const results = await runStandardTests(assemblerWebDirPath, projectDirectory, scenarios, false, true, true)
