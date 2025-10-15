@@ -102,18 +102,38 @@ func scenarios(c *gin.Context) {
 
 // mergeTemplates handles the POST /merge endpoint
 func mergeTemplates(c *gin.Context) {
+	// Enable logging for merge operations
+	originalLogLevel := common.GetLogLevel()
+
+	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
+	logsDir := filepath.Join(templateAnalysisDir, "logs")
+	os.MkdirAll(logsDir, 0755)
+
+	contextLogFiles := map[string]string{
+		"LoaderNormal":      filepath.Join(logsDir, "go_loadernormal.log"),
+		"LoaderPreProcess":  filepath.Join(logsDir, "go_loaderpreprocess.log"),
+		"EngineNormal":      filepath.Join(logsDir, "go_enginenormal.log"),
+		"EnginePreProcess":  filepath.Join(logsDir, "go_enginepreprocess.log"),
+	}
+
+	common.Configure(common.DEBUG, "", false, common.ROTATION_NONE)
+	common.ConfigureContextLogFiles(contextLogFiles)
+
 	var req MergeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Validate required fields
 	if req.AppSite == nil || *req.AppSite == "" {
+		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required field: appSite"})
 		return
 	}
 	if req.EngineType == nil || *req.EngineType == "" {
+		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required field: engineType"})
 		return
 	}
@@ -121,6 +141,7 @@ func mergeTemplates(c *gin.Context) {
 	// Get AppFile from scenarios
 	allScenarios, err := config.GetScenarios()
 	if err != nil {
+		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load scenarios: " + err.Error()})
 		return
 	}
@@ -136,6 +157,7 @@ func mergeTemplates(c *gin.Context) {
 	}
 
 	if matchingScenario == nil {
+		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("No matching scenario found for AppSite='%s' and AppView='%s'", *req.AppSite, appViewValue)})
 		return
 	}
@@ -159,6 +181,7 @@ func mergeTemplates(c *gin.Context) {
 
 	// Validate EngineType against allowlist
 	if !IsValidEngineType(*req.EngineType) {
+		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid EngineType value"})
 		return
 	}
@@ -166,28 +189,33 @@ func mergeTemplates(c *gin.Context) {
 	// Validate AppSite against allowlist from ConfigUtil
 	validAppSites, err := GetValidAppSites()
 	if err != nil {
+		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get AppSites: " + err.Error()})
 		return
 	}
 
 	if !IsValidAppSite(*req.AppSite, validAppSites) {
+		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid AppSite value"})
 		return
 	}
 
 	// Validate path components for path traversal attacks
 	if !IsValidPathComponent(req.AppSite) {
+		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in AppSite"})
 		return
 	}
 
 	// Validate appFile from scenario
 	if !IsValidPathComponent(&appFile) {
+		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in AppFile"})
 		return
 	}
 
 	if req.AppView != nil && *req.AppView != "" && !IsValidPathComponent(req.AppView) {
+		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in AppView"})
 		return
 	}
@@ -213,6 +241,10 @@ func mergeTemplates(c *gin.Context) {
 		"Templates":    make(map[string]interface{}),
 		"PreProcessTemplates": make(map[string]interface{}),
 	}
+
+	// Restore original log level
+	common.SetLogLevel(originalLogLevel)
+
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, responseObj)
 }

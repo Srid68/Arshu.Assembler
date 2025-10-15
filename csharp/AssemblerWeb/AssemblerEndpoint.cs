@@ -88,6 +88,8 @@ namespace AssemblerWeb
             var assemblerGroup = app.MapGroup("")
                 .WithTags("Assembler");
 
+            #region Root Endpoint
+
             assemblerGroup.MapGet("/", (HttpContext context) =>
             {
                 // Use Index AppSite with engine toggle parameter
@@ -128,6 +130,10 @@ namespace AssemblerWeb
             .WithDescription("Get Method to Test Merging with Index AppSite - use ?engine=Normal or ?engine=PreProcess")
             .WithTags("Root");
 
+            #endregion
+
+            #region Get Scenarios Endpoint
+
             assemblerGroup.MapGet("/api/scenarios", (HttpContext context) =>
             {
                 try
@@ -154,127 +160,210 @@ namespace AssemblerWeb
             .WithDescription("Returns all available scenarios from scenarios.csv")
             .WithTags("Scenarios");
 
+            #endregion
+
+            #region Merge Endpoint
+
             assemblerGroup.MapPost("/merge", async (HttpContext context) =>
             {
                 var serverStart = DateTime.UtcNow;
 
-                using var reader = new StreamReader(context.Request.Body);
-                var body = await reader.ReadToEndAsync();
-                if (string.IsNullOrWhiteSpace(body))
-                    return Results.BadRequest("Empty request body");
+                // Enable logging for merge operations
+                var originalLogLevel = Logger.GetLogLevel();
+                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
 
-                var input = System.Text.Json.JsonSerializer.Deserialize<MergeRequest>(body, ResponseJsonContext.Default.MergeRequest);
-                if (input == null || string.IsNullOrWhiteSpace(input.AppSite) || string.IsNullOrWhiteSpace(input.EngineType))
-                    return Results.BadRequest("Missing required fields: AppSite, EngineType");
+                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                var logsDir = Path.Combine(templateAnalysisDir, "logs");
+                Directory.CreateDirectory(logsDir);
 
-                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
-
-                // Validate AppSite against allowlist loaded from appsites.csv
-                var validAppSites = SecurityValidator.GetValidAppSites();
-                if (!validAppSites.Contains(input.AppSite))
-                    return Results.BadRequest("Invalid AppSite value");
-
-                // Validate EngineType against allowlist
-                if (!SecurityValidator.ValidEngineTypes.Contains(input.EngineType))
-                    return Results.BadRequest("Invalid EngineType value");
-
-                // Validate path components for path traversal attacks
-                if (!SecurityValidator.IsValidPathComponent(input.AppSite))
-                    return Results.BadRequest("Invalid characters in AppSite");
-
-                if (!string.IsNullOrEmpty(input.AppView) && !SecurityValidator.IsValidPathComponent(input.AppView))
-                    return Results.BadRequest("Invalid characters in AppView");
-
-                // Get AppFile from scenarios
-                var scenarios = ConfigUtil.GetScenarios();
-                var appView = input.AppView ?? "";
-                var matchingScenario = scenarios.FirstOrDefault(s =>
-                    s.AppSite.Equals(input.AppSite, StringComparison.OrdinalIgnoreCase) &&
-                    s.AppView.Equals(appView, StringComparison.OrdinalIgnoreCase));
-
-                if (matchingScenario == null)
-                    return Results.BadRequest($"No matching scenario found for AppSite='{input.AppSite}' and AppView='{appView}'");
-
-                var appFile = matchingScenario.AppFile;
-                var appViewPrefix = string.IsNullOrEmpty(appView) ? "" : appFile;
-
-                var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, input.AppSite);
-                var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, input.AppSite);
-
-                var normalResult = normalTemplatesRaw.ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => new TemplateData { Html = kvp.Value.html, Json = kvp.Value.json }
-                );
-
-                var preprocessResult = preprocessTemplatesRaw.Templates.ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => new PreProcessTemplateMetadata
-                    {
-                        OriginalContent = kvp.Value.OriginalContent,
-                        Placeholders = kvp.Value.Placeholders,
-                        SlottedTemplates = kvp.Value.SlottedTemplates,
-                        JsonData = kvp.Value.JsonData,
-                        JsonPlaceholders = kvp.Value.JsonPlaceholders,
-                        ReplacementMappings = kvp.Value.ReplacementMappings,
-                        HasPlaceholders = kvp.Value.HasPlaceholders,
-                        HasSlottedTemplates = kvp.Value.HasSlottedTemplates,
-                        HasJsonData = kvp.Value.HasJsonData,
-                        HasJsonPlaceholders = kvp.Value.HasJsonPlaceholders,
-                        HasReplacementMappings = kvp.Value.HasReplacementMappings,
-                        RequiresProcessing = kvp.Value.RequiresProcessing
-                    }
-                );
-
-                var engineStart = DateTime.UtcNow;
-                string mergedHtml = "";
-                if (input.EngineType.Equals("PreProcess", System.StringComparison.OrdinalIgnoreCase))
+                var contextLogFiles = new Dictionary<string, string>
                 {
-                    var engine = new EnginePreProcess();
-                    if (!string.IsNullOrEmpty(appViewPrefix))
-                        engine.AppViewPrefix = appViewPrefix;
-                    mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, preprocessTemplatesRaw.Templates);
-                }
-                else
-                {
-                    var engine = new EngineNormal();
-                    if (!string.IsNullOrEmpty(appViewPrefix))
-                        engine.AppViewPrefix = appViewPrefix;
-                    mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, normalTemplatesRaw);
-                }
-                var engineTimeMs = (DateTime.UtcNow - engineStart).TotalMilliseconds;
-                var serverEnd = DateTime.UtcNow;
-                var serverTimeMs = (serverEnd - serverStart).TotalMilliseconds;
-
-                // Save HTML output to template_analysis/output folder (parent of wwwroot)
-                var contentRoot = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                var outputDir = Path.Combine(contentRoot, "template_analysis", "output");
-                Directory.CreateDirectory(outputDir);
-
-                var appViewSuffix = string.IsNullOrEmpty(input.AppView) ? "" : $"_{input.AppView}";
-                var engineSuffix = input.EngineType.ToLower();
-                var outputFile = Path.Combine(outputDir, $"{input.AppSite}{appViewSuffix}_{engineSuffix}.html");
-                File.WriteAllText(outputFile, mergedHtml);
-
-                var responseObj = new ApiResponse
-                {
-                    Templates = normalResult,
-                    PreProcessTemplates = preprocessResult,
-                    AppSite = input.AppSite ?? string.Empty,
-                    AppFile = appFile,
-                    AppView = appView,
-                    ServerTimeMs = serverTimeMs,
-                    Html = mergedHtml,
-                    EngineTimeMs = engineTimeMs
+                    { "LoaderNormal", Path.Combine(logsDir, "csharp_loadernormal.log") },
+                    { "LoaderPreProcess", Path.Combine(logsDir, "csharp_loaderpreprocess.log") },
+                    { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") },
+                    { "EnginePreProcess", Path.Combine(logsDir, "csharp_enginepreprocess.log") }
                 };
-                var responseJson = responseObj.SerializeToJson();
 
-                return Results.Content(responseJson, "application/json");
+                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
+                Logger.ConfigureContextLogFiles(contextLogFiles);
+
+                try
+                {
+                    using var reader = new StreamReader(context.Request.Body);
+                    var body = await reader.ReadToEndAsync();
+                    if (string.IsNullOrWhiteSpace(body))
+                        return Results.BadRequest("Empty request body");
+
+                    var input = System.Text.Json.JsonSerializer.Deserialize<MergeRequest>(body, ResponseJsonContext.Default.MergeRequest);
+                    if (input == null || string.IsNullOrWhiteSpace(input.AppSite) || string.IsNullOrWhiteSpace(input.EngineType))
+                        return Results.BadRequest("Missing required fields: AppSite, EngineType");
+
+                    string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
+
+                    // Validate AppSite against allowlist loaded from appsites.csv
+                    var validAppSites = SecurityValidator.GetValidAppSites();
+                    if (!validAppSites.Contains(input.AppSite))
+                        return Results.BadRequest("Invalid AppSite value");
+
+                    // Validate EngineType against allowlist
+                    if (!SecurityValidator.ValidEngineTypes.Contains(input.EngineType))
+                        return Results.BadRequest("Invalid EngineType value");
+
+                    // Validate path components for path traversal attacks
+                    if (!SecurityValidator.IsValidPathComponent(input.AppSite))
+                        return Results.BadRequest("Invalid characters in AppSite");
+
+                    if (!string.IsNullOrEmpty(input.AppView) && !SecurityValidator.IsValidPathComponent(input.AppView))
+                        return Results.BadRequest("Invalid characters in AppView");
+
+                    // Get AppFile from scenarios
+                    var scenarios = ConfigUtil.GetScenarios();
+                    var appView = input.AppView ?? "";
+                    var matchingScenario = scenarios.FirstOrDefault(s =>
+                        s.AppSite.Equals(input.AppSite, StringComparison.OrdinalIgnoreCase) &&
+                        s.AppView.Equals(appView, StringComparison.OrdinalIgnoreCase));
+
+                    if (matchingScenario == null)
+                        return Results.BadRequest($"No matching scenario found for AppSite='{input.AppSite}' and AppView='{appView}'");
+
+                    var appFile = matchingScenario.AppFile;
+                    var appViewPrefix = string.IsNullOrEmpty(appView) ? "" : appFile;
+
+                    var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, input.AppSite);
+                    var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, input.AppSite);
+
+                    var normalResult = normalTemplatesRaw.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => new TemplateData { Html = kvp.Value.html, Json = kvp.Value.json }
+                    );
+
+                    var preprocessResult = preprocessTemplatesRaw.Templates.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => new PreProcessTemplateMetadata
+                        {
+                            OriginalContent = kvp.Value.OriginalContent,
+                            Placeholders = kvp.Value.Placeholders,
+                            SlottedTemplates = kvp.Value.SlottedTemplates,
+                            JsonData = kvp.Value.JsonData,
+                            JsonPlaceholders = kvp.Value.JsonPlaceholders,
+                            ReplacementMappings = kvp.Value.ReplacementMappings,
+                            HasPlaceholders = kvp.Value.HasPlaceholders,
+                            HasSlottedTemplates = kvp.Value.HasSlottedTemplates,
+                            HasJsonData = kvp.Value.HasJsonData,
+                            HasJsonPlaceholders = kvp.Value.HasJsonPlaceholders,
+                            HasReplacementMappings = kvp.Value.HasReplacementMappings,
+                            RequiresProcessing = kvp.Value.RequiresProcessing
+                        }
+                    );
+
+                    var engineStart = DateTime.UtcNow;
+                    string mergedHtml = "";
+                    if (input.EngineType.Equals("PreProcess", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        var engine = new EnginePreProcess();
+                        if (!string.IsNullOrEmpty(appViewPrefix))
+                            engine.AppViewPrefix = appViewPrefix;
+                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, preprocessTemplatesRaw.Templates);
+                    }
+                    else
+                    {
+                        var engine = new EngineNormal();
+                        if (!string.IsNullOrEmpty(appViewPrefix))
+                            engine.AppViewPrefix = appViewPrefix;
+                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, normalTemplatesRaw);
+                    }
+                    var engineTimeMs = (DateTime.UtcNow - engineStart).TotalMilliseconds;
+                    var serverEnd = DateTime.UtcNow;
+                    var serverTimeMs = (serverEnd - serverStart).TotalMilliseconds;
+
+                    // Save HTML output to template_analysis/output folder (parent of wwwroot)
+                    var contentRoot = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                    var outputDir = Path.Combine(contentRoot, "template_analysis", "output");
+                    Directory.CreateDirectory(outputDir);
+
+                    var appViewSuffix = string.IsNullOrEmpty(input.AppView) ? "" : $"_{input.AppView}";
+                    var engineSuffix = input.EngineType.ToLower();
+                    var outputFile = Path.Combine(outputDir, $"{input.AppSite}{appViewSuffix}_{engineSuffix}.html");
+                    File.WriteAllText(outputFile, mergedHtml);
+
+                    var responseObj = new ApiResponse
+                    {
+                        Templates = normalResult,
+                        PreProcessTemplates = preprocessResult,
+                        AppSite = input.AppSite ?? string.Empty,
+                        AppFile = appFile,
+                        AppView = appView,
+                        ServerTimeMs = serverTimeMs,
+                        Html = mergedHtml,
+                        EngineTimeMs = engineTimeMs
+                    };
+                    var responseJson = responseObj.SerializeToJson();
+
+                    return Results.Content(responseJson, "application/json");
+                }
+                finally
+                {
+                    // Restore original log level
+                    Logger.SetLogLevel(originalLogLevel);
+                }
             })
             .Accepts<MergeRequest>("application/json")
             .WithName("PostMergeTemplate")
             .WithDisplayName("Post Method to Merge Template for AppSite, AppView, EngineType")
             .WithDescription("Post Method to Merge Template for AppSite, AppView, EngineType. AppFile is retrieved from scenarios.")
             .WithTags("Merge");
+
+            #endregion
+
+            #region Get Report Endpoint
+
+            assemblerGroup.MapPost("/api/report", async (HttpContext context) =>
+            {
+                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+                using var reader = new StreamReader(context.Request.Body);
+                var body = await reader.ReadToEndAsync();
+                if (string.IsNullOrWhiteSpace(body))
+                    return Results.BadRequest("Empty request body");
+
+                var input = System.Text.Json.JsonSerializer.Deserialize<ReportRequest>(body, ResponseJsonContext.Default.ReportRequest);
+                if (input == null || string.IsNullOrWhiteSpace(input.FileName))
+                    return Results.BadRequest("Missing required field: fileName");
+
+                // Validate fileName for path traversal
+                if (!SecurityValidator.IsValidPathComponent(input.FileName))
+                    return Results.BadRequest("Invalid characters in fileName");
+
+                // Construct file path
+                string prefix = input.UseLangPrefix ? "csharp_" : "";
+                string fileName = prefix + input.FileName;
+                string reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
+                string filePath = Path.Combine(reportsDir, fileName);
+
+                // Check if file exists
+                if (!File.Exists(filePath))
+                    return Results.NotFound($"Report file not found: {fileName}");
+
+                // Read and return the file content
+                try
+                {
+                    string content = File.ReadAllText(filePath);
+                    return Results.Content(content, "text/html");
+                }
+                catch (Exception ex)
+                {
+                    return Results.Problem($"Error reading report file: {ex.Message}");
+                }
+            })
+            .Accepts<ReportRequest>("application/json")
+            .WithName("GetReport")
+            .WithDisplayName("Get Report")
+            .WithDescription("Retrieves a report file from template_analysis/Reports directory")
+            .WithTags("Report");
+
+            #endregion
+
+            #region Test Standard Endpoint
 
             // Test endpoints
             assemblerGroup.MapPost("/test/standard", (HttpContext context) =>
@@ -351,6 +440,10 @@ namespace AssemblerWeb
             .WithDisplayName("Run Standard Tests")
             .WithDescription("Runs standard template tests and saves results to wwwroot")
             .WithTags("Test");
+
+            #endregion
+
+            #region Test Advanced Endpoint
 
             assemblerGroup.MapPost("/test/advanced", (HttpContext context) =>
             {
@@ -433,6 +526,10 @@ namespace AssemblerWeb
             .WithDescription("Runs advanced template tests and saves results to wwwroot")
             .WithTags("Test");
 
+            #endregion
+
+            #region Test Performance Endpoint
+
             assemblerGroup.MapPost("/test/performance", (HttpContext context) =>
             {
                 var sw = Stopwatch.StartNew();
@@ -490,6 +587,10 @@ namespace AssemblerWeb
             .WithDisplayName("Run Performance Tests")
             .WithDescription("Runs performance comparison tests and saves results to wwwroot")
             .WithTags("Test");
+
+            #endregion
+
+            #region Consolidate Performance Endpoint
 
             assemblerGroup.MapPost("/test/consolidate-performance", async (HttpContext context) =>
             {
@@ -852,50 +953,7 @@ namespace AssemblerWeb
             .WithDescription("Fetches performance data from all language servers and consolidates into a single report")
             .WithTags("Test");
 
-            assemblerGroup.MapPost("/api/report", async (HttpContext context) =>
-            {
-                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-
-                using var reader = new StreamReader(context.Request.Body);
-                var body = await reader.ReadToEndAsync();
-                if (string.IsNullOrWhiteSpace(body))
-                    return Results.BadRequest("Empty request body");
-
-                var input = System.Text.Json.JsonSerializer.Deserialize<ReportRequest>(body, ResponseJsonContext.Default.ReportRequest);
-                if (input == null || string.IsNullOrWhiteSpace(input.FileName))
-                    return Results.BadRequest("Missing required field: fileName");
-
-                // Validate fileName for path traversal
-                if (!SecurityValidator.IsValidPathComponent(input.FileName))
-                    return Results.BadRequest("Invalid characters in fileName");
-
-                // Construct file path
-                string prefix = input.UseLangPrefix ? "csharp_" : "";
-                string fileName = prefix + input.FileName;
-                string reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
-                string filePath = Path.Combine(reportsDir, fileName);
-
-                // Check if file exists
-                if (!File.Exists(filePath))
-                    return Results.NotFound($"Report file not found: {fileName}");
-
-                // Read and return the file content
-                try
-                {
-                    string content = File.ReadAllText(filePath);
-                    return Results.Content(content, "text/html");
-                }
-                catch (Exception ex)
-                {
-                    return Results.Problem($"Error reading report file: {ex.Message}");
-                }
-            })
-            .Accepts<ReportRequest>("application/json")
-            .WithName("GetReport")
-            .WithDisplayName("Get Report")
-            .WithDescription("Retrieves a report file from template_analysis/Reports directory")
-            .WithTags("Report");
-
+            #endregion
         }
     }
 }

@@ -125,6 +125,24 @@ pub async fn get_scenarios() -> impl Responder {
 )]
 #[actix_web::post("/merge")]
 pub async fn merge_templates(req: web::Json<MergeRequest>) -> impl Responder {
+    // Enable logging for merge operations
+    let original_log_level = Logger::get_log_level();
+    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+
+    let template_analysis_dir = project_directory.join("template_analysis");
+    let logs_dir = template_analysis_dir.join("logs");
+    let _ = std::fs::create_dir_all(&logs_dir);
+
+    let mut context_log_files = std::collections::HashMap::new();
+    context_log_files.insert("LoaderNormal".to_string(), logs_dir.join("rust_loadernormal.log").to_str().unwrap_or("").to_string());
+    context_log_files.insert("LoaderPreProcess".to_string(), logs_dir.join("rust_loaderpreprocess.log").to_str().unwrap_or("").to_string());
+    context_log_files.insert("EngineNormal".to_string(), logs_dir.join("rust_enginenormal.log").to_str().unwrap_or("").to_string());
+    context_log_files.insert("EnginePreProcess".to_string(), logs_dir.join("rust_enginepreprocess.log").to_str().unwrap_or("").to_string());
+
+    use assembler::common::logger::LogLevel;
+    Logger::configure(LogLevel::DEBUG, None, false, assembler::common::logger::LogRotation::NONE);
+    Logger::configure_context_log_files(context_log_files);
+
     let log_msg = format!(
         "/merge endpoint called with: app_site={:?}, engine_type={:?}, app_view={:?}",
         req.app_site, req.engine_type, req.app_view
@@ -299,6 +317,9 @@ pub async fn merge_templates(req: web::Json<MergeRequest>) -> impl Responder {
         html: merged_html,
         engine_time_ms,
     };
+
+    // Restore original log level
+    Logger::set_log_level(original_log_level);
 
     HttpResponse::Ok()
         .content_type("application/json")

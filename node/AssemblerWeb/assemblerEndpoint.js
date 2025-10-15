@@ -85,6 +85,24 @@ export async function scenariosEndpoint(req, res, ConfigUtil) {
 export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil) {
   const serverStart = Date.now();
 
+  // Enable logging for merge operations
+  const originalLogLevel = Logger.getLogLevel();
+  const projectDirectory = path.join(__dirname, '..');
+
+  const templateAnalysisDir = path.join(projectDirectory, 'template_analysis');
+  const logsDir = path.join(templateAnalysisDir, 'logs');
+  await fsSync.promises.mkdir(logsDir, { recursive: true }).catch(() => {});
+
+  const contextLogFiles = {
+    'LoaderNormal': path.join(logsDir, 'nodejs_loadernormal.log'),
+    'LoaderPreProcess': path.join(logsDir, 'nodejs_loaderpreprocess.log'),
+    'EngineNormal': path.join(logsDir, 'nodejs_enginenormal.log'),
+    'EnginePreProcess': path.join(logsDir, 'nodejs_enginepreprocess.log')
+  };
+
+  Logger.configure(0, null, false); // DEBUG level
+  Logger.configureContextLogFiles(contextLogFiles);
+
   try {
     const { appSite, appView, engineType } = req.body;
 
@@ -216,6 +234,9 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
   } catch (error) {
     console.error('Error in merge endpoint:', error);
     res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    // Restore original log level
+    Logger.setLogLevel(originalLogLevel);
   }
 }
 

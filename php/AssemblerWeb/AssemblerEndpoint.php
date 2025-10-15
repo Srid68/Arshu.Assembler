@@ -82,6 +82,26 @@ class AssemblerEndpoint
 
     public static function mergeEndpoint(ServerRequest $request, Response $response): Response
     {
+        // Enable logging for merge operations
+        $originalLogLevel = Logger::getLogLevel();
+
+        $projectRootPath = dirname(__DIR__, 1);
+        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis';
+        $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
+        if (!is_dir($logsDir)) {
+            mkdir($logsDir, 0755, true);
+        }
+
+        $contextLogFiles = [
+            'LoaderNormal' => $logsDir . DIRECTORY_SEPARATOR . 'php_loadernormal.log',
+            'LoaderPreProcess' => $logsDir . DIRECTORY_SEPARATOR . 'php_loaderpreprocess.log',
+            'EngineNormal' => $logsDir . DIRECTORY_SEPARATOR . 'php_enginenormal.log',
+            'EnginePreProcess' => $logsDir . DIRECTORY_SEPARATOR . 'php_enginepreprocess.log'
+        ];
+
+        Logger::configure(Logger::DEBUG, null, false);
+        Logger::configureContextLogFiles($contextLogFiles);
+
         $serverStart = microtime(true) * 1000;
 
         try {
@@ -89,6 +109,7 @@ class AssemblerEndpoint
             $data = json_decode($body, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
+                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid JSON']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
@@ -98,6 +119,7 @@ class AssemblerEndpoint
             $engineType = $data['engineType'] ?? null;
 
             if (empty($appSite) || empty($engineType)) {
+                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Missing required fields: appSite, engineType']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
@@ -115,6 +137,7 @@ class AssemblerEndpoint
             }
 
             if ($matchingScenario === null) {
+                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => "No matching scenario found for AppSite='$appSite' and AppView='$appViewValue'"]));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
@@ -138,6 +161,7 @@ class AssemblerEndpoint
             $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
 
             if (!SecurityValidator::isValidEngineType($engineType)) {
+                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid EngineType value']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
@@ -146,26 +170,31 @@ class AssemblerEndpoint
             try {
                 $validAppSites = SecurityValidator::getValidAppSites($rootDirPath);
             } catch (Exception $error) {
+                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Failed to load AppSites: ' . $error->getMessage()]));
                 return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
             }
 
             if (!SecurityValidator::isValidAppSite($appSite, $validAppSites)) {
+                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid AppSite value']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
 
             if (!SecurityValidator::isValidPathComponent($appSite)) {
+                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid characters in AppSite']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
 
             if (!SecurityValidator::isValidPathComponent($appFile)) {
+                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid characters in AppFile']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
 
             if ($appView !== null && $appView !== '' && !SecurityValidator::isValidPathComponent($appView)) {
+                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid characters in AppView']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
@@ -228,9 +257,13 @@ class AssemblerEndpoint
             $apiResponse->serverTimeMs = (microtime(true) * 1000) - $serverStart;
             $apiResponse->html = $mergedHtml;
 
+            // Restore original log level
+            Logger::setLogLevel($originalLogLevel);
+
             $response->getBody()->write($apiResponse->serializeToJson());
             return $response->withHeader('Content-Type', 'application/json');
         } catch (Exception $error) {
+            Logger::setLogLevel($originalLogLevel);
             error_log('Error in merge endpoint: ' . $error->getMessage());
             $response->getBody()->write(json_encode(['error' => 'Internal server error']));
             return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
