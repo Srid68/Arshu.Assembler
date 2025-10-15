@@ -303,10 +303,10 @@ namespace AssemblerWeb
                 try
                 {
                     var scenarios = ConfigUtil.GetScenarios();
-                    var summaryRows = TestingUtil.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true);
+                    var summaryRows = TestingUtils.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
-                        TestingUtil.PrintTestSummaryTable(rootDirPath, projectDirectory,summaryRows, "STANDARD TEST");
+                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory,summaryRows, "STANDARD TEST");
                     }
 
                     sw.Stop();
@@ -382,12 +382,12 @@ namespace AssemblerWeb
                     var scenarios = ConfigUtil.GetScenarios();
 
                     // Dump preprocessed template structures before running advanced tests
-                    TestingUtil.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true);
+                    TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true);
 
-                    var summaryRows = TestingUtil.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, false, true, true);
+                    var summaryRows = TestingUtils.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, false, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
-                        TestingUtil.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "ADVANCED TEST");
+                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "ADVANCED TEST");
                     }
 
                     sw.Stop();
@@ -446,10 +446,10 @@ namespace AssemblerWeb
                 try
                 {
                     var scenarios = ConfigUtil.GetScenarios();
-                    var summaryRows = PerformanceUtil.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, true, true);
+                    var summaryRows = PerformanceUtils.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
-                        PerformanceUtil.PrintPerfSummaryTable(rootDirPath, projectDirectory, summaryRows);
+                        PerformanceUtils.PrintPerfSummaryTable(rootDirPath, projectDirectory, summaryRows);
                     }
 
                     sw.Stop();
@@ -457,7 +457,7 @@ namespace AssemblerWeb
                     var testCount = summaryRows?.Count ?? 0;
 
                     // Check for performance test mismatches
-                    var mismatchTests = summaryRows?.Where(r => r.ResultsMatch != "YES").ToList() ?? new List<PerformanceUtil.PerfSummaryRow>();
+                    var mismatchTests = summaryRows?.Where(r => r.ResultsMatch != "YES").ToList() ?? new List<PerformanceUtils.PerfSummaryRow>();
 
                     var message = $"Successful run of Performance Tests in {elapsedSeconds:F2} secs ({testCount} tests)";
                     if (mismatchTests.Count > 0)
@@ -708,7 +708,7 @@ namespace AssemblerWeb
                     htmlSb.AppendLine("</head>");
                     htmlSb.AppendLine("<body>");
                     htmlSb.AppendLine("    <h1>Consolidated Performance Summary</h1>");
-                    htmlSb.AppendLine($"    <div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | All times in milliseconds (ms)</div>");
+                    htmlSb.AppendLine($"    <div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>");
 
                     // Get list of languages dynamically from configuration
                     var languages = serversByLang.Select(g => g.Key).OrderBy(l => l).ToList();

@@ -22,7 +22,7 @@ public class TestSummaryRow
     public string? Error { get; set; }
 }
 
-public static class TestingUtil
+public static class TestingUtils
 {
     public static List<TestSummaryRow> RunStandardTests(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, bool printHtmlOutput = false, bool skipDetails = false, bool enableJsonProcessing = true)
     {

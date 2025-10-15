@@ -288,7 +288,7 @@ func PrintPerfSummaryTable(assemblerWebDir, projectDirectory string, perfSummary
 	html += "        }\n"
 	html += "    </style>\n</head>\n<body>\n"
 	html += "<h2>Go Performance Summary</h2>\n"
-	html += fmt.Sprintf("<div class=\"meta\">Generated: %s UTC | All times in milliseconds (ms)</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05"))
+	html += fmt.Sprintf("<div class=\"meta\">Generated: %s UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05"))
 	html += "<div class=\"table-container\">\n<table>\n"
 	html += "<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>\n"
 	for _, row := range perfSummaryRows {

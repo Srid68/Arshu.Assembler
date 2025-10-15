@@ -317,7 +317,7 @@ impl PerformanceUtils
         html.push_str("        }\n");
         html.push_str("    </style>\n</head>\n<body>\n");
         html.push_str("<h2>Rust Performance Summary Table</h2>\n");
-        html.push_str(&format!("<div class=\"meta\">Generated: {} UTC | All times in milliseconds (ms)</div>\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
+        html.push_str(&format!("<div class=\"meta\">Generated: {} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
         html.push_str("<div class=\"table-container\">\n<table>\n");
         html.push_str("<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>\n");
 

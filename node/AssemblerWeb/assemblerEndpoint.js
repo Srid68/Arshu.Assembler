@@ -613,6 +613,7 @@ export async function testConsolidatePerformanceEndpoint(req, res, projectDirect
         html.push('</head>')
         html.push('<body>')
         html.push('<h1>Consolidated Performance Tests</h1>')
+        html.push(`<div class="meta" style="color:#666;font-style:italic;margin-bottom:10px;">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>`)
 
         // Sort appSites
         const sortedAppSites = Array.from(performanceData.keys()).sort()

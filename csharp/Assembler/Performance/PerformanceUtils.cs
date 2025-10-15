@@ -12,7 +12,7 @@ using System.Text.Json.Serialization;
 
 namespace Assembler.Performance;
 
-public static class PerformanceUtil
+public static class PerformanceUtils
 {
     public class PerfSummaryRow
     {
@@ -285,7 +285,7 @@ public static class PerformanceUtil
             html.AppendLine("</head>");
             html.AppendLine("<body>");
             html.AppendLine("    <h2>C# Performance Summary Table</h2>");
-            html.AppendLine($"    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | All times in milliseconds (ms)</div>");
+            html.AppendLine($"    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>");
             html.AppendLine("    <div class=\"table-container\">");
             html.AppendLine("    <table>");
             html.Append("        <tr>");

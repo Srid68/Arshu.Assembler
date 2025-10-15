@@ -926,7 +926,7 @@ namespace AssemblerWebJs
                     htmlSb.AppendLine("</head>");
                     htmlSb.AppendLine("<body>");
                     htmlSb.AppendLine("    <h1>Consolidated Performance Summary</h1>");
-                    htmlSb.AppendLine($"    <div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | All times in milliseconds (ms)</div>");
+                    htmlSb.AppendLine($"    <div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>");
 
                     // Get list of languages dynamically from configuration
                     var languages = serversByLang.Select(g => g.Key).OrderBy(l => l).ToList();

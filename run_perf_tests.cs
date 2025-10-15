@@ -124,9 +124,8 @@ class RunAllPerfTest
         var mdSb = new StringBuilder();
         mdSb.AppendLine("# Consolidated Performance Summary");
         mdSb.AppendLine();
-        mdSb.AppendLine($"*Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC*");
+        mdSb.AppendLine($"*Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)*");
         mdSb.AppendLine();
-        mdSb.AppendLine($"*All times in milliseconds (ms)*");
         mdSb.AppendLine();
 
         // Normal Engine Table (Markdown)
@@ -237,7 +236,7 @@ class RunAllPerfTest
         htmlSb.AppendLine("</head>");
         htmlSb.AppendLine("<body>");
         htmlSb.AppendLine("    <h1>Consolidated Performance Summary</h1>");
-        htmlSb.AppendLine($"    <div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | All times in milliseconds (ms)</div>");
+        htmlSb.AppendLine($"    <div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>");
 
         // Normal Engine Table (HTML)
         htmlSb.AppendLine("    <h2>Normal Engine</h2>");

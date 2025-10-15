@@ -223,7 +223,7 @@ export class PerformanceUtils {
             const html = [
                 '<html><head><title>Node.js Performance Summary Table</title><style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>',
                 '<h2>Node.js Performance Summary Table</h2>',
-                `<div class="meta">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC | All times in milliseconds (ms)</div>`,
+                `<div class="meta">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>`,
                 '<table>',
                 '<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>'
             ];

@@ -688,6 +688,7 @@ class AssemblerEndpoint
             $html[] = '</head>';
             $html[] = '<body>';
             $html[] = '<h1>Consolidated Performance Tests</h1>';
+            $html[] = '<div class="meta" style="color:#666;font-style:italic;margin-bottom:10px;">Generated: ' . gmdate('Y-m-d H:i:s') . ' UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>';
 
             // Sort appSites
             $sortedAppSites = array_keys($performanceData);

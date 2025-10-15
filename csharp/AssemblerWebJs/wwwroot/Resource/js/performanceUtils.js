@@ -170,7 +170,9 @@ class PerformanceUtils {
             return '<p>No performance data available.</p>';
         }
 
-        let html = '<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">';
+        const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        let html = `<div style="color: #666; font-style: italic; margin-bottom: 10px;">Generated: ${timestamp} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>`;
+        html += '<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">';
         html += '<thead>';
         html += '<tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">';
         html += '<th style="border: 1px solid #ddd; padding: 12px;">AppSite</th>';

@@ -248,7 +248,7 @@ class PerformanceUtils
 
             $html = '<html><head><title>PHP Performance Summary Table</title><style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>';
             $html .= '<h2>PHP Performance Summary Table</h2>';
-            $html .= '<div class="meta">Generated: ' . gmdate('Y-m-d H:i:s') . ' UTC | All times in milliseconds (ms)</div>';
+            $html .= '<div class="meta">Generated: ' . gmdate('Y-m-d H:i:s') . ' UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>';
             $html .= '<table>';
             $html .= '<tr>';
             foreach ($headers as $h) {
