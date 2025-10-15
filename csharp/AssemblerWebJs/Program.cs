@@ -413,7 +413,9 @@ public class IdleTrackingMiddleware
     private static Timer? _timer;
     private static bool _shutdownInitiated = false;
     private static int _idleSeconds = 10;
+    private static int _holdTimeoutSeconds = 300; // Safety timeout for stuck holds
     private static object _lock = new object();
+    private static System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> _activeHolds = new();
 
     private static void Log(string message)
     {
@@ -423,11 +425,13 @@ public class IdleTrackingMiddleware
     public static void Configure(int idleSeconds)
     {
         _idleSeconds = idleSeconds;
+        Console.WriteLine($"[STARTUP] Configured idleSeconds = {_idleSeconds}");
         Log($"Configured idleSeconds = {_idleSeconds}");
     }
 
     public static void StartTimer(IHostApplicationLifetime appLifetime)
     {
+        Console.WriteLine("[STARTUP] Starting idle monitor with 10-second check interval");
         Log("Starting idle timer");
         _timer = new Timer(_ => CheckIdle(appLifetime), null, 10000, 10000);
     }
@@ -444,11 +448,35 @@ public class IdleTrackingMiddleware
     private static void CheckIdle(IHostApplicationLifetime appLifetime)
     {
         if (_shutdownInitiated) return;
-        var idleTime = DateTime.UtcNow - _lastRequest;
-        Log($"Idle check: idleTime={idleTime.TotalSeconds}s, idleSeconds={_idleSeconds}");
-        if (idleTime.TotalSeconds > _idleSeconds)
+
+        // Clean up expired holds and count active holds
+        int activeHolds = 0;
+        var now = DateTime.UtcNow;
+        foreach (var hold in _activeHolds.ToArray())
         {
-            Log("Idle period exceeded, shutting down application");
+            var holdAge = (now - hold.Value).TotalSeconds;
+            if (holdAge >= _holdTimeoutSeconds)
+            {
+                // Remove expired hold
+                _activeHolds.TryRemove(hold.Key, out _);
+                Console.WriteLine($"[MONITOR] Removed expired hold: {hold.Key} (age: {holdAge}s)");
+                Log($"Removed expired hold: {hold.Key} (age: {holdAge}s)");
+            }
+            else
+            {
+                activeHolds++;
+            }
+        }
+
+        var idleTime = DateTime.UtcNow - _lastRequest;
+        Console.WriteLine($"[MONITOR] IdleTime: {idleTime.TotalSeconds:F1}s, Threshold: {_idleSeconds}s, ActiveHolds: {activeHolds}");
+        Log($"Idle check: idleTime={idleTime.TotalSeconds}s, idleSeconds={_idleSeconds}, activeHolds={activeHolds}");
+
+        // Only trigger shutdown if idle time exceeded AND no active holds
+        if (idleTime.TotalSeconds > _idleSeconds && activeHolds == 0)
+        {
+            Console.WriteLine("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown");
+            Log("Idle period exceeded with no active holds, shutting down application");
             _shutdownInitiated = true;
             appLifetime.StopApplication();
         }
@@ -456,12 +484,36 @@ public class IdleTrackingMiddleware
 
     public static async Task InvokeAsync(HttpContext context, RequestDelegate next, IHostApplicationLifetime appLifetime)
     {
+        // Generate unique hold ID for this request
+        var holdId = $"hold_{Guid.NewGuid():N}";
+
+        // Set hold before processing to prevent shutdown during long-running requests
+        _activeHolds[holdId] = DateTime.UtcNow;
+        Console.WriteLine($"[REQUEST] Request started, hold set: {holdId}");
+        Log($"Request started, hold set: {holdId}");
+
         UpdateLastRequest();
         if (_timer == null)
         {
             StartTimer(appLifetime);
         }
-        await next(context);
+
+        try
+        {
+            await next(context);
+
+            // Update timestamp after processing
+            UpdateLastRequest();
+            Console.WriteLine($"[REQUEST] Request completed");
+            Log("Request completed");
+        }
+        finally
+        {
+            // Always remove hold after processing (even if exception occurs)
+            _activeHolds.TryRemove(holdId, out _);
+            Console.WriteLine($"[REQUEST] Hold removed: {holdId}");
+            Log($"Hold removed: {holdId}");
+        }
     }
 }
 
