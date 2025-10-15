@@ -8,11 +8,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"assembler/common"
 	"assembler/config"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/skratchdot/open-golang/open"
 )
 
@@ -105,29 +107,70 @@ func openapi(c *gin.Context) {
 func IdleTrackingMiddleware(idleSeconds int) gin.HandlerFunc {
 	var lastRequest = time.Now()
 	var shutdownInitiated = false
-	var lock = make(chan struct{}, 1)
-	lock <- struct{}{} // initialize lock
+	var activeHolds = make(map[string]time.Time)
+	var mu sync.Mutex
+	const holdTimeoutSeconds = 300 // Safety timeout for stuck holds
+
+	fmt.Printf("[STARTUP] Configured idleSeconds = %d\n", idleSeconds)
+	fmt.Println("[STARTUP] Starting idle monitor with 10-second check interval")
 
 	// Start idle checker goroutine
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
-			<-lock
+			mu.Lock()
 			idle := time.Since(lastRequest).Seconds()
-			if !shutdownInitiated && idle > float64(idleSeconds) {
+
+			// Clean up expired holds and count active holds
+			now := time.Now()
+			expiredHolds := []string{}
+			for holdID, holdTime := range activeHolds {
+				holdAge := now.Sub(holdTime).Seconds()
+				if holdAge >= holdTimeoutSeconds {
+					expiredHolds = append(expiredHolds, holdID)
+				}
+			}
+
+			for _, holdID := range expiredHolds {
+				delete(activeHolds, holdID)
+				fmt.Printf("[MONITOR] Removed expired hold: %s (age: %ds)\n", holdID, holdTimeoutSeconds)
+			}
+
+			activeHoldsCount := len(activeHolds)
+			fmt.Printf("[MONITOR] IdleTime: %.1fs, Threshold: %ds, ActiveHolds: %d\n", idle, idleSeconds, activeHoldsCount)
+
+			// Only trigger shutdown if idle time exceeded AND no active holds
+			if !shutdownInitiated && idle > float64(idleSeconds) && activeHoldsCount == 0 {
 				shutdownInitiated = true
-				fmt.Printf("Idle timeout reached (%ds), shutting down server...\n", idleSeconds)
+				fmt.Println("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown")
+				common.Info(fmt.Sprintf("Idle timeout reached (%ds) with no active requests, shutting down server...", idleSeconds), "IdleTracking")
+				mu.Unlock()
 				os.Exit(0)
 			}
-			lock <- struct{}{}
+			mu.Unlock()
 		}
 	}()
 
 	return func(c *gin.Context) {
-		<-lock
+		// Generate unique hold ID for this request
+		holdID := fmt.Sprintf("hold_%s", strings.ReplaceAll(uuid.New().String(), "-", ""))
+
+		// Set hold before processing to prevent shutdown during long-running requests
+		mu.Lock()
+		activeHolds[holdID] = time.Now()
+		fmt.Printf("[REQUEST] Request started, hold set: %s\n", holdID)
 		lastRequest = time.Now()
-		lock <- struct{}{}
+		mu.Unlock()
+
+		// Process request
 		c.Next()
+
+		// Always remove hold after processing (even if error occurs)
+		mu.Lock()
+		delete(activeHolds, holdID)
+		fmt.Printf("[REQUEST] Request completed, hold removed: %s\n", holdID)
+		lastRequest = time.Now()
+		mu.Unlock()
 	}
 }
 
