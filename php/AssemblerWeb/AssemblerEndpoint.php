@@ -4,7 +4,6 @@ require_once __DIR__ . '/SecurityValidator.php';
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as ServerRequest;
-use Assembler\Common\CommonUtil;
 use Assembler\Engine\EngineNormal;
 use Assembler\Engine\EnginePreProcess;
 use Assembler\Loader\LoaderNormal;
@@ -47,8 +46,7 @@ class AssemblerEndpoint
     public static function indexEndpoint(ServerRequest $request, Response $response): Response
     {
         try {
-            $paths = CommonUtil::getAssemblerWebDirPath();
-            $rootDirPath = $paths['assemblerWebDirPath'];
+            $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
 
             $queryParams = $request->getQueryParams();
             $engineType = $queryParams['engine'] ?? 'Normal';
@@ -137,8 +135,7 @@ class AssemblerEndpoint
             error_log($logMsg);
             Logger::info($logMsg, 'MergeEndpoint');
 
-            $paths = CommonUtil::getAssemblerWebDirPath();
-            $rootDirPath = $paths['assemblerWebDirPath'];
+            $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
 
             if (!SecurityValidator::isValidEngineType($engineType)) {
                 $response->getBody()->write(json_encode(['error' => 'Invalid EngineType value']));

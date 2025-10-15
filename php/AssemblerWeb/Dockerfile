@@ -24,18 +24,35 @@ WORKDIR /app
 COPY --from=build /src/AssemblerWeb /app/AssemblerWeb
 COPY --from=build /src/Assembler /app/Assembler
 
-# Create template_analysis logs directory and set permissions
-RUN mkdir -p /app/template_analysis/logs
+# Copy Procfile separately to ensure latest version
+COPY AssemblerWeb/Procfile /app/AssemblerWeb/Procfile
+
+# Create template_analysis directories and set permissions
+RUN mkdir -p /app/AssemblerWeb/template_analysis/logs
+RUN mkdir -p /app/AssemblerWeb/template_analysis/Reports
+RUN mkdir -p /app/AssemblerWeb/template_analysis/output
+# Create tmp directory for idle tracking and holds subdirectory
+RUN mkdir -p /app/tmp/holds
+# Set ownership first, then permissions
 RUN chown -R www-data:www-data /app
+RUN chmod -R 777 /app/AssemblerWeb/template_analysis
+RUN chmod -R 777 /app/tmp
 RUN chmod +x /app/AssemblerWeb/IdleTrackingMonitor.php
 
 RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf
-RUN ls -l /app/AssemblerWeb/wwwroot
+RUN sed -i 's/:80/:8080/' /etc/apache2/sites-enabled/000-default.conf
+# Set DocumentRoot to /app/AssemblerWeb in both configs
+RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /app/AssemblerWeb|' /etc/apache2/sites-enabled/000-default.conf
+RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /app/AssemblerWeb|' /etc/apache2/apache2.conf
+# Add Directory configuration for /app/AssemblerWeb
+RUN echo '<Directory /app/AssemblerWeb>\n    Options Indexes FollowSymLinks\n    AllowOverride All\n    Require all granted\n</Directory>\n<Directory /app/AssemblerWeb/wwwroot>\n    Options Indexes FollowSymLinks\n    AllowOverride All\n    Require all granted\n</Directory>' >> /etc/apache2/apache2.conf
+# Add AliasMatch for .html and .json files in wwwroot
+RUN echo 'AliasMatch ^/(.*\.html)$ /app/AssemblerWeb/wwwroot/$1\nAliasMatch ^/(.*\.json)$ /app/AssemblerWeb/wwwroot/$1' >> /etc/apache2/apache2.conf
 # Relax directory permissions
 RUN sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf
 RUN sed -i 's/Require all denied/Require all granted/g' /etc/apache2/apache2.conf
 RUN a2enmod rewrite
 
 EXPOSE 8080
-COPY AssemblerWeb/Procfile /app/Procfile
+WORKDIR /app/AssemblerWeb
 CMD ["/bin/sh", "-c", "rm -f /app/.overmind.sock; /usr/local/bin/overmind start -f ./Procfile"]

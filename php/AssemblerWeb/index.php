@@ -1,13 +1,13 @@
 <?php
 
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
 require_once __DIR__ . '/../Assembler/vendor/autoload.php';
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/../Assembler/src/Model/ModelPreProcess.php';
-require_once __DIR__ . '/../Assembler/src/Api/ApiResponse.php';
+require_once __DIR__ . '/../Assembler/src/TemplateApi/ApiResponse.php';
 require_once __DIR__ . '/MergeRequest.php';
 require_once __DIR__ . '/IdleTrackingMiddleware.php';
 require_once __DIR__ . '/AssemblerEndpoint.php';
@@ -28,9 +28,8 @@ use Assembler\Config\ConfigUtil;
 
 // Configure logger with context-specific log files
 $logRotation = Logger::ROTATION_NONE;
-$paths = CommonUtil::getAssemblerWebDirPath();
-$projectDirectory = $paths['projectDirectory'];
-$assemblerWebDirPath = $paths['assemblerWebDirPath'];
+$projectDirectory = __DIR__;
+$assemblerWebDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
 
 // Load ConfigUtil with wwwroot path
 ConfigUtil::load($assemblerWebDirPath);

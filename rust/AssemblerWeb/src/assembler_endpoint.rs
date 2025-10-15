@@ -745,7 +745,7 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
     html.push_str("</head>\n");
     html.push_str("<body>\n");
     html.push_str("    <h1>Consolidated Performance Summary</h1>\n");
-    html.push_str(&format!("    <div class=\"meta\">Generated: {} UTC | All times in milliseconds (ms)</div>\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
+    html.push_str(&format!("    <div class=\"meta\">Generated: {} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
 
     // Get list of languages dynamically from configuration
     let mut languages: Vec<String> = servers_by_lang.keys().map(|k| k.clone()).collect();

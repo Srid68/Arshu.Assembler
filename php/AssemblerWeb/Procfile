@@ -1,2 +1,2 @@
-idle-monitor: php /app/AssemblerWeb/IdleTrackingStartup.php
+idle-monitor: php /app/AssemblerWeb/IdleTrackingStartup.php 2>&1
 php-assembler: apache2-foreground
