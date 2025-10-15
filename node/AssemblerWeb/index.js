@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 // Import Assembler modules - conditional path based on environment
 let EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess;
 let ApiResponse, TemplateData, PreProcessTemplateMetadata;
-let Logger, LogRotation, CommonUtil, ConfigUtil;
+let Logger, LogRotation, ConfigUtil;
 
 const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? './Assembler/src' : '../Assembler/src';
 
@@ -19,9 +19,6 @@ const apiResponseModule = await import(`${assemblerBasePath}/api/index.js`);
 
 const loggerModule = await import(`${assemblerBasePath}/common/logger.js`);
 ({ Logger, LogRotation } = loggerModule);
-
-const commonUtilModule = await import(`${assemblerBasePath}/common/commonUtil.js`);
-({ CommonUtil } = commonUtilModule);
 
 const configModule = await import(`${assemblerBasePath}/config/index.js`);
 ({ ConfigUtil } = configModule);
