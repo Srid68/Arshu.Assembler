@@ -4,7 +4,7 @@ import * as Assembler from './src/index.js';
 console.log('🧪 Testing Node.js Assembler Library...\n');
 
 const tests = [
-    { name: 'TemplateUtils', class: Assembler.TemplateUtils },
+    { name: 'CommonUtil', class: Assembler.CommonUtil },
     { name: 'JsonConverter', class: Assembler.JsonConverter },
     { name: 'JsonObject', class: Assembler.JsonObject },
     { name: 'JsonArray', class: Assembler.JsonArray },

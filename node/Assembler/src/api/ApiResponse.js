@@ -47,21 +47,33 @@ export class ApiResponse {
 
     /**
      * Serialize to JSON string manually (no JSON.stringify)
+     * @param {boolean} indented - Whether to pretty print with indentation
      * @returns {string} JSON string
      */
-    serializeToJson() {
+    serializeToJson(indented = false) {
+        if (indented) {
+            return this._serializeToJsonPretty();
+        }
+        return this._serializeToJsonCompact();
+    }
+
+    /**
+     * Serialize to compact JSON
+     * @private
+     */
+    _serializeToJsonCompact() {
         let sb = [];
         sb.push('{');
 
         // Serialize Templates dictionary
         sb.push('"Templates":');
-        sb.push(this._serializeDictionary(this.templates, (v) => this._serializeTemplateData(v)));
+        sb.push(this._serializeDictionary(this.templates, (v) => this._serializeTemplateData(v, 0, false), 0, false));
 
         sb.push(',');
 
         // Serialize PreProcessTemplates dictionary
         sb.push('"PreProcessTemplates":');
-        sb.push(this._serializeDictionary(this.preProcessTemplates, (v) => this._serializePreProcessMetadata(v)));
+        sb.push(this._serializeDictionary(this.preProcessTemplates, (v) => this._serializePreProcessMetadata(v, 0, false), 0, false));
 
         sb.push(',');
 
@@ -98,6 +110,67 @@ export class ApiResponse {
         sb.push(this.engineTimeMs.toString());
 
         sb.push('}');
+        return sb.join('');
+    }
+
+    /**
+     * Serialize to pretty JSON
+     * @private
+     */
+    _serializeToJsonPretty() {
+        let sb = [];
+        sb.push('{\n  ');
+
+        // Serialize Templates dictionary
+        sb.push('"Templates": ');
+        sb.push(this._serializeDictionary(this.templates, (v, indent) => this._serializeTemplateData(v, indent, true), 1, true));
+
+        sb.push(',\n  ');
+
+        // Serialize PreProcessTemplates dictionary
+        sb.push('"PreProcessTemplates": ');
+        sb.push(this._serializeDictionary(this.preProcessTemplates, (v, indent) => this._serializePreProcessMetadata(v, indent, true), 1, true));
+
+        sb.push(',\n  ');
+
+        // Serialize AppSite
+        sb.push('"AppSite": "');
+        sb.push(ApiResponse._escapeJsonString(this.appSite));
+        sb.push('"');
+
+        // Serialize AppFile if not null
+        if (this.appFile !== null && this.appFile !== undefined) {
+            sb.push(',\n  ');
+            sb.push('"AppFile": "');
+            sb.push(ApiResponse._escapeJsonString(this.appFile));
+            sb.push('"');
+        }
+
+        // Serialize AppView if not null
+        if (this.appView !== null && this.appView !== undefined) {
+            sb.push(',\n  ');
+            sb.push('"AppView": "');
+            sb.push(ApiResponse._escapeJsonString(this.appView));
+            sb.push('"');
+        }
+
+        // Serialize ServerTimeMs
+        sb.push(',\n  ');
+        sb.push('"ServerTimeMs": ');
+        sb.push(this.serverTimeMs.toString());
+
+        // Merged Html
+        sb.push(',\n  ');
+        sb.push('"Html": "');
+        sb.push(ApiResponse._escapeHtmlString(this.html));
+        sb.push('"');
+
+        // Engine Time
+        sb.push(',\n  ');
+        sb.push('"EngineTimeMs": ');
+        sb.push(this.engineTimeMs.toString());
+
+        sb.push('\n}');
         return sb.join('');
     }
 
@@ -140,21 +213,40 @@ export class ApiResponse {
      * Serialize a Map/dictionary
      * @private
      */
-    _serializeDictionary(dict, valueSerializer) {
+    _serializeDictionary(dict, valueSerializer, indent, indented) {
         let sb = [];
-        sb.push('{');
-        let first = true;
+        if (indented) {
+            sb.push('{\n');
+            let first = true;
 
-        for (const [key, value] of dict) {
-            if (!first) sb.push(',');
-            sb.push('"');
-            sb.push(ApiResponse._escapeJsonString(key));
-            sb.push('":');
-            sb.push(valueSerializer(value));
-            first = false;
+            for (const [key, value] of dict) {
+                if (!first) sb.push(',\n');
+                sb.push('  '.repeat(indent + 1));
+                sb.push('"');
+                sb.push(ApiResponse._escapeJsonString(key));
+                sb.push('": ');
+                sb.push(valueSerializer(value, indent + 1));
+                first = false;
+            }
+
+            sb.push('\n');
+            sb.push('  '.repeat(indent));
+            sb.push('}');
+        } else {
+            sb.push('{');
+            let first = true;
+
+            for (const [key, value] of dict) {
+                if (!first) sb.push(',');
+                sb.push('"');
+                sb.push(ApiResponse._escapeJsonString(key));
+                sb.push('":');
+                sb.push(valueSerializer(value, 0));
+                first = false;
+            }
+
+            sb.push('}');
         }
-
-        sb.push('}');
         return sb.join('');
     }
 
@@ -162,21 +254,43 @@ export class ApiResponse {
      * Serialize TemplateData
      * @private
      */
-    _serializeTemplateData(data) {
+    _serializeTemplateData(data, indent, indented) {
         let sb = [];
-        sb.push('{"Html":"');
-        sb.push(ApiResponse._escapeJsonString(data.html));
-        sb.push('","Json":');
+        if (indented) {
+            sb.push('{\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Html": "');
+            sb.push(ApiResponse._escapeJsonString(data.html));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Json": ');
 
-        if (data.json !== null && data.json !== undefined) {
-            sb.push('"');
-            sb.push(ApiResponse._escapeJsonString(data.json));
-            sb.push('"');
+            if (data.json !== null && data.json !== undefined) {
+                sb.push('"');
+                sb.push(ApiResponse._escapeJsonString(data.json));
+                sb.push('"');
+            } else {
+                sb.push('null');
+            }
+
+            sb.push('\n');
+            sb.push('  '.repeat(indent));
+            sb.push('}');
         } else {
-            sb.push('null');
-        }
+            sb.push('{"Html":"');
+            sb.push(ApiResponse._escapeJsonString(data.html));
+            sb.push('","Json":');
 
-        sb.push('}');
+            if (data.json !== null && data.json !== undefined) {
+                sb.push('"');
+                sb.push(ApiResponse._escapeJsonString(data.json));
+                sb.push('"');
+            } else {
+                sb.push('null');
+            }
+
+            sb.push('}');
+        }
         return sb.join('');
     }
 
@@ -184,68 +298,146 @@ export class ApiResponse {
      * Serialize PreProcessTemplateMetadata
      * @private
      */
-    _serializePreProcessMetadata(metadata) {
+    _serializePreProcessMetadata(metadata, indent, indented) {
         let sb = [];
-        sb.push('{');
+        if (indented) {
+            sb.push('{\n');
+            
+            // OriginalContent
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"OriginalContent": "');
+            sb.push(ApiResponse._escapeHtmlString(metadata.originalContent));
+            sb.push('",\n');
 
-        // OriginalContent
-        sb.push('"OriginalContent":"');
-        sb.push(ApiResponse._escapeHtmlString(metadata.originalContent));
-        sb.push('",');
+            // Placeholders
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Placeholders": ');
+            sb.push(this._serializePlaceholdersList(metadata.placeholders, indent + 1, true));
+            sb.push(',\n');
 
-        // Placeholders
-        sb.push('"Placeholders":');
-        sb.push(this._serializePlaceholdersList(metadata.placeholders));
-        sb.push(',');
+            // SlottedTemplates
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"SlottedTemplates": ');
+            sb.push(this._serializeSlottedTemplatesList(metadata.slottedTemplates, indent + 1, true));
+            sb.push(',\n');
 
-        // SlottedTemplates
-        sb.push('"SlottedTemplates":');
-        sb.push(this._serializeSlottedTemplatesList(metadata.slottedTemplates));
-        sb.push(',');
-
-        // JsonData
-        sb.push('"JsonData":');
-        if (metadata.jsonData !== null && metadata.jsonData !== undefined) {
-            const jsonDataStr = typeof metadata.jsonData === 'string' ? metadata.jsonData : String(metadata.jsonData);
-            if (jsonDataStr.startsWith('{') || jsonDataStr.startsWith('[')) {
-                // Appears to be JSON already, include as-is
-                sb.push(jsonDataStr);
+            // JsonData
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"JsonData": ');
+            if (metadata.jsonData !== null && metadata.jsonData !== undefined) {
+                const jsonDataStr = typeof metadata.jsonData === 'string' ? metadata.jsonData : String(metadata.jsonData);
+                if (jsonDataStr.startsWith('{') || jsonDataStr.startsWith('[')) {
+                    sb.push(jsonDataStr);
+                } else {
+                    sb.push('"');
+                    sb.push(ApiResponse._escapeJsonString(jsonDataStr));
+                    sb.push('"');
+                }
             } else {
-                // Treat as string value
-                sb.push('"');
-                sb.push(ApiResponse._escapeJsonString(jsonDataStr));
-                sb.push('"');
+                sb.push('null');
             }
+            sb.push(',\n');
+
+            // JsonPlaceholders
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"JsonPlaceholders": ');
+            sb.push(this._serializeJsonPlaceholdersList(metadata.jsonPlaceholders, indent + 1, true));
+            sb.push(',\n');
+
+            // ReplacementMappings
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"ReplacementMappings": ');
+            sb.push(this._serializeReplacementMappingsList(metadata.replacementMappings, indent + 1, true));
+            sb.push(',\n');
+
+            // Boolean properties
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"HasPlaceholders": ');
+            sb.push(metadata.hasPlaceholders ? 'true' : 'false');
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"HasSlottedTemplates": ');
+            sb.push(metadata.hasSlottedTemplates ? 'true' : 'false');
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"HasJsonData": ');
+            sb.push(metadata.hasJsonData ? 'true' : 'false');
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"HasJsonPlaceholders": ');
+            sb.push(metadata.hasJsonPlaceholders ? 'true' : 'false');
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"HasReplacementMappings": ');
+            sb.push(metadata.hasReplacementMappings ? 'true' : 'false');
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"RequiresProcessing": ');
+            sb.push(metadata.requiresProcessing ? 'true' : 'false');
+
+            sb.push('\n');
+            sb.push('  '.repeat(indent));
+            sb.push('}');
         } else {
-            sb.push('null');
+            sb.push('{');
+
+            // OriginalContent
+            sb.push('"OriginalContent":"');
+            sb.push(ApiResponse._escapeHtmlString(metadata.originalContent));
+            sb.push('",');
+
+            // Placeholders
+            sb.push('"Placeholders":');
+            sb.push(this._serializePlaceholdersList(metadata.placeholders, 0, false));
+            sb.push(',');
+
+            // SlottedTemplates
+            sb.push('"SlottedTemplates":');
+            sb.push(this._serializeSlottedTemplatesList(metadata.slottedTemplates, 0, false));
+            sb.push(',');
+
+            // JsonData
+            sb.push('"JsonData":');
+            if (metadata.jsonData !== null && metadata.jsonData !== undefined) {
+                const jsonDataStr = typeof metadata.jsonData === 'string' ? metadata.jsonData : String(metadata.jsonData);
+                if (jsonDataStr.startsWith('{') || jsonDataStr.startsWith('[')) {
+                    sb.push(jsonDataStr);
+                } else {
+                    sb.push('"');
+                    sb.push(ApiResponse._escapeJsonString(jsonDataStr));
+                    sb.push('"');
+                }
+            } else {
+                sb.push('null');
+            }
+            sb.push(',');
+
+            // JsonPlaceholders
+            sb.push('"JsonPlaceholders":');
+            sb.push(this._serializeJsonPlaceholdersList(metadata.jsonPlaceholders, 0, false));
+            sb.push(',');
+
+            // ReplacementMappings
+            sb.push('"ReplacementMappings":');
+            sb.push(this._serializeReplacementMappingsList(metadata.replacementMappings, 0, false));
+            sb.push(',');
+
+            // Boolean properties
+            sb.push('"HasPlaceholders":');
+            sb.push(metadata.hasPlaceholders ? 'true' : 'false');
+            sb.push(',"HasSlottedTemplates":');
+            sb.push(metadata.hasSlottedTemplates ? 'true' : 'false');
+            sb.push(',"HasJsonData":');
+            sb.push(metadata.hasJsonData ? 'true' : 'false');
+            sb.push(',"HasJsonPlaceholders":');
+            sb.push(metadata.hasJsonPlaceholders ? 'true' : 'false');
+            sb.push(',"HasReplacementMappings":');
+            sb.push(metadata.hasReplacementMappings ? 'true' : 'false');
+            sb.push(',"RequiresProcessing":');
+            sb.push(metadata.requiresProcessing ? 'true' : 'false');
+
+            sb.push('}');
         }
-        sb.push(',');
-
-        // JsonPlaceholders
-        sb.push('"JsonPlaceholders":');
-        sb.push(this._serializeJsonPlaceholdersList(metadata.jsonPlaceholders));
-        sb.push(',');
-
-        // ReplacementMappings
-        sb.push('"ReplacementMappings":');
-        sb.push(this._serializeReplacementMappingsList(metadata.replacementMappings));
-        sb.push(',');
-
-        // Boolean properties
-        sb.push('"HasPlaceholders":');
-        sb.push(metadata.hasPlaceholders ? 'true' : 'false');
-        sb.push(',"HasSlottedTemplates":');
-        sb.push(metadata.hasSlottedTemplates ? 'true' : 'false');
-        sb.push(',"HasJsonData":');
-        sb.push(metadata.hasJsonData ? 'true' : 'false');
-        sb.push(',"HasJsonPlaceholders":');
-        sb.push(metadata.hasJsonPlaceholders ? 'true' : 'false');
-        sb.push(',"HasReplacementMappings":');
-        sb.push(metadata.hasReplacementMappings ? 'true' : 'false');
-        sb.push(',"RequiresProcessing":');
-        sb.push(metadata.requiresProcessing ? 'true' : 'false');
-
-        sb.push('}');
         return sb.join('');
     }
 
@@ -253,16 +445,28 @@ export class ApiResponse {
      * Serialize list of placeholders
      * @private
      */
-    _serializePlaceholdersList(placeholders) {
+    _serializePlaceholdersList(placeholders, indent, indented) {
         let sb = [];
-        sb.push('[');
-
-        for (let i = 0; i < placeholders.length; i++) {
-            if (i > 0) sb.push(',');
-            sb.push(this._serializePlaceholder(placeholders[i]));
+        if (indented) {
+            sb.push('[\n');
+            for (let i = 0; i < placeholders.length; i++) {
+                if (i > 0) sb.push(',\n');
+                sb.push('  '.repeat(indent + 1));
+                sb.push(this._serializePlaceholder(placeholders[i], indent + 1, true));
+            }
+            if (placeholders.length > 0) {
+                sb.push('\n');
+                sb.push('  '.repeat(indent));
+            }
+            sb.push(']');
+        } else {
+            sb.push('[');
+            for (let i = 0; i < placeholders.length; i++) {
+                if (i > 0) sb.push(',');
+                sb.push(this._serializePlaceholder(placeholders[i], 0, false));
+            }
+            sb.push(']');
         }
-
-        sb.push(']');
         return sb.join('');
     }
 
@@ -270,34 +474,80 @@ export class ApiResponse {
      * Serialize placeholder
      * @private
      */
-    _serializePlaceholder(placeholder) {
+    _serializePlaceholder(placeholder, indent, indented) {
         let sb = [];
-        sb.push('{');
-        sb.push('"Name":"');
-        sb.push(ApiResponse._escapeJsonString(placeholder.name));
-        sb.push('","StartIndex":');
-        sb.push(placeholder.startIndex.toString());
-        sb.push(',"EndIndex":');
-        sb.push(placeholder.endIndex.toString());
-        sb.push(',"FullMatch":"');
-        sb.push(ApiResponse._escapeJsonString(placeholder.fullMatch));
-        sb.push('","TemplateKey":"');
-        sb.push(ApiResponse._escapeJsonString(placeholder.templateKey));
-        sb.push('","JsonData":');
+        if (indented) {
+            sb.push('{\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Name": "');
+            sb.push(ApiResponse._escapeJsonString(placeholder.name));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"StartIndex": ');
+            sb.push(placeholder.startIndex.toString());
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"EndIndex": ');
+            sb.push(placeholder.endIndex.toString());
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"FullMatch": "');
+            sb.push(ApiResponse._escapeJsonString(placeholder.fullMatch));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"TemplateKey": "');
+            sb.push(ApiResponse._escapeJsonString(placeholder.templateKey));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"JsonData": ');
 
-        if (placeholder.jsonData !== null && placeholder.jsonData !== undefined) {
-            sb.push('"');
-            sb.push(ApiResponse._escapeJsonString(String(placeholder.jsonData)));
-            sb.push('"');
+            if (placeholder.jsonData !== null && placeholder.jsonData !== undefined) {
+                sb.push('"');
+                sb.push(ApiResponse._escapeJsonString(String(placeholder.jsonData)));
+                sb.push('"');
+            } else {
+                sb.push('null');
+            }
+
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"NestedPlaceholders": ');
+            sb.push(this._serializePlaceholdersList(placeholder.nestedPlaceholders, indent + 1, true));
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"NestedSlots": ');
+            sb.push(this._serializeSlotPlaceholdersList(placeholder.nestedSlots, indent + 1, true));
+            sb.push('\n');
+            sb.push('  '.repeat(indent));
+            sb.push('}');
         } else {
-            sb.push('null');
-        }
+            sb.push('{');
+            sb.push('"Name":"');
+            sb.push(ApiResponse._escapeJsonString(placeholder.name));
+            sb.push('","StartIndex":');
+            sb.push(placeholder.startIndex.toString());
+            sb.push(',"EndIndex":');
+            sb.push(placeholder.endIndex.toString());
+            sb.push(',"FullMatch":"');
+            sb.push(ApiResponse._escapeJsonString(placeholder.fullMatch));
+            sb.push('","TemplateKey":"');
+            sb.push(ApiResponse._escapeJsonString(placeholder.templateKey));
+            sb.push('","JsonData":');
 
-        sb.push(',"NestedPlaceholders":');
-        sb.push(this._serializePlaceholdersList(placeholder.nestedPlaceholders));
-        sb.push(',"NestedSlots":');
-        sb.push(this._serializeSlotPlaceholdersList(placeholder.nestedSlots));
-        sb.push('}');
+            if (placeholder.jsonData !== null && placeholder.jsonData !== undefined) {
+                sb.push('"');
+                sb.push(ApiResponse._escapeJsonString(String(placeholder.jsonData)));
+                sb.push('"');
+            } else {
+                sb.push('null');
+            }
+
+            sb.push(',"NestedPlaceholders":');
+            sb.push(this._serializePlaceholdersList(placeholder.nestedPlaceholders, 0, false));
+            sb.push(',"NestedSlots":');
+            sb.push(this._serializeSlotPlaceholdersList(placeholder.nestedSlots, 0, false));
+            sb.push('}');
+        }
 
         return sb.join('');
     }
@@ -306,16 +556,28 @@ export class ApiResponse {
      * Serialize list of slot placeholders
      * @private
      */
-    _serializeSlotPlaceholdersList(slots) {
+    _serializeSlotPlaceholdersList(slots, indent, indented) {
         let sb = [];
-        sb.push('[');
-
-        for (let i = 0; i < slots.length; i++) {
-            if (i > 0) sb.push(',');
-            sb.push(this._serializeSlotPlaceholder(slots[i]));
+        if (indented) {
+            sb.push('[\n');
+            for (let i = 0; i < slots.length; i++) {
+                if (i > 0) sb.push(',\n');
+                sb.push('  '.repeat(indent + 1));
+                sb.push(this._serializeSlotPlaceholder(slots[i], indent + 1, true));
+            }
+            if (slots.length > 0) {
+                sb.push('\n');
+                sb.push('  '.repeat(indent));
+            }
+            sb.push(']');
+        } else {
+            sb.push('[');
+            for (let i = 0; i < slots.length; i++) {
+                if (i > 0) sb.push(',');
+                sb.push(this._serializeSlotPlaceholder(slots[i], 0, false));
+            }
+            sb.push(']');
         }
-
-        sb.push(']');
         return sb.join('');
     }
 
@@ -323,36 +585,94 @@ export class ApiResponse {
      * Serialize slot placeholder
      * @private
      */
-    _serializeSlotPlaceholder(slot) {
+    _serializeSlotPlaceholder(slot, indent, indented) {
         let sb = [];
-        sb.push('{');
-        sb.push('"Number":"');
-        sb.push(ApiResponse._escapeJsonString(slot.number));
-        sb.push('","StartIndex":');
-        sb.push(slot.startIndex.toString());
-        sb.push(',"EndIndex":');
-        sb.push(slot.endIndex.toString());
-        sb.push(',"Content":"');
-        sb.push(ApiResponse._escapeJsonString(slot.content));
-        sb.push('","SlotKey":"');
-        sb.push(ApiResponse._escapeJsonString(slot.slotKey));
-        sb.push('","OpenTag":"');
-        sb.push(ApiResponse._escapeJsonString(slot.openTag));
-        sb.push('","CloseTag":"');
-        sb.push(ApiResponse._escapeJsonString(slot.closeTag));
-        sb.push('","NestedSlots":');
-        sb.push(this._serializeSlotPlaceholdersList(slot.nestedSlots));
-        sb.push(',"NestedPlaceholders":');
-        sb.push(this._serializePlaceholdersList(slot.nestedPlaceholders));
-        sb.push(',"NestedSlottedTemplates":');
-        sb.push(this._serializeSlottedTemplatesList(slot.nestedSlottedTemplates));
-        sb.push(',"HasNestedPlaceholders":');
-        sb.push(slot.hasNestedPlaceholders ? 'true' : 'false');
-        sb.push(',"HasNestedSlottedTemplates":');
-        sb.push(slot.hasNestedSlottedTemplates ? 'true' : 'false');
-        sb.push(',"RequiresNestedProcessing":');
-        sb.push(slot.requiresNestedProcessing ? 'true' : 'false');
-        sb.push('}');
+        if (indented) {
+            sb.push('{\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Number": "');
+            sb.push(ApiResponse._escapeJsonString(slot.number));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"StartIndex": ');
+            sb.push(slot.startIndex.toString());
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"EndIndex": ');
+            sb.push(slot.endIndex.toString());
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Content": "');
+            sb.push(ApiResponse._escapeJsonString(slot.content));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"SlotKey": "');
+            sb.push(ApiResponse._escapeJsonString(slot.slotKey));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"OpenTag": "');
+            sb.push(ApiResponse._escapeJsonString(slot.openTag));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"CloseTag": "');
+            sb.push(ApiResponse._escapeJsonString(slot.closeTag));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"NestedSlots": ');
+            sb.push(this._serializeSlotPlaceholdersList(slot.nestedSlots, indent + 1, true));
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"NestedPlaceholders": ');
+            sb.push(this._serializePlaceholdersList(slot.nestedPlaceholders, indent + 1, true));
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"NestedSlottedTemplates": ');
+            sb.push(this._serializeSlottedTemplatesList(slot.nestedSlottedTemplates, indent + 1, true));
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"HasNestedPlaceholders": ');
+            sb.push(slot.hasNestedPlaceholders ? 'true' : 'false');
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"HasNestedSlottedTemplates": ');
+            sb.push(slot.hasNestedSlottedTemplates ? 'true' : 'false');
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"RequiresNestedProcessing": ');
+            sb.push(slot.requiresNestedProcessing ? 'true' : 'false');
+            sb.push('\n');
+            sb.push('  '.repeat(indent));
+            sb.push('}');
+        } else {
+            sb.push('{');
+            sb.push('"Number":"');
+            sb.push(ApiResponse._escapeJsonString(slot.number));
+            sb.push('","StartIndex":');
+            sb.push(slot.startIndex.toString());
+            sb.push(',"EndIndex":');
+            sb.push(slot.endIndex.toString());
+            sb.push(',"Content":"');
+            sb.push(ApiResponse._escapeJsonString(slot.content));
+            sb.push('","SlotKey":"');
+            sb.push(ApiResponse._escapeJsonString(slot.slotKey));
+            sb.push('","OpenTag":"');
+            sb.push(ApiResponse._escapeJsonString(slot.openTag));
+            sb.push('","CloseTag":"');
+            sb.push(ApiResponse._escapeJsonString(slot.closeTag));
+            sb.push('","NestedSlots":');
+            sb.push(this._serializeSlotPlaceholdersList(slot.nestedSlots, 0, false));
+            sb.push(',"NestedPlaceholders":');
+            sb.push(this._serializePlaceholdersList(slot.nestedPlaceholders, 0, false));
+            sb.push(',"NestedSlottedTemplates":');
+            sb.push(this._serializeSlottedTemplatesList(slot.nestedSlottedTemplates, 0, false));
+            sb.push(',"HasNestedPlaceholders":');
+            sb.push(slot.hasNestedPlaceholders ? 'true' : 'false');
+            sb.push(',"HasNestedSlottedTemplates":');
+            sb.push(slot.hasNestedSlottedTemplates ? 'true' : 'false');
+            sb.push(',"RequiresNestedProcessing":');
+            sb.push(slot.requiresNestedProcessing ? 'true' : 'false');
+            sb.push('}');
+        }
 
         return sb.join('');
     }
@@ -361,16 +681,28 @@ export class ApiResponse {
      * Serialize list of slotted templates
      * @private
      */
-    _serializeSlottedTemplatesList(templates) {
+    _serializeSlottedTemplatesList(templates, indent, indented) {
         let sb = [];
-        sb.push('[');
-
-        for (let i = 0; i < templates.length; i++) {
-            if (i > 0) sb.push(',');
-            sb.push(this._serializeSlottedTemplate(templates[i]));
+        if (indented) {
+            sb.push('[\n');
+            for (let i = 0; i < templates.length; i++) {
+                if (i > 0) sb.push(',\n');
+                sb.push('  '.repeat(indent + 1));
+                sb.push(this._serializeSlottedTemplate(templates[i], indent + 1, true));
+            }
+            if (templates.length > 0) {
+                sb.push('\n');
+                sb.push('  '.repeat(indent));
+            }
+            sb.push(']');
+        } else {
+            sb.push('[');
+            for (let i = 0; i < templates.length; i++) {
+                if (i > 0) sb.push(',');
+                sb.push(this._serializeSlottedTemplate(templates[i], 0, false));
+            }
+            sb.push(']');
         }
-
-        sb.push(']');
         return sb.join('');
     }
 
@@ -378,22 +710,52 @@ export class ApiResponse {
      * Serialize slotted template
      * @private
      */
-    _serializeSlottedTemplate(template) {
+    _serializeSlottedTemplate(template, indent, indented) {
         let sb = [];
-        sb.push('{');
-        sb.push('"Name":"');
-        sb.push(ApiResponse._escapeJsonString(template.name));
-        sb.push('","StartIndex":');
-        sb.push(template.startIndex.toString());
-        sb.push(',"EndIndex":');
-        sb.push(template.endIndex.toString());
-        sb.push(',"FullMatch":"');
-        sb.push(ApiResponse._escapeJsonString(template.fullMatch));
-        sb.push('","TemplateKey":"');
-        sb.push(ApiResponse._escapeJsonString(template.templateKey));
-        sb.push('","Slots":');
-        sb.push(this._serializeSlotPlaceholdersList(template.slots));
-        sb.push('}');
+        if (indented) {
+            sb.push('{\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Name": "');
+            sb.push(ApiResponse._escapeJsonString(template.name));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"StartIndex": ');
+            sb.push(template.startIndex.toString());
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"EndIndex": ');
+            sb.push(template.endIndex.toString());
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"FullMatch": "');
+            sb.push(ApiResponse._escapeJsonString(template.fullMatch));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"TemplateKey": "');
+            sb.push(ApiResponse._escapeJsonString(template.templateKey));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Slots": ');
+            sb.push(this._serializeSlotPlaceholdersList(template.slots, indent + 1, true));
+            sb.push('\n');
+            sb.push('  '.repeat(indent));
+            sb.push('}');
+        } else {
+            sb.push('{');
+            sb.push('"Name":"');
+            sb.push(ApiResponse._escapeJsonString(template.name));
+            sb.push('","StartIndex":');
+            sb.push(template.startIndex.toString());
+            sb.push(',"EndIndex":');
+            sb.push(template.endIndex.toString());
+            sb.push(',"FullMatch":"');
+            sb.push(ApiResponse._escapeJsonString(template.fullMatch));
+            sb.push('","TemplateKey":"');
+            sb.push(ApiResponse._escapeJsonString(template.templateKey));
+            sb.push('","Slots":');
+            sb.push(this._serializeSlotPlaceholdersList(template.slots, 0, false));
+            sb.push('}');
+        }
 
         return sb.join('');
     }
@@ -402,16 +764,28 @@ export class ApiResponse {
      * Serialize list of JSON placeholders
      * @private
      */
-    _serializeJsonPlaceholdersList(placeholders) {
+    _serializeJsonPlaceholdersList(placeholders, indent, indented) {
         let sb = [];
-        sb.push('[');
-
-        for (let i = 0; i < placeholders.length; i++) {
-            if (i > 0) sb.push(',');
-            sb.push(this._serializeJsonPlaceholder(placeholders[i]));
+        if (indented) {
+            sb.push('[\n');
+            for (let i = 0; i < placeholders.length; i++) {
+                if (i > 0) sb.push(',\n');
+                sb.push('  '.repeat(indent + 1));
+                sb.push(this._serializeJsonPlaceholder(placeholders[i], indent + 1, true));
+            }
+            if (placeholders.length > 0) {
+                sb.push('\n');
+                sb.push('  '.repeat(indent));
+            }
+            sb.push(']');
+        } else {
+            sb.push('[');
+            for (let i = 0; i < placeholders.length; i++) {
+                if (i > 0) sb.push(',');
+                sb.push(this._serializeJsonPlaceholder(placeholders[i], 0, false));
+            }
+            sb.push(']');
         }
-
-        sb.push(']');
         return sb.join('');
     }
 
@@ -419,16 +793,34 @@ export class ApiResponse {
      * Serialize JSON placeholder
      * @private
      */
-    _serializeJsonPlaceholder(placeholder) {
+    _serializeJsonPlaceholder(placeholder, indent, indented) {
         let sb = [];
-        sb.push('{');
-        sb.push('"Key":"');
-        sb.push(ApiResponse._escapeJsonString(placeholder.key));
-        sb.push('","Placeholder":"');
-        sb.push(ApiResponse._escapeJsonString(placeholder.placeholder));
-        sb.push('","Value":"');
-        sb.push(ApiResponse._escapeJsonString(placeholder.value));
-        sb.push('"}');
+        if (indented) {
+            sb.push('{\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Key": "');
+            sb.push(ApiResponse._escapeJsonString(placeholder.key));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Placeholder": "');
+            sb.push(ApiResponse._escapeJsonString(placeholder.placeholder));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Value": "');
+            sb.push(ApiResponse._escapeJsonString(placeholder.value));
+            sb.push('"\n');
+            sb.push('  '.repeat(indent));
+            sb.push('}');
+        } else {
+            sb.push('{');
+            sb.push('"Key":"');
+            sb.push(ApiResponse._escapeJsonString(placeholder.key));
+            sb.push('","Placeholder":"');
+            sb.push(ApiResponse._escapeJsonString(placeholder.placeholder));
+            sb.push('","Value":"');
+            sb.push(ApiResponse._escapeJsonString(placeholder.value));
+            sb.push('"}');
+        }
 
         return sb.join('');
     }
@@ -437,16 +829,28 @@ export class ApiResponse {
      * Serialize list of replacement mappings
      * @private
      */
-    _serializeReplacementMappingsList(mappings) {
+    _serializeReplacementMappingsList(mappings, indent, indented) {
         let sb = [];
-        sb.push('[');
-
-        for (let i = 0; i < mappings.length; i++) {
-            if (i > 0) sb.push(',');
-            sb.push(this._serializeReplacementMapping(mappings[i]));
+        if (indented) {
+            sb.push('[\n');
+            for (let i = 0; i < mappings.length; i++) {
+                if (i > 0) sb.push(',\n');
+                sb.push('  '.repeat(indent + 1));
+                sb.push(this._serializeReplacementMapping(mappings[i], indent + 1, true));
+            }
+            if (mappings.length > 0) {
+                sb.push('\n');
+                sb.push('  '.repeat(indent));
+            }
+            sb.push(']');
+        } else {
+            sb.push('[');
+            for (let i = 0; i < mappings.length; i++) {
+                if (i > 0) sb.push(',');
+                sb.push(this._serializeReplacementMapping(mappings[i], 0, false));
+            }
+            sb.push(']');
         }
-
-        sb.push(']');
         return sb.join('');
     }
 
@@ -454,20 +858,46 @@ export class ApiResponse {
      * Serialize replacement mapping
      * @private
      */
-    _serializeReplacementMapping(mapping) {
+    _serializeReplacementMapping(mapping, indent, indented) {
         let sb = [];
-        sb.push('{');
-        sb.push('"StartIndex":');
-        sb.push(mapping.startIndex.toString());
-        sb.push(',"EndIndex":');
-        sb.push(mapping.endIndex.toString());
-        sb.push(',"OriginalText":"');
-        sb.push(ApiResponse._escapeHtmlString(mapping.originalText));
-        sb.push('","ReplacementText":"');
-        sb.push(ApiResponse._escapeHtmlString(mapping.replacementText));
-        sb.push('","Type":');
-        sb.push(mapping.type.toString());
-        sb.push('}');
+        if (indented) {
+            sb.push('{\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"StartIndex": ');
+            sb.push(mapping.startIndex.toString());
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"EndIndex": ');
+            sb.push(mapping.endIndex.toString());
+            sb.push(',\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"OriginalText": "');
+            sb.push(ApiResponse._escapeHtmlString(mapping.originalText));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"ReplacementText": "');
+            sb.push(ApiResponse._escapeHtmlString(mapping.replacementText));
+            sb.push('",\n');
+            sb.push('  '.repeat(indent + 1));
+            sb.push('"Type": ');
+            sb.push(mapping.type.toString());
+            sb.push('\n');
+            sb.push('  '.repeat(indent));
+            sb.push('}');
+        } else {
+            sb.push('{');
+            sb.push('"StartIndex":');
+            sb.push(mapping.startIndex.toString());
+            sb.push(',"EndIndex":');
+            sb.push(mapping.endIndex.toString());
+            sb.push(',"OriginalText":"');
+            sb.push(ApiResponse._escapeHtmlString(mapping.originalText));
+            sb.push('","ReplacementText":"');
+            sb.push(ApiResponse._escapeHtmlString(mapping.replacementText));
+            sb.push('","Type":');
+            sb.push(mapping.type.toString());
+            sb.push('}');
+        }
 
         return sb.join('');
     }
