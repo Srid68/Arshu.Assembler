@@ -22,18 +22,46 @@ namespace AssemblerWebJs
 {
     #region Models/Serialization Config
 
+    // Model for scenario response
     public class ScenarioDto
     {
-        [JsonPropertyName("appSite")]
+        [System.Text.Json.Serialization.JsonPropertyName("appSite")]
         public string AppSite { get; set; } = string.Empty;
-        [JsonPropertyName("appFile")]
+        [System.Text.Json.Serialization.JsonPropertyName("appFile")]
         public string AppFile { get; set; } = string.Empty;
-        [JsonPropertyName("appView")]
+        [System.Text.Json.Serialization.JsonPropertyName("appView")]
         public string AppView { get; set; } = string.Empty;
-        [JsonPropertyName("displayName")]
+        [System.Text.Json.Serialization.JsonPropertyName("displayName")]
         public string DisplayName { get; set; } = string.Empty;
-        [JsonPropertyName("description")]
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
+    }
+
+    public class MergeRequest
+    {
+        [JsonPropertyName("appSite")]
+        public string? AppSite { get; set; }
+        [JsonPropertyName("appView")]
+        public string? AppView { get; set; }
+        [JsonPropertyName("engineType")]
+        public string? EngineType { get; set; }
+    }
+
+    // Model for report request
+    public class ReportRequest
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("fileName")]
+        public string? FileName { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("useLangPrefix")]
+        public bool UseLangPrefix { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("langPrefix")]
+        public string? LangPrefix { get; set; }
+    }
+
+    public class TestResponse
+    {
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = string.Empty;
     }
 
     public class TestSummaryRowDto
@@ -61,45 +89,13 @@ namespace AssemblerWebJs
         public int ElapsedTimeMs { get; set; }
     }
 
-    public class TestResponse
-    {
-        [JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
-    }
-
-    public class MergeRequest
-    {
-        [JsonPropertyName("appSite")]
-        public string? AppSite { get; set; }
-        [JsonPropertyName("appView")]
-        public string? AppView { get; set; }
-        [JsonPropertyName("engineType")]
-        public string? EngineType { get; set; }
-    }
-
-    public class ReportRequestDto
-    {
-        [JsonPropertyName("fileName")]
-        public string FileName { get; set; } = string.Empty;
-        [JsonPropertyName("useLangPrefix")]
-        public bool UseLangPrefix { get; set; }
-    }
-
-    [JsonSerializable(typeof(ScenarioDto))]
-    [JsonSerializable(typeof(List<ScenarioDto>))]
     [JsonSerializable(typeof(ScenarioDto[]))]
-    [JsonSerializable(typeof(TestSummaryRowDto))]
-    [JsonSerializable(typeof(List<TestSummaryRowDto>))]
-    [JsonSerializable(typeof(TestSummaryRowDto[]))]
-    [JsonSerializable(typeof(PerfSummaryRowDto))]
-    [JsonSerializable(typeof(List<PerfSummaryRowDto>))]
-    [JsonSerializable(typeof(PerfSummaryRowDto[]))]
-    [JsonSerializable(typeof(TestResponse))]
     [JsonSerializable(typeof(MergeRequest))]
-    [JsonSerializable(typeof(ReportRequestDto))]
-    [JsonSerializable(typeof(string))]
-    [JsonSerializable(typeof(object))]
-    public partial class SimpleJsonContext : JsonSerializerContext
+    [JsonSerializable(typeof(ReportRequest))]
+    [JsonSerializable(typeof(TestResponse))]
+    [JsonSerializable(typeof(TestSummaryRowDto[]))]
+    [JsonSerializable(typeof(PerfSummaryRowDto[]))]
+    public partial class ResponseJsonContext : JsonSerializerContext
     {
     }
 
@@ -214,11 +210,191 @@ namespace AssemblerWebJs
                         Description = s.Description
                     }).ToArray();
 
-                    return Results.Json(scenarioDtos, SimpleJsonContext.Default.ScenarioDtoArray);
+                    return Results.Json(scenarioDtos, ResponseJsonContext.Default.ScenarioDtoArray);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Error in /api/scenarios: {ex.Message}");
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+            });
+
+            #endregion
+
+
+
+            #region Save Log Endpoint
+
+            app.MapPost("/api/save-log", async (HttpContext context) =>
+            {
+                try
+                {
+                    using var reader = new StreamReader(context.Request.Body);
+                    var requestBody = await reader.ReadToEndAsync();
+
+                    var contextName = "";
+                    var logContent = "";
+
+                    try
+                    {
+                        var jsonDoc = System.Text.Json.JsonDocument.Parse(requestBody);
+                        if (jsonDoc.RootElement.TryGetProperty("context", out var contextElement))
+                        {
+                            contextName = contextElement.GetString() ?? "";
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("content", out var contentElement))
+                        {
+                            logContent = contentElement.GetString() ?? "";
+                        }
+                    }
+                    catch
+                    {
+                        return Results.Text("Invalid JSON format", statusCode: 400);
+                    }
+
+                    if (string.IsNullOrEmpty(contextName) || string.IsNullOrEmpty(logContent))
+                        return Results.Text("Missing context or content parameter", statusCode: 400);
+
+                    // Validate context name parameter (256 char limit, no path traversal)
+                    if (!SecurityValidator.IsValidPathComponent(contextName))
+                        return Results.Text("Invalid context parameter", statusCode: 400);
+
+                    // Validate log content (size and format)
+                    if (!SecurityValidator.IsValidLogContent(logContent, out var logErrorMessage))
+                        return Results.Text(logErrorMessage ?? "Invalid log content", statusCode: 400);
+
+                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                    var logsDir = Path.Combine(projectDirectory, "template_analysis", "logs");
+                    Directory.CreateDirectory(logsDir);
+
+                    var logFile = Path.Combine(logsDir, $"javascript_{contextName.ToLower()}.log");
+                    await File.WriteAllTextAsync(logFile, logContent);
+
+                    var response = new TestResponse
+                    {
+                        Message = "Log saved successfully"
+                    };
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+            });
+
+            #endregion
+
+            #region Save Output Endpoint
+
+            app.MapPost("/api/save-output", async (HttpContext context) =>
+            {
+                try
+                {
+                    Console.WriteLine($"[/api/save-output] Endpoint called");
+                    using var reader = new StreamReader(context.Request.Body);
+                    var requestBody = await reader.ReadToEndAsync();
+                    Console.WriteLine($"[/api/save-output] Request body length: {requestBody.Length}");
+
+                    var appSite = "";
+                    var appView = "";
+                    var engineType = "";
+                    var htmlContent = "";
+
+                    try
+                    {
+                        var jsonDoc = System.Text.Json.JsonDocument.Parse(requestBody);
+                        if (jsonDoc.RootElement.TryGetProperty("appSite", out var appSiteElement))
+                        {
+                            appSite = appSiteElement.GetString() ?? "";
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("appView", out var appViewElement))
+                        {
+                            appView = appViewElement.GetString() ?? "";
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("engineType", out var engineTypeElement))
+                        {
+                            engineType = engineTypeElement.GetString() ?? "";
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("html", out var htmlElement))
+                        {
+                            htmlContent = htmlElement.GetString() ?? "";
+                        }
+                        Console.WriteLine($"[/api/save-output] Parsed: appSite={appSite}, appView={appView}, engineType={engineType}, htmlLength={htmlContent.Length}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[/api/save-output] JSON parse error: {ex.Message}");
+                        return Results.Text("Invalid JSON format", statusCode: 400);
+                    }
+
+                    if (string.IsNullOrEmpty(appSite) || string.IsNullOrEmpty(engineType) || string.IsNullOrEmpty(htmlContent))
+                    {
+                        Console.WriteLine($"[/api/save-output] Missing parameters: appSite={appSite}, engineType={engineType}, htmlLength={htmlContent.Length}");
+                        return Results.Text("Missing required parameters", statusCode: 400);
+                    }
+
+                    // Validate AppSite against allowlist
+                    var validAppSites = SecurityValidator.GetValidAppSites();
+                    if (!validAppSites.Contains(appSite))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid AppSite: {appSite}");
+                        return Results.Text("Invalid AppSite value", statusCode: 400);
+                    }
+
+                    // Validate engine type against allowlist
+                    if (!SecurityValidator.ValidEngineTypes.Contains(engineType))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid engineType: {engineType}");
+                        return Results.Text("Invalid engine type", statusCode: 400);
+                    }
+
+                    // Validate parameters (256 char limit, no path traversal)
+                    if (!SecurityValidator.IsValidPathComponent(appSite))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid AppSite path component: {appSite}");
+                        return Results.Text("Invalid AppSite parameter", statusCode: 400);
+                    }
+                    if (!string.IsNullOrEmpty(appView) && !SecurityValidator.IsValidPathComponent(appView))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid AppView path component: {appView}");
+                        return Results.Text("Invalid AppView parameter", statusCode: 400);
+                    }
+                    if (!SecurityValidator.IsValidPathComponent(engineType))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid engineType path component: {engineType}");
+                        return Results.Text("Invalid engineType parameter", statusCode: 400);
+                    }
+
+                    // Validate output size against template size + buffer
+                    var templateTotalSize = SecurityValidator.GetTemplateTotalSize(appSite, appView ?? "");
+                    var outputSize = System.Text.Encoding.UTF8.GetByteCount(htmlContent);
+                    var maxAllowedSize = templateTotalSize + SecurityValidator.OutputSizeBuffer;
+                    Console.WriteLine($"[/api/save-output] Size validation: output={outputSize:N0}, template={templateTotalSize:N0}, buffer={SecurityValidator.OutputSizeBuffer:N0}, max={maxAllowedSize:N0}");
+                    if (!SecurityValidator.IsValidOutputSizeWithBuffer(htmlContent, templateTotalSize))
+                    {
+                        var errorMsg = $"Save output failed: output size ({outputSize:N0} bytes) exceeds max size allowed ({maxAllowedSize:N0} bytes = template {templateTotalSize:N0} + buffer {SecurityValidator.OutputSizeBuffer:N0})";
+                        Console.WriteLine($"[/api/save-output] {errorMsg}");
+                        return Results.Text(errorMsg, statusCode: 400);
+                    }
+
+                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                    var outputDir = Path.Combine(projectDirectory, "template_analysis", "output");
+                    Directory.CreateDirectory(outputDir);
+
+                    var appViewSuffix = string.IsNullOrEmpty(appView) ? "" : $"_{appView}";
+                    var engineSuffix = engineType.ToLower();
+                    var outputFile = Path.Combine(outputDir, $"javascript_{appSite}{appViewSuffix}_{engineSuffix}.html");
+                    await File.WriteAllTextAsync(outputFile, htmlContent);
+                    Console.WriteLine($"[/api/save-output] Success! Output saved to: {outputFile}");
+
+                    var response = new TestResponse
+                    {
+                        Message = "Output saved successfully"
+                    };
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
                     return Results.Text($"Error: {ex.Message}", statusCode: 500);
                 }
             });
@@ -313,6 +489,23 @@ namespace AssemblerWebJs
                     };
 
                     var jsonResult = response.SerializeToJson();
+
+                    // Check if save query parameter is present
+                    var saveParam = context.Request.Query["save"].ToString();
+                    if (!string.IsNullOrEmpty(saveParam) && saveParam.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                        var templatesDir = Path.Combine(projectDirectory, "template_analysis", "templates");
+                        Directory.CreateDirectory(templatesDir);
+
+                        var saveFile = Path.Combine(templatesDir, $"csharp_{appSite}_templates.json");
+                        await File.WriteAllTextAsync(saveFile, jsonResult);
+
+                        // Save structure dump using TestingUtils logic, filter scenarios by appSite
+                        var allScenarios = Assembler.Config.ConfigUtil.GetScenarios();
+                        var filteredScenarios = Assembler.Config.ConfigUtil.FilterByAppSite(allScenarios, appSite);
+                        Assembler.Test.TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, filteredScenarios, true);
+                    }
 
                     return Results.Content(jsonResult, "application/json");
                 }
@@ -437,7 +630,7 @@ namespace AssemblerWebJs
                     {
                         Message = "Test results saved successfully"
                     };
-                    return Results.Json(response, SimpleJsonContext.Default.TestResponse);
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
                 }
                 catch (Exception ex)
                 {
@@ -518,270 +711,11 @@ namespace AssemblerWebJs
                     {
                         Message = "Performance results saved successfully"
                     };
-                    return Results.Json(response, SimpleJsonContext.Default.TestResponse);
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Error in /api/performance-results: {ex.Message}");
-                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
-                }
-            });
-
-            #endregion
-
-            #region Save Log Endpoint
-
-            app.MapPost("/api/save-log", async (HttpContext context) =>
-            {
-                try
-                {
-                    using var reader = new StreamReader(context.Request.Body);
-                    var requestBody = await reader.ReadToEndAsync();
-
-                    var contextName = "";
-                    var logContent = "";
-
-                    try
-                    {
-                        var jsonDoc = System.Text.Json.JsonDocument.Parse(requestBody);
-                        if (jsonDoc.RootElement.TryGetProperty("context", out var contextElement))
-                        {
-                            contextName = contextElement.GetString() ?? "";
-                        }
-                        if (jsonDoc.RootElement.TryGetProperty("content", out var contentElement))
-                        {
-                            logContent = contentElement.GetString() ?? "";
-                        }
-                    }
-                    catch
-                    {
-                        return Results.Text("Invalid JSON format", statusCode: 400);
-                    }
-
-                    if (string.IsNullOrEmpty(contextName) || string.IsNullOrEmpty(logContent))
-                        return Results.Text("Missing context or content parameter", statusCode: 400);
-
-                    // Validate context name parameter (256 char limit, no path traversal)
-                    if (!SecurityValidator.IsValidPathComponent(contextName))
-                        return Results.Text("Invalid context parameter", statusCode: 400);
-
-                    // Validate log content (size and format)
-                    if (!SecurityValidator.IsValidLogContent(logContent, out var logErrorMessage))
-                        return Results.Text(logErrorMessage ?? "Invalid log content", statusCode: 400);
-
-                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                    var logsDir = Path.Combine(projectDirectory, "template_analysis", "logs");
-                    Directory.CreateDirectory(logsDir);
-
-                    var logFile = Path.Combine(logsDir, $"javascript_{contextName.ToLower()}.log");
-                    await File.WriteAllTextAsync(logFile, logContent);
-
-                    var response = new TestResponse
-                    {
-                        Message = "Log saved successfully"
-                    };
-                    return Results.Json(response, SimpleJsonContext.Default.TestResponse);
-                }
-                catch (Exception ex)
-                {
-                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
-                }
-            });
-
-            #endregion
-
-            #region Save Output Endpoint
-
-            app.MapPost("/api/save-output", async (HttpContext context) =>
-            {
-                try
-                {
-                    Console.WriteLine($"[/api/save-output] Endpoint called");
-                    using var reader = new StreamReader(context.Request.Body);
-                    var requestBody = await reader.ReadToEndAsync();
-                    Console.WriteLine($"[/api/save-output] Request body length: {requestBody.Length}");
-
-                    var appSite = "";
-                    var appView = "";
-                    var engineType = "";
-                    var htmlContent = "";
-
-                    try
-                    {
-                        var jsonDoc = System.Text.Json.JsonDocument.Parse(requestBody);
-                        if (jsonDoc.RootElement.TryGetProperty("appSite", out var appSiteElement))
-                        {
-                            appSite = appSiteElement.GetString() ?? "";
-                        }
-                        if (jsonDoc.RootElement.TryGetProperty("appView", out var appViewElement))
-                        {
-                            appView = appViewElement.GetString() ?? "";
-                        }
-                        if (jsonDoc.RootElement.TryGetProperty("engineType", out var engineTypeElement))
-                        {
-                            engineType = engineTypeElement.GetString() ?? "";
-                        }
-                        if (jsonDoc.RootElement.TryGetProperty("html", out var htmlElement))
-                        {
-                            htmlContent = htmlElement.GetString() ?? "";
-                        }
-                        Console.WriteLine($"[/api/save-output] Parsed: appSite={appSite}, appView={appView}, engineType={engineType}, htmlLength={htmlContent.Length}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[/api/save-output] JSON parse error: {ex.Message}");
-                        return Results.Text("Invalid JSON format", statusCode: 400);
-                    }
-
-                    if (string.IsNullOrEmpty(appSite) || string.IsNullOrEmpty(engineType) || string.IsNullOrEmpty(htmlContent))
-                    {
-                        Console.WriteLine($"[/api/save-output] Missing parameters: appSite={appSite}, engineType={engineType}, htmlLength={htmlContent.Length}");
-                        return Results.Text("Missing required parameters", statusCode: 400);
-                    }
-
-                    // Validate AppSite against allowlist
-                    var validAppSites = SecurityValidator.GetValidAppSites();
-                    if (!validAppSites.Contains(appSite))
-                    {
-                        Console.WriteLine($"[/api/save-output] Invalid AppSite: {appSite}");
-                        return Results.Text("Invalid AppSite value", statusCode: 400);
-                    }
-
-                    // Validate engine type against allowlist
-                    if (!SecurityValidator.ValidEngineTypes.Contains(engineType))
-                    {
-                        Console.WriteLine($"[/api/save-output] Invalid engineType: {engineType}");
-                        return Results.Text("Invalid engine type", statusCode: 400);
-                    }
-
-                    // Validate parameters (256 char limit, no path traversal)
-                    if (!SecurityValidator.IsValidPathComponent(appSite))
-                    {
-                        Console.WriteLine($"[/api/save-output] Invalid AppSite path component: {appSite}");
-                        return Results.Text("Invalid AppSite parameter", statusCode: 400);
-                    }
-                    if (!string.IsNullOrEmpty(appView) && !SecurityValidator.IsValidPathComponent(appView))
-                    {
-                        Console.WriteLine($"[/api/save-output] Invalid AppView path component: {appView}");
-                        return Results.Text("Invalid AppView parameter", statusCode: 400);
-                    }
-                    if (!SecurityValidator.IsValidPathComponent(engineType))
-                    {
-                        Console.WriteLine($"[/api/save-output] Invalid engineType path component: {engineType}");
-                        return Results.Text("Invalid engineType parameter", statusCode: 400);
-                    }
-
-                    // Validate output size against template size + buffer
-                    var templateTotalSize = SecurityValidator.GetTemplateTotalSize(appSite, appView ?? "");
-                    var outputSize = System.Text.Encoding.UTF8.GetByteCount(htmlContent);
-                    var maxAllowedSize = templateTotalSize + SecurityValidator.OutputSizeBuffer;
-                    Console.WriteLine($"[/api/save-output] Size validation: output={outputSize:N0}, template={templateTotalSize:N0}, buffer={SecurityValidator.OutputSizeBuffer:N0}, max={maxAllowedSize:N0}");
-                    if (!SecurityValidator.IsValidOutputSizeWithBuffer(htmlContent, templateTotalSize))
-                    {
-                        var errorMsg = $"Save output failed: output size ({outputSize:N0} bytes) exceeds max size allowed ({maxAllowedSize:N0} bytes = template {templateTotalSize:N0} + buffer {SecurityValidator.OutputSizeBuffer:N0})";
-                        Console.WriteLine($"[/api/save-output] {errorMsg}");
-                        return Results.Text(errorMsg, statusCode: 400);
-                    }
-
-                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                    var outputDir = Path.Combine(projectDirectory, "template_analysis", "output");
-                    Directory.CreateDirectory(outputDir);
-
-                    var appViewSuffix = string.IsNullOrEmpty(appView) ? "" : $"_{appView}";
-                    var engineSuffix = engineType.ToLower();
-                    var outputFile = Path.Combine(outputDir, $"{appSite}{appViewSuffix}_{engineSuffix}.html");
-                    await File.WriteAllTextAsync(outputFile, htmlContent);
-                    Console.WriteLine($"[/api/save-output] Success! Output saved to: {outputFile}");
-
-                    var response = new TestResponse
-                    {
-                        Message = "Output saved successfully"
-                    };
-                    return Results.Json(response, SimpleJsonContext.Default.TestResponse);
-                }
-                catch (Exception ex)
-                {
-                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
-                }
-            });
-
-            #endregion
-
-
-
-            #region Get Report Endpoint
-
-            app.MapPost("/api/report", async (HttpContext context) =>
-            {
-                try
-                {
-                    using var reader = new StreamReader(context.Request.Body);
-                    var requestBody = await reader.ReadToEndAsync();
-
-                    var fileName = "";
-                    var useLangPrefix = false;
-                    var langPrefix = "";
-
-                    try
-                    {
-                        var jsonDoc = System.Text.Json.JsonDocument.Parse(requestBody);
-                        if (jsonDoc.RootElement.TryGetProperty("fileName", out var fileNameElement))
-                        {
-                            fileName = fileNameElement.GetString() ?? "";
-                        }
-                        if (jsonDoc.RootElement.TryGetProperty("useLangPrefix", out var useLangPrefixElement))
-                        {
-                            useLangPrefix = useLangPrefixElement.GetBoolean();
-                        }
-                        if (jsonDoc.RootElement.TryGetProperty("langPrefix", out var langPrefixElement))
-                        {
-                            langPrefix = langPrefixElement.GetString() ?? "";
-                        }
-                    }
-                    catch
-                    {
-                        return Results.Text("Invalid JSON format", statusCode: 400);
-                    }
-
-                    if (string.IsNullOrEmpty(fileName))
-                        return Results.Text("Missing required field: fileName", statusCode: 400);
-
-                    // Validate fileName for path traversal
-                    if (!SecurityValidator.IsValidPathComponent(fileName))
-                        return Results.Text("Invalid characters in fileName", statusCode: 400);
-
-                    // Validate langPrefix for path traversal if provided
-                    if (!string.IsNullOrEmpty(langPrefix) && !SecurityValidator.IsValidPathComponent(langPrefix))
-                        return Results.Text("Invalid characters in langPrefix", statusCode: 400);
-
-                    // Construct file path
-                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                    var prefix = useLangPrefix && !string.IsNullOrEmpty(langPrefix) ? langPrefix + "_" : "";
-                    var fullFileName = prefix + fileName;
-                    var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
-                    var filePath = Path.Combine(reportsDir, fullFileName);
-
-                    // Check if file exists
-                    if (!File.Exists(filePath))
-                        return Results.Text($"Report file not found: {fullFileName}", statusCode: 404);
-
-                    // Read and return the file content
-                    var content = await File.ReadAllTextAsync(filePath);
-
-                    // Determine content type based on file extension
-                    var contentType = "text/plain";
-                    var extension = Path.GetExtension(fullFileName).ToLower();
-                    if (extension == ".html")
-                        contentType = "text/html";
-                    else if (extension == ".json")
-                        contentType = "application/json";
-                    else if (extension == ".md")
-                        contentType = "text/markdown";
-
-                    return Results.Content(content, contentType);
-                }
-                catch (Exception ex)
-                {
                     return Results.Text($"Error: {ex.Message}", statusCode: 500);
                 }
             });
@@ -839,7 +773,7 @@ namespace AssemblerWebJs
                             Message = errorMsg
                         };
 
-                        return Results.Json(errorResponse, SimpleJsonContext.Default.TestResponse);
+                        return Results.Json(errorResponse, ResponseJsonContext.Default.TestResponse);
                     }
 
                     var appPerf = new Dictionary<string, Dictionary<string, (double? NormalTimeMs, double? PreProcessTimeMs, int? OutputSize, string? AppView)>>();
@@ -866,8 +800,8 @@ namespace AssemblerWebJs
                                 if (method == "POST")
                                 {
                                     File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Fetching {lang} via POST {url} (fileName: {fileName})\n");
-                                    var reportRequest = new ReportRequestDto { FileName = fileName, UseLangPrefix = false };
-                                    var requestBody = System.Text.Json.JsonSerializer.Serialize(reportRequest, SimpleJsonContext.Default.ReportRequestDto);
+                                    var reportRequest = new ReportRequest { FileName = fileName, UseLangPrefix = false };
+                                    var requestBody = System.Text.Json.JsonSerializer.Serialize(reportRequest, ResponseJsonContext.Default.ReportRequest);
                                     var content = new StringContent(requestBody, System.Text.Encoding.UTF8, "application/json");
                                     httpResponse = await httpClient.PostAsync(url, content);
                                 }
@@ -1111,7 +1045,86 @@ namespace AssemblerWebJs
                         Message = messageBuilder.ToString()
                     };
 
-                    return Results.Json(response, SimpleJsonContext.Default.TestResponse);
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+            });
+
+            #endregion
+
+            #region Get Report Endpoint
+
+            app.MapPost("/api/report", async (HttpContext context) =>
+            {
+                try
+                {
+                    using var reader = new StreamReader(context.Request.Body);
+                    var requestBody = await reader.ReadToEndAsync();
+
+                    var fileName = "";
+                    var useLangPrefix = false;
+                    var langPrefix = "";
+
+                    try
+                    {
+                        var jsonDoc = System.Text.Json.JsonDocument.Parse(requestBody);
+                        if (jsonDoc.RootElement.TryGetProperty("fileName", out var fileNameElement))
+                        {
+                            fileName = fileNameElement.GetString() ?? "";
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("useLangPrefix", out var useLangPrefixElement))
+                        {
+                            useLangPrefix = useLangPrefixElement.GetBoolean();
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("langPrefix", out var langPrefixElement))
+                        {
+                            langPrefix = langPrefixElement.GetString() ?? "";
+                        }
+                    }
+                    catch
+                    {
+                        return Results.Text("Invalid JSON format", statusCode: 400);
+                    }
+
+                    if (string.IsNullOrEmpty(fileName))
+                        return Results.Text("Missing required field: fileName", statusCode: 400);
+
+                    // Validate fileName for path traversal
+                    if (!SecurityValidator.IsValidPathComponent(fileName))
+                        return Results.Text("Invalid characters in fileName", statusCode: 400);
+
+                    // Validate langPrefix for path traversal if provided
+                    if (!string.IsNullOrEmpty(langPrefix) && !SecurityValidator.IsValidPathComponent(langPrefix))
+                        return Results.Text("Invalid characters in langPrefix", statusCode: 400);
+
+                    // Construct file path
+                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                    var prefix = useLangPrefix && !string.IsNullOrEmpty(langPrefix) ? langPrefix + "_" : "";
+                    var fullFileName = prefix + fileName;
+                    var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
+                    var filePath = Path.Combine(reportsDir, fullFileName);
+
+                    // Check if file exists
+                    if (!File.Exists(filePath))
+                        return Results.Text($"Report file not found: {fullFileName}", statusCode: 404);
+
+                    // Read and return the file content
+                    var content = await File.ReadAllTextAsync(filePath);
+
+                    // Determine content type based on file extension
+                    var contentType = "text/plain";
+                    var extension = Path.GetExtension(fullFileName).ToLower();
+                    if (extension == ".html")
+                        contentType = "text/html";
+                    else if (extension == ".json")
+                        contentType = "application/json";
+                    else if (extension == ".md")
+                        contentType = "text/markdown";
+
+                    return Results.Content(content, contentType);
                 }
                 catch (Exception ex)
                 {
@@ -1159,7 +1172,7 @@ namespace AssemblerWebJs
                     MergeRequest? input = null;
                     try
                     {
-                        input = System.Text.Json.JsonSerializer.Deserialize<MergeRequest>(requestBody, SimpleJsonContext.Default.MergeRequest);
+                        input = System.Text.Json.JsonSerializer.Deserialize<MergeRequest>(requestBody, ResponseJsonContext.Default.MergeRequest);
                     }
                     catch
                     {
@@ -1251,15 +1264,19 @@ namespace AssemblerWebJs
                     var serverEnd = DateTime.UtcNow;
                     var serverTimeMs = (serverEnd - serverStart).TotalMilliseconds;
 
-                    // Save HTML output to template_analysis/output folder (parent of wwwroot)
-                    var contentRoot = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                    var outputDir = Path.Combine(contentRoot, "template_analysis", "output");
-                    Directory.CreateDirectory(outputDir);
+                    // Save HTML output only if save query parameter is present
+                    var saveParam = context.Request.Query["save"].ToString();
+                    if (!string.IsNullOrEmpty(saveParam) && saveParam.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var contentRoot = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                        var outputDir = Path.Combine(contentRoot, "template_analysis", "output");
+                        Directory.CreateDirectory(outputDir);
 
-                    var appViewSuffix = string.IsNullOrEmpty(input.AppView) ? "" : $"_{input.AppView}";
-                    var engineSuffix = input.EngineType.ToLower();
-                    var outputFile = Path.Combine(outputDir, $"{input.AppSite}{appViewSuffix}_{engineSuffix}.html");
-                    await File.WriteAllTextAsync(outputFile, mergedHtml);
+                        var appViewSuffix = string.IsNullOrEmpty(input.AppView) ? "" : $"_{input.AppView}";
+                        var engineSuffix = input.EngineType.ToLower();
+                        var outputFile = Path.Combine(outputDir, $"{input.AppSite}{appViewSuffix}_{engineSuffix}.html");
+                        await File.WriteAllTextAsync(outputFile, mergedHtml);
+                    }
 
                     var responseObj = new ApiResponse
                     {
@@ -1345,7 +1362,7 @@ namespace AssemblerWebJs
                         Message = message
                     };
 
-                    return Results.Json(response, SimpleJsonContext.Default.TestResponse);
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
                 }
                 catch (Exception ex)
                 {
@@ -1423,7 +1440,7 @@ namespace AssemblerWebJs
                         Message = message
                     };
 
-                    return Results.Json(response, SimpleJsonContext.Default.TestResponse);
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
                 }
                 catch (Exception ex)
                 {
@@ -1478,7 +1495,7 @@ namespace AssemblerWebJs
                         Message = message
                     };
 
-                    return Results.Json(response, SimpleJsonContext.Default.TestResponse);
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
                 }
                 catch (Exception ex)
                 {

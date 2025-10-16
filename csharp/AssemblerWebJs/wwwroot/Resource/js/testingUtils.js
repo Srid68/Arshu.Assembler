@@ -201,8 +201,8 @@ class TestingUtils {
                 try {
                     console.log(`🔍 ADVANCED TEST : appsite: ${scenario.appSite} appfile: ${scenario.appFile}`);
 
-                    // Load templates for this scenario
-                    const response = await fetch('/api/templates', {
+                    // Load templates for this scenario with save flag
+                    const response = await fetch(`/api/templates?save=true`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'

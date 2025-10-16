@@ -347,7 +347,7 @@ public class Program
         // Add services to the container.
         builder.Services.ConfigureHttpJsonOptions(options =>
         {
-            options.SerializerOptions.TypeInfoResolverChain.Insert(0, SimpleJsonContext.Default);
+            options.SerializerOptions.TypeInfoResolverChain.Insert(0, ResponseJsonContext.Default);
         });
 
         var app = builder.Build();

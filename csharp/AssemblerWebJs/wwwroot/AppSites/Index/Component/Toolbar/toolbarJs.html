@@ -60,8 +60,8 @@ function displayTemplateDetails(templates, engineType) {
 console.log('[WRAPPER] Defining handleScenarioChange wrapper function');
 function handleScenarioChange() {
     console.log('[WRAPPER] handleScenarioChange wrapper called');
-    const useClientMerge = document.getElementById('use-client-merge');
-    const isClientMode = useClientMerge && useClientMerge.checked;
+    const clientModeRadio = document.getElementById('merge-mode-client');
+    const isClientMode = clientModeRadio && clientModeRadio.checked;
     const hasServerFunction = typeof handleScenarioChangeServer === 'function';
     const hasClientFunction = typeof handleScenarioChangeClient === 'function';
 
@@ -230,33 +230,38 @@ document.addEventListener('DOMContentLoaded', function() {
         showTemplatesCheckbox.addEventListener('change', updateTemplateVisibility);
     }
 
-    // Client/Server merge toggle
-    const useClientMergeCheckbox = document.getElementById('use-client-merge');
-    const mergeModeLabel = document.getElementById('merge-mode-label');
-    if (useClientMergeCheckbox && mergeModeLabel) {
-        // Update label text based on checkbox state
-        function updateMergeModeLabel() {
-            mergeModeLabel.textContent = useClientMergeCheckbox.checked ?
-                'Client-Side Merging' : 'Server-Side Merging';
-        }
-
+    // Client/Server merge toggle with radio buttons
+    const serverModeRadio = document.getElementById('merge-mode-server');
+    const clientModeRadio = document.getElementById('merge-mode-client');
+    if (serverModeRadio && clientModeRadio) {
         // Set default mode from data attribute
-        const defaultMode = useClientMergeCheckbox.dataset.defaultMode;
+        const defaultMode = serverModeRadio.dataset.defaultMode;
         if (defaultMode === 'Client') {
-            useClientMergeCheckbox.checked = true;
+            clientModeRadio.checked = true;
+        } else {
+            serverModeRadio.checked = true;
         }
 
-        useClientMergeCheckbox.addEventListener('change', function() {
-            updateMergeModeLabel();
-            const select = document.getElementById('test-select');
-            if (select && select.value) {
-                // Reload the current scenario with the new merge method
-                handleScenarioChange();
+        // Add change event listeners to both radio buttons
+        serverModeRadio.addEventListener('change', function() {
+            if (this.checked) {
+                const select = document.getElementById('test-select');
+                if (select && select.value) {
+                    // Reload the current scenario with server-side merge
+                    handleScenarioChange();
+                }
             }
         });
 
-        // Initialize label on page load
-        updateMergeModeLabel();
+        clientModeRadio.addEventListener('change', function() {
+            if (this.checked) {
+                const select = document.getElementById('test-select');
+                if (select && select.value) {
+                    // Reload the current scenario with client-side merge
+                    handleScenarioChange();
+                }
+            }
+        });
     }
 
     // Refresh button
