@@ -40,7 +40,15 @@ pub struct ApiResponse {
 
 impl ApiResponse {
 
-    pub fn serialize_to_json(&self) -> String {
+    pub fn serialize_to_json(&self, indented: bool) -> String {
+        if indented {
+            self.serialize_to_json_pretty()
+        } else {
+            self.serialize_to_json_compact()
+        }
+    }
+
+    fn serialize_to_json_compact(&self) -> String {
         let mut sb = String::new();
         sb.push('{');
         sb.push_str("\"Templates\":");
@@ -71,7 +79,14 @@ impl ApiResponse {
             s.push_str(&Self::serialize_vec(&v.slotted_templates, Self::serialize_slotted_template));
             s.push_str(",\"JsonData\":");
             if let Some(ref json_data) = v.json_data {
-                s.push_str(&format!("\"{}\"", Self::escape_json_string(json_data)));
+                // Safely serialize JsonData - if it's already a JSON string, don't double-escape
+                if json_data.starts_with('{') || json_data.starts_with('[') {
+                    // Appears to be JSON already, include as-is
+                    s.push_str(json_data);
+                } else {
+                    // Treat as string value
+                    s.push_str(&format!("\"{}\"", Self::escape_json_string(json_data)));
+                }
             } else {
                 s.push_str("null");
             }
@@ -102,6 +117,105 @@ impl ApiResponse {
         sb.push('}');
         sb
     }
+
+    fn serialize_to_json_pretty(&self) -> String {
+        let mut sb = String::new();
+        sb.push_str("{\n  ");
+        sb.push_str("\"Templates\": ");
+        sb.push_str(&Self::serialize_dictionary_pretty(&self.templates, 1, |v, indent| {
+            Self::serialize_template_data_pretty(v, indent)
+        }));
+        sb.push_str(",\n  ");
+        sb.push_str("\"PreProcessTemplates\": ");
+        sb.push_str(&Self::serialize_dictionary_pretty(&self.pre_process_templates, 1, |v, indent| {
+            Self::serialize_preprocess_metadata_pretty(v, indent)
+        }));
+        sb.push_str(",\n  ");
+        sb.push_str(&format!("\"AppSite\": \"{}\"", Self::escape_json_string(&self.app_site)));
+        if let Some(ref app_file) = self.app_file {
+            sb.push_str(",\n  ");
+            sb.push_str(&format!("\"AppFile\": \"{}\"", Self::escape_json_string(app_file)));
+        }
+        if let Some(ref app_view) = self.app_view {
+            sb.push_str(",\n  ");
+            sb.push_str(&format!("\"AppView\": \"{}\"", Self::escape_json_string(app_view)));
+        }
+        sb.push_str(",\n  ");
+        sb.push_str(&format!("\"ServerTimeMs\": {}", self.server_time_ms));
+        sb.push_str(",\n  ");
+        sb.push_str(&format!("\"Html\": \"{}\"", Self::escape_html_string(&self.html)));
+        sb.push_str(",\n  ");
+        sb.push_str(&format!("\"EngineTimeMs\": {}", self.engine_time_ms));
+        sb.push_str("\n}");
+        sb
+    }
+
+    fn serialize_template_data_pretty(data: &TemplateData, indent: usize) -> String {
+        let indent_str = "  ".repeat(indent);
+        let mut s = String::new();
+        s.push_str("{\n");
+        s.push_str(&format!("{}  \"Html\": \"{}\"", indent_str, Self::escape_json_string(&data.html)));
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"Json\": ", indent_str));
+        if let Some(ref json) = data.json {
+            s.push('"');
+            s.push_str(&Self::escape_json_string(json));
+            s.push('"');
+        } else {
+            s.push_str("null");
+        }
+        s.push('\n');
+        s.push_str(&indent_str);
+        s.push('}');
+        s
+    }
+
+    fn serialize_preprocess_metadata_pretty(metadata: &PreProcessTemplateMetadata, indent: usize) -> String {
+        let indent_str = "  ".repeat(indent);
+        let mut s = String::new();
+        s.push_str("{\n");
+        s.push_str(&format!("{}  \"OriginalContent\": \"{}\"", indent_str, Self::escape_html_string(&metadata.original_content)));
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"Placeholders\": ", indent_str));
+        s.push_str(&Self::serialize_vec_pretty(&metadata.placeholders, indent + 1, Self::serialize_placeholder_pretty_inline));
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"SlottedTemplates\": ", indent_str));
+        s.push_str(&Self::serialize_vec_pretty(&metadata.slotted_templates, indent + 1, Self::serialize_slotted_template_pretty_inline));
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"JsonData\": ", indent_str));
+        if let Some(ref json_data) = metadata.json_data {
+            if json_data.starts_with('{') || json_data.starts_with('[') {
+                s.push_str(json_data);
+            } else {
+                s.push_str(&format!("\"{}\"", Self::escape_json_string(json_data)));
+            }
+        } else {
+            s.push_str("null");
+        }
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"JsonPlaceholders\": ", indent_str));
+        s.push_str(&Self::serialize_vec_pretty(&metadata.json_placeholders, indent + 1, Self::serialize_json_placeholder_pretty_inline));
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"ReplacementMappings\": ", indent_str));
+        s.push_str(&Self::serialize_vec_pretty(&metadata.replacement_mappings, indent + 1, Self::serialize_replacement_mapping_pretty_inline));
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"HasPlaceholders\": {}", indent_str, metadata.has_placeholders));
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"HasSlottedTemplates\": {}", indent_str, metadata.has_slotted_templates));
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"HasJsonData\": {}", indent_str, metadata.has_json_data));
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"HasJsonPlaceholders\": {}", indent_str, metadata.has_json_placeholders));
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"HasReplacementMappings\": {}", indent_str, metadata.has_replacement_mappings));
+        s.push_str(",\n");
+        s.push_str(&format!("{}  \"RequiresProcessing\": {}", indent_str, metadata.requires_processing));
+        s.push('\n');
+        s.push_str(&indent_str);
+        s.push('}');
+        s
+    }
+
 
     fn escape_html_string(input: &str) -> String {
         input.replace("\\", "\\\\")
@@ -140,6 +254,25 @@ impl ApiResponse {
         sb
     }
 
+    fn serialize_dictionary_pretty<T, F>(dict: &HashMap<String, T>, indent: usize, value_serializer: F) -> String
+    where F: Fn(&T, usize) -> String {
+        let mut sb = String::new();
+        let indent_str = "  ".repeat(indent);
+        sb.push_str("{\n");
+        let mut first = true;
+        for (key, value) in dict {
+            if !first { 
+                sb.push_str(",\n"); 
+            }
+            sb.push_str(&format!("{}  \"{}\": {}", indent_str, Self::escape_json_string(key), value_serializer(value, indent + 1)));
+            first = false;
+        }
+        sb.push('\n');
+        sb.push_str(&indent_str);
+        sb.push('}');
+        sb
+    }
+
     fn serialize_vec<T, F>(vec: &Vec<T>, value_serializer: F) -> String
     where F: Fn(&T) -> String {
         let mut sb = String::new();
@@ -153,6 +286,157 @@ impl ApiResponse {
         sb.push(']');
         sb
     }
+
+    fn serialize_vec_pretty<T, F>(vec: &Vec<T>, indent: usize, value_serializer: F) -> String
+    where F: Fn(&T, usize) -> String {
+        let mut sb = String::new();
+        let indent_str = "  ".repeat(indent);
+        sb.push('[');
+        if !vec.is_empty() {
+            sb.push('\n');
+        }
+        let mut first = true;
+        for item in vec {
+            if !first { 
+                sb.push_str(",\n"); 
+            }
+            sb.push_str(&format!("{}  {}", indent_str, value_serializer(item, indent + 1)));
+            first = false;
+        }
+        if !vec.is_empty() {
+            sb.push('\n');
+            sb.push_str(&indent_str);
+        }
+        sb.push(']');
+        sb
+    }
+
+    fn serialize_placeholder_pretty_inline(ph: &TemplatePlaceholder, indent: usize) -> String {
+        let indent_str = "  ".repeat(indent);
+        let mut sb = String::new();
+        sb.push_str("{\n");
+        sb.push_str(&format!("{}  \"Name\": \"{}\"", indent_str, Self::escape_json_string(&ph.name)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"StartIndex\": {}", indent_str, ph.start_index));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"EndIndex\": {}", indent_str, ph.end_index));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"FullMatch\": \"{}\"", indent_str, Self::escape_json_string(&ph.full_match)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"TemplateKey\": \"{}\"", indent_str, Self::escape_json_string(&ph.template_key)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"JsonData\": ", indent_str));
+        if let Some(ref json_data) = ph.json_data {
+            sb.push_str(&format!("\"{}\"", Self::escape_json_string(&format!("{:?}", json_data))));
+        } else {
+            sb.push_str("null");
+        }
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"NestedPlaceholders\": ", indent_str));
+        sb.push_str(&Self::serialize_vec_pretty(&ph.nested_placeholders, indent + 1, Self::serialize_placeholder_pretty_inline));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"NestedSlots\": ", indent_str));
+        sb.push_str(&Self::serialize_vec_pretty(&ph.nested_slots, indent + 1, Self::serialize_slot_placeholder_pretty_inline));
+        sb.push('\n');
+        sb.push_str(&indent_str);
+        sb.push('}');
+        sb
+    }
+
+    fn serialize_slot_placeholder_pretty_inline(slot: &SlotPlaceholder, indent: usize) -> String {
+        let indent_str = "  ".repeat(indent);
+        let mut sb = String::new();
+        sb.push_str("{\n");
+        sb.push_str(&format!("{}  \"Number\": \"{}\"", indent_str, Self::escape_json_string(&slot.number)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"StartIndex\": {}", indent_str, slot.start_index));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"EndIndex\": {}", indent_str, slot.end_index));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"Content\": \"{}\"", indent_str, Self::escape_json_string(&slot.content)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"SlotKey\": \"{}\"", indent_str, Self::escape_json_string(&slot.slot_key)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"OpenTag\": \"{}\"", indent_str, Self::escape_json_string(&slot.open_tag)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"CloseTag\": \"{}\"", indent_str, Self::escape_json_string(&slot.close_tag)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"NestedSlots\": ", indent_str));
+        sb.push_str(&Self::serialize_vec_pretty(&slot.nested_slots, indent + 1, Self::serialize_slot_placeholder_pretty_inline));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"NestedPlaceholders\": ", indent_str));
+        sb.push_str(&Self::serialize_vec_pretty(&slot.nested_placeholders, indent + 1, Self::serialize_placeholder_pretty_inline));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"NestedSlottedTemplates\": ", indent_str));
+        sb.push_str(&Self::serialize_vec_pretty(&slot.nested_slotted_templates, indent + 1, Self::serialize_slotted_template_pretty_inline));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"HasNestedPlaceholders\": {}", indent_str, slot.has_nested_placeholders));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"HasNestedSlottedTemplates\": {}", indent_str, slot.has_nested_slotted_templates));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"RequiresNestedProcessing\": {}", indent_str, slot.requires_nested_processing));
+        sb.push('\n');
+        sb.push_str(&indent_str);
+        sb.push('}');
+        sb
+    }
+
+    fn serialize_slotted_template_pretty_inline(st: &SlottedTemplate, indent: usize) -> String {
+        let indent_str = "  ".repeat(indent);
+        let mut sb = String::new();
+        sb.push_str("{\n");
+        sb.push_str(&format!("{}  \"Name\": \"{}\"", indent_str, Self::escape_json_string(&st.name)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"StartIndex\": {}", indent_str, st.start_index));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"EndIndex\": {}", indent_str, st.end_index));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"FullMatch\": \"{}\"", indent_str, Self::escape_json_string(&st.full_match)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"TemplateKey\": \"{}\"", indent_str, Self::escape_json_string(&st.template_key)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"Slots\": ", indent_str));
+        sb.push_str(&Self::serialize_vec_pretty(&st.slots, indent + 1, Self::serialize_slot_placeholder_pretty_inline));
+        sb.push('\n');
+        sb.push_str(&indent_str);
+        sb.push('}');
+        sb
+    }
+
+    fn serialize_json_placeholder_pretty_inline(jp: &JsonPlaceholder, indent: usize) -> String {
+        let indent_str = "  ".repeat(indent);
+        let mut sb = String::new();
+        sb.push_str("{\n");
+        sb.push_str(&format!("{}  \"Key\": \"{}\"", indent_str, Self::escape_json_string(&jp.key)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"Placeholder\": \"{}\"", indent_str, Self::escape_json_string(&jp.placeholder)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"Value\": \"{}\"", indent_str, Self::escape_json_string(&jp.value)));
+        sb.push('\n');
+        sb.push_str(&indent_str);
+        sb.push('}');
+        sb
+    }
+
+    fn serialize_replacement_mapping_pretty_inline(rm: &ReplacementMapping, indent: usize) -> String {
+        let indent_str = "  ".repeat(indent);
+        let mut sb = String::new();
+        sb.push_str("{\n");
+        sb.push_str(&format!("{}  \"StartIndex\": {}", indent_str, rm.start_index));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"EndIndex\": {}", indent_str, rm.end_index));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"OriginalText\": \"{}\"", indent_str, Self::escape_html_string(&rm.original_text)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"ReplacementText\": \"{}\"", indent_str, Self::escape_html_string(&rm.replacement_text)));
+        sb.push_str(",\n");
+        sb.push_str(&format!("{}  \"Type\": {}", indent_str, rm.r#type as u32));
+        sb.push('\n');
+        sb.push_str(&indent_str);
+        sb.push('}');
+        sb
+    }
+
 
     fn serialize_placeholder(ph: &TemplatePlaceholder) -> String {
         let mut sb = String::new();

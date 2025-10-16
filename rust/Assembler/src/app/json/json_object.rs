@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -89,13 +89,13 @@ impl JsonValue {
 /// This provides a standard interface that matches the C# JsonObject implementation
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JsonObject {
-    data: HashMap<String, JsonValue>,
+    data: IndexMap<String, JsonValue>,
 }
 
 impl JsonObject {
     pub fn new() -> Self {
         Self {
-            data: HashMap::new(),
+            data: IndexMap::new(),
         }
     }
 
@@ -191,7 +191,7 @@ impl JsonObject {
 
     /// Removes a key-value pair and returns the value if it existed
     pub fn remove(&mut self, key: &str) -> Option<JsonValue> {
-        self.data.remove(key)
+        self.data.shift_remove(key)
     }
 
     /// Clears all key-value pairs
@@ -199,8 +199,8 @@ impl JsonObject {
         self.data.clear();
     }
 
-    /// Returns a reference to the internal HashMap for compatibility
-    pub fn as_object(&self) -> Option<&HashMap<String, JsonValue>> {
+    /// Returns a reference to the internal IndexMap for compatibility
+    pub fn as_object(&self) -> Option<&IndexMap<String, JsonValue>> {
         Some(&self.data)
     }
 }

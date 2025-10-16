@@ -118,6 +118,66 @@ impl JsonConverter {
         serde_json::to_string(obj).unwrap_or_else(|_| "{}".to_string())
     }
 
+    /// Manually serialize JsonObject to JSON string
+    /// Matches C# JsonConverter.SerializeObject behavior
+    pub fn serialize_object(json_object: &JsonObject) -> String {
+        Self::serialize_json_object_internal(json_object)
+    }
+
+    /// Internal method to serialize JsonObject to JSON string
+    fn serialize_json_object_internal(json_object: &JsonObject) -> String {
+        let mut result = String::from("{");
+        let mut first = true;
+
+        for (key, value) in json_object.iter() {
+            if !first {
+                result.push(',');
+            }
+            first = false;
+
+            result.push('"');
+            result.push_str(&Self::escape_json_string(key));
+            result.push_str("\":");
+            result.push_str(&Self::serialize_json_value_internal(value));
+        }
+
+        result.push('}');
+        result
+    }
+
+    /// Serialize JsonValue to JSON string manually
+    fn serialize_json_value_internal(value: &JsonValue) -> String {
+        match value {
+            JsonValue::String(s) => format!("\"{}\"", Self::escape_json_string(s)),
+            JsonValue::Number(n) => n.to_string(),
+            JsonValue::Integer(i) => i.to_string(),
+            JsonValue::Bool(b) => b.to_string(),
+            JsonValue::Array(arr) => {
+                let mut result = String::from("[");
+                let mut first = true;
+                for item in arr.iter() {
+                    if !first {
+                        result.push(',');
+                    }
+                    first = false;
+                    result.push_str(&Self::serialize_json_value_internal(item));
+                }
+                result.push(']');
+                result
+            }
+            JsonValue::Object(obj) => Self::serialize_json_object_internal(obj),
+            JsonValue::Null => "null".to_string(),
+        }
+    }
+
+    /// Escape JSON string following C# JsonConverter pattern
+    fn escape_json_string(s: &str) -> String {
+        s.replace('\\', "\\\\")
+            .replace('"', "\\u0022")
+            .replace('\r', "\\r")
+            .replace('\n', "\\n")
+            .replace('\t', "\\t")
+    }
 
     /// Creates a JSON value from basic types
     pub fn create_json_value(value: Value) -> Value {

@@ -51,8 +51,11 @@ impl Serialize for PerfSummaryRow {
         state.serialize_field("PerfDifference", &self.perf_difference)?;
         state.serialize_field("ScenarioTotalTimeMs", &self.scenario_total_time_ms)?;
         state.serialize_field("ElapsedTimeMs", &self.elapsed_time_ms)?;
-        state.serialize_field("NormalTimeMs", &format!("{:.2}", self.normal_time_ms()))?;
-        state.serialize_field("PreProcessTimeMs", &format!("{:.2}", self.preprocess_time_ms()))?;
+    // Serialize numeric ms fields as numbers (rounded to 2 decimals) so other tools can parse them as numbers
+    let normal_ms = (self.normal_time_ms() * 100.0).round() / 100.0;
+    let preprocess_ms = (self.preprocess_time_ms() * 100.0).round() / 100.0;
+    state.serialize_field("NormalTimeMs", &normal_ms)?;
+    state.serialize_field("PreProcessTimeMs", &preprocess_ms)?;
         state.end()
     }
 }
