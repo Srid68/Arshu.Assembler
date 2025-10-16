@@ -26,6 +26,7 @@ pub struct MergeRequest {
 pub struct ReportRequest {
     pub file_name: Option<String>,
     pub use_lang_prefix: Option<bool>,
+    pub lang_prefix: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, utoipa::ToSchema)]
@@ -903,10 +904,21 @@ pub async fn get_report(req: web::Json<ReportRequest>, project_dir: web::Data<st
         return HttpResponse::BadRequest().body("Invalid characters in fileName");
     }
 
+    // Validate langPrefix for path traversal if provided
+    if let Some(ref lang_prefix) = req.lang_prefix {
+        if !security_validator::is_valid_path_component(Some(lang_prefix)) {
+            return HttpResponse::BadRequest().body("Invalid characters in langPrefix");
+        }
+    }
+
     // Apply language prefix if requested
     let use_lang_prefix = req.use_lang_prefix.unwrap_or(false);
     let final_file_name = if use_lang_prefix {
-        format!("rust_{}", file_name)
+        if let Some(ref lang_prefix) = req.lang_prefix {
+            format!("{}_{}", lang_prefix, file_name)
+        } else {
+            file_name.clone()
+        }
     } else {
         file_name.clone()
     };

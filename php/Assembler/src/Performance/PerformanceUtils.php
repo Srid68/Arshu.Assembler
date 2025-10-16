@@ -14,6 +14,8 @@ class PerfSummaryRow
     public ?string $AppFile;
     public ?string $AppView;
     public int $Iterations;
+    public int $NormalTimeNanos;
+    public int $PreProcessTimeNanos;
     public float $NormalTimeMs;
     public float $PreProcessTimeMs;
     public int $OutputSize;
@@ -22,12 +24,14 @@ class PerfSummaryRow
     public int $ScenarioTotalTimeMs;
     public int $ElapsedTimeMs;
 
-    public function __construct(?string $appSite = null, ?string $appFile = null, ?string $appView = null, int $iterations = 0, float $normalTimeMs = 0.0, float $preProcessTimeMs = 0.0, int $outputSize = 0, ?string $resultsMatch = null, ?string $perfDifference = null, int $scenarioTotalTimeMs = 0, int $elapsedTimeMs = 0)
+    public function __construct(?string $appSite = null, ?string $appFile = null, ?string $appView = null, int $iterations = 0, int $normalTimeNanos = 0, int $preProcessTimeNanos = 0, float $normalTimeMs = 0.0, float $preProcessTimeMs = 0.0, int $outputSize = 0, ?string $resultsMatch = null, ?string $perfDifference = null, int $scenarioTotalTimeMs = 0, int $elapsedTimeMs = 0)
     {
         $this->AppSite = $appSite;
         $this->AppFile = $appFile;
         $this->AppView = $appView;
         $this->Iterations = $iterations;
+        $this->NormalTimeNanos = $normalTimeNanos;
+        $this->PreProcessTimeNanos = $preProcessTimeNanos;
         $this->NormalTimeMs = $normalTimeMs;
         $this->PreProcessTimeMs = $preProcessTimeMs;
         $this->OutputSize = $outputSize;
@@ -99,12 +103,13 @@ class PerformanceUtils
                 $normalEngine->mergeTemplates($testAppSite, $appFileName, $appView, $templates, $enableJsonProcessing);
             }
 
-            $start = microtime(true);
+            $start = hrtime(true);
             $resultNormal = '';
             for ($i = 0; $i < $iterations; $i++) {
                 $resultNormal = $normalEngine->mergeTemplates($testAppSite, $appFileName, $appView, $templates, $enableJsonProcessing);
             }
-            $normalTime = round((microtime(true) - $start) * 1000, 2);
+            $normalTimeNanos = hrtime(true) - $start;
+            $normalTime = round($normalTimeNanos / 1_000_000, 2);
 
             if (!$skipDetails) {
                 $avg = $normalTime / $iterations;
@@ -121,12 +126,13 @@ class PerformanceUtils
                 $preProcessEngine->mergeTemplates($testAppSite, $appFileName, $appView, $siteTemplates->templates, $enableJsonProcessing);
             }
 
-            $start = microtime(true);
+            $start = hrtime(true);
             $resultPreProcess = '';
             for ($i = 0; $i < $iterations; $i++) {
                 $resultPreProcess = $preProcessEngine->mergeTemplates($testAppSite, $appFileName, $appView, $siteTemplates->templates, $enableJsonProcessing);
             }
-            $preProcessTime = round((microtime(true) - $start) * 1000, 2);
+            $preProcessTimeNanos = hrtime(true) - $start;
+            $preProcessTime = round($preProcessTimeNanos / 1_000_000, 2);
 
             if (!$skipDetails) {
                 $avg = $preProcessTime / $iterations;
@@ -152,6 +158,8 @@ class PerformanceUtils
                 $appFileName,
                 $appView,
                 $iterations,
+                $normalTimeNanos,
+                $preProcessTimeNanos,
                 $normalTime,
                 $preProcessTime,
                 CommonUtil::utf16Len($resultNormal),
@@ -246,17 +254,35 @@ class PerformanceUtils
                 mkdir($reportsDir, 0755, true);
             }
 
-            $html = '<html><head><title>PHP Performance Summary Table</title><style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>';
-            $html .= '<h2>PHP Performance Summary Table</h2>';
-            $html .= '<div class="meta">Generated: ' . gmdate('Y-m-d H:i:s') . ' UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>';
-            $html .= '<table>';
-            $html .= '<tr>';
-            foreach ($headers as $h) {
-                $html .= "<th>{$h}</th>";
-            }
-            $html .= '</tr>';
+            $html = "<!DOCTYPE html>\n";
+            $html .= "<html>\n";
+            $html .= "<head>\n";
+            $html .= "    <meta charset=\"UTF-8\">\n";
+            $html .= "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
+            $html .= "    <title>PHP Performance Summary Table</title>\n";
+            $html .= "    <style>\n";
+            $html .= "        body { font-family: Arial, sans-serif; margin: 20px; }\n";
+            $html .= "        h2 { color: #333; }\n";
+            $html .= "        .table-container { overflow-x: auto; }\n";
+            $html .= "        table { border-collapse: collapse; width: 100%; min-width: 600px; }\n";
+            $html .= "        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n";
+            $html .= "        th { background-color: #4CAF50; color: white; }\n";
+            $html .= "        tr:nth-child(even) { background-color: #f2f2f2; }\n";
+            $html .= "        @media (max-width: 768px) {\n";
+            $html .= "            body { margin: 10px; }\n";
+            $html .= "            th, td { padding: 8px; font-size: 14px; }\n";
+            $html .= "            h2 { font-size: 20px; }\n";
+            $html .= "        }\n";
+            $html .= "    </style>\n";
+            $html .= "</head>\n";
+            $html .= "<body>\n";
+            $html .= "    <h2>PHP Performance Summary Table</h2>\n";
+            $html .= "    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: " . gmdate('Y-m-d H:i:s') . " UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n";
+            $html .= "    <div class=\"table-container\">\n";
+            $html .= "    <table>\n";
+            $html .= "        <tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>\n";
             foreach ($summaryRows as $row) {
-                $html .= '<tr>';
+                $html .= "        <tr>";
                 $html .= "<td>{$row->AppSite}</td>";
                 $html .= "<td>{$row->AppView}</td>";
                 $html .= "<td>" . number_format($row->NormalTimeMs, 2) . "</td>";
@@ -265,9 +291,12 @@ class PerformanceUtils
                 $html .= "<td>{$row->PerfDifference}</td>";
                 $html .= "<td>{$row->ScenarioTotalTimeMs}</td>";
                 $html .= "<td>{$row->ElapsedTimeMs}</td>";
-                $html .= '</tr>';
+                $html .= "</tr>\n";
             }
-            $html .= '</table></body></html>';
+            $html .= "    </table>\n";
+            $html .= "    </div>\n";
+            $html .= "</body>\n";
+            $html .= "</html>";
 
             $outFile = $reportsDir . DIRECTORY_SEPARATOR . 'php_perfsummary.html';
             file_put_contents($outFile, $html);
@@ -290,6 +319,8 @@ class PerformanceUtils
                     'AppFile' => $row->AppFile,
                     'AppView' => $row->AppView,
                     'Iterations' => $row->Iterations,
+                    'NormalTimeNanos' => $row->NormalTimeNanos,
+                    'PreProcessTimeNanos' => $row->PreProcessTimeNanos,
                     'NormalTimeMs' => round($row->NormalTimeMs, 2),
                     'PreProcessTimeMs' => round($row->PreProcessTimeMs, 2),
                     'OutputSize' => $row->OutputSize,

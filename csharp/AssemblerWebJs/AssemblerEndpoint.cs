@@ -3,15 +3,20 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Assembler.Api;
+using Assembler.Common;
 using Assembler.Config;
+using Assembler.Engine;
 using Assembler.Loader;
+using Assembler.Performance;
+using Assembler.Test;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json.Serialization;
-using Assembler.Engine;
 
 namespace AssemblerWebJs
 {
@@ -52,11 +57,24 @@ namespace AssemblerWebJs
         public int OutputSize { get; set; }
         public string ResultsMatch { get; set; } = string.Empty;
         public string PerfDifference { get; set; } = string.Empty;
+        public int ScenarioTotalTimeMs { get; set; }
+        public int ElapsedTimeMs { get; set; }
     }
 
     public class TestResponse
     {
+        [JsonPropertyName("message")]
         public string Message { get; set; } = string.Empty;
+    }
+
+    public class MergeRequest
+    {
+        [JsonPropertyName("appSite")]
+        public string? AppSite { get; set; }
+        [JsonPropertyName("appView")]
+        public string? AppView { get; set; }
+        [JsonPropertyName("engineType")]
+        public string? EngineType { get; set; }
     }
 
     public class ReportRequestDto
@@ -77,6 +95,7 @@ namespace AssemblerWebJs
     [JsonSerializable(typeof(List<PerfSummaryRowDto>))]
     [JsonSerializable(typeof(PerfSummaryRowDto[]))]
     [JsonSerializable(typeof(TestResponse))]
+    [JsonSerializable(typeof(MergeRequest))]
     [JsonSerializable(typeof(ReportRequestDto))]
     [JsonSerializable(typeof(string))]
     [JsonSerializable(typeof(object))]
@@ -465,9 +484,9 @@ namespace AssemblerWebJs
                     html.AppendLine("<html><head><title>Client-Side Performance Summary Table</title>");
                     html.AppendLine("<style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>");
                     html.AppendLine("<h2>Client-Side JavaScript PERFORMANCE SUMMARY TABLE</h2>");
-                    html.AppendLine($"<div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | All times in milliseconds (ms)</div>");
+                    html.AppendLine($"<div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>");
                     html.AppendLine("<table>");
-                    html.AppendLine("<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th></tr>");
+                    html.AppendLine("<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>");
 
                     foreach (var row in summaryRows)
                     {
@@ -478,6 +497,8 @@ namespace AssemblerWebJs
                         html.AppendLine($"<td>{row.PreProcessTimeMs:F2}</td>");
                         html.AppendLine($"<td>{row.ResultsMatch}</td>");
                         html.AppendLine($"<td>{row.PerfDifference}</td>");
+                        html.AppendLine($"<td>{row.ScenarioTotalTimeMs}</td>");
+                        html.AppendLine($"<td>{row.ElapsedTimeMs}</td>");
                         html.AppendLine("</tr>");
                     }
 
@@ -575,8 +596,10 @@ namespace AssemblerWebJs
             {
                 try
                 {
+                    Console.WriteLine($"[/api/save-output] Endpoint called");
                     using var reader = new StreamReader(context.Request.Body);
                     var requestBody = await reader.ReadToEndAsync();
+                    Console.WriteLine($"[/api/save-output] Request body length: {requestBody.Length}");
 
                     var appSite = "";
                     var appView = "";
@@ -602,36 +625,63 @@ namespace AssemblerWebJs
                         {
                             htmlContent = htmlElement.GetString() ?? "";
                         }
+                        Console.WriteLine($"[/api/save-output] Parsed: appSite={appSite}, appView={appView}, engineType={engineType}, htmlLength={htmlContent.Length}");
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Console.WriteLine($"[/api/save-output] JSON parse error: {ex.Message}");
                         return Results.Text("Invalid JSON format", statusCode: 400);
                     }
 
                     if (string.IsNullOrEmpty(appSite) || string.IsNullOrEmpty(engineType) || string.IsNullOrEmpty(htmlContent))
+                    {
+                        Console.WriteLine($"[/api/save-output] Missing parameters: appSite={appSite}, engineType={engineType}, htmlLength={htmlContent.Length}");
                         return Results.Text("Missing required parameters", statusCode: 400);
+                    }
 
                     // Validate AppSite against allowlist
                     var validAppSites = SecurityValidator.GetValidAppSites();
                     if (!validAppSites.Contains(appSite))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid AppSite: {appSite}");
                         return Results.Text("Invalid AppSite value", statusCode: 400);
+                    }
 
                     // Validate engine type against allowlist
                     if (!SecurityValidator.ValidEngineTypes.Contains(engineType))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid engineType: {engineType}");
                         return Results.Text("Invalid engine type", statusCode: 400);
+                    }
 
                     // Validate parameters (256 char limit, no path traversal)
                     if (!SecurityValidator.IsValidPathComponent(appSite))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid AppSite path component: {appSite}");
                         return Results.Text("Invalid AppSite parameter", statusCode: 400);
+                    }
                     if (!string.IsNullOrEmpty(appView) && !SecurityValidator.IsValidPathComponent(appView))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid AppView path component: {appView}");
                         return Results.Text("Invalid AppView parameter", statusCode: 400);
+                    }
                     if (!SecurityValidator.IsValidPathComponent(engineType))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid engineType path component: {engineType}");
                         return Results.Text("Invalid engineType parameter", statusCode: 400);
+                    }
 
-                    // Validate output size against template size + 10KB buffer
+                    // Validate output size against template size + buffer
                     var templateTotalSize = SecurityValidator.GetTemplateTotalSize(appSite, appView ?? "");
+                    var outputSize = System.Text.Encoding.UTF8.GetByteCount(htmlContent);
+                    var maxAllowedSize = templateTotalSize + SecurityValidator.OutputSizeBuffer;
+                    Console.WriteLine($"[/api/save-output] Size validation: output={outputSize:N0}, template={templateTotalSize:N0}, buffer={SecurityValidator.OutputSizeBuffer:N0}, max={maxAllowedSize:N0}");
                     if (!SecurityValidator.IsValidOutputSizeWithBuffer(htmlContent, templateTotalSize))
-                        return Results.Text("Output content exceeds maximum size limit (template size + 10KB buffer)", statusCode: 400);
+                    {
+                        var errorMsg = $"Save output failed: output size ({outputSize:N0} bytes) exceeds max size allowed ({maxAllowedSize:N0} bytes = template {templateTotalSize:N0} + buffer {SecurityValidator.OutputSizeBuffer:N0})";
+                        Console.WriteLine($"[/api/save-output] {errorMsg}");
+                        return Results.Text(errorMsg, statusCode: 400);
+                    }
 
                     string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
                     var outputDir = Path.Combine(projectDirectory, "template_analysis", "output");
@@ -641,6 +691,7 @@ namespace AssemblerWebJs
                     var engineSuffix = engineType.ToLower();
                     var outputFile = Path.Combine(outputDir, $"{appSite}{appViewSuffix}_{engineSuffix}.html");
                     await File.WriteAllTextAsync(outputFile, htmlContent);
+                    Console.WriteLine($"[/api/save-output] Success! Output saved to: {outputFile}");
 
                     var response = new TestResponse
                     {
@@ -656,6 +707,8 @@ namespace AssemblerWebJs
 
             #endregion
 
+
+
             #region Get Report Endpoint
 
             app.MapPost("/api/report", async (HttpContext context) =>
@@ -667,6 +720,7 @@ namespace AssemblerWebJs
 
                     var fileName = "";
                     var useLangPrefix = false;
+                    var langPrefix = "";
 
                     try
                     {
@@ -678,6 +732,10 @@ namespace AssemblerWebJs
                         if (jsonDoc.RootElement.TryGetProperty("useLangPrefix", out var useLangPrefixElement))
                         {
                             useLangPrefix = useLangPrefixElement.GetBoolean();
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("langPrefix", out var langPrefixElement))
+                        {
+                            langPrefix = langPrefixElement.GetString() ?? "";
                         }
                     }
                     catch
@@ -692,9 +750,13 @@ namespace AssemblerWebJs
                     if (!SecurityValidator.IsValidPathComponent(fileName))
                         return Results.Text("Invalid characters in fileName", statusCode: 400);
 
+                    // Validate langPrefix for path traversal if provided
+                    if (!string.IsNullOrEmpty(langPrefix) && !SecurityValidator.IsValidPathComponent(langPrefix))
+                        return Results.Text("Invalid characters in langPrefix", statusCode: 400);
+
                     // Construct file path
                     string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                    var prefix = useLangPrefix ? "javascript_" : "";
+                    var prefix = useLangPrefix && !string.IsNullOrEmpty(langPrefix) ? langPrefix + "_" : "";
                     var fullFileName = prefix + fileName;
                     var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
                     var filePath = Path.Combine(reportsDir, fullFileName);
@@ -728,7 +790,7 @@ namespace AssemblerWebJs
 
             #region Consolidate Performance Endpoint
 
-            app.MapPost("/api/consolidate-performance", async (HttpContext context) =>
+            app.MapPost("/test/consolidate-performance", async (HttpContext context) =>
             {
                 try
                 {
@@ -739,7 +801,7 @@ namespace AssemblerWebJs
                     var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
                     var logsDir = Path.Combine(templateAnalysisDir, "logs");
                     Directory.CreateDirectory(logsDir);
-                    var consolidateLogFile = Path.Combine(logsDir, "javascript_consolidate_perf.log");
+                    var consolidateLogFile = Path.Combine(logsDir, "csharp_consolidate_perf.log");
 
                     // Read server configuration from servers.csv
                     var serversConfigPath = Path.Combine(rootDirPath, "App_Data", "servers.csv");
@@ -1058,6 +1120,379 @@ namespace AssemblerWebJs
             });
 
             #endregion
+
+
+
+            #region Merge Endpoint
+
+            app.MapPost("/merge", async (HttpContext context) =>
+            {
+                var serverStart = DateTime.UtcNow;
+
+                // Enable logging for merge operations
+                var originalLogLevel = Logger.GetLogLevel();
+                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                var logsDir = Path.Combine(templateAnalysisDir, "logs");
+                Directory.CreateDirectory(logsDir);
+
+                var contextLogFiles = new Dictionary<string, string>
+                {
+                    { "LoaderNormal", Path.Combine(logsDir, "csharp_loadernormal.log") },
+                    { "LoaderPreProcess", Path.Combine(logsDir, "csharp_loaderpreprocess.log") },
+                    { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") },
+                    { "EnginePreProcess", Path.Combine(logsDir, "csharp_enginepreprocess.log") }
+                };
+
+                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
+                Logger.ConfigureContextLogFiles(contextLogFiles);
+
+                try
+                {
+                    using var reader = new StreamReader(context.Request.Body);
+                    var requestBody = await reader.ReadToEndAsync();
+
+                    if (string.IsNullOrWhiteSpace(requestBody))
+                        return Results.Text("Empty request body", statusCode: 400);
+
+                    MergeRequest? input = null;
+                    try
+                    {
+                        input = System.Text.Json.JsonSerializer.Deserialize<MergeRequest>(requestBody, SimpleJsonContext.Default.MergeRequest);
+                    }
+                    catch
+                    {
+                        return Results.Text("Invalid JSON format", statusCode: 400);
+                    }
+
+                    if (input == null || string.IsNullOrWhiteSpace(input.AppSite) || string.IsNullOrWhiteSpace(input.EngineType))
+                        return Results.Text("Missing required fields: AppSite, EngineType", statusCode: 400);
+
+                    string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
+
+                    // Validate AppSite against allowlist loaded from appsites.csv
+                    var validAppSites = SecurityValidator.GetValidAppSites();
+                    if (!validAppSites.Contains(input.AppSite))
+                        return Results.Text("Invalid AppSite value", statusCode: 400);
+
+                    // Validate EngineType against allowlist
+                    if (!SecurityValidator.ValidEngineTypes.Contains(input.EngineType))
+                        return Results.Text("Invalid EngineType value", statusCode: 400);
+
+                    // Validate path components for path traversal attacks
+                    if (!SecurityValidator.IsValidPathComponent(input.AppSite))
+                        return Results.Text("Invalid characters in AppSite", statusCode: 400);
+
+                    if (!string.IsNullOrEmpty(input.AppView) && !SecurityValidator.IsValidPathComponent(input.AppView))
+                        return Results.Text("Invalid characters in AppView", statusCode: 400);
+
+                    // Get AppFile from scenarios
+                    var scenarios = ConfigUtil.GetScenarios();
+                    var appView = input.AppView ?? "";
+                    var matchingScenario = scenarios.FirstOrDefault(s =>
+                        s.AppSite.Equals(input.AppSite, StringComparison.OrdinalIgnoreCase) &&
+                        s.AppView.Equals(appView, StringComparison.OrdinalIgnoreCase));
+
+                    if (matchingScenario == null)
+                        return Results.Text($"No matching scenario found for AppSite='{input.AppSite}' and AppView='{appView}'", statusCode: 400);
+
+                    var appFile = matchingScenario.AppFile;
+                    var appViewPrefix = string.IsNullOrEmpty(appView) ? "" : appFile;
+
+                    var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, input.AppSite);
+                    var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, input.AppSite);
+
+                    var normalResult = normalTemplatesRaw.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => new TemplateData { Html = kvp.Value.html, Json = kvp.Value.json }
+                    );
+
+                    var preprocessResult = preprocessTemplatesRaw.Templates.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => new PreProcessTemplateMetadata
+                        {
+                            OriginalContent = kvp.Value.OriginalContent,
+                            Placeholders = kvp.Value.Placeholders,
+                            SlottedTemplates = kvp.Value.SlottedTemplates,
+                            JsonData = kvp.Value.JsonData,
+                            JsonPlaceholders = kvp.Value.JsonPlaceholders,
+                            ReplacementMappings = kvp.Value.ReplacementMappings,
+                            HasPlaceholders = kvp.Value.HasPlaceholders,
+                            HasSlottedTemplates = kvp.Value.HasSlottedTemplates,
+                            HasJsonData = kvp.Value.HasJsonData,
+                            HasJsonPlaceholders = kvp.Value.HasJsonPlaceholders,
+                            HasReplacementMappings = kvp.Value.HasReplacementMappings,
+                            RequiresProcessing = kvp.Value.RequiresProcessing
+                        }
+                    );
+
+                    var engineStart = DateTime.UtcNow;
+                    string mergedHtml = "";
+                    if (input.EngineType.Equals("PreProcess", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var engine = new EnginePreProcess();
+                        if (!string.IsNullOrEmpty(appViewPrefix))
+                            engine.AppViewPrefix = appViewPrefix;
+                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, preprocessTemplatesRaw.Templates);
+                        // Clear normal templates for PreProcess engine
+                        normalResult.Clear();
+                    }
+                    else
+                    {
+                        var engine = new EngineNormal();
+                        if (!string.IsNullOrEmpty(appViewPrefix))
+                            engine.AppViewPrefix = appViewPrefix;
+                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, normalTemplatesRaw);
+                        // Clear preprocess templates for Normal engine
+                        preprocessResult.Clear();
+                    }
+                    var engineTimeMs = (DateTime.UtcNow - engineStart).TotalMilliseconds;
+                    var serverEnd = DateTime.UtcNow;
+                    var serverTimeMs = (serverEnd - serverStart).TotalMilliseconds;
+
+                    // Save HTML output to template_analysis/output folder (parent of wwwroot)
+                    var contentRoot = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                    var outputDir = Path.Combine(contentRoot, "template_analysis", "output");
+                    Directory.CreateDirectory(outputDir);
+
+                    var appViewSuffix = string.IsNullOrEmpty(input.AppView) ? "" : $"_{input.AppView}";
+                    var engineSuffix = input.EngineType.ToLower();
+                    var outputFile = Path.Combine(outputDir, $"{input.AppSite}{appViewSuffix}_{engineSuffix}.html");
+                    await File.WriteAllTextAsync(outputFile, mergedHtml);
+
+                    var responseObj = new ApiResponse
+                    {
+                        Templates = normalResult,
+                        PreProcessTemplates = preprocessResult,
+                        AppSite = input.AppSite ?? string.Empty,
+                        AppFile = appFile,
+                        AppView = appView,
+                        ServerTimeMs = serverTimeMs,
+                        Html = mergedHtml,
+                        EngineTimeMs = engineTimeMs
+                    };
+                    var responseJson = responseObj.SerializeToJson();
+
+                    return Results.Content(responseJson, "application/json");
+                }
+                catch (Exception ex)
+                {
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+                finally
+                {
+                    // Restore original log level
+                    Logger.SetLogLevel(originalLogLevel);
+                }
+            });
+
+            #endregion
+
+            #region Test Standard Endpoint
+
+            app.MapPost("/test/standard", (HttpContext context) =>
+            {
+                var sw = Stopwatch.StartNew();
+                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
+                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+                // Enable logging temporarily for tests
+                var originalLogLevel = Logger.GetLogLevel();
+
+                // Configure logger with context-specific log files for StandardTests
+                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                var logsDir = Path.Combine(templateAnalysisDir, "logs");
+                Directory.CreateDirectory(logsDir);
+
+                var contextLogFiles = new Dictionary<string, string>
+                {
+                    { "LoaderNormal", Path.Combine(logsDir, "csharp_loadernormal.log") },
+                    { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") }
+                };
+
+                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
+                Logger.ConfigureContextLogFiles(contextLogFiles);
+
+                try
+                {
+                    var scenarios = ConfigUtil.GetScenarios();
+                    var summaryRows = TestingUtils.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true);
+                    if (summaryRows != null && summaryRows.Count > 0)
+                    {
+                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "STANDARD TEST");
+                    }
+
+                    sw.Stop();
+                    var elapsedSeconds = sw.Elapsed.TotalSeconds;
+                    var testCount = summaryRows?.Count ?? 0;
+
+                    // Check for failures
+                    var failedTests = summaryRows?.Where(r =>
+                        r.NormalPreProcess == "FAIL" ||
+                        r.CrossViewUnMatch == "FAIL" ||
+                        !string.IsNullOrEmpty(r.Error)
+                    ).ToList() ?? new List<TestSummaryRow>();
+
+                    var message = $"Successful run of Standard Tests in {elapsedSeconds:F2} secs ({testCount} tests)";
+                    if (failedTests.Count > 0)
+                    {
+                        message += $"\n⚠️ Warning: {failedTests.Count} test(s) failed";
+                    }
+
+                    var response = new TestResponse
+                    {
+                        Message = message
+                    };
+
+                    return Results.Json(response, SimpleJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    sw.Stop();
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+                finally
+                {
+                    // Restore original log level
+                    Logger.SetLogLevel(originalLogLevel);
+                }
+            });
+
+            #endregion
+
+            #region Test Advanced Endpoint
+
+            app.MapPost("/test/advanced", (HttpContext context) =>
+            {
+                var sw = Stopwatch.StartNew();
+                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
+                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+                // Enable logging temporarily for tests
+                var originalLogLevel = Logger.GetLogLevel();
+
+                // Configure logger with context-specific log files for AdvancedTests
+                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                var logsDir = Path.Combine(templateAnalysisDir, "logs");
+                Directory.CreateDirectory(logsDir);
+
+                var contextLogFiles = new Dictionary<string, string>
+                {
+                    { "LoaderNormal", Path.Combine(logsDir, "csharp_loadernormal.log") },
+                    { "LoaderPreProcess", Path.Combine(logsDir, "csharp_loaderpreprocess.log") },
+                    { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") },
+                    { "EnginePreProcess", Path.Combine(logsDir, "csharp_enginepreprocess.log") }
+                };
+
+                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
+                Logger.ConfigureContextLogFiles(contextLogFiles);
+
+                try
+                {
+                    var scenarios = ConfigUtil.GetScenarios();
+
+                    // Dump preprocessed template structures before running advanced tests
+                    TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true);
+
+                    var summaryRows = TestingUtils.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, false, true, true);
+                    if (summaryRows != null && summaryRows.Count > 0)
+                    {
+                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "ADVANCED TEST");
+                    }
+
+                    sw.Stop();
+                    var elapsedSeconds = sw.Elapsed.TotalSeconds;
+                    var testCount = summaryRows?.Count ?? 0;
+
+                    // Check for failures
+                    var failedTests = summaryRows?.Where(r =>
+                        r.NormalPreProcess == "FAIL" ||
+                        r.CrossViewUnMatch == "FAIL" ||
+                        !string.IsNullOrEmpty(r.Error)
+                    ).ToList() ?? new List<TestSummaryRow>();
+
+                    var message = $"Successful run of Advanced Tests in {elapsedSeconds:F2} secs ({testCount} tests)";
+                    if (failedTests.Count > 0)
+                    {
+                        message += $"\n⚠️ Warning: {failedTests.Count} test(s) failed";
+                    }
+
+                    var response = new TestResponse
+                    {
+                        Message = message
+                    };
+
+                    return Results.Json(response, SimpleJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    sw.Stop();
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+                finally
+                {
+                    // Restore original log level
+                    Logger.SetLogLevel(originalLogLevel);
+                }
+            });
+
+            #endregion
+
+            #region Test Performance Endpoint
+
+            app.MapPost("/test/performance", (HttpContext context) =>
+            {
+                var sw = Stopwatch.StartNew();
+                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
+                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+                // Disable logging during performance tests
+                var originalLogLevel = Logger.GetLogLevel();
+                Logger.SetLogLevel(Logger.LogLevel.NONE);
+
+                try
+                {
+                    var scenarios = ConfigUtil.GetScenarios();
+                    var summaryRows = PerformanceUtils.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, true, true);
+                    if (summaryRows != null && summaryRows.Count > 0)
+                    {
+                        PerformanceUtils.PrintPerfSummaryTable(rootDirPath, projectDirectory, summaryRows);
+                    }
+
+                    sw.Stop();
+                    var elapsedSeconds = sw.Elapsed.TotalSeconds;
+                    var testCount = summaryRows?.Count ?? 0;
+
+                    // Check for performance test mismatches
+                    var mismatchTests = summaryRows?.Where(r => r.ResultsMatch != "YES").ToList() ?? new List<PerformanceUtils.PerfSummaryRow>();
+
+                    var message = $"Successful run of Performance Tests in {elapsedSeconds:F2} secs ({testCount} tests)";
+                    if (mismatchTests.Count > 0)
+                    {
+                        message += $"\n⚠️ Warning: {mismatchTests.Count} test(s) have output mismatch";
+                    }
+
+                    var response = new TestResponse
+                    {
+                        Message = message
+                    };
+
+                    return Results.Json(response, SimpleJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    sw.Stop();
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+                finally
+                {
+                    // Restore original log level
+                    Logger.SetLogLevel(originalLogLevel);
+                }
+            });
+
+            #endregion
         }
 
         #region Custom JSON Serialization for NativeAOT
@@ -1117,7 +1552,9 @@ namespace AssemblerWebJs
                 AppendJsonProperty(sb, "PreProcessTimeMs", row.PreProcessTimeMs.ToString("F2"), indented, false, false);
                 AppendJsonProperty(sb, "OutputSize", row.OutputSize.ToString(), indented, false, false);
                 AppendJsonProperty(sb, "ResultsMatch", row.ResultsMatch, indented, false);
-                AppendJsonProperty(sb, "PerfDifference", row.PerfDifference, indented, true);
+                AppendJsonProperty(sb, "PerfDifference", row.PerfDifference, indented, false);
+                AppendJsonProperty(sb, "ScenarioTotalTimeMs", row.ScenarioTotalTimeMs.ToString(), indented, false, false);
+                AppendJsonProperty(sb, "ElapsedTimeMs", row.ElapsedTimeMs.ToString(), indented, true, false);
 
                 if (indented) sb.Append("  ");
                 sb.Append("}");

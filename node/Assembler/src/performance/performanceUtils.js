@@ -113,6 +113,8 @@ export class PerformanceUtils {
                     Iterations: iterations,
                     NormalTimeNanos: normalTimeNs,
                     PreProcessTimeNanos: preProcessTimeNs,
+                    NormalTimeMs: normalTimeMs,
+                    PreProcessTimeMs: preProcessTimeMs,
                     OutputSize: resultNormal.length,
                     ResultsMatch: (resultNormal === resultPreProcess ? "YES" : "NO"),
                     PerfDifference: normalTimeMs > 0 ? `${((preProcessTimeMs - normalTimeMs) / normalTimeMs * 100).toFixed(1)}%` : "0%",
@@ -220,18 +222,39 @@ export class PerformanceUtils {
                 fsSync.mkdirSync(reportsDir, { recursive: true });
             }
 
-            const html = [
-                '<html><head><title>Node.js Performance Summary Table</title><style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>',
-                '<h2>Node.js Performance Summary Table</h2>',
-                `<div class="meta">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>`,
-                '<table>',
-                '<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>'
-            ];
+            const html = [];
+            html.push('<!DOCTYPE html>');
+            html.push('<html>');
+            html.push('<head>');
+            html.push('    <meta charset="UTF-8">');
+            html.push('    <meta name="viewport" content="width=device-width, initial-scale=1.0">');
+            html.push('    <title>Node.js Performance Summary Table</title>');
+            html.push('    <style>');
+            html.push('        body { font-family: Arial, sans-serif; margin: 20px; }');
+            html.push('        h2 { color: #333; }');
+            html.push('        .table-container { overflow-x: auto; }');
+            html.push('        table { border-collapse: collapse; width: 100%; min-width: 600px; }');
+            html.push('        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }');
+            html.push('        th { background-color: #4CAF50; color: white; }');
+            html.push('        tr:nth-child(even) { background-color: #f2f2f2; }');
+            html.push('        @media (max-width: 768px) {');
+            html.push('            body { margin: 10px; }');
+            html.push('            th, td { padding: 8px; font-size: 14px; }');
+            html.push('            h2 { font-size: 20px; }');
+            html.push('        }');
+            html.push('    </style>');
+            html.push('</head>');
+            html.push('<body>');
+            html.push('    <h2>Node.js Performance Summary Table</h2>');
+            html.push(`    <div class="meta" style="color: #666; font-style: italic; margin-bottom: 10px;">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>`);
+            html.push('    <div class="table-container">');
+            html.push('    <table>');
+            html.push('        <tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>');
 
             for (const row of summaryRows) {
                 const normalMs = (row.NormalTimeNanos || 0) / 1_000_000;
                 const preProcessMs = (row.PreProcessTimeNanos || 0) / 1_000_000;
-                html.push('<tr>');
+                html.push('        <tr>');
                 html.push(`<td>${row.AppSite || ''}</td>`);
                 html.push(`<td>${row.AppView || ''}</td>`);
                 html.push(`<td>${normalMs.toFixed(2)}</td>`);
@@ -243,7 +266,10 @@ export class PerformanceUtils {
                 html.push('</tr>');
             }
 
-            html.push('</table></body></html>');
+            html.push('    </table>');
+            html.push('    </div>');
+            html.push('</body>');
+            html.push('</html>');
 
             const outFile = path.join(reportsDir, 'nodejs_perfsummary.html');
             fsSync.writeFileSync(outFile, html.join('\n'), 'utf8');

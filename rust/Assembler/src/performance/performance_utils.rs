@@ -1,6 +1,6 @@
 use std::time::Instant;
 use std::fs;
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 use chrono;
 use crate::loader::loader_normal::LoaderNormal;
 use crate::loader::loader_preprocess::LoaderPreProcess;
@@ -8,29 +8,18 @@ use crate::engine::engine_normal::EngineNormal;
 use crate::engine::engine_preprocess::EnginePreProcess;
 use crate::common::common_util::CommonUtil;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct PerfSummaryRow {
-    #[serde(rename = "AppSite")]
     pub app_site: String,
-    #[serde(rename = "AppFile")]
     pub app_file: String,
-    #[serde(rename = "AppView")]
     pub app_view: String,
-    #[serde(rename = "Iterations")]
     pub iterations: i32,
-    #[serde(rename = "NormalTimeNanos")]
     pub normal_time_nanos: u128,
-    #[serde(rename = "PreProcessTimeNanos")]
     pub preprocess_time_nanos: u128,
-    #[serde(rename = "OutputSize")]
     pub output_size: usize,
-    #[serde(rename = "ResultsMatch")]
     pub results_match: String,
-    #[serde(rename = "PerfDifference")]
     pub perf_difference: String,
-    #[serde(rename = "ScenarioTotalTimeMs")]
     pub scenario_total_time_ms: u128,
-    #[serde(rename = "ElapsedTimeMs")]
     pub elapsed_time_ms: u128,
 }
 
@@ -41,6 +30,30 @@ impl PerfSummaryRow {
 
     pub fn preprocess_time_ms(&self) -> f64 {
         self.preprocess_time_nanos as f64 / 1_000_000.0
+    }
+}
+
+impl Serialize for PerfSummaryRow {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("PerfSummaryRow", 13)?;
+        state.serialize_field("AppSite", &self.app_site)?;
+        state.serialize_field("AppFile", &self.app_file)?;
+        state.serialize_field("AppView", &self.app_view)?;
+        state.serialize_field("Iterations", &self.iterations)?;
+        state.serialize_field("NormalTimeNanos", &self.normal_time_nanos)?;
+        state.serialize_field("PreProcessTimeNanos", &self.preprocess_time_nanos)?;
+        state.serialize_field("OutputSize", &self.output_size)?;
+        state.serialize_field("ResultsMatch", &self.results_match)?;
+        state.serialize_field("PerfDifference", &self.perf_difference)?;
+        state.serialize_field("ScenarioTotalTimeMs", &self.scenario_total_time_ms)?;
+        state.serialize_field("ElapsedTimeMs", &self.elapsed_time_ms)?;
+        state.serialize_field("NormalTimeMs", &format!("{:.2}", self.normal_time_ms()))?;
+        state.serialize_field("PreProcessTimeMs", &format!("{:.2}", self.preprocess_time_ms()))?;
+        state.end()
     }
 }
 
@@ -297,41 +310,51 @@ impl PerformanceUtils
         
         // Generate HTML performance summary table
         let mut html = String::new();
-        html.push_str("<!DOCTYPE html>\n<html>\n<head>\n");
+        html.push_str("<!DOCTYPE html>\n");
+        html.push_str("<html>\n");
+        html.push_str("<head>\n");
         html.push_str("    <meta charset=\"UTF-8\">\n");
         html.push_str("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
         html.push_str("    <title>Rust Performance Summary Table</title>\n");
         html.push_str("    <style>\n");
         html.push_str("        body { font-family: Arial, sans-serif; margin: 20px; }\n");
-        html.push_str("        h1, h2 { color: #333; }\n");
+        html.push_str("        h2 { color: #333; }\n");
         html.push_str("        .table-container { overflow-x: auto; }\n");
-        html.push_str("        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }\n");
+        html.push_str("        table { border-collapse: collapse; width: 100%; min-width: 600px; }\n");
         html.push_str("        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n");
         html.push_str("        th { background-color: #4CAF50; color: white; }\n");
         html.push_str("        tr:nth-child(even) { background-color: #f2f2f2; }\n");
-        html.push_str("        .meta { color: #666; font-style: italic; margin-bottom: 10px; }\n");
         html.push_str("        @media (max-width: 768px) {\n");
         html.push_str("            body { margin: 10px; }\n");
         html.push_str("            th, td { padding: 8px; font-size: 14px; }\n");
-        html.push_str("            h1, h2 { font-size: 20px; }\n");
+        html.push_str("            h2 { font-size: 20px; }\n");
         html.push_str("        }\n");
-        html.push_str("    </style>\n</head>\n<body>\n");
-        html.push_str("<h2>Rust Performance Summary Table</h2>\n");
-        html.push_str(&format!("<div class=\"meta\">Generated: {} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
-        html.push_str("<div class=\"table-container\">\n<table>\n");
-        html.push_str("<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>\n");
+        html.push_str("    </style>\n");
+        html.push_str("</head>\n");
+        html.push_str("<body>\n");
+        html.push_str("    <h2>Rust Performance Summary Table</h2>\n");
+        html.push_str(&format!("    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: {} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
+        html.push_str("    <div class=\"table-container\">\n");
+        html.push_str("    <table>\n");
+        html.push_str("        <tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>\n");
 
         for row in summary_rows {
-            html.push_str(&format!(
-                "<tr><td>{}</td><td>{}</td><td>{:.2}</td><td>{:.2}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
-                row.app_site, row.app_view,
-                row.normal_time_ms(), row.preprocess_time_ms(),
-                row.results_match, row.perf_difference,
-                row.scenario_total_time_ms, row.elapsed_time_ms
-            ));
+            html.push_str("        <tr>");
+            html.push_str(&format!("<td>{}</td>", row.app_site));
+            html.push_str(&format!("<td>{}</td>", row.app_view));
+            html.push_str(&format!("<td>{:.2}</td>", row.normal_time_ms()));
+            html.push_str(&format!("<td>{:.2}</td>", row.preprocess_time_ms()));
+            html.push_str(&format!("<td>{}</td>", row.results_match));
+            html.push_str(&format!("<td>{}</td>", row.perf_difference));
+            html.push_str(&format!("<td>{}</td>", row.scenario_total_time_ms));
+            html.push_str(&format!("<td>{}</td>", row.elapsed_time_ms));
+            html.push_str("</tr>\n");
         }
 
-        html.push_str("</table>\n</div>\n</body>\n</html>");
+        html.push_str("    </table>\n");
+        html.push_str("    </div>\n");
+        html.push_str("</body>\n");
+        html.push_str("</html>");
         if let Err(e) = fs::write(&perf_html_file, html) {
             println!("❌ Error writing performance HTML file: {}", e);
         } else {

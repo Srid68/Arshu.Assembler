@@ -17,17 +17,19 @@ import (
 )
 
 type PerfSummaryRow struct {
-	AppSite              string
-	AppFile              string
-	AppView              string
-	Iterations           int
-	NormalTimeNanos      int64
-	PreProcessTimeNanos  int64
-	OutputSize           int
-	ResultsMatch         string
-	PerfDifference       string
-	ScenarioTotalTimeMs  int64
-	ElapsedTimeMs        int64
+	AppSite              string  `json:"AppSite"`
+	AppFile              string  `json:"AppFile"`
+	AppView              string  `json:"AppView"`
+	Iterations           int     `json:"Iterations"`
+	NormalTimeNanos      int64   `json:"NormalTimeNanos"`
+	PreProcessTimeNanos  int64   `json:"PreProcessTimeNanos"`
+	OutputSize           int     `json:"OutputSize"`
+	ResultsMatch         string  `json:"ResultsMatch"`
+	PerfDifference       string  `json:"PerfDifference"`
+	ScenarioTotalTimeMs  int64   `json:"ScenarioTotalTimeMs"`
+	ElapsedTimeMs        int64   `json:"ElapsedTimeMs"`
+	NormalTimeMsValue    float64 `json:"NormalTimeMs"`
+	PreProcessTimeMsValue float64 `json:"PreProcessTimeMs"`
 }
 
 // Helper methods for display
@@ -163,18 +165,22 @@ func RunPerformanceComparison(assemblerWebDir, projectDirectory string, scenario
 		if normalTimeNanos > 0 {
 			perfDiff = fmt.Sprintf("%.1f%%", float64(preprocessTimeNanos-normalTimeNanos)/float64(normalTimeNanos)*100.0)
 		}
+		normalMs := float64(normalTimeNanos) / 1_000_000.0
+		preprocessMs := float64(preprocessTimeNanos) / 1_000_000.0
 		perfSummaryRows = append(perfSummaryRows, PerfSummaryRow{
-			AppSite:             testAppSite,
-			AppFile:             appFileName,
-			AppView:             appView,
-			Iterations:          iterations,
-			NormalTimeNanos:     normalTimeNanos,
-			PreProcessTimeNanos: preprocessTimeNanos,
-			OutputSize:          common.Utf16Len(resultNormal),
-			ResultsMatch:        map[bool]string{true: "YES", false: "NO"}[resultsMatch],
-			PerfDifference:      perfDiff,
-			ScenarioTotalTimeMs: scenarioTotalTime,
-			ElapsedTimeMs:       elapsedTime,
+			AppSite:               testAppSite,
+			AppFile:               appFileName,
+			AppView:               appView,
+			Iterations:            iterations,
+			NormalTimeNanos:       normalTimeNanos,
+			PreProcessTimeNanos:   preprocessTimeNanos,
+			OutputSize:            common.Utf16Len(resultNormal),
+			ResultsMatch:          map[bool]string{true: "YES", false: "NO"}[resultsMatch],
+			PerfDifference:        perfDiff,
+			ScenarioTotalTimeMs:   scenarioTotalTime,
+			ElapsedTimeMs:         elapsedTime,
+			NormalTimeMsValue:     normalMs,
+			PreProcessTimeMsValue: preprocessMs,
 		})
 	}
 
@@ -268,36 +274,49 @@ func PrintPerfSummaryTable(assemblerWebDir, projectDirectory string, perfSummary
 		fmt.Printf("Performance summary JSON saved to: %s\n", perfJsonFile)
 	}
 	// Generate HTML performance summary table
-	html := "<!DOCTYPE html>\n<html>\n<head>\n"
+	html := "<!DOCTYPE html>\n"
+	html += "<html>\n"
+	html += "<head>\n"
 	html += "    <meta charset=\"UTF-8\">\n"
 	html += "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
 	html += "    <title>Go Performance Summary Table</title>\n"
 	html += "    <style>\n"
 	html += "        body { font-family: Arial, sans-serif; margin: 20px; }\n"
-	html += "        h1, h2 { color: #333; }\n"
+	html += "        h2 { color: #333; }\n"
 	html += "        .table-container { overflow-x: auto; }\n"
-	html += "        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }\n"
+	html += "        table { border-collapse: collapse; width: 100%; min-width: 600px; }\n"
 	html += "        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n"
 	html += "        th { background-color: #4CAF50; color: white; }\n"
 	html += "        tr:nth-child(even) { background-color: #f2f2f2; }\n"
-	html += "        .meta { color: #666; font-style: italic; margin-bottom: 10px; }\n"
 	html += "        @media (max-width: 768px) {\n"
 	html += "            body { margin: 10px; }\n"
 	html += "            th, td { padding: 8px; font-size: 14px; }\n"
-	html += "            h1, h2 { font-size: 20px; }\n"
+	html += "            h2 { font-size: 20px; }\n"
 	html += "        }\n"
-	html += "    </style>\n</head>\n<body>\n"
-	html += "<h2>Go Performance Summary</h2>\n"
-	html += fmt.Sprintf("<div class=\"meta\">Generated: %s UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05"))
-	html += "<div class=\"table-container\">\n<table>\n"
-	html += "<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>\n"
+	html += "    </style>\n"
+	html += "</head>\n"
+	html += "<body>\n"
+	html += "    <h2>Go Performance Summary Table</h2>\n"
+	html += fmt.Sprintf("    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: %s UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05"))
+	html += "    <div class=\"table-container\">\n"
+	html += "    <table>\n"
+	html += "        <tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>\n"
 	for _, row := range perfSummaryRows {
-		html += fmt.Sprintf("<tr><td>%s</td><td>%s</td><td>%.2f</td><td>%.2f</td><td>%s</td><td>%s</td><td>%d</td><td>%d</td></tr>\n",
-			row.AppSite, row.AppView,
-			row.NormalTimeMs(), row.PreProcessTimeMs(),
-			row.ResultsMatch, row.PerfDifference, row.ScenarioTotalTimeMs, row.ElapsedTimeMs)
+		html += "        <tr>"
+		html += fmt.Sprintf("<td>%s</td>", row.AppSite)
+		html += fmt.Sprintf("<td>%s</td>", row.AppView)
+		html += fmt.Sprintf("<td>%.2f</td>", row.NormalTimeMs())
+		html += fmt.Sprintf("<td>%.2f</td>", row.PreProcessTimeMs())
+		html += fmt.Sprintf("<td>%s</td>", row.ResultsMatch)
+		html += fmt.Sprintf("<td>%s</td>", row.PerfDifference)
+		html += fmt.Sprintf("<td>%d</td>", row.ScenarioTotalTimeMs)
+		html += fmt.Sprintf("<td>%d</td>", row.ElapsedTimeMs)
+		html += "</tr>\n"
 	}
-	html += "</table>\n</div>\n</body>\n</html>"
+	html += "    </table>\n"
+	html += "    </div>\n"
+	html += "</body>\n"
+	html += "</html>"
 	if err := os.WriteFile(perfHtmlFile, []byte(html), 0644); err != nil {
 		fmt.Printf("❌ Error writing performance HTML file: %v\n", err)
 	} else {

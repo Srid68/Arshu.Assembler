@@ -17,8 +17,8 @@ namespace AssemblerWebJs
         // Maximum content sizes to prevent DDOS attacks
         public const int MaxLogFileSize = 500 * 1024; // 500 KB per log file
 
-        // Buffer allowance for output size validation (10 KB)
-        public const int OutputSizeBuffer = 10 * 1024; // 10 KB buffer for processing overhead
+        // Buffer allowance for output size validation (50 KB)
+        public const int OutputSizeBuffer = 50 * 1024; // 50 KB buffer for dynamic content (performance reports, test results)
 
         // Valid engine types allowlist
         public static readonly HashSet<string> ValidEngineTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

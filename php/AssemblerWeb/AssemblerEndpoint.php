@@ -878,6 +878,7 @@ class AssemblerEndpoint
 
             $fileName = $data['fileName'] ?? null;
             $useLangPrefix = $data['useLangPrefix'] ?? false;
+            $langPrefix = $data['langPrefix'] ?? null;
 
             if (empty($fileName)) {
                 $response->getBody()->write(json_encode(['error' => 'Missing required field: fileName']));
@@ -890,8 +891,14 @@ class AssemblerEndpoint
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
 
+            // Validate langPrefix for path traversal if provided
+            if ($langPrefix && !SecurityValidator::isValidPathComponent($langPrefix)) {
+                $response->getBody()->write(json_encode(['error' => 'Invalid characters in langPrefix']));
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+            }
+
             // Construct file path
-            $prefix = $useLangPrefix ? 'php_' : '';
+            $prefix = ($useLangPrefix && $langPrefix) ? $langPrefix . '_' : '';
             $fullFileName = $prefix . $fileName;
             $reportsDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
             $filePath = $reportsDir . DIRECTORY_SEPARATOR . $fullFileName;

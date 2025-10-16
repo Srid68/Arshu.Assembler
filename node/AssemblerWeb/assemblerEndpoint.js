@@ -767,7 +767,7 @@ export async function testConsolidatePerformanceEndpoint(req, res, projectDirect
  */
 export async function getReportEndpoint(req, res, projectDirectory) {
     try {
-        const { fileName, useLangPrefix } = req.body
+        const { fileName, useLangPrefix, langPrefix } = req.body
 
         if (!fileName) {
             return res.status(400).json({ error: 'Missing required field: fileName' })
@@ -778,8 +778,13 @@ export async function getReportEndpoint(req, res, projectDirectory) {
             return res.status(400).json({ error: 'Invalid characters in fileName' })
         }
 
+        // Validate langPrefix for path traversal if provided
+        if (langPrefix && !isValidPathComponent(langPrefix)) {
+            return res.status(400).json({ error: 'Invalid characters in langPrefix' })
+        }
+
         // Construct file path
-        const prefix = useLangPrefix ? 'nodejs_' : ''
+        const prefix = useLangPrefix && langPrefix ? langPrefix + '_' : ''
         const fullFileName = prefix + fileName
         const reportsDir = path.join(projectDirectory, 'template_analysis', 'Reports')
         const filePath = path.join(reportsDir, fullFileName)

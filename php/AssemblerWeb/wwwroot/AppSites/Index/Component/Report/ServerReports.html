@@ -6,12 +6,12 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
         {{@Reports}}
             <div class="report-card">
-                <button class="report-btn" onclick="openReportModal('{{$Id}}', '{{$FileName}}', '{{$UseLangPrefix}}', '{{$Title}}')">
+                <button class="report-btn" onclick="openServerReportModal('{{$Id}}', '{{$FileName}}', '{{$UseLangPrefix}}', '{{$Title}}')">
                     <div class="report-icon">{{$Icon}}</div>
                     <div class="report-title">{{$Title}}</div>
                     <div class="report-desc">{{$Description}}</div>
                 </button>
-                <button class="test-trigger-btn" onclick="triggerTest('{{$Id}}')">
+                <button class="test-trigger-btn" onclick="triggerServerTest(event, '{{$Id}}')">
                     ▶️ {{$ButtonText}}
                 </button>
             </div>
@@ -19,21 +19,21 @@
     </div>
 
     <!-- Notification bar -->
-    <div id="testNotification" class="test-notification" style="display: none;">
-        <span id="notificationText"></span>
-        <button id="clearNotification" class="clear-notification-btn" onclick="hideNotification()" style="display: none;">✕</button>
+    <div id="serverTestNotification" class="test-notification" style="display: none;">
+        <span id="serverNotificationText"></span>
+        <button id="serverClearNotification" class="clear-notification-btn" onclick="hideServerNotification()" style="display: none;">✕</button>
     </div>
 </div>
 
 <!-- Report Modal -->
-<div id="reportModal" class="modal">
+<div id="serverReportModal" class="modal">
     <div class="modal-content" style="max-width: 95%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
         <div class="modal-header">
-            <h2 id="reportModalTitle">Report</h2>
-            <button class="close" onclick="closeReportModal()">&times;</button>
+            <h2 id="serverReportModalTitle">Report</h2>
+            <button class="close" onclick="closeServerReportModal()">&times;</button>
         </div>
         <div class="modal-body" style="flex: 1; overflow-y: auto;">
-            <div id="reportContent" style="max-width: 100%; overflow-x: auto;">
+            <div id="serverReportContent" style="max-width: 100%; overflow-x: auto;">
                 Loading report...
             </div>
         </div>
@@ -226,15 +226,15 @@
 </style>
 
 <script>
-    const LANG = '{{$Lang}}';
-    const LOADING_MSG = '{{$LoadingMessage}}';
-    const NOT_FOUND_MSG = '{{$NotFoundMessage}}';
-    const ERROR_PREFIX = '{{$ErrorPrefix}}';
+    const SERVER_LANG = '{{$Lang}}';
+    const SERVER_LOADING_MSG = '{{$LoadingMessage}}';
+    const SERVER_NOT_FOUND_MSG = '{{$NotFoundMessage}}';
+    const SERVER_ERROR_PREFIX = '{{$ErrorPrefix}}';
 
-    function openReportModal(reportId, fileName, useLangPrefix, reportTitle) {
-        const modal = document.getElementById('reportModal');
-        const title = document.getElementById('reportModalTitle');
-        const content = document.getElementById('reportContent');
+    function openServerReportModal(reportId, fileName, useLangPrefix, reportTitle) {
+        const modal = document.getElementById('serverReportModal');
+        const title = document.getElementById('serverReportModalTitle');
+        const content = document.getElementById('serverReportContent');
 
         // Set modal title
         title.textContent = reportTitle;
@@ -246,7 +246,7 @@
 
         // Show modal with loading animation
         modal.style.display = 'block';
-        content.innerHTML = '<div style="text-align: center; padding: 40px;"><div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 16px; color: #666;">' + LOADING_MSG + '</p></div>';
+        content.innerHTML = '<div style="text-align: center; padding: 40px;"><div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 16px; color: #666;">' + SERVER_LOADING_MSG + '</p></div>';
 
         // Fetch report using POST request
         fetch('/api/report', {
@@ -256,11 +256,12 @@
             },
             body: JSON.stringify({
                 fileName: fileName,
-                useLangPrefix: shouldUseLangPrefix
+                useLangPrefix: shouldUseLangPrefix,
+                langPrefix: SERVER_LANG
             })
         })
             .then(response => {
-                if (!response.ok) throw new Error(NOT_FOUND_MSG);
+                if (!response.ok) throw new Error(SERVER_NOT_FOUND_MSG);
                 return response.text();
             })
             .then(html => {
@@ -271,43 +272,52 @@
                 content.innerHTML = html;
             })
             .catch(error => {
-                content.innerHTML = '<div style="padding: 40px; text-align: center; color: #d32f2f;"><h3>⚠️ ' + error.message + '</h3><p style="font-size: 0.9em; color: #666;">' + ERROR_PREFIX + ' ' + fileName + '</p></div>';
+                content.innerHTML = '<div style="padding: 40px; text-align: center; color: #d32f2f;"><h3>⚠️ ' + error.message + '</h3><p style="font-size: 0.9em; color: #666;">' + SERVER_ERROR_PREFIX + ' ' + fileName + '</p></div>';
             });
     }
 
-    function closeReportModal() {
-        document.getElementById('reportModal').style.display = 'none';
+    function closeServerReportModal() {
+        document.getElementById('serverReportModal').style.display = 'none';
     }
 
     // Close on escape key
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeReportModal();
-        }
-    });
+    if (!window.serverReportModalKeydownAdded) {
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeServerReportModal();
+            }
+        });
+        window.serverReportModalKeydownAdded = true;
+    }
 
     // Close on outside click
-    window.addEventListener('click', function(e) {
-        const modal = document.getElementById('reportModal');
-        if (e.target === modal) {
-            closeReportModal();
-        }
-    });
+    if (!window.serverReportModalClickAdded) {
+        window.addEventListener('click', function(e) {
+            const modal = document.getElementById('serverReportModal');
+            if (e.target === modal) {
+                closeServerReportModal();
+            }
+        });
+        window.serverReportModalClickAdded = true;
+    }
 
     // Animation for loading spinner
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    `;
-    document.head.appendChild(style);
+    if (!window.serverReportSpinnerAdded) {
+        const serverSpinnerStyle = document.createElement('style');
+        serverSpinnerStyle.textContent = `
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(serverSpinnerStyle);
+        window.serverReportSpinnerAdded = true;
+    }
 
-    function showNotification(message, type) {
-        const notification = document.getElementById('testNotification');
-        const notificationText = document.getElementById('notificationText');
-        const clearBtn = document.getElementById('clearNotification');
+    function showServerNotification(message, type) {
+        const notification = document.getElementById('serverTestNotification');
+        const notificationText = document.getElementById('serverNotificationText');
+        const clearBtn = document.getElementById('serverClearNotification');
 
         // Clear existing classes
         notification.className = 'test-notification';
@@ -324,19 +334,19 @@
         }
     }
 
-    function hideNotification() {
-        const notification = document.getElementById('testNotification');
-        const clearBtn = document.getElementById('clearNotification');
+    function hideServerNotification() {
+        const notification = document.getElementById('serverTestNotification');
+        const clearBtn = document.getElementById('serverClearNotification');
         notification.style.display = 'none';
         clearBtn.style.display = 'none';
     }
 
-    async function triggerTest(testId) {
+    async function triggerServerTest(event, testId) {
         const button = event.target;
         const originalText = button.textContent;
 
         // Clear any existing notification
-        hideNotification();
+        hideServerNotification();
 
         // Disable button and show loading state
         button.disabled = true;
@@ -344,7 +354,7 @@
         button.style.opacity = '0.6';
 
         // Show running notification
-        showNotification('🔄 Test is running, please wait...', 'running');
+        showServerNotification('🔄 Test is running, please wait...', 'running');
 
         try {
             let endpoint = '';
@@ -367,7 +377,7 @@
                     testName = 'Consolidated Performance Tests';
                     break;
                 default:
-                    showNotification('❌ Unknown test type: ' + testId, 'error');
+                    showServerNotification('❌ Unknown test type: ' + testId, 'error');
                     return;
             }
 
@@ -385,13 +395,13 @@
             const result = await response.json();
 
             // Show success notification (stays visible until user clears it)
-            showNotification(`✅ ${result.message}`, 'success');
+            showServerNotification(`✅ ${result.message}`, 'success');
 
             // Don't auto-hide or reload - let user manually clear and refresh if needed
 
         } catch (error) {
-            showNotification('❌ Error running test: ' + error.message, 'error');
-            console.error('Test error:', error);
+            showServerNotification('❌ Error running test: ' + error.message, 'error');
+            console.error('Server test error:', error);
         } finally {
             // Re-enable button
             button.disabled = false;

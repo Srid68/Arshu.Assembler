@@ -69,6 +69,8 @@ namespace AssemblerWeb
         public string? FileName { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("useLangPrefix")]
         public bool UseLangPrefix { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("langPrefix")]
+        public string? LangPrefix { get; set; }
     }
 
 
@@ -315,6 +317,8 @@ namespace AssemblerWeb
 
             #endregion
 
+
+
             #region Get Report Endpoint
 
             assemblerGroup.MapPost("/api/report", async (HttpContext context) =>
@@ -334,8 +338,12 @@ namespace AssemblerWeb
                 if (!SecurityValidator.IsValidPathComponent(input.FileName))
                     return Results.BadRequest("Invalid characters in fileName");
 
+                // Validate langPrefix for path traversal if provided
+                if (!string.IsNullOrEmpty(input.LangPrefix) && !SecurityValidator.IsValidPathComponent(input.LangPrefix))
+                    return Results.BadRequest("Invalid characters in langPrefix");
+
                 // Construct file path
-                string prefix = input.UseLangPrefix ? "csharp_" : "";
+                string prefix = input.UseLangPrefix && !string.IsNullOrEmpty(input.LangPrefix) ? input.LangPrefix + "_" : "";
                 string fileName = prefix + input.FileName;
                 string reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
                 string filePath = Path.Combine(reportsDir, fileName);
@@ -360,233 +368,6 @@ namespace AssemblerWeb
             .WithDisplayName("Get Report")
             .WithDescription("Retrieves a report file from template_analysis/Reports directory")
             .WithTags("Report");
-
-            #endregion
-
-            #region Test Standard Endpoint
-
-            // Test endpoints
-            assemblerGroup.MapPost("/test/standard", (HttpContext context) =>
-            {
-                var sw = Stopwatch.StartNew();
-                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
-                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-
-                // Enable logging temporarily for tests
-                var originalLogLevel = Logger.GetLogLevel();
-
-                // Configure logger with context-specific log files for StandardTests
-                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
-                var logsDir = Path.Combine(templateAnalysisDir, "logs");
-                Directory.CreateDirectory(logsDir);
-
-                var contextLogFiles = new Dictionary<string, string>
-                {
-                    { "LoaderNormal", Path.Combine(logsDir, "csharp_loadernormal.log") },
-                    { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") }
-                };
-
-                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
-                Logger.ConfigureContextLogFiles(contextLogFiles);
-
-                try
-                {
-                    var scenarios = ConfigUtil.GetScenarios();
-                    var summaryRows = TestingUtils.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true);
-                    if (summaryRows != null && summaryRows.Count > 0)
-                    {
-                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory,summaryRows, "STANDARD TEST");
-                    }
-
-                    sw.Stop();
-                    var elapsedSeconds = sw.Elapsed.TotalSeconds;
-                    var testCount = summaryRows?.Count ?? 0;
-
-                    // Check for failures
-                    var failedTests = summaryRows?.Where(r =>
-                        r.NormalPreProcess == "FAIL" ||
-                        r.CrossViewUnMatch == "FAIL" ||
-                        !string.IsNullOrEmpty(r.Error)
-                    ).ToList() ?? new List<TestSummaryRow>();
-
-                    var message = $"Successful run of Standard Tests in {elapsedSeconds:F2} secs ({testCount} tests)";
-                    if (failedTests.Count > 0)
-                    {
-                        message += $"\n⚠️ Warning: {failedTests.Count} test(s) failed";
-                    }
-
-                    var response = new TestResponse
-                    {
-                        Success = true,
-                        Message = message,
-                        Elapsed = elapsedSeconds,
-                        TestCount = testCount
-                    };
-
-                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
-                }
-                catch (Exception ex)
-                {
-                    sw.Stop();
-                    return Results.Problem($"Error running standard tests: {ex.Message}");
-                }
-                finally
-                {
-                    // Restore original log level
-                    Logger.SetLogLevel(originalLogLevel);
-                }
-            })
-            .WithName("RunStandardTests")
-            .WithDisplayName("Run Standard Tests")
-            .WithDescription("Runs standard template tests and saves results to wwwroot")
-            .WithTags("Test");
-
-            #endregion
-
-            #region Test Advanced Endpoint
-
-            assemblerGroup.MapPost("/test/advanced", (HttpContext context) =>
-            {
-                var sw = Stopwatch.StartNew();
-                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
-                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-
-                // Enable logging temporarily for tests
-                var originalLogLevel = Logger.GetLogLevel();
-
-                // Configure logger with context-specific log files for AdvancedTests
-                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
-                var logsDir = Path.Combine(templateAnalysisDir, "logs");
-                Directory.CreateDirectory(logsDir);
-
-                var contextLogFiles = new Dictionary<string, string>
-                {
-                    { "LoaderNormal", Path.Combine(logsDir, "csharp_loadernormal.log") },
-                    { "LoaderPreProcess", Path.Combine(logsDir, "csharp_loaderpreprocess.log") },
-                    { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") },
-                    { "EnginePreProcess", Path.Combine(logsDir, "csharp_enginepreprocess.log") }
-                };
-
-                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
-                Logger.ConfigureContextLogFiles(contextLogFiles);
-
-                try
-                {
-                    var scenarios = ConfigUtil.GetScenarios();
-
-                    // Dump preprocessed template structures before running advanced tests
-                    TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true);
-
-                    var summaryRows = TestingUtils.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, false, true, true);
-                    if (summaryRows != null && summaryRows.Count > 0)
-                    {
-                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "ADVANCED TEST");
-                    }
-
-                    sw.Stop();
-                    var elapsedSeconds = sw.Elapsed.TotalSeconds;
-                    var testCount = summaryRows?.Count ?? 0;
-
-                    // Check for failures
-                    var failedTests = summaryRows?.Where(r =>
-                        r.NormalPreProcess == "FAIL" ||
-                        r.CrossViewUnMatch == "FAIL" ||
-                        !string.IsNullOrEmpty(r.Error)
-                    ).ToList() ?? new List<TestSummaryRow>();
-
-                    var message = $"Successful run of Advanced Tests in {elapsedSeconds:F2} secs ({testCount} tests)";
-                    if (failedTests.Count > 0)
-                    {
-                        message += $"\n⚠️ Warning: {failedTests.Count} test(s) failed";
-                    }
-
-                    var response = new TestResponse
-                    {
-                        Success = true,
-                        Message = message,
-                        Elapsed = elapsedSeconds,
-                        TestCount = testCount
-                    };
-
-                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
-                }
-                catch (Exception ex)
-                {
-                    sw.Stop();
-                    return Results.Problem($"Error running advanced tests: {ex.Message}");
-                }
-                finally
-                {
-                    // Restore original log level
-                    Logger.SetLogLevel(originalLogLevel);
-                }
-            })
-            .WithName("RunAdvancedTests")
-            .WithDisplayName("Run Advanced Tests")
-            .WithDescription("Runs advanced template tests and saves results to wwwroot")
-            .WithTags("Test");
-
-            #endregion
-
-            #region Test Performance Endpoint
-
-            assemblerGroup.MapPost("/test/performance", (HttpContext context) =>
-            {
-                var sw = Stopwatch.StartNew();
-                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
-                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-
-                // Disable logging during performance tests
-                var originalLogLevel = Logger.GetLogLevel();
-                Logger.SetLogLevel(Logger.LogLevel.NONE);
-
-                try
-                {
-                    var scenarios = ConfigUtil.GetScenarios();
-                    var summaryRows = PerformanceUtils.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, true, true);
-                    if (summaryRows != null && summaryRows.Count > 0)
-                    {
-                        PerformanceUtils.PrintPerfSummaryTable(rootDirPath, projectDirectory, summaryRows);
-                    }
-
-                    sw.Stop();
-                    var elapsedSeconds = sw.Elapsed.TotalSeconds;
-                    var testCount = summaryRows?.Count ?? 0;
-
-                    // Check for performance test mismatches
-                    var mismatchTests = summaryRows?.Where(r => r.ResultsMatch != "YES").ToList() ?? new List<PerformanceUtils.PerfSummaryRow>();
-
-                    var message = $"Successful run of Performance Tests in {elapsedSeconds:F2} secs ({testCount} tests)";
-                    if (mismatchTests.Count > 0)
-                    {
-                        message += $"\n⚠️ Warning: {mismatchTests.Count} test(s) have output mismatch";
-                    }
-
-                    var response = new TestResponse
-                    {
-                        Success = true,
-                        Message = message,
-                        Elapsed = elapsedSeconds,
-                        TestCount = testCount
-                    };
-
-                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
-                }
-                catch (Exception ex)
-                {
-                    sw.Stop();
-                    return Results.Problem($"Error running performance tests: {ex.Message}");
-                }
-                finally
-                {
-                    // Restore original log level
-                    Logger.SetLogLevel(originalLogLevel);
-                }
-            })
-            .WithName("RunPerformanceTests")
-            .WithDisplayName("Run Performance Tests")
-            .WithDescription("Runs performance comparison tests and saves results to wwwroot")
-            .WithTags("Test");
 
             #endregion
 
@@ -951,6 +732,236 @@ namespace AssemblerWeb
             .WithName("ConsolidatePerformanceTests")
             .WithDisplayName("Consolidate All Performance Tests")
             .WithDescription("Fetches performance data from all language servers and consolidates into a single report")
+            .WithTags("Test");
+
+            #endregion
+
+
+
+
+            #region Test Standard Endpoint
+
+            // Test endpoints
+            assemblerGroup.MapPost("/test/standard", (HttpContext context) =>
+            {
+                var sw = Stopwatch.StartNew();
+                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
+                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+                // Enable logging temporarily for tests
+                var originalLogLevel = Logger.GetLogLevel();
+
+                // Configure logger with context-specific log files for StandardTests
+                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                var logsDir = Path.Combine(templateAnalysisDir, "logs");
+                Directory.CreateDirectory(logsDir);
+
+                var contextLogFiles = new Dictionary<string, string>
+                {
+                    { "LoaderNormal", Path.Combine(logsDir, "csharp_loadernormal.log") },
+                    { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") }
+                };
+
+                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
+                Logger.ConfigureContextLogFiles(contextLogFiles);
+
+                try
+                {
+                    var scenarios = ConfigUtil.GetScenarios();
+                    var summaryRows = TestingUtils.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true);
+                    if (summaryRows != null && summaryRows.Count > 0)
+                    {
+                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory,summaryRows, "STANDARD TEST");
+                    }
+
+                    sw.Stop();
+                    var elapsedSeconds = sw.Elapsed.TotalSeconds;
+                    var testCount = summaryRows?.Count ?? 0;
+
+                    // Check for failures
+                    var failedTests = summaryRows?.Where(r =>
+                        r.NormalPreProcess == "FAIL" ||
+                        r.CrossViewUnMatch == "FAIL" ||
+                        !string.IsNullOrEmpty(r.Error)
+                    ).ToList() ?? new List<TestSummaryRow>();
+
+                    var message = $"Successful run of Standard Tests in {elapsedSeconds:F2} secs ({testCount} tests)";
+                    if (failedTests.Count > 0)
+                    {
+                        message += $"\n⚠️ Warning: {failedTests.Count} test(s) failed";
+                    }
+
+                    var response = new TestResponse
+                    {
+                        Success = true,
+                        Message = message,
+                        Elapsed = elapsedSeconds,
+                        TestCount = testCount
+                    };
+
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    sw.Stop();
+                    return Results.Problem($"Error running standard tests: {ex.Message}");
+                }
+                finally
+                {
+                    // Restore original log level
+                    Logger.SetLogLevel(originalLogLevel);
+                }
+            })
+            .WithName("RunStandardTests")
+            .WithDisplayName("Run Standard Tests")
+            .WithDescription("Runs standard template tests and saves results to wwwroot")
+            .WithTags("Test");
+
+            #endregion
+
+            #region Test Advanced Endpoint
+
+            assemblerGroup.MapPost("/test/advanced", (HttpContext context) =>
+            {
+                var sw = Stopwatch.StartNew();
+                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
+                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+                // Enable logging temporarily for tests
+                var originalLogLevel = Logger.GetLogLevel();
+
+                // Configure logger with context-specific log files for AdvancedTests
+                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                var logsDir = Path.Combine(templateAnalysisDir, "logs");
+                Directory.CreateDirectory(logsDir);
+
+                var contextLogFiles = new Dictionary<string, string>
+                {
+                    { "LoaderNormal", Path.Combine(logsDir, "csharp_loadernormal.log") },
+                    { "LoaderPreProcess", Path.Combine(logsDir, "csharp_loaderpreprocess.log") },
+                    { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") },
+                    { "EnginePreProcess", Path.Combine(logsDir, "csharp_enginepreprocess.log") }
+                };
+
+                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
+                Logger.ConfigureContextLogFiles(contextLogFiles);
+
+                try
+                {
+                    var scenarios = ConfigUtil.GetScenarios();
+
+                    // Dump preprocessed template structures before running advanced tests
+                    TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true);
+
+                    var summaryRows = TestingUtils.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, false, true, true);
+                    if (summaryRows != null && summaryRows.Count > 0)
+                    {
+                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "ADVANCED TEST");
+                    }
+
+                    sw.Stop();
+                    var elapsedSeconds = sw.Elapsed.TotalSeconds;
+                    var testCount = summaryRows?.Count ?? 0;
+
+                    // Check for failures
+                    var failedTests = summaryRows?.Where(r =>
+                        r.NormalPreProcess == "FAIL" ||
+                        r.CrossViewUnMatch == "FAIL" ||
+                        !string.IsNullOrEmpty(r.Error)
+                    ).ToList() ?? new List<TestSummaryRow>();
+
+                    var message = $"Successful run of Advanced Tests in {elapsedSeconds:F2} secs ({testCount} tests)";
+                    if (failedTests.Count > 0)
+                    {
+                        message += $"\n⚠️ Warning: {failedTests.Count} test(s) failed";
+                    }
+
+                    var response = new TestResponse
+                    {
+                        Success = true,
+                        Message = message,
+                        Elapsed = elapsedSeconds,
+                        TestCount = testCount
+                    };
+
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    sw.Stop();
+                    return Results.Problem($"Error running advanced tests: {ex.Message}");
+                }
+                finally
+                {
+                    // Restore original log level
+                    Logger.SetLogLevel(originalLogLevel);
+                }
+            })
+            .WithName("RunAdvancedTests")
+            .WithDisplayName("Run Advanced Tests")
+            .WithDescription("Runs advanced template tests and saves results to wwwroot")
+            .WithTags("Test");
+
+            #endregion
+
+            #region Test Performance Endpoint
+
+            assemblerGroup.MapPost("/test/performance", (HttpContext context) =>
+            {
+                var sw = Stopwatch.StartNew();
+                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
+                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+                // Disable logging during performance tests
+                var originalLogLevel = Logger.GetLogLevel();
+                Logger.SetLogLevel(Logger.LogLevel.NONE);
+
+                try
+                {
+                    var scenarios = ConfigUtil.GetScenarios();
+                    var summaryRows = PerformanceUtils.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, true, true);
+                    if (summaryRows != null && summaryRows.Count > 0)
+                    {
+                        PerformanceUtils.PrintPerfSummaryTable(rootDirPath, projectDirectory, summaryRows);
+                    }
+
+                    sw.Stop();
+                    var elapsedSeconds = sw.Elapsed.TotalSeconds;
+                    var testCount = summaryRows?.Count ?? 0;
+
+                    // Check for performance test mismatches
+                    var mismatchTests = summaryRows?.Where(r => r.ResultsMatch != "YES").ToList() ?? new List<PerformanceUtils.PerfSummaryRow>();
+
+                    var message = $"Successful run of Performance Tests in {elapsedSeconds:F2} secs ({testCount} tests)";
+                    if (mismatchTests.Count > 0)
+                    {
+                        message += $"\n⚠️ Warning: {mismatchTests.Count} test(s) have output mismatch";
+                    }
+
+                    var response = new TestResponse
+                    {
+                        Success = true,
+                        Message = message,
+                        Elapsed = elapsedSeconds,
+                        TestCount = testCount
+                    };
+
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    sw.Stop();
+                    return Results.Problem($"Error running performance tests: {ex.Message}");
+                }
+                finally
+                {
+                    // Restore original log level
+                    Logger.SetLogLevel(originalLogLevel);
+                }
+            })
+            .WithName("RunPerformanceTests")
+            .WithDisplayName("Run Performance Tests")
+            .WithDescription("Runs performance comparison tests and saves results to wwwroot")
             .WithTags("Test");
 
             #endregion

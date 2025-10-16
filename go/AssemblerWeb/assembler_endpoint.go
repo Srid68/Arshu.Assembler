@@ -887,6 +887,7 @@ func testConsolidatePerformance(c *gin.Context) {
 type ReportRequest struct {
 	FileName      *string `json:"fileName" binding:"required"`
 	UseLangPrefix *bool   `json:"useLangPrefix"`
+	LangPrefix    *string `json:"langPrefix"`
 }
 
 // getReport handles the POST /api/report endpoint
@@ -909,10 +910,16 @@ func getReport(c *gin.Context) {
 		return
 	}
 
+	// Validate langPrefix for path traversal if provided
+	if req.LangPrefix != nil && !IsValidPathComponent(req.LangPrefix) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in langPrefix"})
+		return
+	}
+
 	// Construct file path
 	prefix := ""
-	if req.UseLangPrefix != nil && *req.UseLangPrefix {
-		prefix = "go_"
+	if req.UseLangPrefix != nil && *req.UseLangPrefix && req.LangPrefix != nil {
+		prefix = *req.LangPrefix + "_"
 	}
 	fileName := prefix + *req.FileName
 	reportsDir := filepath.Join(projectDirectory, "template_analysis", "Reports")

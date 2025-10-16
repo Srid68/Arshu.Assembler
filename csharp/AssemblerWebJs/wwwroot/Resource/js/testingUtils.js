@@ -490,7 +490,9 @@ class TestingUtils {
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to save output: ${response.statusText}`);
+                // Read the error message from response body
+                const errorText = await response.text();
+                throw new Error(errorText || `Failed to save output: ${response.statusText}`);
             }
 
             return await response.json();
