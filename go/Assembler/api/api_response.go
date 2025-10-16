@@ -37,13 +37,20 @@ type ApiResponse struct {
 	EngineTimeMs        float64
 }
 
-func (ar ApiResponse) SerializeToJson() string {
+func (ar ApiResponse) SerializeToJson(indented bool) string {
+	if indented {
+		return ar.serializeToJsonPretty()
+	}
+	return ar.serializeToJsonCompact()
+}
+
+func (ar ApiResponse) serializeToJsonCompact() string {
 	var sb strings.Builder
 	sb.WriteString("{")
 	sb.WriteString("\"Templates\":")
-	sb.WriteString(ar.serializeTemplates())
+	sb.WriteString(ar.serializeTemplates(0, false))
 	sb.WriteString(",\"PreProcessTemplates\":")
-	sb.WriteString(ar.serializePreProcessTemplates())
+	sb.WriteString(ar.serializePreProcessTemplates(0, false))
 	sb.WriteString(",\"AppSite\":\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(ar.AppSite))
 	sb.WriteString("\"")
@@ -69,10 +76,46 @@ func (ar ApiResponse) SerializeToJson() string {
 	return jsonStr
 }
 
+func (ar ApiResponse) serializeToJsonPretty() string {
+	var sb strings.Builder
+	sb.WriteString("{\n  ")
+	sb.WriteString("\"Templates\": ")
+	sb.WriteString(ar.serializeTemplates(1, true))
+	sb.WriteString(",\n  ")
+	sb.WriteString("\"PreProcessTemplates\": ")
+	sb.WriteString(ar.serializePreProcessTemplates(1, true))
+	sb.WriteString(",\n  ")
+	sb.WriteString("\"AppSite\": \"")
+	sb.WriteString(ApiResponse_EscapeJsonString(ar.AppSite))
+	sb.WriteString("\"")
+	if ar.AppFile != "" {
+		sb.WriteString(",\n  ")
+		sb.WriteString("\"AppFile\": \"")
+		sb.WriteString(ApiResponse_EscapeJsonString(ar.AppFile))
+		sb.WriteString("\"")
+	}
+	if ar.AppView != "" {
+		sb.WriteString(",\n  ")
+		sb.WriteString("\"AppView\": \"")
+		sb.WriteString(ApiResponse_EscapeJsonString(ar.AppView))
+		sb.WriteString("\"")
+	}
+	sb.WriteString(",\n  ")
+	sb.WriteString(fmt.Sprintf("\"ServerTimeMs\": %f", ar.ServerTimeMs))
+	sb.WriteString(",\n  ")
+	sb.WriteString("\"Html\": \"")
+	sb.WriteString(ApiResponse_EscapeHtmlString(ar.Html))
+	sb.WriteString("\"")
+	sb.WriteString(",\n  ")
+	sb.WriteString(fmt.Sprintf("\"EngineTimeMs\": %f", ar.EngineTimeMs))
+	sb.WriteString("\n}")
+	return sb.String()
+}
+
 func ApiResponse_EscapeJsonString(input string) string {
 	return strings.NewReplacer(
 		"\\", "\\\\",
-		"\"", "\\\"",		
+		"\"", "\\\"",
 		"\n", "\\n",
 		"\r", "\\r",
 		"\t", "\\t",
@@ -94,29 +137,68 @@ func ApiResponse_EscapeHtmlString(input string) string {
 	).Replace(input)
 }
 
-func (ar ApiResponse) serializeTemplates() string {
+func (ar ApiResponse) serializeTemplates(indent int, indented bool) string {
 	var sb strings.Builder
+	indentStr := strings.Repeat("  ", indent)
 	sb.WriteString("{")
+	if indented {
+		sb.WriteString("\n")
+	}
 	first := true
 	for k, v := range ar.Templates {
 		if !first {
 			sb.WriteString(",")
+			if indented {
+				sb.WriteString("\n")
+			}
+		}
+		if indented {
+			sb.WriteString(indentStr)
+			sb.WriteString("  ")
 		}
 		sb.WriteString("\"")
 		sb.WriteString(ApiResponse_EscapeJsonString(k))
 		sb.WriteString("\":")
-		sb.WriteString(ar.serializeTemplateData(v))
+		if indented {
+			sb.WriteString(" ")
+		}
+		sb.WriteString(ar.serializeTemplateData(v, indent+1, indented))
 		first = false
+	}
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
 	}
 	sb.WriteString("}")
 	return sb.String()
 }
 
-func (ar ApiResponse) serializeTemplateData(td TemplateData) string {
+func (ar ApiResponse) serializeTemplateData(td TemplateData, indent int, indented bool) string {
 	var sb strings.Builder
-	sb.WriteString("{\"Html\":\"")
+	indentStr := strings.Repeat("  ", indent)
+	sb.WriteString("{")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Html\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(td.Html))
-	sb.WriteString("\",\"Json\":")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Json\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	if td.Json != "" {
 		sb.WriteString("\"")
 		sb.WriteString(ApiResponse_EscapeJsonString(td.Json))
@@ -124,37 +206,98 @@ func (ar ApiResponse) serializeTemplateData(td TemplateData) string {
 	} else {
 		sb.WriteString("null")
 	}
-	sb.WriteString("}")
-	return sb.String()
-}
-
-func (ar ApiResponse) serializePreProcessTemplates() string {
-	var sb strings.Builder
-	sb.WriteString("{")
-	first := true
-	for k, v := range ar.PreProcessTemplates {
-		if !first {
-			sb.WriteString(",")
-		}
-		sb.WriteString("\"")
-		sb.WriteString(ApiResponse_EscapeJsonString(k))
-		sb.WriteString("\":")
-		sb.WriteString(ar.serializePreProcessTemplateMetadata(v))
-		first = false
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
 	}
 	sb.WriteString("}")
 	return sb.String()
 }
 
-func (ar ApiResponse) serializePreProcessTemplateMetadata(pm PreProcessTemplateMetadata) string {
+func (ar ApiResponse) serializePreProcessTemplates(indent int, indented bool) string {
 	var sb strings.Builder
-	sb.WriteString("{\"OriginalContent\":\"")
+	indentStr := strings.Repeat("  ", indent)
+	sb.WriteString("{")
+	if indented {
+		sb.WriteString("\n")
+	}
+	first := true
+	for k, v := range ar.PreProcessTemplates {
+		if !first {
+			sb.WriteString(",")
+			if indented {
+				sb.WriteString("\n")
+			}
+		}
+		if indented {
+			sb.WriteString(indentStr)
+			sb.WriteString("  ")
+		}
+		sb.WriteString("\"")
+		sb.WriteString(ApiResponse_EscapeJsonString(k))
+		sb.WriteString("\":")
+		if indented {
+			sb.WriteString(" ")
+		}
+		sb.WriteString(ar.serializePreProcessTemplateMetadata(v, indent+1, indented))
+		first = false
+	}
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+func (ar ApiResponse) serializePreProcessTemplateMetadata(pm PreProcessTemplateMetadata, indent int, indented bool) string {
+	var sb strings.Builder
+	indentStr := strings.Repeat("  ", indent)
+	sb.WriteString("{")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"OriginalContent\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeHtmlString(pm.OriginalContent))
-	sb.WriteString("\",\"Placeholders\":")
-	ar.SerializePlaceholdersList(&sb, pm.Placeholders)
-	sb.WriteString(",\"SlottedTemplates\":")
-	ar.SerializeSlottedTemplatesList(&sb, pm.SlottedTemplates)
-	sb.WriteString(",\"JsonData\":")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Placeholders\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	ar.SerializePlaceholdersList(&sb, pm.Placeholders, indent+1, indented)
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"SlottedTemplates\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	ar.SerializeSlottedTemplatesList(&sb, pm.SlottedTemplates, indent+1, indented)
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"JsonData\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	if pm.JsonData != nil {
 		// JsonData should be serialized as proper JSON, not as a string
 		// Check if it's already JSON format or needs to be treated as raw JSON
@@ -173,83 +316,353 @@ func (ar ApiResponse) serializePreProcessTemplateMetadata(pm PreProcessTemplateM
 	} else {
 		sb.WriteString("null")
 	}
-	sb.WriteString(",\"JsonPlaceholders\":")
-	ar.SerializeJsonPlaceholdersList(&sb, pm.JsonPlaceholders)
-	sb.WriteString(",\"ReplacementMappings\":")
-	ar.SerializeReplacementMappingsList(&sb, pm.ReplacementMappings)
-	sb.WriteString(fmt.Sprintf(",\"HasPlaceholders\":%t", pm.HasPlaceholders))
-	sb.WriteString(fmt.Sprintf(",\"HasSlottedTemplates\":%t", pm.HasSlottedTemplates))
-	sb.WriteString(fmt.Sprintf(",\"HasJsonData\":%t", pm.HasJsonData))
-	sb.WriteString(fmt.Sprintf(",\"HasJsonPlaceholders\":%t", pm.HasJsonPlaceholders))
-	sb.WriteString(fmt.Sprintf(",\"HasReplacementMappings\":%t", pm.HasReplacementMappings))
-	sb.WriteString(fmt.Sprintf(",\"RequiresProcessing\":%t", pm.RequiresProcessing))
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"JsonPlaceholders\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	ar.SerializeJsonPlaceholdersList(&sb, pm.JsonPlaceholders, indent+1, indented)
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"ReplacementMappings\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	ar.SerializeReplacementMappingsList(&sb, pm.ReplacementMappings, indent+1, indented)
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString(fmt.Sprintf("\"HasPlaceholders\": %t", pm.HasPlaceholders))
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString(fmt.Sprintf("\"HasSlottedTemplates\": %t", pm.HasSlottedTemplates))
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString(fmt.Sprintf("\"HasJsonData\": %t", pm.HasJsonData))
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString(fmt.Sprintf("\"HasJsonPlaceholders\": %t", pm.HasJsonPlaceholders))
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString(fmt.Sprintf("\"HasReplacementMappings\": %t", pm.HasReplacementMappings))
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString(fmt.Sprintf("\"RequiresProcessing\": %t", pm.RequiresProcessing))
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+	}
 	sb.WriteString("}")
 	return sb.String()
 }
 
-func (ar ApiResponse) SerializeSlotPlaceholdersList(sb *strings.Builder, list []model.SlotPlaceholder) {
+func (ar ApiResponse) SerializeSlotPlaceholdersList(sb *strings.Builder, list []model.SlotPlaceholder, indent int, indented bool) {
+	indentStr := strings.Repeat("  ", indent)
 	sb.WriteString("[")
+	if indented && len(list) > 0 {
+		sb.WriteString("\n")
+	}
 	for i, slot := range list {
 		if i > 0 {
 			sb.WriteString(",")
+			if indented {
+				sb.WriteString("\n")
+			}
 		}
-		ar.SerializeSlotPlaceholder(sb, slot)
+		if indented {
+			sb.WriteString(indentStr)
+			sb.WriteString("  ")
+		}
+		ar.SerializeSlotPlaceholder(sb, slot, indent, indented)
+	}
+	if indented && len(list) > 0 {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
 	}
 	sb.WriteString("]")
 }
 
-func (ar ApiResponse) SerializeSlotPlaceholder(sb *strings.Builder, slot model.SlotPlaceholder) {
+func (ar ApiResponse) SerializeSlotPlaceholder(sb *strings.Builder, slot model.SlotPlaceholder, indent int, indented bool) {
+	indentStr := strings.Repeat("  ", indent)
 	sb.WriteString("{")
-	sb.WriteString("\"Number\":\"")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Number\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(slot.Number))
-	sb.WriteString("\",\"StartIndex\":")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"StartIndex\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	sb.WriteString(fmt.Sprintf("%d", slot.StartIndex))
-	sb.WriteString(",\"EndIndex\":")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"EndIndex\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	sb.WriteString(fmt.Sprintf("%d", slot.EndIndex))
-	sb.WriteString(",\"Content\":\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Content\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(slot.Content))
-	sb.WriteString("\",\"SlotKey\":\"")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"SlotKey\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(slot.SlotKey))
-	sb.WriteString("\",\"OpenTag\":\"")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"OpenTag\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(slot.OpenTag))
-	sb.WriteString("\",\"CloseTag\":\"")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"CloseTag\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(slot.CloseTag))
-	sb.WriteString("\",\"NestedSlots\":")
-	ar.SerializeSlotPlaceholdersList(sb, slot.NestedSlots)
-	sb.WriteString(",\"NestedPlaceholders\":")
-	ar.SerializePlaceholdersList(sb, slot.NestedPlaceholders)
-	sb.WriteString(",\"NestedSlottedTemplates\":")
-	ar.SerializeSlottedTemplatesList(sb, slot.NestedSlottedTemplates)
-	sb.WriteString(fmt.Sprintf(",\"HasNestedPlaceholders\":%t", slot.HasNestedPlaceholders))
-	sb.WriteString(fmt.Sprintf(",\"HasNestedSlottedTemplates\":%t", slot.HasNestedSlottedTemplates))
-	sb.WriteString(fmt.Sprintf(",\"RequiresNestedProcessing\":%t", slot.RequiresNestedProcessing))
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"NestedSlots\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	ar.SerializeSlotPlaceholdersList(sb, slot.NestedSlots, indent+1, indented)
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"NestedPlaceholders\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	ar.SerializePlaceholdersList(sb, slot.NestedPlaceholders, indent+1, indented)
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"NestedSlottedTemplates\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	ar.SerializeSlottedTemplatesList(sb, slot.NestedSlottedTemplates, indent+1, indented)
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString(fmt.Sprintf("\"HasNestedPlaceholders\": %t", slot.HasNestedPlaceholders))
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString(fmt.Sprintf("\"HasNestedSlottedTemplates\": %t", slot.HasNestedSlottedTemplates))
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString(fmt.Sprintf("\"RequiresNestedProcessing\": %t", slot.RequiresNestedProcessing))
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+	}
 	sb.WriteString("}")
 }
 
-func (ar ApiResponse) SerializePlaceholdersList(sb *strings.Builder, list []model.TemplatePlaceholder) {
+func (ar ApiResponse) SerializePlaceholdersList(sb *strings.Builder, list []model.TemplatePlaceholder, indent int, indented bool) {
+	indentStr := strings.Repeat("  ", indent)
 	sb.WriteString("[")
+	if indented && len(list) > 0 {
+		sb.WriteString("\n")
+	}
 	for i, ph := range list {
 		if i > 0 {
 			sb.WriteString(",")
+			if indented {
+				sb.WriteString("\n")
+			}
 		}
-		ar.SerializePlaceholder(sb, ph)
+		if indented {
+			sb.WriteString(indentStr)
+			sb.WriteString("  ")
+		}
+		ar.SerializePlaceholder(sb, ph, indent, indented)
+	}
+	if indented && len(list) > 0 {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
 	}
 	sb.WriteString("]")
 }
 
-func (ar ApiResponse) SerializePlaceholder(sb *strings.Builder, ph model.TemplatePlaceholder) {
+func (ar ApiResponse) SerializePlaceholder(sb *strings.Builder, ph model.TemplatePlaceholder, indent int, indented bool) {
+	indentStr := strings.Repeat("  ", indent)
 	sb.WriteString("{")
-	sb.WriteString("\"Name\":\"")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Name\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(ph.Name))
-	sb.WriteString("\",\"StartIndex\":")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"StartIndex\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	sb.WriteString(fmt.Sprintf("%d", ph.StartIndex))
-	sb.WriteString(",\"EndIndex\":")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"EndIndex\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	sb.WriteString(fmt.Sprintf("%d", ph.EndIndex))
-	sb.WriteString(",\"FullMatch\":\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"FullMatch\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(ph.FullMatch))
-	sb.WriteString("\",\"TemplateKey\":\"")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"TemplateKey\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(ph.TemplateKey))
-	sb.WriteString("\",\"JsonData\":")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"JsonData\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	if ph.JsonData != nil {
 		sb.WriteString("\"")
 		sb.WriteString(ApiResponse_EscapeJsonString(fmt.Sprintf("%v", ph.JsonData)))
@@ -257,239 +670,307 @@ func (ar ApiResponse) SerializePlaceholder(sb *strings.Builder, ph model.Templat
 	} else {
 		sb.WriteString("null")
 	}
-	sb.WriteString(",\"NestedPlaceholders\":")
-	ar.SerializePlaceholdersList(sb, ph.NestedPlaceholders)
-	sb.WriteString(",\"NestedSlots\":")
-	ar.SerializeSlotPlaceholdersList(sb, ph.NestedSlots)
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"NestedPlaceholders\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	ar.SerializePlaceholdersList(sb, ph.NestedPlaceholders, indent+1, indented)
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"NestedSlots\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	ar.SerializeSlotPlaceholdersList(sb, ph.NestedSlots, indent+1, indented)
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+	}
 	sb.WriteString("}")
 }
 
-func (ar ApiResponse) SerializeSlottedTemplatesList(sb *strings.Builder, list []model.SlottedTemplate) {
+func (ar ApiResponse) SerializeSlottedTemplatesList(sb *strings.Builder, list []model.SlottedTemplate, indent int, indented bool) {
+	indentStr := strings.Repeat("  ", indent)
 	sb.WriteString("[")
+	if indented && len(list) > 0 {
+		sb.WriteString("\n")
+	}
 	for i, st := range list {
 		if i > 0 {
 			sb.WriteString(",")
+			if indented {
+				sb.WriteString("\n")
+			}
 		}
-		ar.SerializeSlottedTemplate(sb, st)
+		if indented {
+			sb.WriteString(indentStr)
+			sb.WriteString("  ")
+		}
+		ar.SerializeSlottedTemplate(sb, st, indent, indented)
+	}
+	if indented && len(list) > 0 {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
 	}
 	sb.WriteString("]")
 }
 
-func (ar ApiResponse) SerializeSlottedTemplate(sb *strings.Builder, st model.SlottedTemplate) {
+func (ar ApiResponse) SerializeSlottedTemplate(sb *strings.Builder, st model.SlottedTemplate, indent int, indented bool) {
+	indentStr := strings.Repeat("  ", indent)
 	sb.WriteString("{")
-	sb.WriteString("\"Name\":\"")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Name\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(st.Name))
-	sb.WriteString("\",\"StartIndex\":")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"StartIndex\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	sb.WriteString(fmt.Sprintf("%d", st.StartIndex))
-	sb.WriteString(",\"EndIndex\":")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"EndIndex\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	sb.WriteString(fmt.Sprintf("%d", st.EndIndex))
-	sb.WriteString(",\"FullMatch\":\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"FullMatch\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(st.FullMatch))
-	sb.WriteString("\",\"TemplateKey\":\"")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"TemplateKey\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(st.TemplateKey))
-	sb.WriteString("\",\"Slots\":")
-	ar.SerializeSlotPlaceholdersList(sb, st.Slots)
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Slots\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	ar.SerializeSlotPlaceholdersList(sb, st.Slots, indent+1, indented)
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+	}
 	sb.WriteString("}")
 }
 
-func (ar ApiResponse) SerializeJsonPlaceholdersList(sb *strings.Builder, list []model.JsonPlaceholder) {
+func (ar ApiResponse) SerializeJsonPlaceholdersList(sb *strings.Builder, list []model.JsonPlaceholder, indent int, indented bool) {
+	indentStr := strings.Repeat("  ", indent)
 	sb.WriteString("[")
+	if indented && len(list) > 0 {
+		sb.WriteString("\n")
+	}
 	for i, jp := range list {
 		if i > 0 {
 			sb.WriteString(",")
+			if indented {
+				sb.WriteString("\n")
+			}
 		}
-		ar.SerializeJsonPlaceholder(sb, jp)
+		if indented {
+			sb.WriteString(indentStr)
+			sb.WriteString("  ")
+		}
+		ar.SerializeJsonPlaceholder(sb, jp, indent, indented)
+	}
+	if indented && len(list) > 0 {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
 	}
 	sb.WriteString("]")
 }
 
-func (ar ApiResponse) SerializeJsonPlaceholder(sb *strings.Builder, jp model.JsonPlaceholder) {
+func (ar ApiResponse) SerializeJsonPlaceholder(sb *strings.Builder, jp model.JsonPlaceholder, indent int, indented bool) {
+	indentStr := strings.Repeat("  ", indent)
 	sb.WriteString("{")
-	sb.WriteString("\"Key\":\"")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Key\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(jp.Key))
-	sb.WriteString("\",\"Placeholder\":\"")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Placeholder\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(jp.Placeholder))
-	sb.WriteString("\",\"Value\":\"")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Value\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(jp.Value))
-	sb.WriteString("\"}")
+	sb.WriteString("\"")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+	}
+	sb.WriteString("}")
 }
 
-func (ar ApiResponse) SerializeReplacementMappingsList(sb *strings.Builder, list []model.ReplacementMapping) {
+func (ar ApiResponse) SerializeReplacementMappingsList(sb *strings.Builder, list []model.ReplacementMapping, indent int, indented bool) {
+	indentStr := strings.Repeat("  ", indent)
 	sb.WriteString("[")
+	if indented && len(list) > 0 {
+		sb.WriteString("\n")
+	}
 	for i, rm := range list {
 		if i > 0 {
 			sb.WriteString(",")
+			if indented {
+				sb.WriteString("\n")
+			}
 		}
-		ar.SerializeReplacementMapping(sb, rm)
+		if indented {
+			sb.WriteString(indentStr)
+			sb.WriteString("  ")
+		}
+		ar.SerializeReplacementMapping(sb, rm, indent, indented)
+	}
+	if indented && len(list) > 0 {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
 	}
 	sb.WriteString("]")
 }
 
-func (ar ApiResponse) SerializeReplacementMapping(sb *strings.Builder, rm model.ReplacementMapping) {
+func (ar ApiResponse) SerializeReplacementMapping(sb *strings.Builder, rm model.ReplacementMapping, indent int, indented bool) {
+	indentStr := strings.Repeat("  ", indent)
 	sb.WriteString("{")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
 	sb.WriteString("\"StartIndex\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	sb.WriteString(fmt.Sprintf("%d", rm.StartIndex))
-	sb.WriteString(",\"EndIndex\":")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"EndIndex\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	sb.WriteString(fmt.Sprintf("%d", rm.EndIndex))
-	sb.WriteString(",\"OriginalText\":\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"OriginalText\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeHtmlString(rm.OriginalText))
-	sb.WriteString("\",\"ReplacementText\":\"")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"ReplacementText\":")
+	if indented {
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\"")
 	sb.WriteString(ApiResponse_EscapeHtmlString(rm.ReplacementText))
-	sb.WriteString("\",\"Type\":")
+	sb.WriteString("\"")
+	sb.WriteString(",")
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
+		sb.WriteString("  ")
+	}
+	sb.WriteString("\"Type\":")
+	if indented {
+		sb.WriteString(" ")
+	}
 	sb.WriteString(fmt.Sprintf("%d", rm.Type))
-	sb.WriteString("}")
-}
-
-func SerializeSlotPlaceholdersList(sb *strings.Builder, list []model.SlotPlaceholder) {
-	sb.WriteString("[")
-	for i, slot := range list {
-		if i > 0 {
-			sb.WriteString(",")
-		}
-		SerializeSlotPlaceholder(sb, slot)
+	if indented {
+		sb.WriteString("\n")
+		sb.WriteString(indentStr)
 	}
-	sb.WriteString("]")
-}
-
-func SerializeSlotPlaceholder(sb *strings.Builder, slot model.SlotPlaceholder) {
-	sb.WriteString("{")
-	sb.WriteString("\"Number\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(slot.Number))
-	sb.WriteString("\",\"StartIndex\":")
-	sb.WriteString(fmt.Sprintf("%d", slot.StartIndex))
-	sb.WriteString(",\"EndIndex\":")
-	sb.WriteString(fmt.Sprintf("%d", slot.EndIndex))
-	sb.WriteString(",\"Content\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(slot.Content))
-	sb.WriteString("\",\"SlotKey\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(slot.SlotKey))
-	sb.WriteString("\",\"OpenTag\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(slot.OpenTag))
-	sb.WriteString("\",\"CloseTag\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(slot.CloseTag))
-	sb.WriteString("\",\"NestedSlots\":")
-	SerializeSlotPlaceholdersList(sb, slot.NestedSlots)
-	sb.WriteString(",\"NestedPlaceholders\":")
-	SerializePlaceholdersList(sb, slot.NestedPlaceholders)
-	sb.WriteString(",\"NestedSlottedTemplates\":")
-	SerializeSlottedTemplatesList(sb, slot.NestedSlottedTemplates)
-	sb.WriteString(fmt.Sprintf(",\"HasNestedPlaceholders\":%t", slot.HasNestedPlaceholders))
-	sb.WriteString(fmt.Sprintf(",\"HasNestedSlottedTemplates\":%t", slot.HasNestedSlottedTemplates))
-	sb.WriteString(fmt.Sprintf(",\"RequiresNestedProcessing\":%t", slot.RequiresNestedProcessing))
-	sb.WriteString("}")
-}
-
-func SerializePlaceholdersList(sb *strings.Builder, list []model.TemplatePlaceholder) {
-	sb.WriteString("[")
-	for i, ph := range list {
-		if i > 0 {
-			sb.WriteString(",")
-		}
-		SerializePlaceholder(sb, ph)
-	}
-	sb.WriteString("]")
-}
-
-func SerializePlaceholder(sb *strings.Builder, ph model.TemplatePlaceholder) {
-	sb.WriteString("{")
-	sb.WriteString("\"Name\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(ph.Name))
-	sb.WriteString("\",\"StartIndex\":")
-	sb.WriteString(fmt.Sprintf("%d", ph.StartIndex))
-	sb.WriteString(",\"EndIndex\":")
-	sb.WriteString(fmt.Sprintf("%d", ph.EndIndex))
-	sb.WriteString(",\"FullMatch\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(ph.FullMatch))
-	sb.WriteString("\",\"TemplateKey\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(ph.TemplateKey))
-	sb.WriteString("\",\"JsonData\":")
-	if ph.JsonData != nil {
-		sb.WriteString("\"")
-		sb.WriteString(ApiResponse_EscapeJsonString(fmt.Sprintf("%v", ph.JsonData)))
-		sb.WriteString("\"")
-	} else {
-		sb.WriteString("null")
-	}
-	sb.WriteString(",\"NestedPlaceholders\":")
-	SerializePlaceholdersList(sb, ph.NestedPlaceholders)
-	sb.WriteString(",\"NestedSlots\":")
-	SerializeSlotPlaceholdersList(sb, ph.NestedSlots)
-	sb.WriteString("}")
-}
-
-func SerializeSlottedTemplatesList(sb *strings.Builder, list []model.SlottedTemplate) {
-	sb.WriteString("[")
-	for i, st := range list {
-		if i > 0 {
-			sb.WriteString(",")
-		}
-		SerializeSlottedTemplate(sb, st)
-	}
-	sb.WriteString("]")
-}
-
-func SerializeSlottedTemplate(sb *strings.Builder, st model.SlottedTemplate) {
-	sb.WriteString("{")
-	sb.WriteString("\"Name\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(st.Name))
-	sb.WriteString("\",\"StartIndex\":")
-	sb.WriteString(fmt.Sprintf("%d", st.StartIndex))
-	sb.WriteString(",\"EndIndex\":")
-	sb.WriteString(fmt.Sprintf("%d", st.EndIndex))
-	sb.WriteString(",\"FullMatch\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(st.FullMatch))
-	sb.WriteString("\",\"TemplateKey\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(st.TemplateKey))
-	sb.WriteString("\",\"Slots\":")
-	SerializeSlotPlaceholdersList(sb, st.Slots)
-	sb.WriteString("}")
-}
-
-func SerializeJsonPlaceholdersList(sb *strings.Builder, list []model.JsonPlaceholder) {
-	sb.WriteString("[")
-	for i, jp := range list {
-		if i > 0 {
-			sb.WriteString(",")
-		}
-		SerializeJsonPlaceholder(sb, jp)
-	}
-	sb.WriteString("]")
-}
-
-func SerializeJsonPlaceholder(sb *strings.Builder, jp model.JsonPlaceholder) {
-	sb.WriteString("{")
-	sb.WriteString("\"Key\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(jp.Key))
-	sb.WriteString("\",\"Placeholder\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(jp.Placeholder))
-	sb.WriteString("\",\"Value\":\"")
-	sb.WriteString(ApiResponse_EscapeJsonString(jp.Value))
-	sb.WriteString("\"}")
-}
-
-func SerializeReplacementMappingsList(sb *strings.Builder, list []model.ReplacementMapping) {
-	sb.WriteString("[")
-	for i, rm := range list {
-		if i > 0 {
-			sb.WriteString(",")
-		}
-		SerializeReplacementMapping(sb, rm)
-	}
-	sb.WriteString("]")
-}
-
-func SerializeReplacementMapping(sb *strings.Builder, rm model.ReplacementMapping) {
-	sb.WriteString("{")
-	sb.WriteString("\"StartIndex\":")
-	sb.WriteString(fmt.Sprintf("%d", rm.StartIndex))
-	sb.WriteString(",\"EndIndex\":")
-	sb.WriteString(fmt.Sprintf("%d", rm.EndIndex))
-	sb.WriteString(",\"OriginalText\":\"")
-	sb.WriteString(ApiResponse_EscapeHtmlString(rm.OriginalText))
-	sb.WriteString("\",\"ReplacementText\":\"")
-	sb.WriteString(ApiResponse_EscapeHtmlString(rm.ReplacementText))
-	sb.WriteString("\",\"Type\":")
-	sb.WriteString(fmt.Sprintf("%d", rm.Type))
 	sb.WriteString("}")
 }
 
@@ -648,12 +1129,13 @@ func serializePreprocessedSiteTemplatesPretty(templates *model.PreprocessedSiteT
 }
 
 func serializePreprocessedTemplateCompact(sb *strings.Builder, template *model.PreprocessedTemplate) {
+	ar := ApiResponse{}
 	sb.WriteString("{\"originalContent\":\"")
 	sb.WriteString(ApiResponse_EscapeHtmlString(template.OriginalContent))
 	sb.WriteString("\",\"placeholders\":")
-	SerializePlaceholdersList(sb, template.Placeholders)
+	ar.SerializePlaceholdersList(sb, template.Placeholders, 0, false)
 	sb.WriteString(",\"slottedTemplates\":")
-	SerializeSlottedTemplatesList(sb, template.SlottedTemplates)
+	ar.SerializeSlottedTemplatesList(sb, template.SlottedTemplates, 0, false)
 	sb.WriteString(",\"jsonData\":")
 	if template.JsonData != nil {
 		sb.WriteString("\"Arshu.App.Json.JsonObject\"")
@@ -661,9 +1143,9 @@ func serializePreprocessedTemplateCompact(sb *strings.Builder, template *model.P
 		sb.WriteString("null")
 	}
 	sb.WriteString(",\"jsonPlaceholders\":")
-	SerializeJsonPlaceholdersList(sb, template.JsonPlaceholders)
+	ar.SerializeJsonPlaceholdersList(sb, template.JsonPlaceholders, 0, false)
 	sb.WriteString(",\"replacementMappings\":")
-	SerializeReplacementMappingsList(sb, template.ReplacementMappings)
+	ar.SerializeReplacementMappingsList(sb, template.ReplacementMappings, 0, false)
 	sb.WriteString(fmt.Sprintf(",\"hasPlaceholders\":%t", template.HasPlaceholders))
 	sb.WriteString(fmt.Sprintf(",\"hasSlottedTemplates\":%t", template.HasSlottedTemplates))
 	sb.WriteString(fmt.Sprintf(",\"hasJsonData\":%t", template.HasJsonData))
