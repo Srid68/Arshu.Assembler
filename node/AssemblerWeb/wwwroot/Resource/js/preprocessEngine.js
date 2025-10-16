@@ -26,33 +26,40 @@ class EnginePreProcess {
      * @returns {string} HTML with placeholders replaced using preprocessed structures
      */
     mergeTemplates(appSite, appFile, appView, preprocessedTemplates, enableJsonProcessing = true) {
-        if (!preprocessedTemplates || 
+        if (typeof Logger !== 'undefined') {
+            Logger.debug(`EnginePreProcess.MergeTemplates START: appSite=${appSite}, appFile=${appFile}, appView=${appView || ''}, enableJsonProcessing=${enableJsonProcessing}`, 'EnginePreProcess');
+        }
+
+        if (!preprocessedTemplates ||
             (preprocessedTemplates instanceof Map && preprocessedTemplates.size === 0) ||
             (!(preprocessedTemplates instanceof Map) && Object.keys(preprocessedTemplates).length === 0)) {
+            if (typeof Logger !== 'undefined') {
+                Logger.warn('No preprocessed templates provided', 'EnginePreProcess');
+            }
             return '';
         }
 
         // Use the getTemplate method to retrieve the main template
         const mainPreprocessed = this.getTemplate(appSite, appFile, preprocessedTemplates, appView, this.appViewPrefix, true);
         if (!mainPreprocessed) {
-            console.log('PreProcess: mainPreprocessed is null');
+            if (typeof Logger !== 'undefined') {
+                Logger.warn(`Main preprocessed template not found for ${appSite}_${appFile}`, 'EnginePreProcess');
+            }
             return '';
         }
 
-        //console.log('PreProcess: mainPreprocessed structure:', mainPreprocessed);
-        //console.log('PreProcess: originalContent (camelCase):', mainPreprocessed.originalContent);
-        //console.log('PreProcess: OriginalContent (PascalCase):', mainPreprocessed.OriginalContent);
-        //console.log('PreProcess: replacementMappings:', mainPreprocessed.replacementMappings);
-        //console.log('PreProcess: placeholders:', mainPreprocessed.placeholders);
-
         // Start with original content
         let contentHtml = mainPreprocessed.originalContent || mainPreprocessed.OriginalContent;
-        //console.log('PreProcess: Initial contentHtml:', contentHtml);
+        if (typeof Logger !== 'undefined') {
+            Logger.debug(`Main template loaded: ${contentHtml.length} chars`, 'EnginePreProcess');
+        }
 
         // Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
-        //console.log('PreProcess: About to apply template replacements');
-        contentHtml = this.applyTemplateReplacements(contentHtml, preprocessedTemplates, enableJsonProcessing, appView);
-        //console.log('PreProcess: After applying replacements:', contentHtml);
+        contentHtml = this.applyTemplateReplacements(contentHtml, preprocessedTemplates, enableJsonProcessing, appView, mainPreprocessed);
+
+        if (typeof Logger !== 'undefined') {
+            Logger.debug(`EnginePreProcess.MergeTemplates COMPLETE: final output length = ${contentHtml.length}`, 'EnginePreProcess');
+        }
 
         return contentHtml;
     }
@@ -110,77 +117,93 @@ class EnginePreProcess {
      * @param {Object.<string, PreprocessedTemplate>} preprocessedTemplates Dictionary of preprocessed templates
      * @param {boolean} enableJsonProcessing Whether to enable JSON processing
      * @param {string|null} appView The application view name
+     * @param {PreprocessedTemplate|null} mainTemplate The main template (optional)
      * @returns {string} Content with all replacements applied
      */
-    applyTemplateReplacements(content, preprocessedTemplates, enableJsonProcessing, appView) {
+    applyTemplateReplacements(content, preprocessedTemplates, enableJsonProcessing, appView, mainTemplate = null) {
         let result = content;
 
         // Apply replacement mappings from all templates in multiple passes until no more changes
         const maxPasses = 10; // Prevent infinite loops
         let currentPass = 0;
-        
+
         do {
             const previous = result;
             currentPass++;
-            
+
+            let slottedCount = 0, simpleCount = 0, jsonPlaceholderCount = 0;
+
+            // FIRST: Apply JSON placeholder mappings ONLY from the main template (to avoid overwriting component content)
+            if (mainTemplate && currentPass === 1 && enableJsonProcessing) {
+                const mainReplacementMappings = mainTemplate.replacementMappings || mainTemplate.ReplacementMappings || [];
+                for (const mapping of mainReplacementMappings) {
+                    const mappingType = mapping.type || mapping.Type;
+                    if ((mappingType === 0 || mappingType === "JsonPlaceholder") && result.includes(mapping.originalText || mapping.OriginalText)) {
+                        const originalText = mapping.originalText || mapping.OriginalText;
+                        const replacementText = mapping.replacementText || mapping.ReplacementText;
+                        if (typeof Logger !== 'undefined') {
+                            Logger.debug(`Applying main template JSON placeholder: ${originalText} -> ${replacementText}`, 'EnginePreProcess');
+                        }
+                        result = result.replaceAll(originalText, replacementText);
+                        jsonPlaceholderCount++;
+                    }
+                }
+            }
+
             // Apply replacement mappings from all templates
-            const templates = preprocessedTemplates instanceof Map ? 
-                Array.from(preprocessedTemplates.values()) : 
+            const templates = preprocessedTemplates instanceof Map ?
+                Array.from(preprocessedTemplates.values()) :
                 Object.values(preprocessedTemplates);
-                
+
             for (const template of templates) {
                 const replacementMappings = template.replacementMappings || template.ReplacementMappings || [];
-                const jsonPlaceholders = template.jsonPlaceholders || template.JsonPlaceholders || [];
-                
-                // CRITICAL: Apply slotted template mappings FIRST (before JSON processing changes the content)
+
+                // Apply slotted template mappings
                 for (const mapping of replacementMappings) {
                     const mappingType = mapping.type || mapping.Type;
                     if ((mappingType === 2 || mappingType === "SlottedTemplate") && result.includes(mapping.originalText || mapping.OriginalText)) {
                         const originalText = mapping.originalText || mapping.OriginalText;
                         const replacementText = mapping.replacementText || mapping.ReplacementText;
+                        if (typeof Logger !== 'undefined') {
+                            Logger.debug(`Applying slotted template: ${originalText.substring(0, Math.min(50, originalText.length))}... -> ${replacementText.length} chars`, 'EnginePreProcess');
+                        }
                         result = result.replaceAll(originalText, replacementText);
+                        slottedCount++;
                     }
                 }
-                
-                // Then apply other replacement mappings (simple templates) with AppView logic
+
+                // Apply simple template mappings (components) - replacement text already has JSON values baked in by LoaderPreProcess
                 for (const mapping of replacementMappings) {
                     const mappingType = mapping.type || mapping.Type;
                     if ((mappingType === 1 || mappingType === "SimpleTemplate") && result.includes(mapping.originalText || mapping.OriginalText)) {
                         const originalText = mapping.originalText || mapping.OriginalText;
                         const replacementText = mapping.replacementText || mapping.ReplacementText;
-                        // Apply AppView logic before replacement
+                        // Apply AppView logic to handle runtime template selection with baked-in JSON values
                         const finalReplacementText = this.applyAppViewLogicToReplacement(originalText, replacementText, preprocessedTemplates, appView);
-                        result = result.replaceAll(originalText, finalReplacementText);
-                    }
-                }
-                
-                // Apply JSON replacement mappings only if JSON processing is enabled
-                if (enableJsonProcessing) {
-                    for (const mapping of replacementMappings) {
-                        const mappingType = mapping.type || mapping.Type;
-                        if ((mappingType === 0 || mappingType === "JsonPlaceholder") && result.includes(mapping.originalText || mapping.OriginalText)) {
-                            const originalText = mapping.originalText || mapping.OriginalText;
-                            const replacementText = mapping.replacementText || mapping.ReplacementText;
-                            result = result.replaceAll(originalText, replacementText);
+                        if (typeof Logger !== 'undefined') {
+                            Logger.info(`Applying simple template: ${originalText} -> replacement text (first 200 chars): ${finalReplacementText.substring(0, Math.min(200, finalReplacementText.length))}`, 'EnginePreProcess');
                         }
-                    }
-                }
-                
-                // Apply JSON placeholders if JSON processing is enabled (LAST)
-                if (enableJsonProcessing) {
-                    for (const placeholder of jsonPlaceholders) {
-                        const placeholderText = placeholder.placeholder || placeholder.Placeholder;
-                        const value = placeholder.value || placeholder.Value;
-                        result = this.replaceAllCaseInsensitive(result, placeholderText, value);
+                        result = result.replaceAll(originalText, finalReplacementText);
+                        simpleCount++;
                     }
                 }
             }
-            
+
+            if (typeof Logger !== 'undefined') {
+                Logger.debug(`Pass ${currentPass} applied: ${jsonPlaceholderCount} main JSON placeholders, ${slottedCount} slotted, ${simpleCount} simple`, 'EnginePreProcess');
+            }
+
             // Break if no changes were made or max passes reached
             if (result === previous || currentPass >= maxPasses) {
                 break;
             }
         } while (true);
+
+        // All JSON replacements are handled in LoaderPreProcess during replacement mapping creation
+        // The engine only does simple string replacements using pre-prepared mappings
+        if (typeof Logger !== 'undefined') {
+            Logger.info(`Replacement complete after ${currentPass} passes, final size: ${result.length}`, 'EnginePreProcess');
+        }
 
         return result;
     }
@@ -258,30 +281,40 @@ class EnginePreProcess {
      * @returns {string} Updated replacement text with AppView logic applied
      */
     applyAppViewLogicToReplacement(originalText, replacementText, preprocessedTemplates, appView) {
-        // Check if the original text is a placeholder that should use AppView fallback logic
+        // If no appView context, use the default replacement text (which already has JSON values baked in)
+        if (!appView) {
+            return replacementText;
+        }
+
         // Extract placeholder name from {{PlaceholderName}} format
         const placeholderName = this.extractPlaceholderName(originalText);
         if (!placeholderName) {
             return replacementText;
         }
 
-        // Use the centralized getTemplate method for consistent AppView logic
         // First get the appSite from the template key pattern
         const sampleKey = Object.keys(preprocessedTemplates)[0];
         if (!sampleKey) {
             return replacementText;
         }
-            
+
         const parts = sampleKey.split('_');
         if (parts.length < 2) {
             return replacementText;
         }
-            
+
         const appSite = parts[0]; // Extract appSite from the key pattern
-        
-        const template = this.getTemplate(appSite, placeholderName, preprocessedTemplates, appView, this.appViewPrefix, true);
-        
-        return (template?.originalContent || template?.OriginalContent) || replacementText;
+
+        // Use GetTemplate to find the AppView-specific template variant
+        const appViewTemplate = this.getTemplate(appSite, placeholderName, preprocessedTemplates, appView, this.appViewPrefix, true);
+
+        // If no AppView-specific template found, use the default replacement text
+        if (!appViewTemplate) {
+            return replacementText;
+        }
+
+        // Return the AppView-specific template's original content (which already has JSON baked in by LoaderPreProcess)
+        return (appViewTemplate.originalContent || appViewTemplate.OriginalContent) || replacementText;
     }
 
     /**

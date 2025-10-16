@@ -90,3 +90,66 @@ export function isValidAppSite(appSite, validAppSites) {
   }
   return validAppSites.has(appSite.toLowerCase());
 }
+
+// Maximum content sizes to prevent DDOS attacks
+export const MAX_LOG_FILE_SIZE = 500 * 1024; // 500 KB
+// Buffer allowance for output size validation (50 KB)
+export const OUTPUT_SIZE_BUFFER = 50 * 1024;
+
+/**
+ * Validates log content format and size similar to C# implementation
+ * @param {string} logContent
+ * @returns {{valid:boolean, errorMessage?:string}}
+ */
+export function isValidLogContent(logContent) {
+  if (!logContent || typeof logContent !== 'string') {
+    return { valid: false, errorMessage: 'Log content is empty' };
+  }
+
+  if (Buffer.byteLength(logContent, 'utf8') > MAX_LOG_FILE_SIZE) {
+    return { valid: false, errorMessage: 'Log file exceeds maximum size limit (500 KB)' };
+  }
+
+  const pattern = /^[\[\]0-9:\-\s\.TZ]+\s*(DEBUG|INFO|WARN|ERROR|TRACE|FATAL)?:?\s*.+$/im;
+  const lines = logContent.split(/\r?\n/).filter(l => l.trim() !== '');
+  if (lines.length === 0) return { valid: true };
+
+  let validLines = 0;
+  for (const line of lines) {
+    if (pattern.test(line) || line.startsWith('    at ') || line.startsWith('\tat ')) {
+      validLines++;
+    }
+  }
+
+  if ((validLines / lines.length) < 0.5) {
+    return { valid: false, errorMessage: 'Log content does not match expected format' };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validates output size against template total size with fixed buffer
+ */
+export function isValidOutputSizeWithBuffer(htmlContent, templateTotalSize) {
+  if (!htmlContent) return true;
+  const outputSize = Buffer.byteLength(htmlContent, 'utf8');
+  if (templateTotalSize > 0) {
+    const maxAllowed = templateTotalSize + OUTPUT_SIZE_BUFFER;
+    return outputSize <= maxAllowed;
+  }
+  return false; // if template size unknown, reject
+}
+
+/**
+ * Get template total size for an appSite from ConfigUtil
+ */
+export function getTemplateTotalSize(appSite) {
+  try {
+    const scenarios = ConfigUtil.getScenarios();
+    const match = scenarios.find(s => s.appSite.toLowerCase() === appSite.toLowerCase());
+    return match ? (match.totalSize || 0) : 0;
+  } catch (e) {
+    return 0;
+  }
+}

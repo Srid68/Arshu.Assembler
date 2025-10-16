@@ -1,7 +1,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fsSync from 'fs';
-import { getValidAppSites, isValidEngineType, isValidAppSite, isValidPathComponent } from './securityValidator.js';
+import { getValidAppSites, isValidEngineType, isValidAppSite, isValidPathComponent, isValidLogContent, isValidOutputSizeWithBuffer, getTemplateTotalSize } from './securityValidator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -228,6 +228,20 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
     apiResponse.serverTimeMs = Date.now() - serverStart;
     apiResponse.html = mergedHtml;
 
+    // Save HTML output only if save query parameter is present
+    const saveParam = req.query.save;
+    if (saveParam && saveParam.toLowerCase() === 'true') {
+      const outputDir = path.join(projectDirectory, 'template_analysis', 'output');
+      await fsSync.promises.mkdir(outputDir, { recursive: true }).catch(() => {});
+
+      const appViewSuffix = appView && appView !== '' ? `_${appView}` : '';
+      const engineSuffix = engineType.toLowerCase();
+      const outputFile = path.join(outputDir, `${appSite}${appViewSuffix}_${engineSuffix}.html`);
+      await fsSync.promises.writeFile(outputFile, mergedHtml, 'utf8').catch(err => {
+        console.error('Error saving output file:', err);
+      });
+    }
+
     // Use manual JSON serialization
     res.setHeader('Content-Type', 'application/json');
     res.send(apiResponse.serializeToJson());
@@ -239,7 +253,6 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
     Logger.setLogLevel(originalLogLevel);
   }
 }
-
 
 /**
  * GET /test/standard - Run standard tests
@@ -815,6 +828,268 @@ export async function getReportEndpoint(req, res, projectDirectory) {
         res.status(500).json({ error: 'Internal server error' })
     }
 }
+
+/**
+ * POST /api/save-log - Save a log file (browser-callable)
+ * Expects JSON: { context, content }
+ */
+export async function saveLogEndpoint(req, res) {
+    try {
+        const { context, content } = req.body || {}
+        if (!context || !content) {
+            return res.status(400).json({ success: false, message: 'missing context or content' })
+        }
+
+        if (!isValidPathComponent(context)) {
+            return res.status(400).json({ success: false, message: 'invalid context path component' })
+        }
+
+        const validation = isValidLogContent(content)
+        if (!validation.valid) {
+            return res.status(400).json({ success: false, message: validation.errorMessage || 'invalid log content' })
+        }
+
+        const projectDirectory = path.join(__dirname, '..')
+        const logsDir = path.join(projectDirectory, 'template_analysis', 'logs')
+        await fsSync.promises.mkdir(logsDir, { recursive: true }).catch(() => {})
+
+        const logFileName = `javascript_${context}.log`
+        const logPath = path.join(logsDir, logFileName)
+        await fsSync.promises.writeFile(logPath, content, 'utf8')
+
+        // Return TestResponse-shaped JSON
+        return res.json({ success: true, message: 'ok', error: null })
+    } catch (error) {
+        console.error('Error in /api/save-log:', error)
+        res.status(500).json({ success: false, message: error.message })
+    }
+}
+
+/**
+ * POST /api/save-output - Save an output file (browser-callable)
+ * Expects JSON: { appSite, appView, engineType, html }
+ */
+export async function saveOutputEndpoint(req, res) {
+    try {
+        const { appSite, appView, engineType, html } = req.body || {}
+        if (!appSite || !engineType || !html) {
+            return res.status(400).json({ success: false, message: 'missing appSite, engineType or html' })
+        }
+
+        const validAppSites = await getValidAppSites()
+        if (!isValidAppSite(appSite, validAppSites)) return res.status(400).json({ success: false, message: 'invalid appSite' })
+
+        if (!isValidEngineType(engineType)) return res.status(400).json({ success: false, message: 'invalid engineType' })
+
+        if (!isValidPathComponent(appSite)) return res.status(400).json({ success: false, message: 'invalid appSite path' })
+        if (appView && !isValidPathComponent(appView)) return res.status(400).json({ success: false, message: 'invalid appView path' })
+
+        // Validate output size against template total size + buffer
+        const templateTotalSize = getTemplateTotalSize(appSite)
+        if (templateTotalSize <= 0) {
+            return res.status(400).json({ success: false, message: 'unknown template total size for appSite' })
+        }
+
+        if (!isValidOutputSizeWithBuffer(html, templateTotalSize)) {
+            return res.status(400).json({ success: false, message: 'output exceeds allowed size' })
+        }
+
+        const projectDirectory = path.join(__dirname, '..')
+        const outputDir = path.join(projectDirectory, 'template_analysis', 'output')
+        await fsSync.promises.mkdir(outputDir, { recursive: true }).catch(() => {})
+
+        const engineSuffix = engineType.toLowerCase()
+        const viewPart = appView ? `_${appView}` : ''
+        const outputFileName = `${appSite}${viewPart}_${engineSuffix}.html`
+        const outputPath = path.join(outputDir, `javascript_${outputFileName}`)
+
+        await fsSync.promises.writeFile(outputPath, html, 'utf8')
+
+        // Return TestResponse-shaped JSON
+        return res.json({ success: true, message: 'ok', error: null })
+    } catch (error) {
+        console.error('Error in /api/save-output:', error)
+        res.status(500).json({ success: false, message: error.message })
+    }
+}
+
+/**
+ * POST /api/templates - Get templates for an AppSite
+ */
+export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata) {
+    try {
+        const rootDirPath = path.join(__dirname, 'wwwroot')
+        const projectDirectory = path.join(__dirname, '..')
+
+        // Read request body
+        const { appSite } = req.body
+
+        if (!appSite || appSite === '') {
+            return res.status(400).send('Missing appsite parameter')
+        }
+
+        // Validate AppSite against allowlist loaded from appsites.csv
+        const validAppSites = await getValidAppSites()
+        if (!validAppSites.has(appSite)) {
+            return res.status(400).send('Invalid AppSite value')
+        }
+
+        // Validate path components for path traversal attacks
+        if (!isValidPathComponent(appSite)) {
+            return res.status(400).send('Invalid characters in AppSite')
+        }
+
+        const serverStart = Date.now()
+
+        // Load Normal templates
+        const normalTemplates = LoaderNormal.loadGetTemplateFiles(rootDirPath, appSite)
+
+        // Load PreProcess templates
+        const preprocessTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(rootDirPath, appSite)
+
+        // Convert Normal templates to TemplateData objects for proper JSON serialization
+        const normalResult = new Map()
+        for (const [key, value] of Object.entries(normalTemplates)) {
+            const templateData = new TemplateData()
+            templateData.html = value.html
+            templateData.json = value.json
+            normalResult.set(key, templateData)
+        }
+
+        // Convert PreProcess templates to metadata-only objects
+        const preprocessResult = new Map()
+        for (const [key, value] of Object.entries(preprocessTemplates.templates)) {
+            const metadata = new PreProcessTemplateMetadata()
+            metadata.originalContent = value.originalContent
+            metadata.placeholders = value.placeholders
+            metadata.slottedTemplates = value.slottedTemplates
+            metadata.jsonData = value.jsonData
+            metadata.jsonPlaceholders = value.jsonPlaceholders
+            metadata.replacementMappings = value.replacementMappings
+            metadata.hasPlaceholders = value.hasPlaceholders
+            metadata.hasSlottedTemplates = value.hasSlottedTemplates
+            metadata.hasJsonData = value.hasJsonData
+            metadata.hasJsonPlaceholders = value.hasJsonPlaceholders;
+            metadata.hasReplacementMappings = value.hasReplacementMappings;
+            metadata.requiresProcessing = value.requiresProcessing;
+            preprocessResult.set(key, metadata)
+        }
+
+        const serverEnd = Date.now()
+        const serverTimeMs = serverEnd - serverStart
+
+        // Use proper ApiResponse structure
+        const response = new ApiResponse()
+        response.templates = normalResult
+        response.preProcessTemplates = preprocessResult
+        response.appSite = appSite
+        response.appFile = null
+        response.appView = null
+        response.serverTimeMs = serverTimeMs
+
+        const jsonResult = response.serializeToJson(false)
+
+        // Check if save query parameter is present
+        const saveParam = req.query.save
+        if (saveParam && saveParam.toLowerCase() === 'true') {
+            const templatesDir = path.join(projectDirectory, 'template_analysis', 'templates')
+            await fsSync.promises.mkdir(templatesDir, { recursive: true }).catch(() => { })
+
+            const saveFile = path.join(templatesDir, `nodejs_${appSite}_templates.json`)
+            await fsSync.promises.writeFile(saveFile, jsonResult, 'utf8').catch(err => {
+                console.error('Error saving templates file:', err)
+            })
+
+            // Save structure dump using TestingUtils logic
+            // Build a scenario list for the requested appSite
+            const scenarios = [{ appSite: appSite, appFile: '', appView: '' }]
+            await dumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true)
+        }
+
+        res.setHeader('Content-Type', 'application/json')
+        res.send(jsonResult)
+    } catch (error) {
+        console.error('Error in /api/templates:', error)
+        res.status(500).send(`Error: ${error.message}`)
+    }
+}
+
+/**
+ * POST /api/test-results - Save test results and generate HTML/JSON reports
+ */
+export async function saveTestResultsEndpoint(req, res) {
+  try {
+    const summaryRows = req.body;
+    if (!Array.isArray(summaryRows)) {
+      return res.status(400).send('Invalid test results format');
+    }
+    // Validation
+    const validAppSites = await getValidAppSites();
+    for (const row of summaryRows) {
+      if (row.appSite && !validAppSites.has(row.appSite)) {
+        return res.status(400).send(`Invalid AppSite: ${row.appSite}`);
+      }
+      if (row.appSite && !isValidPathComponent(row.appSite)) {
+        return res.status(400).send('Invalid AppSite parameter');
+      }
+      if (row.appFile && !isValidPathComponent(row.appFile)) {
+        return res.status(400).send('Invalid AppFile parameter');
+      }
+      if (row.appView && !isValidPathComponent(row.appView)) {
+        return res.status(400).send('Invalid AppView parameter');
+      }
+    }
+    const projectDirectory = path.join(__dirname, '..');
+    const reportsPath = path.join(projectDirectory, 'template_analysis', 'Reports');
+    await fsSync.promises.mkdir(reportsPath, { recursive: true }).catch(() => {});
+    // Save HTML
+    const now = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
+    const htmlFile = path.join(reportsPath, `nodejs_test_summary_${now}.html`);
+    let html = '<html><body><pre>' + JSON.stringify(summaryRows, null, 2) + '</pre></body></html>';
+    await fsSync.promises.writeFile(htmlFile, html, 'utf8');
+    // Save JSON
+    const jsonFile = path.join(reportsPath, `nodejs_test_summary_${now}.json`);
+    await fsSync.promises.writeFile(jsonFile, JSON.stringify(summaryRows, null, 2), 'utf8');
+    // Save log
+    const logFile = path.join(reportsPath, `nodejs_test_results_${now}.log`);
+    await fsSync.promises.writeFile(logFile, `Saved test results at ${now}\n`, 'utf8');
+    res.json({ message: 'Test results saved successfully' });
+  } catch (error) {
+    console.error('Error in /api/test-results:', error);
+    res.status(500).send(`Error: ${error.message}`);
+  }
+}
+
+/**
+ * POST /api/performance-results - Save performance results and generate HTML/JSON reports
+ */
+export async function savePerformanceResultsEndpoint(req, res) {
+  try {
+    const summaryRows = req.body;
+    if (!Array.isArray(summaryRows)) {
+      return res.status(400).send('Invalid performance results format');
+    }
+    const projectDirectory = path.join(__dirname, '..');
+    const reportsPath = path.join(projectDirectory, 'template_analysis', 'Reports');
+    await fsSync.promises.mkdir(reportsPath, { recursive: true }).catch(() => {});
+    // Save HTML
+    const now = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
+    const htmlFile = path.join(reportsPath, `nodejs_perf_summary_${now}.html`);
+    let html = '<html><body><pre>' + JSON.stringify(summaryRows, null, 2) + '</pre></body></html>';
+    await fsSync.promises.writeFile(htmlFile, html, 'utf8');
+    // Save JSON
+    const jsonFile = path.join(reportsPath, `nodejs_perf_summary_${now}.json`);
+    await fsSync.promises.writeFile(jsonFile, JSON.stringify(summaryRows, null, 2), 'utf8');
+    // Save log
+    const logFile = path.join(reportsPath, `nodejs_perf_results_${now}.log`);
+    await fsSync.promises.writeFile(logFile, `Saved performance results at ${now}\n`, 'utf8');
+    res.json({ message: 'Performance results saved successfully' });
+  } catch (error) {
+    console.error('Error in /api/performance-results:', error);
+    res.status(500).send(`Error: ${error.message}`);
+  }
+}
+
 
 // Helper functions for field extraction
 function getStringField(obj, ...keys) {

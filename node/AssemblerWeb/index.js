@@ -24,7 +24,7 @@ const configModule = await import(`${assemblerBasePath}/config/index.js`);
 ({ ConfigUtil } = configModule);
 
 // Import endpoint handlers
-import { indexEndpoint, mergeEndpoint, testStandardEndpoint, testAdvancedEndpoint, testPerformanceEndpoint, testConsolidatePerformanceEndpoint, scenariosEndpoint, getReportEndpoint } from './assemblerEndpoint.js';
+import { indexEndpoint, mergeEndpoint, getTemplatesEndpoint, saveTestResultsEndpoint, savePerformanceResultsEndpoint, saveLogEndpoint, saveOutputEndpoint, testStandardEndpoint, testAdvancedEndpoint, testPerformanceEndpoint, testConsolidatePerformanceEndpoint, scenariosEndpoint, getReportEndpoint } from './assemblerEndpoint.js';
 
 // Configure logger with context-specific log files
 const logRotation = LogRotation.NONE;
@@ -302,6 +302,13 @@ app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProces
 app.get('/api/scenarios', (req, res) => scenariosEndpoint(req, res, ConfigUtil));
 
 app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil));
+
+// API endpoints
+app.post('/api/templates', (req, res) => getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata));
+app.post('/api/test-results', (req, res) => saveTestResultsEndpoint(req, res));
+app.post('/api/performance-results', (req, res) => savePerformanceResultsEndpoint(req, res));
+app.post('/api/save-log', (req, res) => saveLogEndpoint(req, res));
+app.post('/api/save-output', (req, res) => saveOutputEndpoint(req, res));
 
 // Test endpoints - pass projectDirectory to endpoints
 app.post('/test/standard', (req, res) => testStandardEndpoint(req, res, projectDirectory, ConfigUtil));
