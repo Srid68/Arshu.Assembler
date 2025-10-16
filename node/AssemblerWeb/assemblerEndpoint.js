@@ -146,7 +146,7 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
     // Validate AppSite against allowlist loaded from appsites.csv
     let validAppSites;
     try {
-      validAppSites = getValidAppSites(rootDirPath);
+      validAppSites = getValidAppSites();
     } catch (error) {
       return res.status(500).json({ error: `Failed to load AppSites: ${error.message}` });
     }
@@ -876,7 +876,7 @@ export async function saveOutputEndpoint(req, res) {
             return res.status(400).json({ success: false, message: 'missing appSite, engineType or html' })
         }
 
-        const validAppSites = await getValidAppSites()
+        const validAppSites = getValidAppSites()
         if (!isValidAppSite(appSite, validAppSites)) return res.status(400).json({ success: false, message: 'invalid appSite' })
 
         if (!isValidEngineType(engineType)) return res.status(400).json({ success: false, message: 'invalid engineType' })
@@ -922,15 +922,16 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
         const projectDirectory = path.join(__dirname, '..')
 
         // Read request body
-        const { appSite } = req.body
+        const { appsite } = req.body
+        const appSite = appsite
 
         if (!appSite || appSite === '') {
             return res.status(400).send('Missing appsite parameter')
         }
 
         // Validate AppSite against allowlist loaded from appsites.csv
-        const validAppSites = await getValidAppSites()
-        if (!validAppSites.has(appSite)) {
+        const validAppSites = getValidAppSites()
+        if (!isValidAppSite(appSite, validAppSites)) {
             return res.status(400).send('Invalid AppSite value')
         }
 
@@ -949,7 +950,7 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
 
         // Convert Normal templates to TemplateData objects for proper JSON serialization
         const normalResult = new Map()
-        for (const [key, value] of Object.entries(normalTemplates)) {
+        for (const [key, value] of normalTemplates.entries()) {
             const templateData = new TemplateData()
             templateData.html = value.html
             templateData.json = value.json
@@ -958,20 +959,23 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
 
         // Convert PreProcess templates to metadata-only objects
         const preprocessResult = new Map()
-        for (const [key, value] of Object.entries(preprocessTemplates.templates)) {
+        for (const [key, value] of preprocessTemplates.templates.entries()) {
+            // Use toObject() to properly convert Maps and other structures
+            const plainObject = value.toObject()
+            
             const metadata = new PreProcessTemplateMetadata()
-            metadata.originalContent = value.originalContent
-            metadata.placeholders = value.placeholders
-            metadata.slottedTemplates = value.slottedTemplates
-            metadata.jsonData = value.jsonData
-            metadata.jsonPlaceholders = value.jsonPlaceholders
-            metadata.replacementMappings = value.replacementMappings
-            metadata.hasPlaceholders = value.hasPlaceholders
-            metadata.hasSlottedTemplates = value.hasSlottedTemplates
-            metadata.hasJsonData = value.hasJsonData
-            metadata.hasJsonPlaceholders = value.hasJsonPlaceholders;
-            metadata.hasReplacementMappings = value.hasReplacementMappings;
-            metadata.requiresProcessing = value.requiresProcessing;
+            metadata.originalContent = plainObject.originalContent
+            metadata.placeholders = plainObject.placeholders
+            metadata.slottedTemplates = plainObject.slottedTemplates
+            metadata.jsonData = plainObject.jsonData
+            metadata.jsonPlaceholders = plainObject.jsonPlaceholders
+            metadata.replacementMappings = plainObject.replacementMappings
+            metadata.hasPlaceholders = plainObject.hasPlaceholders
+            metadata.hasSlottedTemplates = plainObject.hasSlottedTemplates
+            metadata.hasJsonData = plainObject.hasJsonData
+            metadata.hasJsonPlaceholders = plainObject.hasJsonPlaceholders;
+            metadata.hasReplacementMappings = plainObject.hasReplacementMappings;
+            metadata.requiresProcessing = plainObject.requiresProcessing;
             preprocessResult.set(key, metadata)
         }
 
@@ -1024,7 +1028,7 @@ export async function saveTestResultsEndpoint(req, res) {
       return res.status(400).send('Invalid test results format');
     }
     // Validation
-    const validAppSites = await getValidAppSites();
+    const validAppSites = getValidAppSites();
     for (const row of summaryRows) {
       if (row.appSite && !validAppSites.has(row.appSite)) {
         return res.status(400).send(`Invalid AppSite: ${row.appSite}`);

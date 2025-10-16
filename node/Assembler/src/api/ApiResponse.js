@@ -325,13 +325,18 @@ export class ApiResponse {
             sb.push('  '.repeat(indent + 1));
             sb.push('"JsonData": ');
             if (metadata.jsonData !== null && metadata.jsonData !== undefined) {
-                const jsonDataStr = typeof metadata.jsonData === 'string' ? metadata.jsonData : String(metadata.jsonData);
-                if (jsonDataStr.startsWith('{') || jsonDataStr.startsWith('[')) {
-                    sb.push(jsonDataStr);
+                if (typeof metadata.jsonData === 'string') {
+                    const jsonDataStr = metadata.jsonData;
+                    if (jsonDataStr.startsWith('{') || jsonDataStr.startsWith('[')) {
+                        sb.push(jsonDataStr);
+                    } else {
+                        sb.push('"');
+                        sb.push(ApiResponse._escapeJsonString(jsonDataStr));
+                        sb.push('"');
+                    }
                 } else {
-                    sb.push('"');
-                    sb.push(ApiResponse._escapeJsonString(jsonDataStr));
-                    sb.push('"');
+                    // Convert object to JSON string
+                    sb.push(JSON.stringify(metadata.jsonData));
                 }
             } else {
                 sb.push('null');
@@ -399,13 +404,18 @@ export class ApiResponse {
             // JsonData
             sb.push('"JsonData":');
             if (metadata.jsonData !== null && metadata.jsonData !== undefined) {
-                const jsonDataStr = typeof metadata.jsonData === 'string' ? metadata.jsonData : String(metadata.jsonData);
-                if (jsonDataStr.startsWith('{') || jsonDataStr.startsWith('[')) {
-                    sb.push(jsonDataStr);
+                if (typeof metadata.jsonData === 'string') {
+                    const jsonDataStr = metadata.jsonData;
+                    if (jsonDataStr.startsWith('{') || jsonDataStr.startsWith('[')) {
+                        sb.push(jsonDataStr);
+                    } else {
+                        sb.push('"');
+                        sb.push(ApiResponse._escapeJsonString(jsonDataStr));
+                        sb.push('"');
+                    }
                 } else {
-                    sb.push('"');
-                    sb.push(ApiResponse._escapeJsonString(jsonDataStr));
-                    sb.push('"');
+                    // Convert object to JSON string
+                    sb.push(JSON.stringify(metadata.jsonData));
                 }
             } else {
                 sb.push('null');

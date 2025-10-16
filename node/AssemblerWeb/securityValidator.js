@@ -15,9 +15,9 @@ const VALID_ENGINE_TYPES = new Set(['normal', 'preprocess']);
 let cachedValidAppSites = null;
 
 /**
- * Gets the valid AppSites from cache, or loads from appsites.csv (generating if needed)
+ * Gets the valid AppSites from ConfigUtil. Throws if not loaded.
  */
-export function getValidAppSites(wwwrootPath) {
+export function getValidAppSites() {
   if (cachedValidAppSites !== null) {
     return cachedValidAppSites;
   }

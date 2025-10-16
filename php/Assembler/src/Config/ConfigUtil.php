@@ -115,7 +115,8 @@ class ConfigUtil
             throw new \Exception('No AppSites found in appsites.csv');
         }
 
-        return array_map('strtolower', $appSites);
+        // Return original case to match directory names, comparison should be case-insensitive
+        return $appSites;
     }
 
     private static function calculateTotalTemplateSize(string $appSitesPath, string $appSite): int

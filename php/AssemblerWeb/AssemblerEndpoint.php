@@ -1026,7 +1026,8 @@ class AssemblerEndpoint
 
             // Validate AppSite against allowlist
             $validAppSites = SecurityValidator::getValidAppSites($rootDirPath);
-            if (!in_array($appSite, $validAppSites, true)) {
+            $validAppSitesLower = array_map('strtolower', $validAppSites);
+            if (!in_array(strtolower($appSite), $validAppSitesLower, true)) {
                 error_log("[/api/save-output] Invalid AppSite: {$appSite}");
                 $response->getBody()->write('Invalid AppSite value');
                 return $response->withStatus(400);
@@ -1098,20 +1099,37 @@ class AssemblerEndpoint
             $projectDirectory = dirname(__DIR__, 1);
 
             // Read request body
-            $body = json_decode((string)$request->getBody(), true);
-            $appSite = $body['appSite'] ?? '';
+            $requestBody = (string)$request->getBody();
+            error_log('[/api/templates] Raw request body: ' . $requestBody);
+            
+            $body = json_decode($requestBody, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                error_log('[/api/templates] JSON decode error: ' . json_last_error_msg());
+                $response->getBody()->write('Invalid JSON format');
+                return $response->withStatus(400);
+            }
+            
+            error_log('[/api/templates] Decoded body: ' . print_r($body, true));
+            $appSite = $body['appsite'] ?? '';
+            error_log('[/api/templates] Extracted appSite: ' . $appSite);
 
             if (empty($appSite)) {
+                error_log('[/api/templates] Missing appsite parameter');
                 $response->getBody()->write('Missing appsite parameter');
                 return $response->withStatus(400);
             }
 
             // Validate AppSite against allowlist loaded from appsites.csv
             $validAppSites = SecurityValidator::getValidAppSites($rootDirPath);
-            if (!in_array($appSite, $validAppSites, true)) {
+            error_log('[/api/templates] Valid AppSites: ' . print_r($validAppSites, true));
+            // Case-insensitive comparison to match C# behavior (using array_map to lowercase for comparison)
+            $validAppSitesLower = array_map('strtolower', $validAppSites);
+            if (!in_array(strtolower($appSite), $validAppSitesLower, true)) {
+                error_log('[/api/templates] AppSite validation failed for: ' . $appSite);
                 $response->getBody()->write('Invalid AppSite value');
                 return $response->withStatus(400);
             }
+            error_log('[/api/templates] AppSite validation passed');
 
             // Validate path components for path traversal attacks
             if (!SecurityValidator::isValidPathComponent($appSite)) {

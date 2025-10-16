@@ -158,6 +158,8 @@ class SecurityValidator
         if ($appSite === null || !is_string($appSite)) {
             return false;
         }
-        return in_array(strtolower($appSite), $validAppSites, true);
+        // Case-insensitive comparison to match C# behavior
+        $validAppSitesLower = array_map('strtolower', $validAppSites);
+        return in_array(strtolower($appSite), $validAppSitesLower, true);
     }
 }
