@@ -1,6 +1,5 @@
 {
-  "Title": "C# Web Assembler",
-  "Implementation": "Server-side C#",
+  "Title": "Web Assembler",
   "ColumnArray": [
     {
       "EngineTitle": "Normal Engine",

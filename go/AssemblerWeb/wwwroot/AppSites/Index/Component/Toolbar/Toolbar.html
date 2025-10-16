@@ -24,9 +24,28 @@
             height: 14px;
         }
 
+        .template-toggle input[type="radio"] {
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+        }
+
         .template-toggle label {
             cursor: pointer;
             font-weight: 500;
+        }
+
+    .merge-mode-group {
+        display: inline-flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .merge-mode-group .radio-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
     .header-controls {
@@ -132,11 +151,17 @@
 
 <div class="toolbar-wrapper">
     <div class="template-toggle">
-        <div style="display: {{$MergeModeDisplay}}; align-items: center; gap: 6px;">
-            <input type="checkbox" id="use-client-merge" data-default-mode="{{$DefaultMergeMode}}" />
-            <label for="use-client-merge" id="merge-mode-label">Server-Side Merging</label>
-            <span style="margin: 0 12px;">|</span>
+        <div class="merge-mode-group" style="display: {{$MergeModeDisplay}};">
+            <div class="radio-option">
+                <input type="radio" id="merge-mode-server" name="merge-mode" value="server" data-default-mode="{{$DefaultMergeMode}}" />
+                <label for="merge-mode-server">Server</label>
+            </div>
+            <div class="radio-option">
+                <input type="radio" id="merge-mode-client" name="merge-mode" value="client" />
+                <label for="merge-mode-client">Client</label>
+            </div>
         </div>
+        <span style="margin: 0 2px; color: rgba(255,255,255,0.4);">|</span>
         <input type="checkbox" id="show-templates" />
         <label for="show-templates">Show Template Details</label>
     </div>

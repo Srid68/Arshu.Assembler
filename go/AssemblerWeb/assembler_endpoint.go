@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"assembler/api"
 	"assembler/common"
 	"assembler/config"
 	"assembler/engine"
@@ -110,10 +111,10 @@ func mergeTemplates(c *gin.Context) {
 	os.MkdirAll(logsDir, 0755)
 
 	contextLogFiles := map[string]string{
-		"LoaderNormal":      filepath.Join(logsDir, "go_loadernormal.log"),
-		"LoaderPreProcess":  filepath.Join(logsDir, "go_loaderpreprocess.log"),
-		"EngineNormal":      filepath.Join(logsDir, "go_enginenormal.log"),
-		"EnginePreProcess":  filepath.Join(logsDir, "go_enginepreprocess.log"),
+		"LoaderNormal":     filepath.Join(logsDir, "go_loadernormal.log"),
+		"LoaderPreProcess": filepath.Join(logsDir, "go_loaderpreprocess.log"),
+		"EngineNormal":     filepath.Join(logsDir, "go_enginenormal.log"),
+		"EnginePreProcess": filepath.Join(logsDir, "go_enginepreprocess.log"),
 	}
 
 	common.Configure(common.DEBUG, "", false, common.ROTATION_NONE)
@@ -150,7 +151,7 @@ func mergeTemplates(c *gin.Context) {
 	var matchingScenario *config.Scenario
 	for i := range allScenarios {
 		if strings.EqualFold(allScenarios[i].AppSite, *req.AppSite) &&
-		   strings.EqualFold(allScenarios[i].AppView, appViewValue) {
+			strings.EqualFold(allScenarios[i].AppView, appViewValue) {
 			matchingScenario = &allScenarios[i]
 			break
 		}
@@ -234,11 +235,27 @@ func mergeTemplates(c *gin.Context) {
 	}
 	engineTimeMs := float64(time.Since(engineStart).Microseconds()) / 1000.0
 	serverTimeMs := float64(time.Since(serverStart).Microseconds()) / 1000.0
+
+	// Save HTML output only if save query parameter is present
+	saveParam := c.Query("save")
+	if strings.EqualFold(saveParam, "true") {
+		outputDir := filepath.Join(projectDirectory, "template_analysis", "output")
+		os.MkdirAll(outputDir, 0755)
+
+		appViewSuffix := ""
+		if appViewValue != "" {
+			appViewSuffix = "_" + appViewValue
+		}
+		engineSuffix := strings.ToLower(*req.EngineType)
+		outputFile := filepath.Join(outputDir, fmt.Sprintf("%s%s_%s.html", *req.AppSite, appViewSuffix, engineSuffix))
+		os.WriteFile(outputFile, []byte(mergedHTML), 0644)
+	}
+
 	responseObj := map[string]interface{}{
-		"Html":         mergedHTML,
-		"ServerTimeMs": serverTimeMs,
-		"EngineTimeMs": engineTimeMs,
-		"Templates":    make(map[string]interface{}),
+		"Html":                mergedHTML,
+		"ServerTimeMs":        serverTimeMs,
+		"EngineTimeMs":        engineTimeMs,
+		"Templates":           make(map[string]interface{}),
 		"PreProcessTemplates": make(map[string]interface{}),
 	}
 
@@ -247,14 +264,6 @@ func mergeTemplates(c *gin.Context) {
 
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, responseObj)
-}
-
-// Helper function
-func safeString(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }
 
 // TestResponse represents the response structure for test endpoints
@@ -342,10 +351,10 @@ func testAdvanced(c *gin.Context) {
 	os.MkdirAll(logsDir, 0755)
 
 	contextLogFiles := map[string]string{
-		"LoaderNormal":      filepath.Join(logsDir, "go_loadernormal.log"),
-		"LoaderPreProcess":  filepath.Join(logsDir, "go_loaderpreprocess.log"),
-		"EngineNormal":      filepath.Join(logsDir, "go_enginenormal.log"),
-		"EnginePreProcess":  filepath.Join(logsDir, "go_enginepreprocess.log"),
+		"LoaderNormal":     filepath.Join(logsDir, "go_loadernormal.log"),
+		"LoaderPreProcess": filepath.Join(logsDir, "go_loaderpreprocess.log"),
+		"EngineNormal":     filepath.Join(logsDir, "go_enginenormal.log"),
+		"EnginePreProcess": filepath.Join(logsDir, "go_enginepreprocess.log"),
 	}
 
 	common.Configure(common.DEBUG, "", false, common.ROTATION_NONE)
@@ -779,7 +788,7 @@ func testConsolidatePerformance(c *gin.Context) {
 		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", app))
 		for _, lang := range languages {
 			timeValue := formatFloat(appPerf[app][lang].NormalTimeMs)
-			isBest := minTime != nil && appPerf[app][lang].NormalTimeMs != nil && (*appPerf[app][lang].NormalTimeMs - *minTime) < 0.001 && (*appPerf[app][lang].NormalTimeMs - *minTime) > -0.001
+			isBest := minTime != nil && appPerf[app][lang].NormalTimeMs != nil && (*appPerf[app][lang].NormalTimeMs-*minTime) < 0.001 && (*appPerf[app][lang].NormalTimeMs-*minTime) > -0.001
 			cssClass := ""
 			if isBest {
 				cssClass = " class=\"best-perf\""
@@ -828,7 +837,7 @@ func testConsolidatePerformance(c *gin.Context) {
 		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", app))
 		for _, lang := range languages {
 			timeValue := formatFloat(appPerf[app][lang].PreProcessTimeMs)
-			isBest := minTime != nil && appPerf[app][lang].PreProcessTimeMs != nil && (*appPerf[app][lang].PreProcessTimeMs - *minTime) < 0.001 && (*appPerf[app][lang].PreProcessTimeMs - *minTime) > -0.001
+			isBest := minTime != nil && appPerf[app][lang].PreProcessTimeMs != nil && (*appPerf[app][lang].PreProcessTimeMs-*minTime) < 0.001 && (*appPerf[app][lang].PreProcessTimeMs-*minTime) > -0.001
 			cssClass := ""
 			if isBest {
 				cssClass = " class=\"best-perf\""
@@ -949,6 +958,214 @@ func getReport(c *gin.Context) {
 	}
 
 	c.Data(http.StatusOK, contentType, content)
+}
+
+// saveLog handles the POST /api/save-log endpoint
+func saveLog(c *gin.Context) {
+	var req struct {
+		FileName string `json:"fileName"`
+		Content  string `json:"content"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.FileName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields: fileName, content"})
+		return
+	}
+	if !IsValidPathComponent(&req.FileName) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in fileName"})
+		return
+	}
+	logsDir := filepath.Join(projectDirectory, "template_analysis", "logs")
+	os.MkdirAll(logsDir, 0755)
+	logFile := filepath.Join(logsDir, req.FileName)
+	if err := os.WriteFile(logFile, []byte(req.Content), 0644); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save log file"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Log saved successfully"})
+}
+
+// saveOutput handles the POST /api/save-output endpoint
+func saveOutput(c *gin.Context) {
+	var req struct {
+		AppSite    string `json:"appSite"`
+		AppView    string `json:"appView"`
+		EngineType string `json:"engineType"`
+		Html       string `json:"html"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.AppSite == "" || req.EngineType == "" || req.Html == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields: appSite, engineType, html"})
+		return
+	}
+	if !IsValidPathComponent(&req.AppSite) || !IsValidPathComponent(&req.EngineType) || (req.AppView != "" && !IsValidPathComponent(&req.AppView)) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid path component in parameters"})
+		return
+	}
+	outputDir := filepath.Join(projectDirectory, "template_analysis", "output")
+	os.MkdirAll(outputDir, 0755)
+	appViewSuffix := ""
+	if req.AppView != "" {
+		appViewSuffix = "_" + req.AppView
+	}
+	engineSuffix := strings.ToLower(req.EngineType)
+	outputFile := filepath.Join(outputDir, fmt.Sprintf("javascript_%s%s_%s.html", req.AppSite, appViewSuffix, engineSuffix))
+	if err := os.WriteFile(outputFile, []byte(req.Html), 0644); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save output file"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Output saved successfully"})
+}
+
+// getTemplates handles the POST /api/templates endpoint
+func getTemplates(c *gin.Context) {
+	var req struct {
+		AppSite string `json:"appSite"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.AppSite == "" {
+		c.String(http.StatusBadRequest, "Missing appsite parameter")
+		return
+	}
+
+	// Validate AppSite against allowlist loaded from appsites.csv
+	validAppSites, err := GetValidAppSites()
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error loading valid AppSites")
+		return
+	}
+	if !validAppSites[req.AppSite] {
+		c.String(http.StatusBadRequest, "Invalid AppSite value")
+		return
+	}
+
+	// Validate path components for path traversal attacks
+	if !IsValidPathComponent(&req.AppSite) {
+		c.String(http.StatusBadRequest, "Invalid characters in AppSite")
+		return
+	}
+
+	serverStart := time.Now()
+
+	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
+	rootDirPath := assemblerWebDirPath
+
+	// Load Normal templates
+	normalTemplates := loader.LoadGetTemplateFiles(rootDirPath, req.AppSite)
+
+	// Load PreProcess templates
+	preprocessTemplates := loader.LoadProcessGetTemplateFiles(rootDirPath, req.AppSite)
+
+	// Convert Normal templates to TemplateData objects for proper JSON serialization
+	normalResult := make(map[string]api.TemplateData)
+	for key, value := range normalTemplates {
+		jsonValue := ""
+		if value.JSON != nil {
+			jsonValue = *value.JSON
+		}
+		normalResult[key] = api.TemplateData{
+			Html: value.HTML,
+			Json: jsonValue,
+		}
+	}
+
+	// Convert PreProcess templates to metadata-only objects
+	preprocessResult := make(map[string]api.PreProcessTemplateMetadata)
+	for key, value := range preprocessTemplates.Templates {
+		preprocessResult[key] = api.PreProcessTemplateMetadata{
+			OriginalContent:        value.OriginalContent,
+			Placeholders:           value.Placeholders,
+			SlottedTemplates:       value.SlottedTemplates,
+			JsonData:               value.JsonData,
+			JsonPlaceholders:       value.JsonPlaceholders,
+			ReplacementMappings:    value.ReplacementMappings,
+			HasPlaceholders:        value.HasPlaceholders,
+			HasSlottedTemplates:    value.HasSlottedTemplates,
+			HasJsonData:            value.HasJsonData,
+			HasJsonPlaceholders:    value.HasJsonPlaceholders,
+			HasReplacementMappings: value.HasReplacementMappings,
+			RequiresProcessing:     value.RequiresProcessing,
+		}
+	}
+
+	serverEnd := time.Now()
+	serverTimeMs := float64(serverEnd.Sub(serverStart).Milliseconds())
+
+	// Use proper ApiResponse structure
+	response := api.ApiResponse{
+		Templates:           normalResult,
+		PreProcessTemplates: preprocessResult,
+		AppSite:             req.AppSite,
+		AppFile:             "",
+		AppView:             "",
+		ServerTimeMs:        serverTimeMs,
+	}
+
+	jsonResult := response.SerializeToJson(false)
+
+	// Check if save query parameter is present
+	saveParam := c.Query("save")
+	if strings.EqualFold(saveParam, "true") {
+		templatesDir := filepath.Join(projectDirectory, "template_analysis", "templates")
+		os.MkdirAll(templatesDir, 0755)
+
+		saveFile := filepath.Join(templatesDir, fmt.Sprintf("go_%s_templates.json", req.AppSite))
+		os.WriteFile(saveFile, []byte(jsonResult), 0644)
+
+		// Save structure dump using TestingUtils logic
+		// Build a scenario list for the requested appSite
+		scenarios := []config.Scenario{
+			{AppSite: req.AppSite, AppFile: "", AppView: ""},
+		}
+		test.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true)
+	}
+
+	c.Header("Content-Type", "application/json")
+	c.String(http.StatusOK, jsonResult)
+}
+
+// saveTestResults handles the POST /api/test-results endpoint
+func saveTestResults(c *gin.Context) {
+	var summaryRows []map[string]interface{}
+	if err := c.ShouldBindJSON(&summaryRows); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid test results format"})
+		return
+	}
+	outputDir := filepath.Join(projectDirectory, "template_analysis", "Reports")
+	os.MkdirAll(outputDir, 0755)
+	now := time.Now().UTC().Format("20060102_150405")
+	htmlFile := filepath.Join(outputDir, fmt.Sprintf("go_test_summary_%s.html", now))
+	jsonFile := filepath.Join(outputDir, fmt.Sprintf("go_test_summary_%s.json", now))
+	jsonBytes, _ := json.MarshalIndent(summaryRows, "", "  ")
+	os.WriteFile(jsonFile, jsonBytes, 0644)
+	// For HTML, just dump JSON as <pre> for now
+	htmlContent := fmt.Sprintf("<html><body><pre>%s</pre></body></html>", string(jsonBytes))
+	os.WriteFile(htmlFile, []byte(htmlContent), 0644)
+	c.JSON(http.StatusOK, gin.H{"message": "Test results saved successfully"})
+}
+
+// savePerformanceResults handles the POST /api/performance-results endpoint
+func savePerformanceResults(c *gin.Context) {
+	var summaryRows []map[string]interface{}
+	if err := c.ShouldBindJSON(&summaryRows); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid performance results format"})
+		return
+	}
+	outputDir := filepath.Join(projectDirectory, "template_analysis", "Reports")
+	os.MkdirAll(outputDir, 0755)
+	now := time.Now().UTC().Format("20060102_150405")
+	htmlFile := filepath.Join(outputDir, fmt.Sprintf("go_perf_summary_%s.html", now))
+	jsonFile := filepath.Join(outputDir, fmt.Sprintf("go_perf_summary_%s.json", now))
+	jsonBytes, _ := json.MarshalIndent(summaryRows, "", "  ")
+	os.WriteFile(jsonFile, jsonBytes, 0644)
+	htmlContent := fmt.Sprintf("<html><body><pre>%s</pre></body></html>", string(jsonBytes))
+	os.WriteFile(htmlFile, []byte(htmlContent), 0644)
+	c.JSON(http.StatusOK, gin.H{"message": "Performance results saved successfully"})
+}
+
+// Helper function
+func safeString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 // Helper functions for consolidate performance

@@ -8,6 +8,78 @@ import (
 // Maximum parameter length to prevent DoS attacks
 const ParamMaxLength = 256
 
+// Maximum log file size (500 KB)
+const MaxLogFileSize = 500 * 1024
+
+// Output size buffer (50 KB)
+const OutputSizeBuffer = 50 * 1024
+
+// IsValidContentSize validates content size against a maximum limit (bytes)
+func IsValidContentSize(content *string, maxSize int) bool {
+	if content == nil || *content == "" {
+		return true
+	}
+	return len([]byte(*content)) <= maxSize
+}
+
+// IsValidOutputSizeWithBuffer validates output size against template total size plus buffer
+func IsValidOutputSizeWithBuffer(htmlContent *string, templateTotalSize int) bool {
+	if htmlContent == nil || *htmlContent == "" {
+		return true
+	}
+	outputSize := len([]byte(*htmlContent))
+	if templateTotalSize > 0 {
+		maxAllowedSize := templateTotalSize + OutputSizeBuffer
+		return outputSize <= maxAllowedSize
+	}
+	// If template size is unknown, reject
+	return false
+}
+
+// IsValidLogContent validates log content format and size (basic, no regex)
+func IsValidLogContent(logContent *string) (bool, string) {
+	if logContent == nil || *logContent == "" {
+		return false, "Log content is empty"
+	}
+	if !IsValidContentSize(logContent, MaxLogFileSize) {
+		return false, "Log file exceeds maximum size limit (500 KB)"
+	}
+	lines := strings.Split(*logContent, "\n")
+	validLines := 0
+	totalLines := 0
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		totalLines++
+		// Accept lines that look like log entries or stack traces (basic)
+		if strings.HasPrefix(line, "[") || strings.HasPrefix(line, "at ") || strings.HasPrefix(line, "\tat ") {
+			validLines++
+		} else if len(line) > 10 {
+			validLines++ // Accept long lines as possible log messages
+		}
+	}
+	if totalLines > 0 && float64(validLines)/float64(totalLines) < 0.5 {
+		return false, "Log content does not match expected format"
+	}
+	return true, ""
+}
+
+// GetTemplateTotalSize gets the template total size for an AppSite/AppView from scenarios
+func GetTemplateTotalSize(appSite, appView string) int {
+	scenarios, err := config.GetScenarios()
+	if err != nil {
+		return 0
+	}
+	for _, s := range scenarios {
+		if strings.EqualFold(s.AppSite, appSite) && strings.EqualFold(s.AppView, appView) {
+			return s.TotalSize
+		}
+	}
+	return 0
+}
+
 // ValidEngineTypes is the allowlist of valid engine types
 var ValidEngineTypes = map[string]bool{
 	"Normal":     true,

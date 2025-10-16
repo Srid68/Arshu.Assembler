@@ -1,38 +1,38 @@
 {
-  "Implementation": "C# Server-Side",
-  "Lang": "csharp",
+  "Implementation": "C# + Client-Side JavaScript",
+  "Lang": "javascript",
   "Title": "Test Reports",
   "TitleIcon": "📊",
   "Reports": [
     {
-      "Id": "standardTest",
+      "Id": "runStandardTests",
       "Icon": "📋",
       "Title": "Standard Test Summary",
       "Description": "Normal Engine scenarios test results",
-      "ButtonText": "Run Server Test",
-      "FileName": "standardtest_Summary.html",
-      "UseLangPrefix": true
+      "ButtonText": "Run Client Test",
+      "FileName": "javascript_standardtest_Summary.html",
+      "UseLangPrefix": false
     },
     {
-      "Id": "advancedTest",
+      "Id": "runAdvancedTests",
       "Icon": "🔬",
       "Title": "Advanced Test Summary",
       "Description": "Engine Comparison scenarios test results",
-      "ButtonText": "Run Server Test",
-      "FileName": "advancedtest_Summary.html",
-      "UseLangPrefix": true
+      "ButtonText": "Run Client Test",
+      "FileName": "javascript_advancedtest_Summary.html",
+      "UseLangPrefix": false
     },
     {
-      "Id": "perfSummary",
+      "Id": "runPerfTests",
       "Icon": "⚡",
       "Title": "Performance Summary",
       "Description": "Engine performance metrics",
-      "ButtonText": "Run Server Test",
-      "FileName": "perfsummary.html",
-      "UseLangPrefix": true
+      "ButtonText": "Run Client Test",
+      "FileName": "javascript_perfsummary.html",
+      "UseLangPrefix": false
     },
     {
-      "Id": "allPerfTests",
+      "Id": "runConsolidatePerf",
       "Icon": "📈",
       "Title": "Consolidated Performance Tests",
       "Description": "Comprehensive performance data from all servers",

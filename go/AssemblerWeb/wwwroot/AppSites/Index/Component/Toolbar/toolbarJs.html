@@ -4,6 +4,9 @@
 // Used by both AssemblerWeb and AssemblerWebJs
 // ========================================
 
+// Global flag to track if save should happen (only on refresh button click)
+let shouldSaveOnMerge = false;
+
 // Function to update rule description
 function updateRuleDescription(appSite, description) {
     const descElement = document.getElementById('rule-description');
@@ -60,8 +63,8 @@ function displayTemplateDetails(templates, engineType) {
 console.log('[WRAPPER] Defining handleScenarioChange wrapper function');
 function handleScenarioChange() {
     console.log('[WRAPPER] handleScenarioChange wrapper called');
-    const useClientMerge = document.getElementById('use-client-merge');
-    const isClientMode = useClientMerge && useClientMerge.checked;
+    const clientModeRadio = document.getElementById('merge-mode-client');
+    const isClientMode = clientModeRadio && clientModeRadio.checked;
     const hasServerFunction = typeof handleScenarioChangeServer === 'function';
     const hasClientFunction = typeof handleScenarioChangeClient === 'function';
 
@@ -230,129 +233,54 @@ document.addEventListener('DOMContentLoaded', function() {
         showTemplatesCheckbox.addEventListener('change', updateTemplateVisibility);
     }
 
-    // Client/Server merge toggle
-    const useClientMergeCheckbox = document.getElementById('use-client-merge');
-    const mergeModeLabel = document.getElementById('merge-mode-label');
-    if (useClientMergeCheckbox && mergeModeLabel) {
-        // Update label text based on checkbox state
-        function updateMergeModeLabel() {
-            mergeModeLabel.textContent = useClientMergeCheckbox.checked ?
-                'Client-Side Merging' : 'Server-Side Merging';
-        }
-
+    // Client/Server merge toggle with radio buttons
+    const serverModeRadio = document.getElementById('merge-mode-server');
+    const clientModeRadio = document.getElementById('merge-mode-client');
+    if (serverModeRadio && clientModeRadio) {
         // Set default mode from data attribute
-        const defaultMode = useClientMergeCheckbox.dataset.defaultMode;
+        const defaultMode = serverModeRadio.dataset.defaultMode;
         if (defaultMode === 'Client') {
-            useClientMergeCheckbox.checked = true;
+            clientModeRadio.checked = true;
+        } else {
+            serverModeRadio.checked = true;
         }
 
-        useClientMergeCheckbox.addEventListener('change', function() {
-            updateMergeModeLabel();
-            const select = document.getElementById('test-select');
-            if (select && select.value) {
-                // Reload the current scenario with the new merge method
-                handleScenarioChange();
+        // Add change event listeners to both radio buttons
+        serverModeRadio.addEventListener('change', function() {
+            if (this.checked) {
+                const select = document.getElementById('test-select');
+                if (select && select.value) {
+                    // Reload the current scenario with server-side merge
+                    handleScenarioChange();
+                }
             }
         });
 
-        // Initialize label on page load
-        updateMergeModeLabel();
+        clientModeRadio.addEventListener('change', function() {
+            if (this.checked) {
+                const select = document.getElementById('test-select');
+                if (select && select.value) {
+                    // Reload the current scenario with client-side merge
+                    handleScenarioChange();
+                }
+            }
+        });
     }
 
-    // Refresh button with save functionality
+    // Refresh button
     const refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', function() {
+            // Set flag to enable saving (only for client-side merging)
+            if (typeof shouldSaveOnMerge !== 'undefined') {
+                shouldSaveOnMerge = true;
+            }
             // Re-execute the merge for the currently selected scenario
             const select = document.getElementById('test-select');
             if (select && select.value) {
-                // Save current output before refresh
-                saveCurrentOutput();
-                // Re-execute the merge
                 handleScenarioChange();
             }
         });
     }
 });
-
-// Function to save current output to file
-async function saveCurrentOutput() {
-    const select = document.getElementById('test-select');
-    if (!select || !select.value) return;
-
-    const selectedOption = select.options[select.selectedIndex];
-    const appSite = selectedOption.dataset.appsite || select.value;
-    const appView = selectedOption.dataset.appview || "";
-
-    const normalResult = document.querySelector('#{{$NormalResultId}}');
-    const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
-
-    if (!normalResult || !preprocessResult) return;
-
-    const normalHtml = normalResult.innerHTML;
-    const preprocessHtml = preprocessResult.innerHTML;
-
-    // Create HTML document with both outputs
-    const htmlContent = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Debug Output - ${appSite}${appView ? '_' + appView : ''}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { color: #667eea; }
-        h2 { color: #764ba2; margin-top: 30px; }
-        .column { border: 2px solid #e0e0e0; padding: 16px; margin: 10px 0; border-radius: 8px; }
-        .normal { border-color: #4CAF50; background: #f9fff9; }
-        .preprocess { border-color: #667eea; background: #f6f9ff; }
-        .info { background: #ffffea; padding: 12px; border-radius: 6px; margin: 10px 0; }
-    </style>
-</head>
-<body>
-    <h1>Debug Output: ${appSite}${appView ? ' → ' + appView : ''}</h1>
-    <div class="info">
-        <strong>Generated:</strong> ${new Date().toLocaleString()}<br>
-        <strong>AppSite:</strong> ${appSite}<br>
-        ${appView ? `<strong>AppView:</strong> ${appView}<br>` : ''}
-        <strong>Normal Output Length:</strong> ${normalHtml.length} chars<br>
-        <strong>PreProcess Output Length:</strong> ${preprocessHtml.length} chars<br>
-        <strong>Match:</strong> ${normalHtml.length === preprocessHtml.length ? 'YES' : 'NO'}
-    </div>
-
-    <h2>Normal Engine Output</h2>
-    <div class="column normal">
-        ${normalHtml}
-    </div>
-
-    <h2>PreProcess Engine Output</h2>
-    <div class="column preprocess">
-        ${preprocessHtml}
-    </div>
-</body>
-</html>`;
-
-    // Save to server
-    try {
-        const response = await fetch('/api/save-debug-output', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                appSite: appSite,
-                appView: appView || '',
-                content: htmlContent
-            })
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            console.log('Debug output saved:', result.filePath);
-        } else {
-            console.warn('Failed to save debug output');
-        }
-    } catch (error) {
-        console.error('Error saving debug output:', error);
-    }
-}
 </script>

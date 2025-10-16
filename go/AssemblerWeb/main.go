@@ -13,6 +13,7 @@ import (
 
 	"assembler/common"
 	"assembler/config"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/skratchdot/open-golang/open"
@@ -183,12 +184,12 @@ func main() {
 
 	// Configure separate log files for each context
 	contextLogFiles := map[string]string{
-		"LoaderNormal":      filepath.Join(logsDir, "go_loadernormal.log"),
-		"LoaderPreProcess":  filepath.Join(logsDir, "go_loaderpreprocess.log"),
-		"EngineNormal":      filepath.Join(logsDir, "go_enginenormal.log"),
-		"EnginePreProcess":  filepath.Join(logsDir, "go_enginepreprocess.log"),
-		"Main":              filepath.Join(logsDir, "go_main.log"),
-		"MergeEndpoint":     filepath.Join(logsDir, "go_mergeendpoint.log"),
+		"LoaderNormal":     filepath.Join(logsDir, "go_loadernormal.log"),
+		"LoaderPreProcess": filepath.Join(logsDir, "go_loaderpreprocess.log"),
+		"EngineNormal":     filepath.Join(logsDir, "go_enginenormal.log"),
+		"EnginePreProcess": filepath.Join(logsDir, "go_enginepreprocess.log"),
+		"Main":             filepath.Join(logsDir, "go_main.log"),
+		"MergeEndpoint":    filepath.Join(logsDir, "go_mergeendpoint.log"),
 	}
 
 	common.Configure(common.DEBUG, "", false, common.ROTATION_NONE)
@@ -294,6 +295,13 @@ func main() {
 
 	// Report endpoint
 	r.POST("/api/report", getReport)
+
+	// Add missing endpoints for parity
+	r.POST("/api/save-log", saveLog)
+	r.POST("/api/save-output", saveOutput)
+	r.POST("/api/templates", getTemplates)
+	r.POST("/api/test-results", saveTestResults)
+	r.POST("/api/performance-results", savePerformanceResults)
 
 	// Serve static files from wwwroot (HTML, JSON, etc.) - use NoRoute to avoid conflicts
 	r.NoRoute(func(c *gin.Context) {
