@@ -39,6 +39,39 @@ pub struct ScenarioDto {
     pub description: String,
 }
 
+#[derive(Debug, Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TestResponse {
+    pub message: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "PascalCase")]
+pub struct TestSummaryRowDto {
+    pub app_site: String,
+    pub app_file: String,
+    pub app_view: String,
+    pub normal_pre_process: String,
+    pub cross_view_un_match: String,
+    pub error: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "PascalCase")]
+pub struct PerfSummaryRowDto {
+    pub app_site: String,
+    pub app_file: String,
+    pub app_view: String,
+    pub iterations: i32,
+    pub normal_time_ms: f64,
+    pub pre_process_time_ms: f64,
+    pub output_size: i32,
+    pub results_match: String,
+    pub perf_difference: String,
+    pub scenario_total_time_ms: i32,
+    pub elapsed_time_ms: i32,
+}
+
 /// GET / - Root endpoint using Index AppSite
 #[utoipa::path(
     get,
@@ -61,7 +94,7 @@ pub async fn index(req: HttpRequest) -> impl Responder {
         .unwrap_or("Normal");
 
     // Validate EngineType against allowlist
-    if !security_validator::is_valid_engine_type(engine_type) {
+    if !security_validator::get_valid_engine_types().iter().any(|valid| valid.eq_ignore_ascii_case(engine_type)) {
         return HttpResponse::BadRequest().body("Invalid engine type. Use 'Normal' or 'PreProcess'");
     }
 
@@ -125,7 +158,7 @@ pub async fn get_scenarios() -> impl Responder {
     )
 )]
 #[actix_web::post("/merge")]
-pub async fn merge_templates(req: web::Json<MergeRequest>) -> impl Responder {
+pub async fn merge_templates(req: web::Json<MergeRequest>, http_req: HttpRequest) -> impl Responder {
     // Enable logging for merge operations
     let original_log_level = Logger::get_log_level();
     let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
@@ -167,17 +200,17 @@ pub async fn merge_templates(req: web::Json<MergeRequest>) -> impl Responder {
     let root_dir_path = assembler_web_dir_path.to_str().unwrap_or("");
 
     // Validate EngineType against allowlist
-    if !security_validator::is_valid_engine_type(engine_type) {
+    if !security_validator::get_valid_engine_types().iter().any(|valid| valid.eq_ignore_ascii_case(engine_type)) {
         return HttpResponse::BadRequest().body("Invalid EngineType value");
     }
 
     // Validate AppSite against allowlist loaded from appsites.csv
-    let valid_app_sites = match security_validator::get_valid_app_sites(root_dir_path) {
+    let valid_app_sites = match security_validator::get_valid_app_sites() {
         Ok(sites) => sites,
         Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to load AppSites: {}", e)),
     };
 
-    if !security_validator::is_valid_app_site(app_site, &valid_app_sites) {
+    if !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(app_site)) {
         return HttpResponse::BadRequest().body("Invalid AppSite value");
     }
 
@@ -251,7 +284,7 @@ pub async fn merge_templates(req: web::Json<MergeRequest>) -> impl Responder {
                 original_content: v.original_content.clone(),
                 placeholders: v.placeholders.clone(),
                 slotted_templates: v.slotted_templates.clone(),
-                json_data: v.json_data.as_ref().map(|j| format!("{:?}", j)),
+                json_data: v.json_data.as_ref().map(|j| assembler::app::json_convertor::JsonConverter::serialize_object(j)),
                 json_placeholders: v.json_placeholders.clone(),
                 replacement_mappings: v.replacement_mappings.clone(),
                 has_placeholders: v.has_placeholders_flag,
@@ -291,22 +324,30 @@ pub async fn merge_templates(req: web::Json<MergeRequest>) -> impl Responder {
     let engine_time_ms = engine_start.elapsed().as_secs_f64() * 1000.0;
     let server_time_ms = server_start.elapsed().as_secs_f64() * 1000.0;
 
-    // Save HTML output to template_analysis/output folder (parent of wwwroot)
-    let output_dir = project_directory.join("template_analysis").join("output");
-    let _ = std::fs::create_dir_all(&output_dir);
+    // Save HTML output only if save query parameter is present
+    let save_param = http_req.query_string()
+        .split('&')
+        .find(|param| param.starts_with("save="))
+        .and_then(|param| param.split('=').nth(1))
+        .unwrap_or("");
 
-    let app_view_suffix = if let Some(ref view) = req.app_view {
-        if !view.is_empty() {
-            format!("_{}", view)
+    if save_param.eq_ignore_ascii_case("true") {
+        let output_dir = project_directory.join("template_analysis").join("output");
+        let _ = std::fs::create_dir_all(&output_dir);
+
+        let app_view_suffix = if let Some(ref view) = req.app_view {
+            if !view.is_empty() {
+                format!("_{}", view)
+            } else {
+                String::new()
+            }
         } else {
             String::new()
-        }
-    } else {
-        String::new()
-    };
-    let engine_suffix = engine_type.to_lowercase();
-    let output_file = output_dir.join(format!("{}{}_{}.html", app_site, app_view_suffix, engine_suffix));
-    let _ = std::fs::write(&output_file, &merged_html);
+        };
+        let engine_suffix = engine_type.to_lowercase();
+        let output_file = output_dir.join(format!("{}{}_{}.html", app_site, app_view_suffix, engine_suffix));
+        let _ = std::fs::write(&output_file, &merged_html);
+    }
 
     let response = assembler::api::api_response::ApiResponse {
         templates,
@@ -324,7 +365,7 @@ pub async fn merge_templates(req: web::Json<MergeRequest>) -> impl Responder {
 
     HttpResponse::Ok()
         .content_type("application/json")
-        .body(response.serialize_to_json())
+        .body(response.serialize_to_json(false))
 }
 
 /// POST /test/standard - Run standard tests
@@ -880,7 +921,6 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
         .body(response.to_string())
 }
 
-
 /// POST /api/report - Retrieve a report file
 #[utoipa::path(
     post,
@@ -950,3 +990,548 @@ pub async fn get_report(req: web::Json<ReportRequest>, project_dir: web::Data<st
         }
     }
 }
+
+/// POST /api/save-log - Save log files from client
+#[utoipa::path(
+    post,
+    path = "/api/save-log",
+    responses(
+        (status = 200, description = "Log saved successfully", body = TestResponse),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn save_log(
+    body: web::Bytes,
+    project_dir: web::Data<std::path::PathBuf>
+) -> impl Responder {
+    let project_dir_str = project_dir.to_str().unwrap_or("");
+
+    // Parse JSON
+    let (context_name, log_content) = match serde_json::from_slice::<serde_json::Value>(&body) {
+        Ok(json) => {
+            let context = json.get("context")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let content = json.get("content")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            (context, content)
+        }
+        Err(_) => return HttpResponse::BadRequest().body("Invalid JSON format"),
+    };
+
+    if context_name.is_empty() || log_content.is_empty() {
+        return HttpResponse::BadRequest().body("Missing context or content parameter");
+    }
+
+    // Validate context name parameter (256 char limit, no path traversal)
+    if !security_validator::is_valid_path_component(Some(&context_name)) {
+        return HttpResponse::BadRequest().body("Invalid context parameter");
+    }
+
+    // Validate log content (size and format)
+    let (is_valid, error_message) = security_validator::is_valid_log_content(Some(&log_content));
+    if !is_valid {
+        return HttpResponse::BadRequest().body(error_message.unwrap_or_else(|| "Invalid log content".to_string()));
+    }
+
+    let logs_dir = std::path::Path::new(project_dir_str).join("template_analysis").join("logs");
+    let _ = std::fs::create_dir_all(&logs_dir);
+
+    let log_file = logs_dir.join(format!("javascript_{}.log", context_name.to_lowercase()));
+    let _ = std::fs::write(&log_file, log_content);
+
+    let response = TestResponse {
+        message: "Log saved successfully".to_string(),
+    };
+    HttpResponse::Ok().json(response)
+}
+
+/// POST /api/save-output - Save HTML output from client
+#[utoipa::path(
+    post,
+    path = "/api/save-output",
+    responses(
+        (status = 200, description = "Output saved successfully", body = TestResponse),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn save_output(
+    body: web::Bytes,
+    project_dir: web::Data<std::path::PathBuf>
+) -> impl Responder {
+    let project_dir_str = project_dir.to_str().unwrap_or("");
+
+    println!("[/api/save-output] Endpoint called");
+    println!("[/api/save-output] Request body length: {}", body.len());
+
+    // Parse JSON
+    let (app_site, app_view, engine_type, html_content) = match serde_json::from_slice::<serde_json::Value>(&body) {
+        Ok(json) => {
+            let site = json.get("appSite")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let view = json.get("appView")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let engine = json.get("engineType")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let html = json.get("html")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            println!("[/api/save-output] Parsed: appSite={}, appView={}, engineType={}, htmlLength={}",
+                site, view, engine, html.len());
+            (site, view, engine, html)
+        }
+        Err(e) => {
+            println!("[/api/save-output] JSON parse error: {}", e);
+            return HttpResponse::BadRequest().body("Invalid JSON format");
+        }
+    };
+
+    if app_site.is_empty() || engine_type.is_empty() || html_content.is_empty() {
+        println!("[/api/save-output] Missing parameters: appSite={}, engineType={}, htmlLength={}",
+            app_site, engine_type, html_content.len());
+        return HttpResponse::BadRequest().body("Missing required parameters");
+    }
+
+    // Validate AppSite against allowlist
+    let valid_app_sites = match security_validator::get_valid_app_sites() {
+        Ok(sites) => sites,
+        Err(e) => {
+            println!("[/api/save-output] Failed to load AppSites: {}", e);
+            return HttpResponse::InternalServerError().body(format!("Failed to load AppSites: {}", e));
+        }
+    };
+
+    if !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(&app_site)) {
+        println!("[/api/save-output] Invalid AppSite: {}", app_site);
+        return HttpResponse::BadRequest().body("Invalid AppSite value");
+    }
+
+    // Validate engine type against allowlist
+    if !security_validator::get_valid_engine_types().iter().any(|valid| valid.eq_ignore_ascii_case(&engine_type)) {
+        println!("[/api/save-output] Invalid engineType: {}", engine_type);
+        return HttpResponse::BadRequest().body("Invalid engine type");
+    }
+
+    // Validate parameters (256 char limit, no path traversal)
+    if !security_validator::is_valid_path_component(Some(&app_site)) {
+        println!("[/api/save-output] Invalid AppSite path component: {}", app_site);
+        return HttpResponse::BadRequest().body("Invalid AppSite parameter");
+    }
+    if !app_view.is_empty() && !security_validator::is_valid_path_component(Some(&app_view)) {
+        println!("[/api/save-output] Invalid AppView path component: {}", app_view);
+        return HttpResponse::BadRequest().body("Invalid AppView parameter");
+    }
+    if !security_validator::is_valid_path_component(Some(&engine_type)) {
+        println!("[/api/save-output] Invalid engineType path component: {}", engine_type);
+        return HttpResponse::BadRequest().body("Invalid engineType parameter");
+    }
+
+    // Validate output size against template size + buffer
+    let template_total_size = security_validator::get_template_total_size(&app_site, &app_view);
+    let output_size = html_content.len();
+    let max_allowed_size = template_total_size + security_validator::OUTPUT_SIZE_BUFFER;
+    println!("[/api/save-output] Size validation: output={}, template={}, buffer={}, max={}",
+        output_size, template_total_size, security_validator::OUTPUT_SIZE_BUFFER, max_allowed_size);
+
+    if !security_validator::is_valid_output_size_with_buffer(Some(&html_content), template_total_size) {
+        let error_msg = format!(
+            "Save output failed: output size ({} bytes) exceeds max size allowed ({} bytes = template {} + buffer {})",
+            output_size, max_allowed_size, template_total_size, security_validator::OUTPUT_SIZE_BUFFER
+        );
+        println!("[/api/save-output] {}", error_msg);
+        return HttpResponse::BadRequest().body(error_msg);
+    }
+
+    let output_dir = std::path::Path::new(project_dir_str).join("template_analysis").join("output");
+    let _ = std::fs::create_dir_all(&output_dir);
+
+    let app_view_suffix = if !app_view.is_empty() {
+        format!("_{}", app_view)
+    } else {
+        String::new()
+    };
+    let engine_suffix = engine_type.to_lowercase();
+    let output_file = output_dir.join(format!("javascript_{}{}_{}.html", app_site, app_view_suffix, engine_suffix));
+    let _ = std::fs::write(&output_file, html_content);
+    println!("[/api/save-output] Success! Output saved to: {:?}", output_file);
+
+    let response = TestResponse {
+        message: "Output saved successfully".to_string(),
+    };
+    HttpResponse::Ok().json(response)
+}
+
+/// POST /api/templates - Load templates for client-side merging
+#[utoipa::path(
+    post,
+    path = "/api/templates",
+    responses(
+        (status = 200, description = "Templates and PreProcessed templates", body = String),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn get_templates(body: web::Bytes, req: HttpRequest) -> impl Responder {
+    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let root_dir_path = project_directory.join("wwwroot");
+    let root_dir_path_str = root_dir_path.to_str().unwrap_or("");
+
+    // Parse JSON manually
+    let app_site = match serde_json::from_slice::<serde_json::Value>(&body) {
+        Ok(json) => {
+            json.get("appsite")
+                .or_else(|| json.get("appSite"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string()
+        }
+        Err(_) => return HttpResponse::BadRequest().body("Invalid JSON format"),
+    };
+
+    if app_site.is_empty() {
+        return HttpResponse::BadRequest().body("Missing appsite parameter");
+    }
+
+    // Validate AppSite against allowlist loaded from appsites.csv
+    let valid_app_sites = match security_validator::get_valid_app_sites() {
+        Ok(sites) => sites,
+        Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to load AppSites: {}", e)),
+    };
+
+    if !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(&app_site)) {
+        return HttpResponse::BadRequest().body("Invalid AppSite value");
+    }
+
+    // Validate path components for path traversal attacks
+    if !security_validator::is_valid_path_component(Some(&app_site)) {
+        return HttpResponse::BadRequest().body("Invalid characters in AppSite");
+    }
+
+    let server_start = Instant::now();
+
+    // Load Normal templates
+    let normal_templates = LoaderNormal::load_get_template_files(root_dir_path_str, &app_site);
+
+    // Load PreProcess templates
+    let preprocess_templates = LoaderPreProcess::load_process_get_template_files(root_dir_path_str, &app_site);
+
+    // Convert Normal templates to TemplateData objects for proper JSON serialization
+    let mut normal_result = std::collections::HashMap::new();
+    for (k, v) in &normal_templates {
+        let (html, json) = v;
+        normal_result.insert(k.clone(), TemplateData {
+            html: html.clone(),
+            json: json.clone(),
+        });
+    }
+
+    // Convert PreProcess templates to metadata-only objects
+    let mut preprocess_result = std::collections::HashMap::new();
+    for (k, v) in &preprocess_templates.templates {
+        preprocess_result.insert(
+            k.clone(),
+            assembler::api::api_response::PreProcessTemplateMetadata {
+                original_content: v.original_content.clone(),
+                placeholders: v.placeholders.clone(),
+                slotted_templates: v.slotted_templates.clone(),
+                json_data: v.json_data.as_ref().map(|_| "Arshu.App.Json.JsonObject".to_string()),
+                json_placeholders: v.json_placeholders.clone(),
+                replacement_mappings: v.replacement_mappings.clone(),
+                has_placeholders: v.has_placeholders_flag,
+                has_slotted_templates: v.has_slotted_templates_flag,
+                has_json_data: v.has_json_data_flag,
+                has_json_placeholders: v.has_json_placeholders_flag,
+                has_replacement_mappings: v.has_replacement_mappings_flag,
+                requires_processing: v.requires_processing_flag,
+            }
+        );
+    }
+
+    let server_time_ms = server_start.elapsed().as_secs_f64() * 1000.0;
+
+    // Use named response class
+    let response = assembler::api::api_response::ApiResponse {
+        templates: normal_result,
+        pre_process_templates: preprocess_result,
+        app_site: app_site.clone(),
+        app_file: None,
+        app_view: None,
+        server_time_ms,
+        html: String::new(),
+        engine_time_ms: 0.0,
+    };
+
+    let json_result = response.serialize_to_json(false);
+
+    // Check if save query parameter is present
+    let save_param = req.query_string()
+        .split('&')
+        .find(|param| param.starts_with("save="))
+        .and_then(|param| param.split('=').nth(1))
+        .unwrap_or("");
+
+    if save_param.eq_ignore_ascii_case("true") {
+        let templates_dir = project_directory.join("template_analysis").join("templates");
+        let _ = std::fs::create_dir_all(&templates_dir);
+
+        let save_file = templates_dir.join(format!("rust_{}_templates.json", app_site));
+        let _ = std::fs::write(&save_file, &json_result);
+
+        // Also generate the structure dump file (matches C# logic)
+        use assembler::config::config_util::ConfigUtil;
+        use assembler::test::testing_utils::TestingUtils;
+        let scenarios = match ConfigUtil::get_scenarios() {
+            Ok(s) => s,
+            Err(e) => {
+                return HttpResponse::InternalServerError().body(format!("Failed to load scenarios: {}", e));
+            }
+        };
+        let filtered_scenarios = ConfigUtil::filter_by_app_site(&scenarios, &app_site);
+        let wwwroot_path = project_directory.join("wwwroot");
+        let root_dir_str = wwwroot_path.to_str().unwrap_or("");
+        let project_dir_str = project_directory.to_str().unwrap_or("");
+        TestingUtils::dump_preprocessed_template_structures(root_dir_str, project_dir_str, &filtered_scenarios, true);
+    }
+
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(json_result)
+}
+
+/// POST /api/test-results - Save test results from client
+#[utoipa::path(
+    post,
+    path = "/api/test-results",
+    request_body = Vec<TestSummaryRowDto>,
+    responses(
+        (status = 200, description = "Test results saved successfully", body = TestResponse),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn save_test_results(
+    summary_rows: web::Json<Vec<TestSummaryRowDto>>,
+    project_dir: web::Data<std::path::PathBuf>,
+    req: HttpRequest
+) -> impl Responder {
+    let project_dir_str = project_dir.to_str().unwrap_or("");
+
+    println!("POST /api/test-results called with {} rows", summary_rows.len());
+
+    // Validate each row
+    let valid_app_sites = match security_validator::get_valid_app_sites() {
+        Ok(sites) => sites,
+        Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to load AppSites: {}", e)),
+    };
+
+    for row in summary_rows.iter() {
+        // Validate AppSite is in allowlist
+        if !row.app_site.is_empty() && !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(&row.app_site)) {
+            return HttpResponse::BadRequest().body(format!("Invalid AppSite: {}", row.app_site));
+        }
+
+        // Validate parameter lengths (256 char limit)
+        if !security_validator::is_valid_path_component(Some(&row.app_site)) {
+            return HttpResponse::BadRequest().body("Invalid AppSite parameter");
+        }
+        if !security_validator::is_valid_path_component(Some(&row.app_file)) {
+            return HttpResponse::BadRequest().body("Invalid AppFile parameter");
+        }
+        if !row.app_view.is_empty() && !security_validator::is_valid_path_component(Some(&row.app_view)) {
+            return HttpResponse::BadRequest().body("Invalid AppView parameter");
+        }
+    }
+
+    let reports_path = std::path::Path::new(project_dir_str).join("template_analysis").join("Reports");
+    let _ = std::fs::create_dir_all(&reports_path);
+
+    // Get test type from query parameter
+    let test_type = req.query_string()
+        .split('&')
+        .find(|param| param.starts_with("testType="))
+        .and_then(|param| param.split('=').nth(1))
+        .unwrap_or("standardtest");
+
+    let test_type_file = test_type.to_lowercase().replace(" ", "").replace("-", "");
+
+    // Generate HTML table matching C# standard format
+    let formatted_test_type = test_type.replace("test", " TEST").to_uppercase();
+    let mut html = String::new();
+    html.push_str("<!DOCTYPE html>\n<html>\n<head>\n");
+    html.push_str("    <meta charset=\"UTF-8\">\n");
+    html.push_str("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
+    html.push_str(&format!("    <title>JavaScript {}</title>\n", formatted_test_type));
+    html.push_str("    <style>\n");
+    html.push_str("        body { font-family: Arial, sans-serif; margin: 20px; }\n");
+    html.push_str("        h1 { color: #333; }\n");
+    html.push_str("        .table-container { overflow-x: auto; }\n");
+    html.push_str("        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }\n");
+    html.push_str("        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n");
+    html.push_str("        th { background-color: #4CAF50; color: white; }\n");
+    html.push_str("        tr:nth-child(even) { background-color: #f2f2f2; }\n");
+    html.push_str("        .pass { color: green; font-weight: bold; }\n");
+    html.push_str("        .fail { color: red; font-weight: bold; }\n");
+    html.push_str("        @media (max-width: 768px) {\n");
+    html.push_str("            body { margin: 10px; }\n");
+    html.push_str("            th, td { padding: 8px; font-size: 14px; }\n");
+    html.push_str("            h1 { font-size: 24px; }\n");
+    html.push_str("        }\n");
+    html.push_str("    </style>\n</head>\n<body>\n");
+    html.push_str(&format!("    <h1>JavaScript {}</h1>\n", formatted_test_type));
+    html.push_str(&format!("    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: {} UTC</div>\n",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
+    html.push_str("    <div class=\"table-container\">\n    <table>\n        <tr>\n");
+    html.push_str("            <th>AppSite</th>\n            <th>AppFile</th>\n            <th>AppView</th>\n");
+    html.push_str("            <th>OutputMatch</th>\n            <th>ViewUnMatch</th>\n            <th>Error</th>\n        </tr>\n");
+
+    for row in summary_rows.iter() {
+        let output_match_class = if row.normal_pre_process == "PASS" {
+            "pass"
+        } else if row.normal_pre_process == "FAIL" {
+            "fail"
+        } else {
+            ""
+        };
+        let view_unmatch_class = if row.cross_view_un_match == "PASS" {
+            "pass"
+        } else if row.cross_view_un_match == "FAIL" {
+            "fail"
+        } else {
+            ""
+        };
+
+        html.push_str("        <tr>\n");
+        html.push_str(&format!("            <td>{}</td>\n", row.app_site));
+        html.push_str(&format!("            <td>{}</td>\n", row.app_file));
+        html.push_str(&format!("            <td>{}</td>\n", row.app_view));
+        html.push_str(&format!("            <td class=\"{}\">{}</td>\n", output_match_class, row.normal_pre_process));
+        html.push_str(&format!("            <td class=\"{}\">{}</td>\n", view_unmatch_class, row.cross_view_un_match));
+        html.push_str(&format!("            <td>{}</td>\n", row.error));
+        html.push_str("        </tr>\n");
+    }
+
+    html.push_str("    </table>\n    </div>\n</body>\n</html>");
+
+    let html_file = reports_path.join(format!("javascript_{}_Summary.html", test_type_file));
+    let _ = std::fs::write(&html_file, html);
+    println!("Test summary HTML saved to: {:?}", html_file);
+
+    // Save JSON summary file
+    let json_file = reports_path.join(format!("javascript_{}_Summary.json", test_type_file));
+    let json_data = match serde_json::to_string_pretty(&*summary_rows) {
+        Ok(j) => j,
+        Err(e) => return HttpResponse::InternalServerError().body(format!("JSON serialization failed: {}", e)),
+    };
+    let _ = std::fs::write(&json_file, json_data);
+    println!("Test summary JSON saved to: {:?}", json_file);
+
+    let response = TestResponse {
+        message: "Test results saved successfully".to_string(),
+    };
+    HttpResponse::Ok().json(response)
+}
+
+/// POST /api/performance-results - Save performance results from client
+#[utoipa::path(
+    post,
+    path = "/api/performance-results",
+    request_body = Vec<PerfSummaryRowDto>,
+    responses(
+        (status = 200, description = "Performance results saved successfully", body = TestResponse),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn save_performance_results(
+    summary_rows: web::Json<Vec<PerfSummaryRowDto>>,
+    project_dir: web::Data<std::path::PathBuf>
+) -> impl Responder {
+    let project_dir_str = project_dir.to_str().unwrap_or("");
+
+    println!("POST /api/performance-results called with {} rows", summary_rows.len());
+
+    // Validate each row
+    let valid_app_sites = match security_validator::get_valid_app_sites() {
+        Ok(sites) => sites,
+        Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to load AppSites: {}", e)),
+    };
+
+    for row in summary_rows.iter() {
+        // Validate AppSite is in allowlist
+        if !row.app_site.is_empty() && !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(&row.app_site)) {
+            return HttpResponse::BadRequest().body(format!("Invalid AppSite: {}", row.app_site));
+        }
+
+        // Validate parameter lengths (256 char limit)
+        if !security_validator::is_valid_path_component(Some(&row.app_site)) {
+            return HttpResponse::BadRequest().body("Invalid AppSite parameter");
+        }
+        if !security_validator::is_valid_path_component(Some(&row.app_file)) {
+            return HttpResponse::BadRequest().body("Invalid AppFile parameter");
+        }
+        if !row.app_view.is_empty() && !security_validator::is_valid_path_component(Some(&row.app_view)) {
+            return HttpResponse::BadRequest().body("Invalid AppView parameter");
+        }
+    }
+
+    let reports_path = std::path::Path::new(project_dir_str).join("template_analysis").join("Reports");
+    let _ = std::fs::create_dir_all(&reports_path);
+
+    // Generate HTML table
+    let mut html = String::new();
+    html.push_str("<html><head><title>Client-Side Performance Summary Table</title>\n");
+    html.push_str("<style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>\n");
+    html.push_str("<h2>Client-Side JavaScript PERFORMANCE SUMMARY TABLE</h2>\n");
+    html.push_str(&format!("<div class=\"meta\">Generated: {} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
+    html.push_str("<table>\n<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>\n");
+
+    for row in summary_rows.iter() {
+        html.push_str("<tr>\n");
+        html.push_str(&format!("<td>{}</td>\n", row.app_site));
+        html.push_str(&format!("<td>{}</td>\n", row.app_view));
+        html.push_str(&format!("<td>{:.2}</td>\n", row.normal_time_ms));
+        html.push_str(&format!("<td>{:.2}</td>\n", row.pre_process_time_ms));
+        html.push_str(&format!("<td>{}</td>\n", row.results_match));
+        html.push_str(&format!("<td>{}</td>\n", row.perf_difference));
+        html.push_str(&format!("<td>{}</td>\n", row.scenario_total_time_ms));
+        html.push_str(&format!("<td>{}</td>\n", row.elapsed_time_ms));
+        html.push_str("</tr>\n");
+    }
+
+    html.push_str("</table></body></html>");
+
+    let html_file = reports_path.join("javascript_perfsummary.html");
+    let _ = std::fs::write(&html_file, html);
+    println!("Performance summary HTML saved to: {:?}", html_file);
+
+    // Save JSON summary file
+    let json_file = reports_path.join("javascript_perfsummary.json");
+    let json_data = match serde_json::to_string_pretty(&*summary_rows) {
+        Ok(j) => j,
+        Err(e) => return HttpResponse::InternalServerError().body(format!("JSON serialization failed: {}", e)),
+    };
+    let _ = std::fs::write(&json_file, json_data);
+    println!("Performance summary JSON saved to: {:?}", json_file);
+
+    let response = TestResponse {
+        message: "Performance results saved successfully".to_string(),
+    };
+    HttpResponse::Ok().json(response)
+}
+
+
+
+

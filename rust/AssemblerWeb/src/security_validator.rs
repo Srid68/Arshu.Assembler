@@ -1,13 +1,21 @@
 use std::collections::HashSet;
 use std::sync::OnceLock;
+use regex::Regex;
 
 // Maximum parameter length to prevent DoS attacks
 const PARAM_MAX_LENGTH: usize = 256;
 
+// Maximum content sizes to prevent DDOS attacks
+pub const MAX_LOG_FILE_SIZE: usize = 500 * 1024; // 500 KB per log file
+
+// Buffer allowance for output size validation (50 KB)
+pub const OUTPUT_SIZE_BUFFER: usize = 50 * 1024; // 50 KB buffer for dynamic content (performance reports, test results)
+
 /// Valid engine types allowlist
 static VALID_ENGINE_TYPES: OnceLock<HashSet<String>> = OnceLock::new();
 
-fn get_valid_engine_types() -> &'static HashSet<String> {
+/// Gets the valid engine types (equivalent to C# SecurityValidator.ValidEngineTypes)
+pub fn get_valid_engine_types() -> &'static HashSet<String> {
     VALID_ENGINE_TYPES.get_or_init(|| {
         let mut set = HashSet::new();
         set.insert("Normal".to_string());
@@ -16,8 +24,19 @@ fn get_valid_engine_types() -> &'static HashSet<String> {
     })
 }
 
-/// Gets the valid AppSites from ConfigUtil
-pub fn get_valid_app_sites(_wwwroot_path: &str) -> Result<HashSet<String>, String> {
+// Log entry validation pattern (allows timestamps, log levels, messages, stack traces)
+// Matches patterns like: [timestamp] LEVEL: message or similar structured log formats
+static LOG_ENTRY_PATTERN: OnceLock<Regex> = OnceLock::new();
+
+fn get_log_entry_pattern() -> &'static Regex {
+    LOG_ENTRY_PATTERN.get_or_init(|| {
+        Regex::new(r"^[\[\]0-9:\-\s\.TZ]+\s*(DEBUG|INFO|WARN|ERROR|TRACE|FATAL)?:?\s*.+$")
+            .expect("Failed to compile log entry regex")
+    })
+}
+
+/// Gets the valid AppSites from TemplateConfig. Throws if not loaded.
+pub fn get_valid_app_sites() -> Result<HashSet<String>, String> {
     assembler::config::config_util::ConfigUtil::get_app_sites()
 }
 
@@ -48,12 +67,85 @@ pub fn is_valid_path_component(value: Option<&str>) -> bool {
     }
 }
 
-/// Validates engine type against allowlist (case-insensitive)
-pub fn is_valid_engine_type(engine_type: &str) -> bool {
-    get_valid_engine_types().iter().any(|valid| valid.eq_ignore_ascii_case(engine_type))
+/// Validates content size against maximum limit
+pub fn is_valid_content_size(content: Option<&str>, max_size: usize) -> bool {
+    match content {
+        None => true,
+        Some(c) if c.is_empty() => true,
+        Some(c) => c.len() <= max_size,
+    }
 }
 
-/// Validates app_site against allowlist (case-insensitive)
-pub fn is_valid_app_site(app_site: &str, valid_app_sites: &HashSet<String>) -> bool {
-    valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(app_site))
+/// Validates output size against template total size with fixed buffer
+pub fn is_valid_output_size_with_buffer(html_content: Option<&str>, template_total_size: usize) -> bool {
+    match html_content {
+        None => true,
+        Some(content) if content.is_empty() => true,
+        Some(content) => {
+            let output_size = content.len();
+
+            // Check against template size + buffer
+            if template_total_size > 0 {
+                let max_allowed_size = template_total_size + OUTPUT_SIZE_BUFFER;
+                return output_size <= max_allowed_size;
+            }
+
+            // If template size is unknown, reject (requires template size for validation)
+            false
+        }
+    }
+}
+
+/// Validates log content format and size
+pub fn is_valid_log_content(log_content: Option<&str>) -> (bool, Option<String>) {
+    let content = match log_content {
+        None => return (false, Some("Log content is empty".to_string())),
+        Some(c) if c.is_empty() => return (false, Some("Log content is empty".to_string())),
+        Some(c) => c,
+    };
+
+    // Check file size limit (500 KB per log file)
+    if !is_valid_content_size(Some(content), MAX_LOG_FILE_SIZE) {
+        return (false, Some("Log file exceeds maximum size limit (500 KB)".to_string()));
+    }
+
+    // Split into lines for validation
+    let lines: Vec<&str> = content.lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect();
+
+    // Check if at least some lines match log pattern (allow some flexibility)
+    // Require at least 50% of non-empty lines to match log pattern
+    let mut valid_lines = 0;
+    let total_lines = lines.len();
+
+    let log_pattern = get_log_entry_pattern();
+
+    for line in &lines {
+        // Check if line matches log pattern or is a continuation line (stack trace, etc.)
+        if log_pattern.is_match(line) || line.starts_with("    at ") || line.starts_with("\tat ") {
+            valid_lines += 1;
+        }
+    }
+
+    // At least 50% of lines should match expected log format
+    if total_lines > 0 && (valid_lines as f64 / total_lines as f64) < 0.5 {
+        return (false, Some("Log content does not match expected format".to_string()));
+    }
+
+    (true, None)
+}
+
+/// Gets the template total size for an AppSite from scenarios
+pub fn get_template_total_size(app_site: &str, app_view: &str) -> usize {
+    match assembler::config::config_util::ConfigUtil::get_scenarios() {
+        Ok(scenarios) => {
+            scenarios.iter()
+                .find(|s| s.app_site.eq_ignore_ascii_case(app_site) &&
+                          s.app_view.eq_ignore_ascii_case(app_view))
+                .map(|s| s.total_size as usize)
+                .unwrap_or(0)
+        }
+        Err(_) => 0,
+    }
 }

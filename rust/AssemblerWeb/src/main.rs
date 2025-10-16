@@ -13,7 +13,7 @@ use actix_web::Error;
 mod security_validator;
 mod assembler_endpoint;
 
-use assembler_endpoint::{MergeRequest, ScenarioDto, ReportRequest, index, get_scenarios, merge_templates, test_standard, test_advanced, test_performance, test_consolidate_performance, get_report};
+use assembler_endpoint::{MergeRequest, ScenarioDto, ReportRequest, TestResponse, TestSummaryRowDto, PerfSummaryRowDto, index, get_scenarios, get_templates, merge_templates, save_test_results, save_performance_results, save_log, save_output, test_standard, test_advanced, test_performance, test_consolidate_performance, get_report};
 
 
 async fn openapi_handler() -> impl Responder {
@@ -30,14 +30,19 @@ async fn openapi_handler() -> impl Responder {
     paths(
         assembler_endpoint::index,
         assembler_endpoint::get_scenarios,
+        assembler_endpoint::get_templates,
         assembler_endpoint::merge_templates,
+        assembler_endpoint::save_test_results,
+        assembler_endpoint::save_performance_results,
+        assembler_endpoint::save_log,
+        assembler_endpoint::save_output,
         assembler_endpoint::test_standard,
         assembler_endpoint::test_advanced,
         assembler_endpoint::test_performance,
         assembler_endpoint::test_consolidate_performance,
         assembler_endpoint::get_report
     ),
-    components(schemas(MergeRequest, ScenarioDto, ReportRequest)),
+    components(schemas(MergeRequest, ScenarioDto, ReportRequest, TestResponse, TestSummaryRowDto, PerfSummaryRowDto)),
     tags((name = "Assembler", description = "Assembler API endpoints"))
 )]
 struct ApiDoc;
@@ -130,12 +135,17 @@ async fn main() -> std::io::Result<()> {
             .app_data(project_dir_data.clone())
             .wrap(idle_tracking.clone())
             .service(web::resource("/").route(web::get().to(index)))
+            .route("/api/scenarios", web::get().to(get_scenarios))
+            .route("/api/templates", web::post().to(get_templates))
             .service(merge_templates)
+            .route("/api/test-results", web::post().to(save_test_results))
+            .route("/api/performance-results", web::post().to(save_performance_results))
+            .route("/api/save-log", web::post().to(save_log))
+            .route("/api/save-output", web::post().to(save_output))
             .route("/test/standard", web::post().to(test_standard))
             .route("/test/advanced", web::post().to(test_advanced))
             .route("/test/performance", web::post().to(test_performance))
             .route("/test/consolidate-performance", web::post().to(test_consolidate_performance))
-            .route("/api/scenarios", web::get().to(get_scenarios))
             .route("/api/report", web::post().to(get_report))
             .route("/openapi.json", web::get().to(openapi_handler))
             .service(fs::Files::new("/scalar", scalar_path).index_file("index.html"))
