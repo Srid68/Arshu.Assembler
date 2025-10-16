@@ -8,7 +8,7 @@ use Assembler\Engine\EngineNormal;
 use Assembler\Engine\EnginePreProcess;
 use Assembler\Common\CommonUtil;
 
-use Assembler\TemplateApi\ApiResponse;
+use Assembler\Api\ApiResponse;
 
 class TestSummaryRow
 {
