@@ -23,7 +23,28 @@ if ($All) {
     Write-Host "Usage: .\compare_outputs.ps1 -Scenario <ScenarioName>  OR  .\compare_outputs.ps1 -All" -ForegroundColor Yellow
     Write-Host ""
 }
-    
+
+$results = @()
+
+Write-Host "Testing HTML output comparison between C# and all other languages..." -ForegroundColor Magenta
+Write-Host "=====================================================================" -ForegroundColor Magenta
+
+foreach ($scenario in $scenarios) {    
+    Write-Host "\n=== Running scenario: $scenario ===" -ForegroundColor Yellow
+    # Run C# test
+    Write-Host "  Running C#..." -ForegroundColor Cyan
+    Set-Location "csharp\AssemblerTest"
+    # Use -- to separate dotnet args from application args
+    $csharpOutput = & dotnet run -- --skipdetails --printhtml --advancedtests --appsite $scenario 2>&1
+    Set-Location "..\..\"
+
+    # Extract C# output size from DETAILED OUTPUT ANALYSIS
+    $csharpAnalysis = $csharpOutput | Select-String "Normal length: (\d+) chars" | Select-Object -First 1
+    $csharpNormalSize = if ($csharpAnalysis) { $csharpAnalysis.Matches[0].Groups[1].Value } else { "ERROR" }
+
+    $csharpPreProcessAnalysis = $csharpOutput | Select-String "PreProcess length: (\d+) chars" | Select-Object -First 1
+    $csharpPreProcessSize = if ($csharpPreProcessAnalysis) { $csharpPreProcessAnalysis.Matches[0].Groups[1].Value } else { "ERROR" }
+
     # Run Rust test
     Write-Host "  Running Rust..." -ForegroundColor Red
     Set-Location "rust\AssemblerTest"
