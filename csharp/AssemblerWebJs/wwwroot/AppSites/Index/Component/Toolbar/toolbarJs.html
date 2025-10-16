@@ -4,6 +4,9 @@
 // Used by both AssemblerWeb and AssemblerWebJs
 // ========================================
 
+// Global flag to track if save should happen (only on refresh button click)
+let shouldSaveOnMerge = false;
+
 // Function to update rule description
 function updateRuleDescription(appSite, description) {
     const descElement = document.getElementById('rule-description');

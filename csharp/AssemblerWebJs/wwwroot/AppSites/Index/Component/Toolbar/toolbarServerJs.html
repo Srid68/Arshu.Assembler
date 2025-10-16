@@ -43,7 +43,7 @@ function handleScenarioChangeServer() {
     if (preprocessTimingBar) preprocessTimingBar.innerHTML = '';
 
     // Make API calls to merge endpoint
-    const mergeUrl = window.location.origin + '/merge';
+    const mergeUrl = window.location.origin + '/merge' + (shouldSaveOnMerge ? '?save=true' : '');
     const clientStart = performance.now();
 
     Promise.all([

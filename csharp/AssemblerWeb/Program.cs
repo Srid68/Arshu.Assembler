@@ -211,10 +211,6 @@ namespace AssemblerWeb
             // Configure separate log files for each class
             var contextLogFiles = new System.Collections.Generic.Dictionary<string, string>
             {
-                { "LoaderNormal", Path.Combine(logsDir, "csharp_loadernormal.log") },
-                { "LoaderPreProcess", Path.Combine(logsDir, "csharp_loaderpreprocess.log") },
-                { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") },
-                { "EnginePreProcess", Path.Combine(logsDir, "csharp_enginepreprocess.log") },
                 { "Program", Path.Combine(logsDir, "csharp_program.log") },
                 { "AssemblerEndpoint", Path.Combine(logsDir, "csharp_assemblerendpoint.log") },
                 { "IdleTrackingMiddleware", Path.Combine(logsDir, "csharp_idletracking.log") }

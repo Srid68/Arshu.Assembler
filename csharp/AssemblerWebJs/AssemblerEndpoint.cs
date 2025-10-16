@@ -405,6 +405,25 @@ namespace AssemblerWebJs
 
             app.MapPost("/api/templates", async (HttpContext context) =>
             {
+                var serverStart = DateTime.UtcNow;
+
+                // Enable logging for merge operations
+                var originalLogLevel = Logger.GetLogLevel();
+                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                var logsDir = Path.Combine(templateAnalysisDir, "logs");
+                Directory.CreateDirectory(logsDir);
+
+                var contextLogFiles = new Dictionary<string, string>
+                    {
+                        { "LoaderNormal", Path.Combine(logsDir, "csharp_loadernormal.log") },
+                        { "LoaderPreProcess", Path.Combine(logsDir, "csharp_loaderpreprocess.log") }
+                    };
+
+                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
+                Logger.ConfigureContextLogFiles(contextLogFiles);
+
                 try
                 {
                     string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
@@ -439,9 +458,7 @@ namespace AssemblerWebJs
                     // Validate path components for path traversal attacks
                     if (!SecurityValidator.IsValidPathComponent(appSite))
                         return Results.Text("Invalid characters in AppSite", statusCode: 400);
-
-                    var serverStart = DateTime.UtcNow;
-
+                   
                     // Load Normal templates
                     var normalTemplates = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite);
 
@@ -494,7 +511,6 @@ namespace AssemblerWebJs
                     var saveParam = context.Request.Query["save"].ToString();
                     if (!string.IsNullOrEmpty(saveParam) && saveParam.Equals("true", StringComparison.OrdinalIgnoreCase))
                     {
-                        string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
                         var templatesDir = Path.Combine(projectDirectory, "template_analysis", "templates");
                         Directory.CreateDirectory(templatesDir);
 
@@ -512,6 +528,11 @@ namespace AssemblerWebJs
                 catch (Exception ex)
                 {
                     return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+                finally
+                {
+                    // Restore original log level
+                    Logger.SetLogLevel(originalLogLevel);
                 }
             });
 
