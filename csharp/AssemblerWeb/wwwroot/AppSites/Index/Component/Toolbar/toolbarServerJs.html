@@ -9,89 +9,57 @@ function handleScenarioChangeServer() {
     const select = document.getElementById('test-select');
     const selectedValue = select.value;
 
-    // ALWAYS clear displays first, before any checks
-    const normalResult = document.querySelector('#{{$NormalResultId}}');
-    const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
-    const normalTemplate = document.querySelector('#normal-template');
-    const preprocessTemplate = document.querySelector('#preprocess-template');
-    const normalTimingBar = document.querySelector('#{{$NormalTimingBarId}}');
-    const preprocessTimingBar = document.querySelector('#{{$PreProcessTimingBarId}}');
-
     if (!selectedValue) {
         document.getElementById('rule-description').classList.remove('show');
         // Reset outputs to loading state
+        const normalResult = document.querySelector('#{{$NormalResultId}}');
+        const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
         if (normalResult) normalResult.innerHTML = '<div class="loading">Select a scenario to see the Normal engine result</div>';
         if (preprocessResult) preprocessResult.innerHTML = '<div class="loading">Select a scenario to see the PreProcess engine result</div>';
-        // Clear template displays
-        if (normalTemplate) normalTemplate.innerHTML = '<div class="loading">Select a scenario to see the Normal engine templates</div>';
-        if (preprocessTemplate) preprocessTemplate.innerHTML = '<div class="loading">Select a scenario to see the PreProcess engine templates</div>';
-        // Clear timing bars
-        if (normalTimingBar) normalTimingBar.innerHTML = '';
-        if (preprocessTimingBar) preprocessTimingBar.innerHTML = '';
         return;
     }
 
     // Get data from data attributes
     const selectedOption = select.options[select.selectedIndex];
     const appSite = selectedOption.dataset.appsite || selectedValue;
+    const appFile = selectedOption.dataset.appfile || "";
     const appView = selectedOption.dataset.appview || "";
+    const appViewPrefix = selectedOption.dataset.appviewprefix || "";
     const description = selectedOption.dataset.description || "";
 
     // Update rule description
     updateRuleDescription(appSite, description);
 
-    // Show loading state (elements already declared at top)
-    // Force immediate clearing by setting innerHTML to empty first, then to loading state
-    if (normalResult) {
-        normalResult.innerHTML = '';
-        normalResult.offsetHeight; // Force reflow
-        normalResult.innerHTML = '<div class="loading">Loading Normal engine result...</div>';
-    }
-    if (preprocessResult) {
-        preprocessResult.innerHTML = '';
-        preprocessResult.offsetHeight; // Force reflow
-        preprocessResult.innerHTML = '<div class="loading">Loading PreProcess engine result...</div>';
-    }
+    // Show loading state
+    const normalResult = document.querySelector('#{{$NormalResultId}}');
+    const preprocessResult = document.querySelector('#{{$PreProcessResultId}}');
+    if (normalResult) normalResult.innerHTML = '<div class="loading">Loading Normal engine result...</div>';
+    if (preprocessResult) preprocessResult.innerHTML = '<div class="loading">Loading PreProcess engine result...</div>';
+
+    // Clear timing bars
+    const normalTimingBar = document.querySelector('#{{$NormalTimingBarId}}');
+    const preprocessTimingBar = document.querySelector('#{{$PreProcessTimingBarId}}');
     if (normalTimingBar) normalTimingBar.innerHTML = '';
     if (preprocessTimingBar) preprocessTimingBar.innerHTML = '';
-    if (normalTemplate) {
-        normalTemplate.innerHTML = '';
-        normalTemplate.offsetHeight; // Force reflow
-        normalTemplate.innerHTML = '<div class="loading">Loading Normal engine templates...</div>';
-    }
-    if (preprocessTemplate) {
-        preprocessTemplate.innerHTML = '';
-        preprocessTemplate.offsetHeight; // Force reflow
-        preprocessTemplate.innerHTML = '<div class="loading">Loading PreProcess engine templates...</div>';
-    }
 
     // Make API calls to merge endpoint
-    const mergeUrl = window.location.origin + '/merge';
-    const normalClientStart = performance.now();
-    const preprocessClientStart = performance.now();
+    const mergeUrl = window.location.origin + '/merge' + (shouldSaveOnMerge ? '?save=true' : '');
+    const clientStart = performance.now();
 
     Promise.all([
         fetch(mergeUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ appSite, appView, engineType: 'Normal' })
-        }).then(response => {
-            const normalClientEnd = performance.now();
-            return { response, clientTimeMs: (normalClientEnd - normalClientStart).toFixed(2) };
+            body: JSON.stringify({ appSite, appView, appViewPrefix, appFile, engineType: 'Normal' })
         }),
         fetch(mergeUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ appSite, appView, engineType: 'PreProcess' })
-        }).then(response => {
-            const preprocessClientEnd = performance.now();
-            return { response, clientTimeMs: (preprocessClientEnd - preprocessClientStart).toFixed(2) };
+            body: JSON.stringify({ appSite, appView, appViewPrefix, appFile, engineType: 'PreProcess' })
         })
-    ]).then(async ([normalData, preprocessData]) => {
-        const normalResponse = normalData.response;
-        const normalClientTimeMs = normalData.clientTimeMs;
-        const preprocessResponse = preprocessData.response;
-        const preprocessClientTimeMs = preprocessData.clientTimeMs;
+    ]).then(async ([normalResponse, preprocessResponse]) => {
+        const clientEnd = performance.now();
+        const clientTimeMs = (clientEnd - clientStart).toFixed(2);
 
         let normalHtml = '', preprocessHtml = '';
         let normalTiming = null, preprocessTiming = null;
@@ -103,7 +71,6 @@ function handleScenarioChangeServer() {
             normalHtml = normalJson.Html;
             if (normalResult) normalResult.innerHTML = normalHtml;
             normalTiming = {
-                clientTimeMs: normalClientTimeMs,
                 serverTimeMs: normalJson.ServerTimeMs,
                 engineTimeMs: normalJson.EngineTimeMs
             };
@@ -118,7 +85,6 @@ function handleScenarioChangeServer() {
             preprocessHtml = preprocessJson.Html;
             if (preprocessResult) preprocessResult.innerHTML = preprocessHtml;
             preprocessTiming = {
-                clientTimeMs: preprocessClientTimeMs,
                 serverTimeMs: preprocessJson.ServerTimeMs,
                 engineTimeMs: preprocessJson.EngineTimeMs
             };
@@ -145,10 +111,10 @@ function handleScenarioChangeServer() {
 
         // Update timing bars
         if (normalTimingBar && normalTiming) {
-            normalTimingBar.innerHTML = `<div><span>Client: <b>${normalTiming.clientTimeMs}ms</b> | Server: <b>${normalTiming.serverTimeMs.toFixed(2)}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${normalTiming.engineTimeMs.toFixed(2)}ms</b> | Output: <b>${normalHtml.length} chars</b></div>`;
+            normalTimingBar.innerHTML = `<div><span>Client: <b>${clientTimeMs}ms</b> | Server: <b>${normalTiming.serverTimeMs.toFixed(2)}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${normalTiming.engineTimeMs.toFixed(2)}ms</b> | Output: <b>${normalHtml.length} chars</b></div>`;
         }
         if (preprocessTimingBar && preprocessTiming) {
-            preprocessTimingBar.innerHTML = `<div><span>Client: <b>${preprocessTiming.clientTimeMs}ms</b> | Server: <b>${preprocessTiming.serverTimeMs.toFixed(2)}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${preprocessTiming.engineTimeMs.toFixed(2)}ms</b> | Output: <b>${preprocessHtml.length} chars</b></div>`;
+            preprocessTimingBar.innerHTML = `<div><span>Client: <b>${clientTimeMs}ms</b> | Server: <b>${preprocessTiming.serverTimeMs.toFixed(2)}ms</b></span></div><div style='margin-top:2px;'>Engine: <b>${preprocessTiming.engineTimeMs.toFixed(2)}ms</b> | Output: <b>${preprocessHtml.length} chars</b></div>`;
         }
 
         // Update template displays if checkbox is checked

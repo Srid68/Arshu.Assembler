@@ -23,30 +23,6 @@ namespace AssemblerWeb
 {
     #region Model and Serialization
 
-    // Model for merge request
-    public class MergeRequest
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("appSite")]
-        public string? AppSite { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("appView")]
-        public string? AppView { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("engineType")]
-        public string? EngineType { get; set; }
-    }
-
-    // Model for test response
-    public class TestResponse
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("success")]
-        public bool Success { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("elapsed")]
-        public double Elapsed { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("testCount")]
-        public int TestCount { get; set; }
-    }
-
     // Model for scenario response
     public class ScenarioDto
     {
@@ -62,6 +38,17 @@ namespace AssemblerWeb
         public string Description { get; set; } = string.Empty;
     }
 
+    // Model for merge request
+    public class MergeRequest
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("appSite")]
+        public string? AppSite { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("appView")]
+        public string? AppView { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("engineType")]
+        public string? EngineType { get; set; }
+    }
+    
     // Model for report request
     public class ReportRequest
     {
@@ -73,11 +60,50 @@ namespace AssemblerWeb
         public string? LangPrefix { get; set; }
     }
 
+    // Model for test response
+    public class TestResponse
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("success")]
+        public bool Success { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        public string Message { get; set; } = string.Empty;
+        [System.Text.Json.Serialization.JsonPropertyName("elapsed")]
+        public double Elapsed { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("testCount")]
+        public int TestCount { get; set; }
+    }
 
-    [JsonSerializable(typeof(MergeRequest))]
-    [JsonSerializable(typeof(TestResponse))]
+    public class TestSummaryRowDto
+    {
+        public string AppSite { get; set; } = string.Empty;
+        public string AppFile { get; set; } = string.Empty;
+        public string AppView { get; set; } = string.Empty;
+        public string NormalPreProcess { get; set; } = string.Empty;
+        public string CrossViewUnMatch { get; set; } = string.Empty;
+        public string Error { get; set; } = string.Empty;
+    }
+
+    public class PerfSummaryRowDto
+    {
+        public string AppSite { get; set; } = string.Empty;
+        public string AppFile { get; set; } = string.Empty;
+        public string AppView { get; set; } = string.Empty;
+        public int Iterations { get; set; }
+        public double NormalTimeMs { get; set; }
+        public double PreProcessTimeMs { get; set; }
+        public int OutputSize { get; set; }
+        public string ResultsMatch { get; set; } = string.Empty;
+        public string PerfDifference { get; set; } = string.Empty;
+        public int ScenarioTotalTimeMs { get; set; }
+        public int ElapsedTimeMs { get; set; }
+    }
+
     [JsonSerializable(typeof(ScenarioDto[]))]
+    [JsonSerializable(typeof(MergeRequest))]
     [JsonSerializable(typeof(ReportRequest))]
+    [JsonSerializable(typeof(TestResponse))]
+    [JsonSerializable(typeof(TestSummaryRowDto[]))]
+    [JsonSerializable(typeof(PerfSummaryRowDto[]))]
     public partial class ResponseJsonContext : JsonSerializerContext { }
 
     #endregion
@@ -278,15 +304,24 @@ namespace AssemblerWeb
                     var serverEnd = DateTime.UtcNow;
                     var serverTimeMs = (serverEnd - serverStart).TotalMilliseconds;
 
-                    // Save HTML output to template_analysis/output folder (parent of wwwroot)
-                    var contentRoot = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                    var outputDir = Path.Combine(contentRoot, "template_analysis", "output");
-                    Directory.CreateDirectory(outputDir);
+                    // Save HTML output only if save query parameter is present
+                    var saveParam = context.Request.Query["save"].ToString();
+                    if (!string.IsNullOrEmpty(saveParam) && saveParam.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var contentRoot = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                        var outputDir = Path.Combine(contentRoot, "template_analysis", "output");
+                        Directory.CreateDirectory(outputDir);
 
-                    var appViewSuffix = string.IsNullOrEmpty(input.AppView) ? "" : $"_{input.AppView}";
-                    var engineSuffix = input.EngineType.ToLower();
-                    var outputFile = Path.Combine(outputDir, $"{input.AppSite}{appViewSuffix}_{engineSuffix}.html");
-                    File.WriteAllText(outputFile, mergedHtml);
+                        var appViewSuffix = string.IsNullOrEmpty(input.AppView) ? "" : $"_{input.AppView}";
+                        var engineSuffix = input.EngineType.ToLower();
+                        var outputFile = Path.Combine(outputDir, $"{input.AppSite}{appViewSuffix}_{engineSuffix}.html");
+                        File.WriteAllText(outputFile, mergedHtml);
+
+                        // Also generate the structure dump file, filtered by AppSite
+                        var allScenarios = ConfigUtil.GetScenarios();
+                        var filteredScenarios = ConfigUtil.FilterByAppSite(allScenarios, input.AppSite);
+                        TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, contentRoot, filteredScenarios, true);
+                    }
 
                     var responseObj = new ApiResponse
                     {
@@ -316,428 +351,6 @@ namespace AssemblerWeb
             .WithTags("Merge");
 
             #endregion
-
-
-
-            #region Get Report Endpoint
-
-            assemblerGroup.MapPost("/api/report", async (HttpContext context) =>
-            {
-                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-
-                using var reader = new StreamReader(context.Request.Body);
-                var body = await reader.ReadToEndAsync();
-                if (string.IsNullOrWhiteSpace(body))
-                    return Results.BadRequest("Empty request body");
-
-                var input = System.Text.Json.JsonSerializer.Deserialize<ReportRequest>(body, ResponseJsonContext.Default.ReportRequest);
-                if (input == null || string.IsNullOrWhiteSpace(input.FileName))
-                    return Results.BadRequest("Missing required field: fileName");
-
-                // Validate fileName for path traversal
-                if (!SecurityValidator.IsValidPathComponent(input.FileName))
-                    return Results.BadRequest("Invalid characters in fileName");
-
-                // Validate langPrefix for path traversal if provided
-                if (!string.IsNullOrEmpty(input.LangPrefix) && !SecurityValidator.IsValidPathComponent(input.LangPrefix))
-                    return Results.BadRequest("Invalid characters in langPrefix");
-
-                // Construct file path
-                string prefix = input.UseLangPrefix && !string.IsNullOrEmpty(input.LangPrefix) ? input.LangPrefix + "_" : "";
-                string fileName = prefix + input.FileName;
-                string reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
-                string filePath = Path.Combine(reportsDir, fileName);
-
-                // Check if file exists
-                if (!File.Exists(filePath))
-                    return Results.NotFound($"Report file not found: {fileName}");
-
-                // Read and return the file content
-                try
-                {
-                    string content = File.ReadAllText(filePath);
-                    return Results.Content(content, "text/html");
-                }
-                catch (Exception ex)
-                {
-                    return Results.Problem($"Error reading report file: {ex.Message}");
-                }
-            })
-            .Accepts<ReportRequest>("application/json")
-            .WithName("GetReport")
-            .WithDisplayName("Get Report")
-            .WithDescription("Retrieves a report file from template_analysis/Reports directory")
-            .WithTags("Report");
-
-            #endregion
-
-            #region Consolidate Performance Endpoint
-
-            assemblerGroup.MapPost("/test/consolidate-performance", async (HttpContext context) =>
-            {
-                var sw = Stopwatch.StartNew();
-                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
-                string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-
-                // Configure logging for consolidate endpoint
-                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
-                var logsDir = Path.Combine(templateAnalysisDir, "logs");
-                Directory.CreateDirectory(logsDir);
-                var consolidateLogFile = Path.Combine(logsDir, "csharp_consolidate_perf.log");
-
-                try
-                {
-                    // Log start
-                    File.AppendAllText(consolidateLogFile, $"\n[{DateTime.UtcNow:O}] Starting consolidate-performance endpoint\n");
-
-                    // Read server configuration from servers.csv
-                    var serversConfigPath = Path.Combine(rootDirPath, "App_Data", "servers.csv");
-                    List<(string Language, string Url, string Method, string FileName)> perfServers = new List<(string Language, string Url, string Method, string FileName)>();
-
-                    if (File.Exists(serversConfigPath))
-                    {
-                        var lines = File.ReadAllLines(serversConfigPath);
-                        foreach (var line in lines)
-                        {
-                            if (string.IsNullOrWhiteSpace(line)) continue;
-                            var parts = line.Split(',');
-                            if (parts.Length >= 3)
-                            {
-                                var language = parts[0].Trim();
-                                var method = parts[1].Trim().ToUpper();
-                                var url = parts[2].Trim();
-                                var fileName = parts.Length >= 4 ? parts[3].Trim() : "";
-                                if (!string.IsNullOrEmpty(language) && !string.IsNullOrEmpty(method) && !string.IsNullOrEmpty(url))
-                                {
-                                    perfServers.Add((language, url, method, fileName));
-                                }
-                            }
-                        }
-                    }
-
-                    if (perfServers.Count == 0)
-                    {
-                        var errorMsg = "No server configuration found. Please configure servers in App_Data/servers.csv";
-                        File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ❌ {errorMsg}\n");
-
-                        var errorResponse = new TestResponse
-                        {
-                            Success = false,
-                            Message = errorMsg,
-                            Elapsed = sw.Elapsed.TotalSeconds,
-                            TestCount = 0
-                        };
-
-                        return Results.Json(errorResponse, ResponseJsonContext.Default.TestResponse);
-                    }
-
-                    var appPerf = new Dictionary<string, Dictionary<string, (double? NormalTimeMs, double? PreProcessTimeMs, int? OutputSize, string? AppView)>>();
-                    var serversProcessed = new List<string>();
-                    var serversFailed = new List<string>();
-
-                    using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
-
-                    // Group servers by language
-                    var serversByLang = perfServers.GroupBy(s => s.Language).ToList();
-
-                    foreach (var langGroup in serversByLang)
-                    {
-                        var lang = langGroup.Key;
-                        bool langSuccess = false;
-                        var langErrors = new List<string>();
-
-                        foreach (var (_, url, method, fileName) in langGroup)
-                        {
-                            try
-                            {
-                                HttpResponseMessage httpResponse;
-
-                                if (method == "POST")
-                                {
-                                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Fetching {lang} via POST {url} (fileName: {fileName})\n");
-                                    var reportRequest = new ReportRequest { FileName = fileName, UseLangPrefix = false };
-                                    var requestBody = JsonSerializer.Serialize(reportRequest, ResponseJsonContext.Default.ReportRequest);
-                                    var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
-                                    httpResponse = await httpClient.PostAsync(url, content);
-                                }
-                                else
-                                {
-                                    var fullUrl = url + fileName;
-                                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Fetching {lang} via GET {fullUrl}\n");
-                                    httpResponse = await httpClient.GetAsync(fullUrl);
-                                }
-
-                                if (httpResponse.IsSuccessStatusCode)
-                                {
-                                    var responseContent = await httpResponse.Content.ReadAsStringAsync();
-                                    var arr = JsonDocument.Parse(responseContent).RootElement;
-
-                                    if (arr.ValueKind == JsonValueKind.Array)
-                                    {
-                                        int itemCount = 0;
-                                        foreach (var item in arr.EnumerateArray())
-                                        {
-                                            string appSite = item.TryGetProperty("AppSite", out var v1) ? v1.GetString() ?? "" :
-                                                            (item.TryGetProperty("app_site", out var v2) ? v2.GetString() ?? "" :
-                                                            (item.TryGetProperty("appSite", out var v3) ? v3.GetString() ?? "" : ""));
-
-                                            string appView = item.TryGetProperty("AppView", out var av1) ? av1.GetString() ?? "" :
-                                                            (item.TryGetProperty("app_view", out var av2) ? av2.GetString() ?? "" :
-                                                            (item.TryGetProperty("appView", out var av3) ? av3.GetString() ?? "" : ""));
-
-                                            double? normalTime = null;
-                                            if (item.TryGetProperty("NormalTimeMs", out var nt1) && nt1.ValueKind == JsonValueKind.Number) normalTime = nt1.GetDouble();
-                                            else if (item.TryGetProperty("normal_time_ms", out var nt2) && nt2.ValueKind == JsonValueKind.Number) normalTime = nt2.GetDouble();
-                                            else if (item.TryGetProperty("normalTimeMs", out var nt3) && nt3.ValueKind == JsonValueKind.Number) normalTime = nt3.GetDouble();
-                                            else if (item.TryGetProperty("NormalTimeTicks", out var ntticks) && ntticks.ValueKind == JsonValueKind.Number) normalTime = ntticks.GetDouble() / 10000.0;
-                                            else if (item.TryGetProperty("NormalTimeNanos", out var ntn1) && ntn1.ValueKind == JsonValueKind.Number) normalTime = ntn1.GetDouble() / 1_000_000.0;
-                                            else if (item.TryGetProperty("normal_time_nanos", out var ntn2) && ntn2.ValueKind == JsonValueKind.Number) normalTime = ntn2.GetDouble() / 1_000_000.0;
-
-                                            double? preprocessTime = null;
-                                            if (item.TryGetProperty("PreProcessTimeMs", out var pt1) && pt1.ValueKind == JsonValueKind.Number) preprocessTime = pt1.GetDouble();
-                                            else if (item.TryGetProperty("preprocess_time_ms", out var pt2) && pt2.ValueKind == JsonValueKind.Number) preprocessTime = pt2.GetDouble();
-                                            else if (item.TryGetProperty("preProcessTimeMs", out var pt3) && pt3.ValueKind == JsonValueKind.Number) preprocessTime = pt3.GetDouble();
-                                            else if (item.TryGetProperty("PreProcessTimeTicks", out var ptticks) && ptticks.ValueKind == JsonValueKind.Number) preprocessTime = ptticks.GetDouble() / 10000.0;
-                                            else if (item.TryGetProperty("PreProcessTimeNanos", out var ptn1) && ptn1.ValueKind == JsonValueKind.Number) preprocessTime = ptn1.GetDouble() / 1_000_000.0;
-                                            else if (item.TryGetProperty("preprocess_time_nanos", out var ptn2) && ptn2.ValueKind == JsonValueKind.Number) preprocessTime = ptn2.GetDouble() / 1_000_000.0;
-
-                                            int? outputSize = null;
-                                            if (item.TryGetProperty("OutputSize", out var os1) && os1.ValueKind == JsonValueKind.Number) outputSize = os1.GetInt32();
-                                            else if (item.TryGetProperty("output_size", out var os2) && os2.ValueKind == JsonValueKind.Number) outputSize = os2.GetInt32();
-                                            else if (item.TryGetProperty("outputSize", out var os3) && os3.ValueKind == JsonValueKind.Number) outputSize = os3.GetInt32();
-
-                                            if (!string.IsNullOrEmpty(appSite))
-                                            {
-                                                // Normalize AppView to ensure case-insensitive matching across languages
-                                                string normalizedAppView = string.IsNullOrEmpty(appView) ? "" : appView;
-                                                string key = string.IsNullOrEmpty(normalizedAppView) ? appSite : appSite + " → " + normalizedAppView;
-
-                                                // Use case-insensitive comparison for key matching
-                                                var existingKey = appPerf.Keys.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
-                                                if (existingKey != null)
-                                                {
-                                                    key = existingKey; // Use existing key to maintain consistent casing
-                                                }
-                                                else
-                                                {
-                                                    appPerf[key] = new Dictionary<string, (double?, double?, int?, string?)>();
-                                                }
-                                                appPerf[key][lang] = (normalTime, preprocessTime, outputSize, appView);
-                                                itemCount++;
-                                            }
-                                        }
-                                        File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ✅ {lang} ({method}): Successfully processed {itemCount} items\n");
-                                        langSuccess = true;
-                                        break; // Success, no need to try other methods
-                                    }
-                                }
-                                else
-                                {
-                                    var errorMsg = $"{method} {url} (HTTP {httpResponse.StatusCode})";
-                                    langErrors.Add(errorMsg);
-                                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ⚠️ {lang}: {errorMsg}\n");
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                var errorMsg = $"{method} {url} (ERROR: {ex.Message})";
-                                langErrors.Add(errorMsg);
-                                File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ⚠️ {lang}: {errorMsg}\n");
-                            }
-                        }
-
-                        // After trying all methods for this language, determine overall result
-                        if (langSuccess)
-                        {
-                            serversProcessed.Add(lang);
-                        }
-                        else
-                        {
-                            var failureMsg = $"{lang}: All methods failed - {string.Join("; ", langErrors)}";
-                            serversFailed.Add(failureMsg);
-                            File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ❌ {lang}: All methods failed\n");
-                        }
-                    }
-
-                    // Build HTML report
-                    var htmlSb = new StringBuilder();
-                    htmlSb.AppendLine("<!DOCTYPE html>");
-                    htmlSb.AppendLine("<html>");
-                    htmlSb.AppendLine("<head>");
-                    htmlSb.AppendLine("    <meta charset=\"UTF-8\">");
-                    htmlSb.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
-                    htmlSb.AppendLine("    <title>Consolidated Performance Summary</title>");
-                    htmlSb.AppendLine("    <style>");
-                    htmlSb.AppendLine("        body { font-family: Arial, sans-serif; margin: 20px; }");
-                    htmlSb.AppendLine("        h1 { color: #333; }");
-                    htmlSb.AppendLine("        h2 { color: #333; margin-top: 40px; }");
-                    htmlSb.AppendLine("        .meta { color: #666; font-style: italic; margin-bottom: 10px; }");
-                    htmlSb.AppendLine("        .table-container { overflow-x: auto; }");
-                    htmlSb.AppendLine("        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 700px; }");
-                    htmlSb.AppendLine("        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }");
-                    htmlSb.AppendLine("        th { background-color: #4CAF50; color: white; }");
-                    htmlSb.AppendLine("        tr:nth-child(even) { background-color: #f2f2f2; }");
-                    htmlSb.AppendLine("        td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7) { text-align: right; }");
-                    htmlSb.AppendLine("        .best-perf { background-color: #90EE90; font-weight: bold; }");
-                    htmlSb.AppendLine("        @media (max-width: 768px) {");
-                    htmlSb.AppendLine("            body { margin: 10px; }");
-                    htmlSb.AppendLine("            th, td { padding: 8px; font-size: 14px; }");
-                    htmlSb.AppendLine("            h1 { font-size: 24px; }");
-                    htmlSb.AppendLine("            h2 { font-size: 20px; }");
-                    htmlSb.AppendLine("            .meta { font-size: 12px; }");
-                    htmlSb.AppendLine("        }");
-                    htmlSb.AppendLine("    </style>");
-                    htmlSb.AppendLine("</head>");
-                    htmlSb.AppendLine("<body>");
-                    htmlSb.AppendLine("    <h1>Consolidated Performance Summary</h1>");
-                    htmlSb.AppendLine($"    <div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>");
-
-                    // Get list of languages dynamically from configuration
-                    var languages = serversByLang.Select(g => g.Key).OrderBy(l => l).ToList();
-
-                    // Normal Engine Table
-                    htmlSb.AppendLine("    <h2>Normal Engine</h2>");
-                    htmlSb.AppendLine("    <div class=\"table-container\">");
-                    htmlSb.AppendLine("    <table>");
-                    htmlSb.AppendLine("        <tr>");
-                    htmlSb.AppendLine("            <th>AppSite/AppView</th>");
-                    foreach (var lang in languages)
-                    {
-                        htmlSb.AppendLine($"            <th>{lang}</th>");
-                    }
-                    htmlSb.AppendLine("            <th>OutputSize</th>");
-                    htmlSb.AppendLine("        </tr>");
-                    foreach (var app in appPerf.Keys.OrderBy(k => k))
-                    {
-                        // Find minimum time for highlighting
-                        var validTimes = languages
-                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue)
-                            .Select(lang => appPerf[app][lang].NormalTimeMs!.Value)
-                            .ToList();
-                        var minTime = validTimes.Any() ? validTimes.Min() : (double?)null;
-
-                        htmlSb.AppendLine("        <tr>");
-                        htmlSb.AppendLine($"            <td>{app}</td>");
-                        foreach (var lang in languages)
-                        {
-                            var timeValue = appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue
-                                ? appPerf[app][lang].NormalTimeMs!.Value.ToString("F2")
-                                : "-";
-                            var isBest = minTime.HasValue && appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue
-                                && Math.Abs(appPerf[app][lang].NormalTimeMs!.Value - minTime.Value) < 0.001;
-                            var cssClass = isBest ? " class=\"best-perf\"" : "";
-                            htmlSb.AppendLine($"            <td{cssClass}>{timeValue}</td>");
-                        }
-                        var outputSizeTuple = appPerf[app].Values.Where(v => v.OutputSize.HasValue).FirstOrDefault();
-                        var outputSize = outputSizeTuple.OutputSize.HasValue ? outputSizeTuple.OutputSize.Value.ToString() : "-";
-                        htmlSb.AppendLine($"            <td>{outputSize}</td>");
-                        htmlSb.AppendLine("        </tr>");
-                    }
-                    htmlSb.AppendLine("    </table>");
-                    htmlSb.AppendLine("    </div>");
-
-                    // PreProcess Engine Table
-                    htmlSb.AppendLine("    <h2>PreProcess Engine</h2>");
-                    htmlSb.AppendLine("    <div class=\"table-container\">");
-                    htmlSb.AppendLine("    <table>");
-                    htmlSb.AppendLine("        <tr>");
-                    htmlSb.AppendLine("            <th>AppSite/AppView</th>");
-                    foreach (var lang in languages)
-                    {
-                        htmlSb.AppendLine($"            <th>{lang}</th>");
-                    }
-                    htmlSb.AppendLine("            <th>OutputSize</th>");
-                    htmlSb.AppendLine("        </tr>");
-                    foreach (var app in appPerf.Keys.OrderBy(k => k))
-                    {
-                        // Find minimum time for highlighting
-                        var validTimes = languages
-                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue)
-                            .Select(lang => appPerf[app][lang].PreProcessTimeMs!.Value)
-                            .ToList();
-                        var minTime = validTimes.Any() ? validTimes.Min() : (double?)null;
-
-                        htmlSb.AppendLine("        <tr>");
-                        htmlSb.AppendLine($"            <td>{app}</td>");
-                        foreach (var lang in languages)
-                        {
-                            var timeValue = appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue
-                                ? appPerf[app][lang].PreProcessTimeMs!.Value.ToString("F2")
-                                : "-";
-                            var isBest = minTime.HasValue && appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue
-                                && Math.Abs(appPerf[app][lang].PreProcessTimeMs!.Value - minTime.Value) < 0.001;
-                            var cssClass = isBest ? " class=\"best-perf\"" : "";
-                            htmlSb.AppendLine($"            <td{cssClass}>{timeValue}</td>");
-                        }
-                        var outputSizeTuple = appPerf[app].Values.Where(v => v.OutputSize.HasValue).FirstOrDefault();
-                        var outputSize = outputSizeTuple.OutputSize.HasValue ? outputSizeTuple.OutputSize.Value.ToString() : "-";
-                        htmlSb.AppendLine($"            <td>{outputSize}</td>");
-                        htmlSb.AppendLine("        </tr>");
-                    }
-                    htmlSb.AppendLine("    </table>");
-                    htmlSb.AppendLine("    </div>");
-                    htmlSb.AppendLine("</body>");
-                    htmlSb.AppendLine("</html>");
-
-                    var htmlContent = htmlSb.ToString();
-
-                    // Write HTML to template_analysis/Reports directory
-                    var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
-                    Directory.CreateDirectory(reportsDir);
-                    var htmlPath = Path.Combine(reportsDir, "all_perf_tests.html");
-                    File.WriteAllText(htmlPath, htmlContent);
-
-                    sw.Stop();
-                    var elapsedSeconds = sw.Elapsed.TotalSeconds;
-
-                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Consolidation complete in {elapsedSeconds:F2}s - {appPerf.Count} AppSites from {serversProcessed.Count}/{perfServers.Count} servers\n");
-
-                    // Count unique languages
-                    var totalLanguages = serversByLang.Count;
-
-                    // Build detailed message
-                    var messageBuilder = new StringBuilder();
-                    messageBuilder.Append($"Consolidated {appPerf.Count} AppSites from {serversProcessed.Count}/{totalLanguages} languages in {elapsedSeconds:F2} secs");
-
-                    if (serversProcessed.Count > 0)
-                    {
-                        messageBuilder.Append(" | ✅ Success: ");
-                        messageBuilder.Append(string.Join(", ", serversProcessed));
-                    }
-
-                    if (serversFailed.Count > 0)
-                    {
-                        messageBuilder.Append("\n❌ Failed: ");
-                        messageBuilder.Append(string.Join("; ", serversFailed));
-                    }
-
-                    var response = new TestResponse
-                    {
-                        Success = true,
-                        Message = messageBuilder.ToString(),
-                        Elapsed = elapsedSeconds,
-                        TestCount = appPerf.Count
-                    };
-
-                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
-                }
-                catch (Exception ex)
-                {
-                    sw.Stop();
-                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ❌ FATAL ERROR: {ex.Message}\n");
-                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Stack trace: {ex.StackTrace}\n");
-                    return Results.Problem($"Error consolidating performance data: {ex.Message}");
-                }
-            })
-            .WithName("ConsolidatePerformanceTests")
-            .WithDisplayName("Consolidate All Performance Tests")
-            .WithDescription("Fetches performance data from all language servers and consolidates into a single report")
-            .WithTags("Test");
-
-            #endregion
-
-
-
 
             #region Test Standard Endpoint
 
@@ -771,7 +384,7 @@ namespace AssemblerWeb
                     var summaryRows = TestingUtils.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
-                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory,summaryRows, "STANDARD TEST");
+                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "STANDARD TEST");
                     }
 
                     sw.Stop();
@@ -965,6 +578,1017 @@ namespace AssemblerWeb
             .WithTags("Test");
 
             #endregion
+
+            #region Consolidate Performance Endpoint
+
+            assemblerGroup.MapPost("/test/consolidate-performance", async (HttpContext context) =>
+            {
+                try
+                {
+                    string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
+                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+
+                    // Configure logging for consolidate endpoint
+                    var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                    var logsDir = Path.Combine(templateAnalysisDir, "logs");
+                    Directory.CreateDirectory(logsDir);
+                    var consolidateLogFile = Path.Combine(logsDir, "csharp_consolidate_perf.log");
+
+                    // Read server configuration from servers.csv
+                    var serversConfigPath = Path.Combine(rootDirPath, "App_Data", "servers.csv");
+                    List<(string Language, string Url, string Method, string FileName)> perfServers = new List<(string Language, string Url, string Method, string FileName)>();
+
+                    if (File.Exists(serversConfigPath))
+                    {
+                        File.AppendAllText(consolidateLogFile, $"\n[{DateTime.UtcNow:O}] Starting consolidate-performance endpoint\n");
+                        var lines = await File.ReadAllLinesAsync(serversConfigPath);
+                        foreach (var line in lines)
+                        {
+                            if (string.IsNullOrWhiteSpace(line)) continue;
+                            var parts = line.Split(',');
+                            if (parts.Length >= 3)
+                            {
+                                var language = parts[0].Trim();
+                                var method = parts[1].Trim().ToUpper();
+                                var url = parts[2].Trim();
+                                var fileName = parts.Length >= 4 ? parts[3].Trim() : "";
+                                if (!string.IsNullOrEmpty(language) && !string.IsNullOrEmpty(method) && !string.IsNullOrEmpty(url))
+                                {
+                                    perfServers.Add((language, url, method, fileName));
+                                }
+                            }
+                        }
+                    }
+
+                    if (perfServers.Count == 0)
+                    {
+                        var errorMsg = "No server configuration found. Please configure servers in App_Data/servers.csv";
+                        File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ❌ {errorMsg}\n");
+
+                        var errorResponse = new TestResponse
+                        {
+                            Message = errorMsg
+                        };
+
+                        return Results.Json(errorResponse, ResponseJsonContext.Default.TestResponse);
+                    }
+
+                    var appPerf = new Dictionary<string, Dictionary<string, (double? NormalTimeMs, double? PreProcessTimeMs, int? OutputSize, string? AppView)>>();
+                    var serversProcessed = new List<string>();
+                    var serversFailed = new List<string>();
+
+                    using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+
+                    // Group servers by language
+                    var serversByLang = perfServers.GroupBy(s => s.Language).ToList();
+
+                    foreach (var langGroup in serversByLang)
+                    {
+                        var lang = langGroup.Key;
+                        bool langSuccess = false;
+                        var langErrors = new List<string>();
+
+                        foreach (var (_, url, method, fileName) in langGroup)
+                        {
+                            try
+                            {
+                                HttpResponseMessage httpResponse;
+
+                                if (method == "POST")
+                                {
+                                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Fetching {lang} via POST {url} (fileName: {fileName})\n");
+                                    var reportRequest = new ReportRequest { FileName = fileName, UseLangPrefix = false };
+                                    var requestBody = System.Text.Json.JsonSerializer.Serialize(reportRequest, ResponseJsonContext.Default.ReportRequest);
+                                    var content = new StringContent(requestBody, System.Text.Encoding.UTF8, "application/json");
+                                    httpResponse = await httpClient.PostAsync(url, content);
+                                }
+                                else
+                                {
+                                    var fullUrl = url + fileName;
+                                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Fetching {lang} via GET {fullUrl}\n");
+                                    httpResponse = await httpClient.GetAsync(fullUrl);
+                                }
+
+                                if (httpResponse.IsSuccessStatusCode)
+                                {
+                                    var responseContent = await httpResponse.Content.ReadAsStringAsync();
+                                    var arr = System.Text.Json.JsonDocument.Parse(responseContent).RootElement;
+
+                                    if (arr.ValueKind == System.Text.Json.JsonValueKind.Array)
+                                    {
+                                        int itemCount = 0;
+                                        foreach (var item in arr.EnumerateArray())
+                                        {
+                                            string appSite = item.TryGetProperty("AppSite", out var v1) ? v1.GetString() ?? "" :
+                                                            (item.TryGetProperty("app_site", out var v2) ? v2.GetString() ?? "" :
+                                                            (item.TryGetProperty("appSite", out var v3) ? v3.GetString() ?? "" : ""));
+
+                                            string appView = item.TryGetProperty("AppView", out var av1) ? av1.GetString() ?? "" :
+                                                            (item.TryGetProperty("app_view", out var av2) ? av2.GetString() ?? "" :
+                                                            (item.TryGetProperty("appView", out var av3) ? av3.GetString() ?? "" : ""));
+
+                                            double? normalTime = null;
+                                            if (item.TryGetProperty("NormalTimeMs", out var nt1)) normalTime = nt1.GetDouble();
+                                            else if (item.TryGetProperty("normal_time_ms", out var nt2)) normalTime = nt2.GetDouble();
+                                            else if (item.TryGetProperty("normalTimeMs", out var nt3)) normalTime = nt3.GetDouble();
+                                            else if (item.TryGetProperty("NormalTimeNanos", out var ntn1)) normalTime = ntn1.GetDouble() / 1_000_000.0;
+                                            else if (item.TryGetProperty("normal_time_nanos", out var ntn2)) normalTime = ntn2.GetDouble() / 1_000_000.0;
+
+                                            double? preprocessTime = null;
+                                            if (item.TryGetProperty("PreProcessTimeMs", out var pt1)) preprocessTime = pt1.GetDouble();
+                                            else if (item.TryGetProperty("preprocess_time_ms", out var pt2)) preprocessTime = pt2.GetDouble();
+                                            else if (item.TryGetProperty("preProcessTimeMs", out var pt3)) preprocessTime = pt3.GetDouble();
+                                            else if (item.TryGetProperty("PreProcessTimeNanos", out var ptn1)) preprocessTime = ptn1.GetDouble() / 1_000_000.0;
+                                            else if (item.TryGetProperty("preprocess_time_nanos", out var ptn2)) preprocessTime = ptn2.GetDouble() / 1_000_000.0;
+
+                                            int? outputSize = item.TryGetProperty("OutputSize", out var os1) ? os1.GetInt32() :
+                                                             (item.TryGetProperty("output_size", out var os2) ? os2.GetInt32() : null);
+
+                                            if (!string.IsNullOrEmpty(appSite))
+                                            {
+                                                string key = string.IsNullOrEmpty(appView) ? appSite : appSite + " → " + appView;
+
+                                                // Use case-insensitive comparison for key matching
+                                                var existingKey = appPerf.Keys.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
+                                                if (existingKey != null)
+                                                {
+                                                    key = existingKey; // Use existing key to maintain consistent casing
+                                                }
+                                                else
+                                                {
+                                                    appPerf[key] = new Dictionary<string, (double?, double?, int?, string?)>();
+                                                }
+                                                appPerf[key][lang] = (normalTime, preprocessTime, outputSize, appView);
+                                                itemCount++;
+                                            }
+                                        }
+                                        File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ✅ {lang} ({method}): Successfully processed {itemCount} items\n");
+                                        langSuccess = true;
+                                        break; // Success, no need to try other methods
+                                    }
+                                }
+                                else
+                                {
+                                    var errorMsg = $"{method} {url} (HTTP {httpResponse.StatusCode})";
+                                    langErrors.Add(errorMsg);
+                                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ⚠️ {lang}: {errorMsg}\n");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                var errorMsg = $"{method} {url} (ERROR: {ex.Message})";
+                                langErrors.Add(errorMsg);
+                                File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ⚠️ {lang}: {errorMsg}\n");
+                            }
+                        }
+
+                        // After trying all methods for this language, determine overall result
+                        if (langSuccess)
+                        {
+                            serversProcessed.Add(lang);
+                        }
+                        else
+                        {
+                            var failureMsg = $"{lang}: All methods failed - {string.Join("; ", langErrors)}";
+                            serversFailed.Add(failureMsg);
+                            File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] ❌ {lang}: All methods failed\n");
+                        }
+                    }
+
+                    // Build HTML report
+                    var htmlSb = new System.Text.StringBuilder();
+                    htmlSb.AppendLine("<!DOCTYPE html>");
+                    htmlSb.AppendLine("<html>");
+                    htmlSb.AppendLine("<head>");
+                    htmlSb.AppendLine("    <meta charset=\"UTF-8\">");
+                    htmlSb.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+                    htmlSb.AppendLine("    <title>Consolidated Performance Summary</title>");
+                    htmlSb.AppendLine("    <style>");
+                    htmlSb.AppendLine("        body { font-family: Arial, sans-serif; margin: 20px; }");
+                    htmlSb.AppendLine("        h1 { color: #333; }");
+                    htmlSb.AppendLine("        h2 { color: #333; margin-top: 40px; }");
+                    htmlSb.AppendLine("        .meta { color: #666; font-style: italic; margin-bottom: 10px; }");
+                    htmlSb.AppendLine("        .table-container { overflow-x: auto; }");
+                    htmlSb.AppendLine("        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 700px; }");
+                    htmlSb.AppendLine("        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }");
+                    htmlSb.AppendLine("        th { background-color: #4CAF50; color: white; }");
+                    htmlSb.AppendLine("        tr:nth-child(even) { background-color: #f2f2f2; }");
+                    htmlSb.AppendLine("        td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7) { text-align: right; }");
+                    htmlSb.AppendLine("        .best-perf { background-color: #90EE90; font-weight: bold; }");
+                    htmlSb.AppendLine("    </style>");
+                    htmlSb.AppendLine("</head>");
+                    htmlSb.AppendLine("<body>");
+                    htmlSb.AppendLine("    <h1>Consolidated Performance Summary</h1>");
+                    htmlSb.AppendLine($"    <div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>");
+
+                    // Get list of languages dynamically from configuration
+                    var languages = serversByLang.Select(g => g.Key).OrderBy(l => l).ToList();
+
+                    // Normal Engine Table
+                    htmlSb.AppendLine("    <h2>Normal Engine</h2>");
+                    htmlSb.AppendLine("    <div class=\"table-container\">");
+                    htmlSb.AppendLine("    <table>");
+                    htmlSb.AppendLine("        <tr>");
+                    htmlSb.AppendLine("            <th>AppSite/AppView</th>");
+                    foreach (var lang in languages)
+                    {
+                        htmlSb.AppendLine($"            <th>{lang}</th>");
+                    }
+                    htmlSb.AppendLine("            <th>OutputSize</th>");
+                    htmlSb.AppendLine("        </tr>");
+                    foreach (var app in appPerf.Keys.OrderBy(k => k))
+                    {
+                        // Find minimum time for highlighting
+                        var validTimes = languages
+                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue)
+                            .Select(lang => appPerf[app][lang].NormalTimeMs!.Value)
+                            .ToList();
+                        var minTime = validTimes.Any() ? validTimes.Min() : (double?)null;
+
+                        htmlSb.AppendLine("        <tr>");
+                        htmlSb.AppendLine($"            <td>{app}</td>");
+                        foreach (var lang in languages)
+                        {
+                            var timeValue = appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue
+                                ? appPerf[app][lang].NormalTimeMs!.Value.ToString("F2")
+                                : "-";
+                            var isBest = minTime.HasValue && appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue
+                                && Math.Abs(appPerf[app][lang].NormalTimeMs!.Value - minTime.Value) < 0.001;
+                            var cssClass = isBest ? " class=\"best-perf\"" : "";
+                            htmlSb.AppendLine($"            <td{cssClass}>{timeValue}</td>");
+                        }
+                        var outputSizeTuple = appPerf[app].Values.Where(v => v.OutputSize.HasValue).FirstOrDefault();
+                        var outputSize = outputSizeTuple.OutputSize.HasValue ? outputSizeTuple.OutputSize.Value.ToString() : "-";
+                        htmlSb.AppendLine($"            <td>{outputSize}</td>");
+                        htmlSb.AppendLine("        </tr>");
+                    }
+                    htmlSb.AppendLine("    </table>");
+                    htmlSb.AppendLine("    </div>");
+
+                    // PreProcess Engine Table
+                    htmlSb.AppendLine("    <h2>PreProcess Engine</h2>");
+                    htmlSb.AppendLine("    <div class=\"table-container\">");
+                    htmlSb.AppendLine("    <table>");
+                    htmlSb.AppendLine("        <tr>");
+                    htmlSb.AppendLine("            <th>AppSite/AppView</th>");
+                    foreach (var lang in languages)
+                    {
+                        htmlSb.AppendLine($"            <th>{lang}</th>");
+                    }
+                    htmlSb.AppendLine("            <th>OutputSize</th>");
+                    htmlSb.AppendLine("        </tr>");
+                    foreach (var app in appPerf.Keys.OrderBy(k => k))
+                    {
+                        // Find minimum time for highlighting
+                        var validTimes = languages
+                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue)
+                            .Select(lang => appPerf[app][lang].PreProcessTimeMs!.Value)
+                            .ToList();
+                        var minTime = validTimes.Any() ? validTimes.Min() : (double?)null;
+
+                        htmlSb.AppendLine("        <tr>");
+                        htmlSb.AppendLine($"            <td>{app}</td>");
+                        foreach (var lang in languages)
+                        {
+                            var timeValue = appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue
+                                ? appPerf[app][lang].PreProcessTimeMs!.Value.ToString("F2")
+                                : "-";
+                            var isBest = minTime.HasValue && appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue
+                                && Math.Abs(appPerf[app][lang].PreProcessTimeMs!.Value - minTime.Value) < 0.001;
+                            var cssClass = isBest ? " class=\"best-perf\"" : "";
+                            htmlSb.AppendLine($"            <td{cssClass}>{timeValue}</td>");
+                        }
+                        var outputSizeTuple = appPerf[app].Values.Where(v => v.OutputSize.HasValue).FirstOrDefault();
+                        var outputSize = outputSizeTuple.OutputSize.HasValue ? outputSizeTuple.OutputSize.Value.ToString() : "-";
+                        htmlSb.AppendLine($"            <td>{outputSize}</td>");
+                        htmlSb.AppendLine("        </tr>");
+                    }
+                    htmlSb.AppendLine("    </table>");
+                    htmlSb.AppendLine("    </div>");
+                    htmlSb.AppendLine("</body>");
+                    htmlSb.AppendLine("</html>");
+
+                    var htmlContent = htmlSb.ToString();
+
+                    // Write HTML to Reports directory
+                    var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
+                    Directory.CreateDirectory(reportsDir);
+                    var htmlPath = Path.Combine(reportsDir, "all_perf_tests.html");
+                    await File.WriteAllTextAsync(htmlPath, htmlContent);
+
+                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Consolidation complete - {appPerf.Count} AppSites from {serversProcessed.Count}/{serversByLang.Count} servers\n");
+
+                    // Count unique languages
+                    var totalLanguages = serversByLang.Count;
+
+                    // Build detailed message
+                    var messageBuilder = new System.Text.StringBuilder();
+                    messageBuilder.Append($"Consolidated {appPerf.Count} AppSites from {serversProcessed.Count}/{totalLanguages} languages");
+
+                    if (serversProcessed.Count > 0)
+                    {
+                        messageBuilder.Append(" | ✅ Success: ");
+                        messageBuilder.Append(string.Join(", ", serversProcessed));
+                    }
+
+                    if (serversFailed.Count > 0)
+                    {
+                        messageBuilder.Append("\n❌ Failed: ");
+                        messageBuilder.Append(string.Join("; ", serversFailed));
+                    }
+
+                    var response = new TestResponse
+                    {
+                        Message = messageBuilder.ToString()
+                    };
+
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+            });
+
+            #endregion
+
+            #region Get Report Endpoint
+
+            assemblerGroup.MapPost("/api/report", async (HttpContext context) =>
+            {
+                try
+                {
+                    using var reader = new StreamReader(context.Request.Body);
+                    var requestBody = await reader.ReadToEndAsync();
+
+                    var fileName = "";
+                    var useLangPrefix = false;
+                    var langPrefix = "";
+
+                    try
+                    {
+                        var jsonDoc = System.Text.Json.JsonDocument.Parse(requestBody);
+                        if (jsonDoc.RootElement.TryGetProperty("fileName", out var fileNameElement))
+                        {
+                            fileName = fileNameElement.GetString() ?? "";
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("useLangPrefix", out var useLangPrefixElement))
+                        {
+                            useLangPrefix = useLangPrefixElement.GetBoolean();
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("langPrefix", out var langPrefixElement))
+                        {
+                            langPrefix = langPrefixElement.GetString() ?? "";
+                        }
+                    }
+                    catch
+                    {
+                        return Results.Text("Invalid JSON format", statusCode: 400);
+                    }
+
+                    if (string.IsNullOrEmpty(fileName))
+                        return Results.Text("Missing required field: fileName", statusCode: 400);
+
+                    // Validate fileName for path traversal
+                    if (!SecurityValidator.IsValidPathComponent(fileName))
+                        return Results.Text("Invalid characters in fileName", statusCode: 400);
+
+                    // Validate langPrefix for path traversal if provided
+                    if (!string.IsNullOrEmpty(langPrefix) && !SecurityValidator.IsValidPathComponent(langPrefix))
+                        return Results.Text("Invalid characters in langPrefix", statusCode: 400);
+
+                    // Construct file path
+                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                    var prefix = useLangPrefix && !string.IsNullOrEmpty(langPrefix) ? langPrefix + "_" : "";
+                    var fullFileName = prefix + fileName;
+                    var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
+                    var filePath = Path.Combine(reportsDir, fullFileName);
+
+                    // Check if file exists
+                    if (!File.Exists(filePath))
+                        return Results.Text($"Report file not found: {fullFileName}", statusCode: 404);
+
+                    // Read and return the file content
+                    var content = await File.ReadAllTextAsync(filePath);
+
+                    // Determine content type based on file extension
+                    var contentType = "text/plain";
+                    var extension = Path.GetExtension(fullFileName).ToLower();
+                    if (extension == ".html")
+                        contentType = "text/html";
+                    else if (extension == ".json")
+                        contentType = "application/json";
+                    else if (extension == ".md")
+                        contentType = "text/markdown";
+
+                    return Results.Content(content, contentType);
+                }
+                catch (Exception ex)
+                {
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+            });
+
+            #endregion
+
+
+
+            #region Save Log Endpoint
+
+            assemblerGroup.MapPost("/api/save-log", async (HttpContext context) =>
+            {
+                try
+                {
+                    using var reader = new StreamReader(context.Request.Body);
+                    var requestBody = await reader.ReadToEndAsync();
+
+                    var contextName = "";
+                    var logContent = "";
+
+                    try
+                    {
+                        var jsonDoc = System.Text.Json.JsonDocument.Parse(requestBody);
+                        if (jsonDoc.RootElement.TryGetProperty("context", out var contextElement))
+                        {
+                            contextName = contextElement.GetString() ?? "";
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("content", out var contentElement))
+                        {
+                            logContent = contentElement.GetString() ?? "";
+                        }
+                    }
+                    catch
+                    {
+                        return Results.Text("Invalid JSON format", statusCode: 400);
+                    }
+
+                    if (string.IsNullOrEmpty(contextName) || string.IsNullOrEmpty(logContent))
+                        return Results.Text("Missing context or content parameter", statusCode: 400);
+
+                    // Validate context name parameter (256 char limit, no path traversal)
+                    if (!SecurityValidator.IsValidPathComponent(contextName))
+                        return Results.Text("Invalid context parameter", statusCode: 400);
+
+                    // Validate log content (size and format)
+                    if (!SecurityValidator.IsValidLogContent(logContent, out var logErrorMessage))
+                        return Results.Text(logErrorMessage ?? "Invalid log content", statusCode: 400);
+
+                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                    var logsDir = Path.Combine(projectDirectory, "template_analysis", "logs");
+                    Directory.CreateDirectory(logsDir);
+
+                    var logFile = Path.Combine(logsDir, $"javascript_{contextName.ToLower()}.log");
+                    await File.WriteAllTextAsync(logFile, logContent);
+
+                    var response = new TestResponse
+                    {
+                        Message = "Log saved successfully"
+                    };
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+            });
+
+            #endregion
+
+            #region Save Output Endpoint
+
+            assemblerGroup.MapPost("/api/save-output", async (HttpContext context) =>
+            {
+                try
+                {
+                    Console.WriteLine($"[/api/save-output] Endpoint called");
+                    using var reader = new StreamReader(context.Request.Body);
+                    var requestBody = await reader.ReadToEndAsync();
+                    Console.WriteLine($"[/api/save-output] Request body length: {requestBody.Length}");
+
+                    var appSite = "";
+                    var appView = "";
+                    var engineType = "";
+                    var htmlContent = "";
+
+                    try
+                    {
+                        var jsonDoc = System.Text.Json.JsonDocument.Parse(requestBody);
+                        if (jsonDoc.RootElement.TryGetProperty("appSite", out var appSiteElement))
+                        {
+                            appSite = appSiteElement.GetString() ?? "";
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("appView", out var appViewElement))
+                        {
+                            appView = appViewElement.GetString() ?? "";
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("engineType", out var engineTypeElement))
+                        {
+                            engineType = engineTypeElement.GetString() ?? "";
+                        }
+                        if (jsonDoc.RootElement.TryGetProperty("html", out var htmlElement))
+                        {
+                            htmlContent = htmlElement.GetString() ?? "";
+                        }
+                        Console.WriteLine($"[/api/save-output] Parsed: appSite={appSite}, appView={appView}, engineType={engineType}, htmlLength={htmlContent.Length}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[/api/save-output] JSON parse error: {ex.Message}");
+                        return Results.Text("Invalid JSON format", statusCode: 400);
+                    }
+
+                    if (string.IsNullOrEmpty(appSite) || string.IsNullOrEmpty(engineType) || string.IsNullOrEmpty(htmlContent))
+                    {
+                        Console.WriteLine($"[/api/save-output] Missing parameters: appSite={appSite}, engineType={engineType}, htmlLength={htmlContent.Length}");
+                        return Results.Text("Missing required parameters", statusCode: 400);
+                    }
+
+                    // Validate AppSite against allowlist
+                    var validAppSites = SecurityValidator.GetValidAppSites();
+                    if (!validAppSites.Contains(appSite))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid AppSite: {appSite}");
+                        return Results.Text("Invalid AppSite value", statusCode: 400);
+                    }
+
+                    // Validate engine type against allowlist
+                    if (!SecurityValidator.ValidEngineTypes.Contains(engineType))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid engineType: {engineType}");
+                        return Results.Text("Invalid engine type", statusCode: 400);
+                    }
+
+                    // Validate parameters (256 char limit, no path traversal)
+                    if (!SecurityValidator.IsValidPathComponent(appSite))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid AppSite path component: {appSite}");
+                        return Results.Text("Invalid AppSite parameter", statusCode: 400);
+                    }
+                    if (!string.IsNullOrEmpty(appView) && !SecurityValidator.IsValidPathComponent(appView))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid AppView path component: {appView}");
+                        return Results.Text("Invalid AppView parameter", statusCode: 400);
+                    }
+                    if (!SecurityValidator.IsValidPathComponent(engineType))
+                    {
+                        Console.WriteLine($"[/api/save-output] Invalid engineType path component: {engineType}");
+                        return Results.Text("Invalid engineType parameter", statusCode: 400);
+                    }
+
+                    // Validate output size against template size + buffer
+                    var templateTotalSize = SecurityValidator.GetTemplateTotalSize(appSite, appView ?? "");
+                    var outputSize = System.Text.Encoding.UTF8.GetByteCount(htmlContent);
+                    var maxAllowedSize = templateTotalSize + SecurityValidator.OutputSizeBuffer;
+                    Console.WriteLine($"[/api/save-output] Size validation: output={outputSize:N0}, template={templateTotalSize:N0}, buffer={SecurityValidator.OutputSizeBuffer:N0}, max={maxAllowedSize:N0}");
+                    if (!SecurityValidator.IsValidOutputSizeWithBuffer(htmlContent, templateTotalSize))
+                    {
+                        var errorMsg = $"Save output failed: output size ({outputSize:N0} bytes) exceeds max size allowed ({maxAllowedSize:N0} bytes = template {templateTotalSize:N0} + buffer {SecurityValidator.OutputSizeBuffer:N0})";
+                        Console.WriteLine($"[/api/save-output] {errorMsg}");
+                        return Results.Text(errorMsg, statusCode: 400);
+                    }
+
+                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                    var outputDir = Path.Combine(projectDirectory, "template_analysis", "output");
+                    Directory.CreateDirectory(outputDir);
+
+                    var appViewSuffix = string.IsNullOrEmpty(appView) ? "" : $"_{appView}";
+                    var engineSuffix = engineType.ToLower();
+                    var outputFile = Path.Combine(outputDir, $"javascript_{appSite}{appViewSuffix}_{engineSuffix}.html");
+                    await File.WriteAllTextAsync(outputFile, htmlContent);
+                    Console.WriteLine($"[/api/save-output] Success! Output saved to: {outputFile}");
+
+                    var response = new TestResponse
+                    {
+                        Message = "Output saved successfully"
+                    };
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+            });
+
+            #endregion
+
+            #region Get Templates Endpoint
+
+            assemblerGroup.MapPost("/api/templates", async (HttpContext context) =>
+            {
+                try
+                {
+                    string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
+
+                    // Read the request body
+                    using var reader = new StreamReader(context.Request.Body);
+                    var requestBody = await reader.ReadToEndAsync();
+
+                    // Parse JSON manually for NativeAOT compatibility
+                    var appSite = "";
+                    try
+                    {
+                        var jsonDoc = System.Text.Json.JsonDocument.Parse(requestBody);
+                        if (jsonDoc.RootElement.TryGetProperty("appsite", out var appSiteElement))
+                        {
+                            appSite = appSiteElement.GetString() ?? "";
+                        }
+                    }
+                    catch
+                    {
+                        return Results.Text("Invalid JSON format", statusCode: 400);
+                    }
+
+                    if (string.IsNullOrEmpty(appSite))
+                        return Results.Text("Missing appsite parameter", statusCode: 400);
+
+                    // Validate AppSite against allowlist loaded from appsites.csv
+                    var validAppSites = SecurityValidator.GetValidAppSites();
+                    if (!validAppSites.Contains(appSite))
+                        return Results.Text("Invalid AppSite value", statusCode: 400);
+
+                    // Validate path components for path traversal attacks
+                    if (!SecurityValidator.IsValidPathComponent(appSite))
+                        return Results.Text("Invalid characters in AppSite", statusCode: 400);
+
+                    var serverStart = DateTime.UtcNow;
+
+                    // Load Normal templates
+                    var normalTemplates = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite);
+
+                    // Load PreProcess templates
+                    var preprocessTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, appSite);
+
+                    // Convert Normal templates to TemplateData objects for proper JSON serialization
+                    var normalResult = normalTemplates.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => new TemplateData { Html = kvp.Value.html, Json = kvp.Value.json }
+                    );
+
+                    // Convert PreProcess templates to metadata-only objects
+                    var preprocessResult = preprocessTemplates.Templates.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => new PreProcessTemplateMetadata
+                        {
+                            OriginalContent = kvp.Value.OriginalContent,
+                            Placeholders = kvp.Value.Placeholders,
+                            SlottedTemplates = kvp.Value.SlottedTemplates,
+                            JsonData = kvp.Value.JsonData,
+                            JsonPlaceholders = kvp.Value.JsonPlaceholders,
+                            ReplacementMappings = kvp.Value.ReplacementMappings,
+                            HasPlaceholders = kvp.Value.HasPlaceholders,
+                            HasSlottedTemplates = kvp.Value.HasSlottedTemplates,
+                            HasJsonData = kvp.Value.HasJsonData,
+                            HasJsonPlaceholders = kvp.Value.HasJsonPlaceholders,
+                            HasReplacementMappings = kvp.Value.HasReplacementMappings,
+                            RequiresProcessing = kvp.Value.RequiresProcessing
+                        }
+                    );
+
+                    var serverEnd = DateTime.UtcNow;
+                    var serverTimeMs = (serverEnd - serverStart).TotalMilliseconds;
+
+                    // Use named response class for NativeAOT compatibility
+                    var response = new ApiResponse
+                    {
+                        Templates = normalResult,
+                        PreProcessTemplates = preprocessResult,
+                        AppSite = appSite,
+                        AppFile = null,
+                        AppView = null,
+                        ServerTimeMs = serverTimeMs
+                    };
+
+                    var jsonResult = response.SerializeToJson();
+
+                    // Check if save query parameter is present
+                    var saveParam = context.Request.Query["save"].ToString();
+                    if (!string.IsNullOrEmpty(saveParam) && saveParam.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                        var templatesDir = Path.Combine(projectDirectory, "template_analysis", "templates");
+                        Directory.CreateDirectory(templatesDir);
+
+                        var saveFile = Path.Combine(templatesDir, $"csharp_{appSite}_templates.json");
+                        await File.WriteAllTextAsync(saveFile, jsonResult);
+
+                        // Save structure dump using TestingUtils logic
+                        // Build a scenario list for the requested appSite
+                        var scenarios = new List<Assembler.Config.Scenario> {
+                            new Assembler.Config.Scenario(appSite, "", "")
+                        };
+                        Assembler.Test.TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true);
+                    }
+
+                    return Results.Content(jsonResult, "application/json");
+                }
+                catch (Exception ex)
+                {
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+            });
+
+            #endregion
+
+            #region Save Test Results Endpoint
+
+            assemblerGroup.MapPost("/api/test-results", async (HttpContext context, TestSummaryRowDto[] summaryRows) =>
+            {
+                try
+                {
+                    Console.WriteLine($"POST /api/test-results called with {summaryRows.Length} rows");
+
+                    // Validate each row
+                    var validAppSites = SecurityValidator.GetValidAppSites();
+                    foreach (var row in summaryRows)
+                    {
+                        // Validate AppSite is in allowlist
+                        if (!string.IsNullOrEmpty(row.AppSite) && !validAppSites.Contains(row.AppSite))
+                            return Results.Text($"Invalid AppSite: {row.AppSite}", statusCode: 400);
+
+                        // Validate parameter lengths (256 char limit)
+                        if (!SecurityValidator.IsValidPathComponent(row.AppSite))
+                            return Results.Text("Invalid AppSite parameter", statusCode: 400);
+                        if (!SecurityValidator.IsValidPathComponent(row.AppFile))
+                            return Results.Text("Invalid AppFile parameter", statusCode: 400);
+                        if (!string.IsNullOrEmpty(row.AppView) && !SecurityValidator.IsValidPathComponent(row.AppView))
+                            return Results.Text("Invalid AppView parameter", statusCode: 400);
+                    }
+
+                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                    string reportsPath = Path.Combine(projectDirectory, "template_analysis", "Reports");
+
+                    // Create Reports directory if it doesn't exist
+                    Directory.CreateDirectory(reportsPath);
+
+                    var testType = context.Request.Query["testType"].ToString();
+                    if (string.IsNullOrEmpty(testType))
+                        testType = "standardtest";
+
+                    var testTypeFile = testType.ToLower().Replace(" ", "").Replace("-", "");
+
+                    // Generate HTML table matching C# standard format
+                    var html = new System.Text.StringBuilder();
+                    // Format testType to match C# style (e.g., "advancedtest" -> "ADVANCED TEST")
+                    var formattedTestType = testType.Replace("test", " TEST").ToUpper();
+
+                    html.AppendLine("<!DOCTYPE html>");
+                    html.AppendLine("<html>");
+                    html.AppendLine("<head>");
+                    html.AppendLine("    <meta charset=\"UTF-8\">");
+                    html.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+                    html.AppendLine($"    <title>JavaScript {formattedTestType} Summary</title>");
+                    html.AppendLine("    <style>");
+                    html.AppendLine("        body { font-family: Arial, sans-serif; margin: 20px; }");
+                    html.AppendLine("        h1 { color: #333; }");
+                    html.AppendLine("        .table-container { overflow-x: auto; }");
+                    html.AppendLine("        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }");
+                    html.AppendLine("        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }");
+                    html.AppendLine("        th { background-color: #4CAF50; color: white; }");
+                    html.AppendLine("        tr:nth-child(even) { background-color: #f2f2f2; }");
+                    html.AppendLine("        .pass { color: green; font-weight: bold; }");
+                    html.AppendLine("        .fail { color: red; font-weight: bold; }");
+                    html.AppendLine("        @media (max-width: 768px) {");
+                    html.AppendLine("            body { margin: 10px; }");
+                    html.AppendLine("            th, td { padding: 8px; font-size: 14px; }");
+                    html.AppendLine("            h1 { font-size: 24px; }");
+                    html.AppendLine("        }");
+                    html.AppendLine("    </style>");
+                    html.AppendLine("</head>");
+                    html.AppendLine("<body>");
+                    html.AppendLine($"    <h1>JavaScript {formattedTestType} Summary</h1>");
+                    html.AppendLine($"    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>");
+                    html.AppendLine("    <div class=\"table-container\">");
+                    html.AppendLine("    <table>");
+                    html.AppendLine("        <tr>");
+                    html.AppendLine("            <th>AppSite</th>");
+                    html.AppendLine("            <th>AppFile</th>");
+                    html.AppendLine("            <th>AppView</th>");
+                    html.AppendLine("            <th>OutputMatch</th>");
+                    html.AppendLine("            <th>ViewUnMatch</th>");
+                    html.AppendLine("            <th>Error</th>");
+                    html.AppendLine("        </tr>");
+
+                    foreach (var row in summaryRows)
+                    {
+                        var outputMatchClass = row.NormalPreProcess == "PASS" ? "pass" : (row.NormalPreProcess == "FAIL" ? "fail" : "");
+                        var viewUnMatchClass = row.CrossViewUnMatch == "PASS" ? "pass" : (row.CrossViewUnMatch == "FAIL" ? "fail" : "");
+
+                        html.AppendLine("        <tr>");
+                        html.AppendLine($"            <td>{row.AppSite}</td>");
+                        html.AppendLine($"            <td>{row.AppFile}</td>");
+                        html.AppendLine($"            <td>{row.AppView}</td>");
+                        html.AppendLine($"            <td class=\"{outputMatchClass}\">{row.NormalPreProcess}</td>");
+                        html.AppendLine($"            <td class=\"{viewUnMatchClass}\">{row.CrossViewUnMatch}</td>");
+                        html.AppendLine($"            <td>{row.Error}</td>");
+                        html.AppendLine("        </tr>");
+                    }
+
+                    html.AppendLine("    </table>");
+                    html.AppendLine("    </div>");
+                    html.AppendLine("</body>");
+                    html.AppendLine("</html>");
+
+                    var htmlFile = Path.Combine(reportsPath, $"javascript_{testTypeFile}_Summary.html");
+                    await File.WriteAllTextAsync(htmlFile, html.ToString());
+                    Console.WriteLine($"Test summary HTML saved to: {htmlFile}");
+
+                    // Save JSON summary file
+                    var jsonFile = Path.Combine(reportsPath, $"javascript_{testTypeFile}_Summary.json");
+                    var jsonData = SerializeTestSummaryRowsToJson(summaryRows, true);
+                    await File.WriteAllTextAsync(jsonFile, jsonData);
+                    Console.WriteLine($"Test summary JSON saved to: {jsonFile}");
+
+                    var response = new TestResponse
+                    {
+                        Message = "Test results saved successfully"
+                    };
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error in /api/test-results: {ex.Message}");
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+            });
+
+            #endregion
+
+            #region Save Performance Results Endpoint
+
+            assemblerGroup.MapPost("/api/performance-results", async (HttpContext context, PerfSummaryRowDto[] summaryRows) =>
+            {
+                try
+                {
+                    Console.WriteLine($"POST /api/performance-results called with {summaryRows.Length} rows");
+
+                    // Validate each row
+                    var validAppSites = SecurityValidator.GetValidAppSites();
+                    foreach (var row in summaryRows)
+                    {
+                        // Validate AppSite is in allowlist
+                        if (!string.IsNullOrEmpty(row.AppSite) && !validAppSites.Contains(row.AppSite))
+                            return Results.Text($"Invalid AppSite: {row.AppSite}", statusCode: 400);
+
+                        // Validate parameter lengths (256 char limit)
+                        if (!SecurityValidator.IsValidPathComponent(row.AppSite))
+                            return Results.Text("Invalid AppSite parameter", statusCode: 400);
+                        if (!SecurityValidator.IsValidPathComponent(row.AppFile))
+                            return Results.Text("Invalid AppFile parameter", statusCode: 400);
+                        if (!string.IsNullOrEmpty(row.AppView) && !SecurityValidator.IsValidPathComponent(row.AppView))
+                            return Results.Text("Invalid AppView parameter", statusCode: 400);
+                    }
+
+                    string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
+                    string reportsPath = Path.Combine(projectDirectory, "template_analysis", "Reports");
+
+                    // Create Reports directory if it doesn't exist
+                    Directory.CreateDirectory(reportsPath);
+
+                    // Generate HTML table
+                    var html = new System.Text.StringBuilder();
+                    html.AppendLine("<html><head><title>Client-Side Performance Summary Table</title>");
+                    html.AppendLine("<style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>");
+                    html.AppendLine("<h2>Client-Side JavaScript PERFORMANCE SUMMARY TABLE</h2>");
+                    html.AppendLine($"<div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>");
+                    html.AppendLine("<table>");
+                    html.AppendLine("<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>");
+
+                    foreach (var row in summaryRows)
+                    {
+                        html.AppendLine("<tr>");
+                        html.AppendLine($"<td>{row.AppSite}</td>");
+                        html.AppendLine($"<td>{row.AppView}</td>");
+                        html.AppendLine($"<td>{row.NormalTimeMs:F2}</td>");
+                        html.AppendLine($"<td>{row.PreProcessTimeMs:F2}</td>");
+                        html.AppendLine($"<td>{row.ResultsMatch}</td>");
+                        html.AppendLine($"<td>{row.PerfDifference}</td>");
+                        html.AppendLine($"<td>{row.ScenarioTotalTimeMs}</td>");
+                        html.AppendLine($"<td>{row.ElapsedTimeMs}</td>");
+                        html.AppendLine("</tr>");
+                    }
+
+                    html.AppendLine("</table></body></html>");
+
+                    var htmlFile = Path.Combine(reportsPath, "javascript_perfsummary.html");
+                    await File.WriteAllTextAsync(htmlFile, html.ToString());
+                    Console.WriteLine($"Performance summary HTML saved to: {htmlFile}");
+
+                    // Save JSON summary file
+                    var jsonFile = Path.Combine(reportsPath, "javascript_perfsummary.json");
+                    var jsonData = SerializePerfSummaryRowsToJson(summaryRows, true);
+                    await File.WriteAllTextAsync(jsonFile, jsonData);
+                    Console.WriteLine($"Performance summary JSON saved to: {jsonFile}");
+
+                    var response = new TestResponse
+                    {
+                        Message = "Performance results saved successfully"
+                    };
+                    return Results.Json(response, ResponseJsonContext.Default.TestResponse);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error in /api/performance-results: {ex.Message}");
+                    return Results.Text($"Error: {ex.Message}", statusCode: 500);
+                }
+            });
+
+            #endregion
         }
+
+        #region Custom JSON Serialization for NativeAOT
+
+        private static string SerializeTestSummaryRowsToJson(TestSummaryRowDto[] rows, bool indented)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("[");
+
+            for (int i = 0; i < rows.Length; i++)
+            {
+                if (i > 0) sb.Append(",");
+                if (indented) sb.AppendLine();
+
+                var row = rows[i];
+                if (indented) sb.Append("  ");
+                sb.Append("{");
+                if (indented) sb.AppendLine();
+
+                AppendJsonProperty(sb, "AppSite", row.AppSite, indented, false);
+                AppendJsonProperty(sb, "AppFile", row.AppFile, indented, false);
+                AppendJsonProperty(sb, "AppView", row.AppView, indented, false);
+                AppendJsonProperty(sb, "NormalPreProcess", row.NormalPreProcess, indented, false);
+                AppendJsonProperty(sb, "CrossViewUnMatch", row.CrossViewUnMatch, indented, false);
+                AppendJsonProperty(sb, "Error", row.Error, indented, true);
+
+                if (indented) sb.Append("  ");
+                sb.Append("}");
+            }
+
+            if (indented) sb.AppendLine();
+            sb.Append("]");
+
+            return sb.ToString();
+        }
+
+        private static string SerializePerfSummaryRowsToJson(PerfSummaryRowDto[] rows, bool indented)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("[");
+
+            for (int i = 0; i < rows.Length; i++)
+            {
+                if (i > 0) sb.Append(",");
+                if (indented) sb.AppendLine();
+
+                var row = rows[i];
+                if (indented) sb.Append("  ");
+                sb.Append("{");
+                if (indented) sb.AppendLine();
+
+                AppendJsonProperty(sb, "AppSite", row.AppSite, indented, false);
+                AppendJsonProperty(sb, "AppFile", row.AppFile, indented, false);
+                AppendJsonProperty(sb, "AppView", row.AppView, indented, false);
+                AppendJsonProperty(sb, "Iterations", row.Iterations.ToString(), indented, false, false);
+                AppendJsonProperty(sb, "NormalTimeMs", row.NormalTimeMs.ToString("F2"), indented, false, false);
+                AppendJsonProperty(sb, "PreProcessTimeMs", row.PreProcessTimeMs.ToString("F2"), indented, false, false);
+                AppendJsonProperty(sb, "OutputSize", row.OutputSize.ToString(), indented, false, false);
+                AppendJsonProperty(sb, "ResultsMatch", row.ResultsMatch, indented, false);
+                AppendJsonProperty(sb, "PerfDifference", row.PerfDifference, indented, false);
+                AppendJsonProperty(sb, "ScenarioTotalTimeMs", row.ScenarioTotalTimeMs.ToString(), indented, false, false);
+                AppendJsonProperty(sb, "ElapsedTimeMs", row.ElapsedTimeMs.ToString(), indented, true, false);
+
+                if (indented) sb.Append("  ");
+                sb.Append("}");
+            }
+
+            if (indented) sb.AppendLine();
+            sb.Append("]");
+
+            return sb.ToString();
+        }
+
+        private static void AppendJsonProperty(System.Text.StringBuilder sb, string propertyName, string? value, bool indented, bool isLast, bool isString = true)
+        {
+            if (indented) sb.Append("    ");
+            sb.Append("\"");
+            sb.Append(propertyName);
+            sb.Append("\":");
+            if (indented) sb.Append(" ");
+
+            if (isString)
+            {
+                sb.Append("\"");
+                sb.Append(value ?? "");
+                sb.Append("\"");
+            }
+            else
+            {
+                sb.Append(value ?? "0");
+            }
+
+            if (!isLast) sb.Append(",");
+            if (indented) sb.AppendLine();
+        }
+
+        #endregion  
     }
 }

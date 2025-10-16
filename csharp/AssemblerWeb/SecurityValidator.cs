@@ -14,11 +14,26 @@ namespace AssemblerWeb
         // Maximum parameter length to prevent DoS attacks
         private const int ParamMaxLength = 256;
 
+        // Maximum content sizes to prevent DDOS attacks
+        public const int MaxLogFileSize = 500 * 1024; // 500 KB per log file
+
+        // Buffer allowance for output size validation (50 KB)
+        public const int OutputSizeBuffer = 50 * 1024; // 50 KB buffer for dynamic content (performance reports, test results)
+
         // Valid engine types allowlist
         public static readonly HashSet<string> ValidEngineTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Normal", "PreProcess"
         };
+
+        // Log entry validation pattern (allows timestamps, log levels, messages, stack traces)
+        // Matches patterns like: [timestamp] LEVEL: message or similar structured log formats
+        private static readonly System.Text.RegularExpressions.Regex LogEntryPattern =
+            new System.Text.RegularExpressions.Regex(
+                @"^[\[\]0-9:\-\s\.TZ]+\s*(DEBUG|INFO|WARN|ERROR|TRACE|FATAL)?:?\s*.+$",
+                System.Text.RegularExpressions.RegexOptions.Multiline |
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+            );
 
         /// <summary>
         /// Gets the valid AppSites from TemplateConfig. Throws if not loaded.
@@ -50,6 +65,109 @@ namespace AssemblerWeb
                 return false;
 
             return true;
+        }
+
+        /// <summary>
+        /// Validates content size against maximum limit
+        /// </summary>
+        public static bool IsValidContentSize(string? content, int maxSize)
+        {
+            if (string.IsNullOrEmpty(content))
+                return true;
+
+            var contentSize = System.Text.Encoding.UTF8.GetByteCount(content);
+            return contentSize <= maxSize;
+        }
+
+        /// <summary>
+        /// Validates output size against template total size with fixed buffer
+        /// </summary>
+        public static bool IsValidOutputSizeWithBuffer(string? htmlContent, int templateTotalSize)
+        {
+            if (string.IsNullOrEmpty(htmlContent))
+                return true;
+
+            var outputSize = System.Text.Encoding.UTF8.GetByteCount(htmlContent);
+
+            // Check against template size + buffer
+            if (templateTotalSize > 0)
+            {
+                var maxAllowedSize = templateTotalSize + OutputSizeBuffer;
+                return outputSize <= maxAllowedSize;
+            }
+
+            // If template size is unknown, reject (requires template size for validation)
+            return false;
+        }
+
+        /// <summary>
+        /// Validates log content format and size
+        /// </summary>
+        public static bool IsValidLogContent(string? logContent, out string? errorMessage)
+        {
+            errorMessage = null;
+
+            if (string.IsNullOrEmpty(logContent))
+            {
+                errorMessage = "Log content is empty";
+                return false;
+            }
+
+            // Check file size limit (500 KB per log file)
+            if (!IsValidContentSize(logContent, MaxLogFileSize))
+            {
+                errorMessage = "Log file exceeds maximum size limit (500 KB)";
+                return false;
+            }
+
+            // Split into lines for validation
+            var lines = logContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            // Check if at least some lines match log pattern (allow some flexibility)
+            // Require at least 50% of non-empty lines to match log pattern
+            int validLines = 0;
+            int totalLines = lines.Length;
+
+            foreach (var line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                // Check if line matches log pattern or is a continuation line (stack trace, etc.)
+                if (LogEntryPattern.IsMatch(line) || line.StartsWith("    at ") || line.StartsWith("\tat "))
+                {
+                    validLines++;
+                }
+            }
+
+            // At least 50% of lines should match expected log format
+            if (totalLines > 0 && ((double)validLines / totalLines) < 0.5)
+            {
+                errorMessage = "Log content does not match expected format";
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the template total size for an AppSite from scenarios
+        /// </summary>
+        public static int GetTemplateTotalSize(string appSite, string appView)
+        {
+            try
+            {
+                var scenarios = ConfigUtil.GetScenarios();
+                var matchingScenario = scenarios.FirstOrDefault(s =>
+                    s.AppSite.Equals(appSite, StringComparison.OrdinalIgnoreCase) &&
+                    s.AppView.Equals(appView ?? "", StringComparison.OrdinalIgnoreCase));
+
+                return matchingScenario?.TotalSize ?? 0;
+            }
+            catch
+            {
+                return 0;
+            }
         }
     }
 }
