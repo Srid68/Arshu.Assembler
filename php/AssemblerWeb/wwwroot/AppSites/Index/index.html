@@ -13,8 +13,18 @@
     <meta name="twitter:description" content="A powerful template engine that merges HTML components with JSON data.">
     <meta name="theme-color" content="#667eea">
     <title>Arshu Polyglot {{$Title}}</title>
+    <script src="/Resource/js/logger.js"></script>
+    <script>
+        // Enable debug logging
+        if (typeof Logger !== 'undefined') {
+            Logger.configure(Logger.LogLevel.DEBUG, true);
+            console.log('Logger configured: DEBUG level with console output enabled');
+        }
+    </script>
     <script src="/Resource/js/normalEngine.js"></script>
     <script src="/Resource/js/preprocessEngine.js"></script>
+    <script src="/Resource/js/testingUtils.js"></script>
+    <script src="/Resource/js/performanceUtils.js"></script>
     <style>
         /* Global Reset & Base Styles */
         * {
@@ -166,6 +176,8 @@
     <hr style="border: none; border-top: 2px solid #e0e0e0; margin: 40px auto; max-width: 1400px;">
 
     {{ServerReports}}
+
+    {{ClientReports}}
 
     <hr style="border: none; border-top: 2px solid #e0e0e0; margin: 40px auto; max-width: 1400px;">
 

@@ -8,9 +8,9 @@ use Assembler\Engine\EngineNormal;
 use Assembler\Engine\EnginePreProcess;
 use Assembler\Loader\LoaderNormal;
 use Assembler\Loader\LoaderPreProcess;
-use Assembler\TemplateApi\ApiResponse;
-use Assembler\TemplateApi\TemplateData;
-use Assembler\TemplateApi\PreProcessTemplateMetadata;
+use Assembler\Api\ApiResponse;
+use Assembler\Api\TemplateData;
+use Assembler\Api\PreProcessTemplateMetadata;
 use Assembler\Common\Logger;
 use Assembler\Test\TestingUtils;
 use Assembler\Performance\PerformanceUtils;
@@ -18,31 +18,6 @@ use Assembler\Config\ConfigUtil;
 
 class AssemblerEndpoint
 {
-    public static function scenariosEndpoint(ServerRequest $request, Response $response): Response
-    {
-        try {
-            $scenarios = ConfigUtil::getScenarios();
-            $scenarioDtos = [];
-
-            foreach ($scenarios as $s) {
-                $scenarioDtos[] = [
-                    'appSite' => $s->appSite,
-                    'appFile' => $s->appFile,
-                    'appView' => $s->appView,
-                    'displayName' => $s->displayName,
-                    'description' => $s->description
-                ];
-            }
-
-            $response->getBody()->write(json_encode($scenarioDtos));
-            return $response->withHeader('Content-Type', 'application/json');
-        } catch (Exception $error) {
-            error_log('Error getting scenarios: ' . $error->getMessage());
-            $response->getBody()->write(json_encode(['error' => 'Error loading scenarios: ' . $error->getMessage()]));
-            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
-        }
-    }
-
     public static function indexEndpoint(ServerRequest $request, Response $response): Response
     {
         try {
@@ -77,6 +52,31 @@ class AssemblerEndpoint
             error_log('Error in root endpoint: ' . $error->getMessage());
             $response->getBody()->write('Internal server error');
             return $response->withStatus(500);
+        }
+    }
+
+	public static function scenariosEndpoint(ServerRequest $request, Response $response): Response
+    {
+        try {
+            $scenarios = ConfigUtil::getScenarios();
+            $scenarioDtos = [];
+
+            foreach ($scenarios as $s) {
+                $scenarioDtos[] = [
+                    'appSite' => $s->appSite,
+                    'appFile' => $s->appFile,
+                    'appView' => $s->appView,
+                    'displayName' => $s->displayName,
+                    'description' => $s->description
+                ];
+            }
+
+            $response->getBody()->write(json_encode($scenarioDtos));
+            return $response->withHeader('Content-Type', 'application/json');
+        } catch (Exception $error) {
+            error_log('Error getting scenarios: ' . $error->getMessage());
+            $response->getBody()->write(json_encode(['error' => 'Error loading scenarios: ' . $error->getMessage()]));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
         }
     }
 
@@ -256,6 +256,21 @@ class AssemblerEndpoint
             $apiResponse->engineTimeMs = (microtime(true) * 1000) - $engineStart;
             $apiResponse->serverTimeMs = (microtime(true) * 1000) - $serverStart;
             $apiResponse->html = $mergedHtml;
+
+            // Save HTML output only if save query parameter is present
+            $queryParams = $request->getQueryParams();
+            $saveParam = $queryParams['save'] ?? '';
+            if (strcasecmp($saveParam, 'true') === 0) {
+                $outputDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'output';
+                if (!is_dir($outputDir)) {
+                    mkdir($outputDir, 0755, true);
+                }
+
+                $appViewSuffix = (!empty($appView)) ? "_{$appView}" : '';
+                $engineSuffix = strtolower($engineType);
+                $outputFile = $outputDir . DIRECTORY_SEPARATOR . "{$appSite}{$appViewSuffix}_{$engineSuffix}.html";
+                file_put_contents($outputFile, $mergedHtml);
+            }
 
             // Restore original log level
             Logger::setLogLevel($originalLogLevel);
@@ -492,7 +507,7 @@ class AssemblerEndpoint
         }
     }
 
-    public static function testConsolidatePerformanceEndpoint(ServerRequest $request, Response $response, string $wwwrootPath, string $projectRootPath): Response
+	public static function testConsolidatePerformanceEndpoint(ServerRequest $request, Response $response, string $wwwrootPath, string $projectRootPath): Response
     {
         $start = microtime(true);
 
@@ -935,4 +950,324 @@ class AssemblerEndpoint
             return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
         }
     }
+
+    /**
+     * POST /api/save-log - Save a log file (browser-callable)
+     * Mirrors C# behavior: expects JSON { context, content }, validates and writes to template_analysis/logs/javascript_{context}.log
+     */
+    public static function saveLogEndpoint(ServerRequest $request, Response $response): Response
+    {
+        try {
+            error_log("[/api/save-log] Endpoint called");
+            $body = json_decode((string)$request->getBody(), true);
+            $contextName = $body['context'] ?? '';
+            $logContent = $body['content'] ?? '';
+
+            if (empty($contextName) || empty($logContent)) {
+                $response->getBody()->write('Missing context or content parameter');
+                return $response->withStatus(400);
+            }
+
+            // Validate context name (path component)
+            if (!SecurityValidator::isValidPathComponent($contextName)) {
+                $response->getBody()->write('Invalid context parameter');
+                return $response->withStatus(400)->withHeader('Content-Type', 'text/plain');
+            }
+
+            // Validate log content (size and format)
+            $logErrorMessage = null;
+            if (!SecurityValidator::isValidLogContent($logContent, $logErrorMessage)) {
+                $response->getBody()->write($logErrorMessage ?? 'Invalid log content');
+                return $response->withStatus(400);
+            }
+
+            $projectDirectory = dirname(__DIR__, 1);
+            $logsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'logs';
+            if (!is_dir($logsDir)) {
+                mkdir($logsDir, 0755, true);
+            }
+
+            $logFile = $logsDir . DIRECTORY_SEPARATOR . 'javascript_' . strtolower($contextName) . '.log';
+            file_put_contents($logFile, $logContent);
+
+            $testResponse = ['success' => true, 'message' => 'Log saved successfully', 'elapsed' => 0, 'testCount' => 0];
+            $response->getBody()->write(json_encode($testResponse));
+            return $response->withHeader('Content-Type', 'application/json');
+        } catch (Exception $error) {
+            error_log('Error in /api/save-log: ' . $error->getMessage());
+            $response->getBody()->write('Error: ' . $error->getMessage());
+            return $response->withStatus(500);
+        }
+    }
+
+    /**
+     * POST /api/save-output - Save an output file (browser-callable)
+     * Mirrors C# behavior: expects JSON { appSite, appView?, engineType, html }
+     */
+    public static function saveOutputEndpoint(ServerRequest $request, Response $response): Response
+    {
+        try {
+            error_log("[/api/save-output] Endpoint called");
+            $body = json_decode((string)$request->getBody(), true);
+            $appSite = $body['appSite'] ?? '';
+            $appView = $body['appView'] ?? '';
+            $engineType = $body['engineType'] ?? '';
+            $htmlContent = $body['html'] ?? '';
+
+            error_log(sprintf("[/api/save-output] Parsed: appSite=%s, appView=%s, engineType=%s, htmlLength=%d", $appSite, $appView, $engineType, strlen($htmlContent)));
+
+            if (empty($appSite) || empty($engineType) || empty($htmlContent)) {
+                error_log("[/api/save-output] Missing required parameters");
+                $response->getBody()->write('Missing required parameters');
+                return $response->withStatus(400);
+            }
+
+            $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
+
+            // Validate AppSite against allowlist
+            $validAppSites = SecurityValidator::getValidAppSites($rootDirPath);
+            if (!in_array($appSite, $validAppSites, true)) {
+                error_log("[/api/save-output] Invalid AppSite: {$appSite}");
+                $response->getBody()->write('Invalid AppSite value');
+                return $response->withStatus(400);
+            }
+
+            // Validate engine type against allowlist
+            if (!SecurityValidator::isValidEngineType($engineType)) {
+                error_log("[/api/save-output] Invalid engineType: {$engineType}");
+                $response->getBody()->write('Invalid engine type');
+                return $response->withStatus(400);
+            }
+
+            // Validate parameters (path components)
+            if (!SecurityValidator::isValidPathComponent($appSite)) {
+                error_log("[/api/save-output] Invalid AppSite path component: {$appSite}");
+                $response->getBody()->write('Invalid AppSite parameter');
+                return $response->withStatus(400);
+            }
+            if (!empty($appView) && !SecurityValidator::isValidPathComponent($appView)) {
+                error_log("[/api/save-output] Invalid AppView path component: {$appView}");
+                $response->getBody()->write('Invalid AppView parameter');
+                return $response->withStatus(400);
+            }
+            if (!SecurityValidator::isValidPathComponent($engineType)) {
+                error_log("[/api/save-output] Invalid engineType path component: {$engineType}");
+                $response->getBody()->write('Invalid engineType parameter');
+                return $response->withStatus(400);
+            }
+
+            // Validate output size against template size + buffer
+            $templateTotalSize = SecurityValidator::getTemplateTotalSize($appSite, $appView ?? '');
+            $outputSize = strlen($htmlContent);
+            $maxAllowedSize = $templateTotalSize + SecurityValidator::OUTPUT_SIZE_BUFFER;
+            error_log(sprintf("[/api/save-output] Size validation: output=%d, template=%d, buffer=%d, max=%d", $outputSize, $templateTotalSize, SecurityValidator::OUTPUT_SIZE_BUFFER, $maxAllowedSize));
+
+            if (!SecurityValidator::isValidOutputSizeWithBuffer($htmlContent, $templateTotalSize)) {
+                $errorMsg = sprintf('Save output failed: output size (%d bytes) exceeds max size allowed (%d bytes = template %d + buffer %d)', $outputSize, $maxAllowedSize, $templateTotalSize, SecurityValidator::OUTPUT_SIZE_BUFFER);
+                error_log("[/api/save-output] {$errorMsg}");
+                $response->getBody()->write($errorMsg);
+                return $response->withStatus(400);
+            }
+
+            $projectDirectory = dirname(__DIR__, 1);
+            $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'output';
+            if (!is_dir($outputDir)) {
+                mkdir($outputDir, 0755, true);
+            }
+
+            $appViewSuffix = empty($appView) ? '' : '_' . $appView;
+            $engineSuffix = strtolower($engineType);
+            $outputFile = $outputDir . DIRECTORY_SEPARATOR . sprintf('javascript_%s%s_%s.html', $appSite, $appViewSuffix, $engineSuffix);
+            file_put_contents($outputFile, $htmlContent);
+            error_log('[/api/save-output] Success! Output saved to: ' . $outputFile);
+
+            $testResponse = ['success' => true, 'message' => 'Output saved successfully', 'elapsed' => 0, 'testCount' => 0];
+            $response->getBody()->write(json_encode($testResponse));
+            return $response->withHeader('Content-Type', 'application/json');
+        } catch (Exception $error) {
+            error_log('Error in /api/save-output: ' . $error->getMessage());
+            $response->getBody()->write('Error: ' . $error->getMessage());
+            return $response->withStatus(500);
+        }
+    }
+
+	public static function getTemplatesEndpoint(ServerRequest $request, Response $response): Response
+    {
+        try {
+            $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
+            $projectDirectory = dirname(__DIR__, 1);
+
+            // Read request body
+            $body = json_decode((string)$request->getBody(), true);
+            $appSite = $body['appSite'] ?? '';
+
+            if (empty($appSite)) {
+                $response->getBody()->write('Missing appsite parameter');
+                return $response->withStatus(400);
+            }
+
+            // Validate AppSite against allowlist loaded from appsites.csv
+            $validAppSites = SecurityValidator::getValidAppSites($rootDirPath);
+            if (!in_array($appSite, $validAppSites, true)) {
+                $response->getBody()->write('Invalid AppSite value');
+                return $response->withStatus(400);
+            }
+
+            // Validate path components for path traversal attacks
+            if (!SecurityValidator::isValidPathComponent($appSite)) {
+                $response->getBody()->write('Invalid characters in AppSite');
+                return $response->withStatus(400);
+            }
+
+            $serverStart = microtime(true) * 1000;
+
+            // Load Normal templates
+            $normalTemplates = LoaderNormal::loadGetTemplateFiles($rootDirPath, $appSite);
+
+            // Load PreProcess templates
+            $preprocessTemplates = LoaderPreProcess::loadProcessGetTemplateFiles($rootDirPath, $appSite);
+
+            // Convert Normal templates to TemplateData objects for proper JSON serialization
+            $normalResult = [];
+            foreach ($normalTemplates as $key => $value) {
+                $templateData = new TemplateData();
+                $templateData->html = $value->html ?? '';
+                $templateData->json = $value->json ?? null;
+                $normalResult[$key] = $templateData;
+            }
+
+            // Convert PreProcess templates to metadata-only objects
+            $preprocessResult = [];
+            foreach ($preprocessTemplates->templates as $key => $value) {
+                $metadata = new PreProcessTemplateMetadata();
+                $metadata->originalContent = $value->originalContent;
+                $metadata->placeholders = $value->placeholders;
+                $metadata->slottedTemplates = $value->slottedTemplates;
+                $metadata->jsonData = $value->jsonData;
+                $metadata->jsonPlaceholders = $value->jsonPlaceholders;
+                $metadata->replacementMappings = $value->replacementMappings;
+                $metadata->hasPlaceholders = $value->hasPlaceholders();
+                $metadata->hasSlottedTemplates = $value->hasSlottedTemplates();
+                $metadata->hasJsonData = $value->hasJsonData();
+                $metadata->hasJsonPlaceholders = $value->hasJsonPlaceholders();
+                $metadata->hasReplacementMappings = $value->hasReplacementMappings();
+                $metadata->requiresProcessing = $value->requiresProcessing();
+                $preprocessResult[$key] = $metadata;
+            }
+
+            $serverEnd = microtime(true) * 1000;
+            $serverTimeMs = $serverEnd - $serverStart;
+
+            // Use proper ApiResponse structure
+            $apiResponse = new ApiResponse();
+            $apiResponse->templates = $normalResult;
+            $apiResponse->preProcessTemplates = $preprocessResult;
+            $apiResponse->appSite = $appSite;
+            $apiResponse->appFile = null;
+            $apiResponse->appView = null;
+            $apiResponse->serverTimeMs = $serverTimeMs;
+
+            $jsonResult = $apiResponse->serializeToJson(false);
+
+            // Check if save query parameter is present
+            $queryParams = $request->getQueryParams();
+            $saveParam = $queryParams['save'] ?? '';
+            if (strcasecmp($saveParam, 'true') === 0) {
+                $templatesDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'templates';
+                if (!is_dir($templatesDir)) {
+                    mkdir($templatesDir, 0755, true);
+                }
+
+                $saveFile = $templatesDir . DIRECTORY_SEPARATOR . "php_{$appSite}_templates.json";
+                file_put_contents($saveFile, $jsonResult);
+
+                // Save structure dump using TestingUtils logic
+                // Build a scenario list for the requested appSite
+                $scenarios = [(object)['appSite' => $appSite, 'appFile' => '', 'appView' => '']];
+                TestingUtils::dumpPreprocessedTemplateStructures($rootDirPath, $projectDirectory, $scenarios, true);
+            }
+
+            $response->getBody()->write($jsonResult);
+            return $response->withHeader('Content-Type', 'application/json');
+        } catch (Exception $error) {
+            error_log('Error in /api/templates: ' . $error->getMessage());
+            $response->getBody()->write('Error: ' . $error->getMessage());
+            return $response->withStatus(500);
+        }
+    }
+
+    /**
+     * POST /api/test-results - Save test results and generate HTML/JSON reports
+     */
+    public static function saveTestResultsEndpoint(ServerRequest $request, Response $response): Response
+    {
+        try {
+            $summaryRows = json_decode((string)$request->getBody(), true);
+            if (!is_array($summaryRows)) {
+                $response->getBody()->write('Invalid test results format');
+                return $response->withStatus(400);
+            }
+            $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
+            $projectDirectory = dirname(__DIR__, 1);
+            $reportsPath = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
+            if (!is_dir($reportsPath)) {
+                mkdir($reportsPath, 0755, true);
+            }
+            // Save HTML
+            $now = date('Ymd_His');
+            $htmlFile = $reportsPath . DIRECTORY_SEPARATOR . "php_test_summary_{$now}.html";
+            $html = '<html><body><pre>' . json_encode($summaryRows, JSON_PRETTY_PRINT) . '</pre></body></html>';
+            file_put_contents($htmlFile, $html);
+            // Save JSON
+            $jsonFile = $reportsPath . DIRECTORY_SEPARATOR . "php_test_summary_{$now}.json";
+            file_put_contents($jsonFile, json_encode($summaryRows, JSON_PRETTY_PRINT));
+            // Save log
+            $logFile = $reportsPath . DIRECTORY_SEPARATOR . "php_test_results_{$now}.log";
+            file_put_contents($logFile, "Saved test results at {$now}\n");
+            $response->getBody()->write(json_encode(['message' => 'Test results saved successfully']));
+            return $response->withHeader('Content-Type', 'application/json');
+        } catch (Exception $error) {
+            error_log('Error in /api/test-results: ' . $error->getMessage());
+            $response->getBody()->write('Error: ' . $error->getMessage());
+            return $response->withStatus(500);
+        }
+    }
+
+    /**
+     * POST /api/performance-results - Save performance results and generate HTML/JSON reports
+     */
+    public static function savePerformanceResultsEndpoint(ServerRequest $request, Response $response): Response
+    {
+        try {
+            $summaryRows = json_decode((string)$request->getBody(), true);
+            if (!is_array($summaryRows)) {
+                $response->getBody()->write('Invalid performance results format');
+                return $response->withStatus(400);
+            }
+            $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
+            $projectDirectory = dirname(__DIR__, 1);
+            $reportsPath = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
+            if (!is_dir($reportsPath)) {
+                mkdir($reportsPath, 0755, true);
+            }
+            // Save HTML
+            $now = date('Ymd_His');
+            $htmlFile = $reportsPath . DIRECTORY_SEPARATOR . "php_perf_summary_{$now}.html";
+            $html = '<html><body><pre>' . json_encode($summaryRows, JSON_PRETTY_PRINT) . '</pre></body></html>';
+            file_put_contents($htmlFile, $html);
+            // Save JSON
+            $jsonFile = $reportsPath . DIRECTORY_SEPARATOR . "php_perf_summary_{$now}.json";
+            file_put_contents($jsonFile, json_encode($summaryRows, JSON_PRETTY_PRINT));
+            // Save log
+            $logFile = $reportsPath . DIRECTORY_SEPARATOR . "php_perf_results_{$now}.log";
+            file_put_contents($logFile, "Saved performance results at {$now}\n");
+            $response->getBody()->write(json_encode(['message' => 'Performance results saved successfully']));
+            return $response->withHeader('Content-Type', 'application/json');
+        } catch (Exception $error) {
+            error_log('Error in /api/performance-results: ' . $error->getMessage());
+            $response->getBody()->write('Error: ' . $error->getMessage());
+            return $response->withStatus(500);
+        }
+    }
+
 }

@@ -7,7 +7,7 @@ ini_set('log_errors', 1);
 require_once __DIR__ . '/../Assembler/vendor/autoload.php';
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/../Assembler/src/Model/ModelPreProcess.php';
-require_once __DIR__ . '/../Assembler/src/TemplateApi/ApiResponse.php';
+require_once __DIR__ . '/../Assembler/src/Api/ApiResponse.php';
 require_once __DIR__ . '/MergeRequest.php';
 require_once __DIR__ . '/IdleTrackingMiddleware.php';
 require_once __DIR__ . '/AssemblerEndpoint.php';
@@ -20,9 +20,9 @@ use Assembler\Engine\EngineNormal;
 use Assembler\Engine\EnginePreProcess;
 use Assembler\Loader\LoaderNormal;
 use Assembler\Loader\LoaderPreProcess;
-use Assembler\TemplateApi\ApiResponse;
-use Assembler\TemplateApi\TemplateData;
-use Assembler\TemplateApi\PreProcessTemplateMetadata;
+use Assembler\Api\ApiResponse;
+use Assembler\Api\TemplateData;
+use Assembler\Api\PreProcessTemplateMetadata;
 use Assembler\Common\Logger;
 use Assembler\Config\ConfigUtil;
 
@@ -63,7 +63,9 @@ if ($container === null) {
     $container = new \DI\Container();
     AppFactory::setContainer($container);
     $app = AppFactory::create();
+    $container = $app->getContainer();
 }
+/** @var \DI\Container $container */
 $container->set('projectDirectory', $projectDirectory);
 
 // Add middleware
@@ -96,8 +98,6 @@ if (!$isDebug) {
     Logger::info('Idle tracking disabled in debug mode', 'Index');
 }
 
-// ...existing code...
-
 // GET / - Root endpoint
 $app->get('/', function (ServerRequest $request, Response $response) {
     return AssemblerEndpoint::indexEndpoint($request, $response);
@@ -112,6 +112,11 @@ $app->get('/api/scenarios', function (ServerRequest $request, Response $response
 $app->post('/merge', function (ServerRequest $request, Response $response) {
     return AssemblerEndpoint::mergeEndpoint($request, $response);
 })->setName('PostMergeTemplate');
+
+// POST /api/templates - Get templates for an AppSite
+$app->post('/api/templates', function (ServerRequest $request, Response $response) {
+    return AssemblerEndpoint::getTemplatesEndpoint($request, $response);
+})->setName('GetTemplates');
 
 // Test endpoints
 $app->post('/test/standard', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
@@ -134,6 +139,24 @@ $app->post('/test/consolidate-performance', function (ServerRequest $request, Re
 $app->post('/api/report', function (ServerRequest $request, Response $response) use ($projectDirectory) {
     return AssemblerEndpoint::getReportEndpoint($request, $response, $projectDirectory);
 })->setName('GetReport');
+
+// Register /api/test-results and /api/performance-results endpoints
+$app->post('/api/test-results', function (ServerRequest $request, Response $response) {
+    return AssemblerEndpoint::saveTestResultsEndpoint($request, $response);
+})->setName('SaveTestResults');
+
+$app->post('/api/performance-results', function (ServerRequest $request, Response $response) {
+    return AssemblerEndpoint::savePerformanceResultsEndpoint($request, $response);
+})->setName('SavePerformanceResults');
+
+// Register /api/save-log and /api/save-output endpoints
+$app->post('/api/save-log', function (ServerRequest $request, Response $response) {
+    return AssemblerEndpoint::saveLogEndpoint($request, $response);
+})->setName('SaveLog');
+
+$app->post('/api/save-output', function (ServerRequest $request, Response $response) {
+    return AssemblerEndpoint::saveOutputEndpoint($request, $response);
+})->setName('SaveOutput');
 
 // Serve Scalar UI index.html at /scalar
 // Redirect /scalar to /scalar/index.html for proper UI loading
