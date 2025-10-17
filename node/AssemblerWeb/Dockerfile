@@ -20,6 +20,7 @@ COPY --from=build /usr/local/bin/overmind /usr/local/bin/overmind
 WORKDIR /app
 COPY --from=build /src/AssemblerWeb/index.js .
 COPY --from=build /src/AssemblerWeb/assemblerEndpoint.js .
+COPY --from=build /src/AssemblerWeb/assemblerTestEndpoint.js .
 COPY --from=build /src/AssemblerWeb/securityValidator.js .
 COPY --from=build /src/Assembler/src ./Assembler/src
 COPY --from=build /src/AssemblerWeb/node_modules ./node_modules

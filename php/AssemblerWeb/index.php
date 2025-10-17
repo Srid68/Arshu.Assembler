@@ -10,7 +10,8 @@ require_once __DIR__ . '/../Assembler/src/Model/ModelPreProcess.php';
 require_once __DIR__ . '/../Assembler/src/Api/ApiResponse.php';
 require_once __DIR__ . '/MergeRequest.php';
 require_once __DIR__ . '/IdleTrackingMiddleware.php';
-require_once __DIR__ . '/AssemblerEndpoint.php';
+require_once __DIR__ . '/assemblerEndpoint.php';
+require_once __DIR__ . '/assemblerTestEndpoint.php';
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as ServerRequest;
