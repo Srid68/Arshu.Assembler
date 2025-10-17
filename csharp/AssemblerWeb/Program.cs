@@ -234,7 +234,8 @@ namespace AssemblerWeb
 
             builder.Services.ConfigureHttpJsonOptions(options =>
             {
-                options.SerializerOptions.TypeInfoResolverChain.Insert(0, ResponseJsonContext.Default);
+                options.SerializerOptions.TypeInfoResolverChain.Insert(0, AssemblerJsonContext.Default);
+                options.SerializerOptions.TypeInfoResolverChain.Insert(0, AssemblerTestJsonContext.Default);
             });
 
 
@@ -301,6 +302,13 @@ namespace AssemblerWeb
 
             // Register endpoints grouped by tag "Assembler"
             app.MapAssemblerEndpoints();
+
+            #endregion
+
+            #region Assembler Test Endpoint
+
+            // Register endpoints grouped by tag "AssemblerTest"
+            app.MapAssemblerTestEndpoints();
 
             #endregion
 

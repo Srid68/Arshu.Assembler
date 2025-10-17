@@ -347,7 +347,8 @@ public class Program
         // Add services to the container.
         builder.Services.ConfigureHttpJsonOptions(options =>
         {
-            options.SerializerOptions.TypeInfoResolverChain.Insert(0, ResponseJsonContext.Default);
+            options.SerializerOptions.TypeInfoResolverChain.Insert(0, AssemblerJsonContext.Default);
+            options.SerializerOptions.TypeInfoResolverChain.Insert(0, AssemblerTestJsonContext.Default);
         });
 
         var app = builder.Build();
@@ -398,6 +399,13 @@ public class Program
 
         // Register endpoints grouped by AssemblerEndpoint
         app.MapAssemblerEndpoints();
+
+        #endregion
+
+        #region Assembler Test Endpoints
+
+        // Register endpoints grouped by AssemblerTestEndpoint
+        app.MapAssemblerTestEndpoints();
 
         #endregion
 
