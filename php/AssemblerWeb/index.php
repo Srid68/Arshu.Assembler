@@ -118,44 +118,49 @@ $app->post('/api/templates', function (ServerRequest $request, Response $respons
     return AssemblerEndpoint::getTemplatesEndpoint($request, $response);
 })->setName('GetTemplates');
 
+
 // Test endpoints
 $app->post('/test/standard', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
-    return AssemblerEndpoint::testStandardEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
+    return AssemblerTestEndpoint::testStandardEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
 })->setName('RunStandardTests');
 
 $app->post('/test/advanced', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
-    return AssemblerEndpoint::testAdvancedEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
+    return AssemblerTestEndpoint::testAdvancedEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
 })->setName('RunAdvancedTests');
 
 $app->post('/test/performance', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
-    return AssemblerEndpoint::testPerformanceEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
+    return AssemblerTestEndpoint::testPerformanceEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
 })->setName('RunPerformanceTests');
 
 $app->post('/test/consolidate-performance', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
-    return AssemblerEndpoint::testConsolidatePerformanceEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
+    return AssemblerTestEndpoint::testConsolidatePerformanceEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
 })->setName('ConsolidatePerformanceTests');
 
 // Report endpoint
 $app->post('/api/report', function (ServerRequest $request, Response $response) use ($projectDirectory) {
-    return AssemblerEndpoint::getReportEndpoint($request, $response, $projectDirectory);
+    return AssemblerTestEndpoint::getReportEndpoint($request, $response, $projectDirectory);
 })->setName('GetReport');
 
 // Register /api/test-results and /api/performance-results endpoints
+
 $app->post('/api/test-results', function (ServerRequest $request, Response $response) {
-    return AssemblerEndpoint::saveTestResultsEndpoint($request, $response);
+    return AssemblerTestEndpoint::saveTestResultsEndpoint($request, $response);
 })->setName('SaveTestResults');
 
+
 $app->post('/api/performance-results', function (ServerRequest $request, Response $response) {
-    return AssemblerEndpoint::savePerformanceResultsEndpoint($request, $response);
+    return AssemblerTestEndpoint::savePerformanceResultsEndpoint($request, $response);
 })->setName('SavePerformanceResults');
 
 // Register /api/save-log and /api/save-output endpoints
+
 $app->post('/api/save-log', function (ServerRequest $request, Response $response) {
-    return AssemblerEndpoint::saveLogEndpoint($request, $response);
+    return AssemblerTestEndpoint::saveLogEndpoint($request, $response);
 })->setName('SaveLog');
 
+
 $app->post('/api/save-output', function (ServerRequest $request, Response $response) {
-    return AssemblerEndpoint::saveOutputEndpoint($request, $response);
+    return AssemblerTestEndpoint::saveOutputEndpoint($request, $response);
 })->setName('SaveOutput');
 
 // Serve Scalar UI index.html at /scalar
