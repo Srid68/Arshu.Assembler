@@ -1,8 +1,5 @@
-using Assembler.Api;
 using Assembler.Common;
 using Assembler.Config;
-using Assembler.Engine;
-using Assembler.Loader;
 using Assembler.Performance;
 using Assembler.Test;
 using Microsoft.AspNetCore.Builder;
@@ -15,8 +12,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace AssemblerWeb
@@ -26,24 +21,24 @@ namespace AssemblerWeb
     // Model for report request
     public class ReportRequest
     {
-        [System.Text.Json.Serialization.JsonPropertyName("fileName")]
+        [JsonPropertyName("fileName")]
         public string? FileName { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("useLangPrefix")]
+        [JsonPropertyName("useLangPrefix")]
         public bool UseLangPrefix { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("langPrefix")]
+        [JsonPropertyName("langPrefix")]
         public string? LangPrefix { get; set; }
     }
 
     // Model for test response
     public class TestResponse
     {
-        [System.Text.Json.Serialization.JsonPropertyName("success")]
+        [JsonPropertyName("success")]
         public bool Success { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("message")]
+        [JsonPropertyName("message")]
         public string Message { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("elapsed")]
+        [JsonPropertyName("elapsed")]
         public double Elapsed { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("testCount")]
+        [JsonPropertyName("testCount")]
         public int TestCount { get; set; }
     }
 

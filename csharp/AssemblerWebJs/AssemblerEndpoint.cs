@@ -3,7 +3,6 @@ using Assembler.Common;
 using Assembler.Config;
 using Assembler.Engine;
 using Assembler.Loader;
-using Assembler.Performance;
 using Assembler.Test;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -11,12 +10,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace AssemblerWebJs
@@ -26,26 +21,26 @@ namespace AssemblerWebJs
     // Model for scenario response
     public class ScenarioDto
     {
-        [System.Text.Json.Serialization.JsonPropertyName("appSite")]
+        [JsonPropertyName("appSite")]
         public string AppSite { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("appFile")]
+        [JsonPropertyName("appFile")]
         public string AppFile { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("appView")]
+        [JsonPropertyName("appView")]
         public string AppView { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("displayName")]
+        [JsonPropertyName("displayName")]
         public string DisplayName { get; set; } = string.Empty;
-        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
     }
 
     // Model for merge request
     public class MergeRequest
     {
-        [System.Text.Json.Serialization.JsonPropertyName("appSite")]
+        [JsonPropertyName("appSite")]
         public string? AppSite { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("appView")]
+        [JsonPropertyName("appView")]
         public string? AppView { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("engineType")]
+        [JsonPropertyName("engineType")]
         public string? EngineType { get; set; }
     }
     

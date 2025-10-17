@@ -12,8 +12,10 @@ use actix_web::Error;
 
 mod security_validator;
 mod assembler_endpoint;
+mod assembler_test_endpoint;
 
-use assembler_endpoint::{MergeRequest, ScenarioDto, ReportRequest, TestResponse, TestSummaryRowDto, PerfSummaryRowDto, index, get_scenarios, get_templates, merge_templates, save_test_results, save_performance_results, save_log, save_output, test_standard, test_advanced, test_performance, test_consolidate_performance, get_report};
+use assembler_endpoint::{MergeRequest, ScenarioDto, index, get_scenarios, get_templates, merge_templates};
+use assembler_test_endpoint::{save_test_results, save_performance_results, save_log, save_output, test_standard, test_advanced, test_performance, test_consolidate_performance, get_report};
 
 
 async fn openapi_handler() -> impl Responder {
@@ -32,17 +34,17 @@ async fn openapi_handler() -> impl Responder {
         assembler_endpoint::get_scenarios,
         assembler_endpoint::get_templates,
         assembler_endpoint::merge_templates,
-        assembler_endpoint::save_test_results,
-        assembler_endpoint::save_performance_results,
-        assembler_endpoint::save_log,
-        assembler_endpoint::save_output,
-        assembler_endpoint::test_standard,
-        assembler_endpoint::test_advanced,
-        assembler_endpoint::test_performance,
-        assembler_endpoint::test_consolidate_performance,
-        assembler_endpoint::get_report
+        assembler_test_endpoint::save_test_results,
+        assembler_test_endpoint::save_performance_results,
+        assembler_test_endpoint::save_log,
+        assembler_test_endpoint::save_output,
+        assembler_test_endpoint::test_standard,
+        assembler_test_endpoint::test_advanced,
+        assembler_test_endpoint::test_performance,
+        assembler_test_endpoint::test_consolidate_performance,
+        assembler_test_endpoint::get_report
     ),
-    components(schemas(MergeRequest, ScenarioDto, ReportRequest, TestResponse, TestSummaryRowDto, PerfSummaryRowDto)),
+    components(schemas(MergeRequest, ScenarioDto, assembler_test_endpoint::ReportRequest, assembler_test_endpoint::TestResponse, assembler_test_endpoint::TestSummaryRowDto, assembler_test_endpoint::PerfSummaryRowDto)),
     tags((name = "Assembler", description = "Assembler API endpoints"))
 )]
 struct ApiDoc;
