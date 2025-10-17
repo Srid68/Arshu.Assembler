@@ -1,6 +1,6 @@
 {
-  "Implementation": "C# Server-Side",
-  "Lang": "csharp",
+  "Implementation": "Node.js Server-Side",
+  "Lang": "nodejs",
   "Title": "Test Reports",
   "TitleIcon": "📊",
   "Reports": [

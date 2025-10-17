@@ -1,6 +1,6 @@
 {
-  "Implementation": "C# Server-Side",
-  "Lang": "csharp",
+  "Implementation": "PHP Server-Side",
+  "Lang": "php",
   "Title": "Test Reports",
   "TitleIcon": "📊",
   "Reports": [

@@ -13,7 +13,6 @@ use Assembler\Api\TemplateData;
 use Assembler\Api\PreProcessTemplateMetadata;
 use Assembler\Common\Logger;
 use Assembler\Test\TestingUtils;
-use Assembler\Performance\PerformanceUtils;
 use Assembler\Config\ConfigUtil;
 
 class AssemblerEndpoint

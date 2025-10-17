@@ -1,5 +1,5 @@
 {
-  "Implementation": "C# + Client-Side JavaScript",
+  "Implementation": "Node.js + Client-Side JavaScript",
   "Lang": "javascript",
   "Title": "Test Reports",
   "TitleIcon": "📊",
