@@ -707,7 +707,7 @@ impl EngineNormal {
                                                 JsonValue::String(s) => s.clone(),
                                                 JsonValue::Number(n) => n.to_string(),
                                                 JsonValue::Integer(i) => i.to_string(),
-                                                JsonValue::Bool(b) => if *b { "true".to_string() } else { "false".to_string() },
+                                                JsonValue::Bool(b) => b.to_string(),
                                                 _ => String::new(),
                                             };
                                             item_block = Self::replace_all_case_insensitive(&item_block, &placeholder, &value_str);
@@ -786,7 +786,7 @@ impl EngineNormal {
                 JsonValue::String(s) => s.clone(),
                 JsonValue::Number(n) => n.to_string(),
                 JsonValue::Integer(i) => i.to_string(),
-                JsonValue::Bool(b) => if *b { "true".to_string() } else { "false".to_string() },
+                JsonValue::Bool(b) => b.to_string(),
                 _ => continue, // Skip arrays and objects as they're handled above
             };
             
