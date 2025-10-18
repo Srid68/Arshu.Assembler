@@ -504,11 +504,7 @@ class EngineNormal {
             for (const [key, value] of Object.entries(jsonObject)) {
                 if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
                     const placeholder = `{{$${key}}}`;
-                    // Match C# boolean ToString() behavior: False/True instead of false/true
                     let replacement = String(value);
-                    if (typeof value === 'boolean') {
-                        replacement = value ? 'True' : 'False';
-                    }
                     result = result.replace(new RegExp(this.escapeRegExp(placeholder), 'gi'), replacement);
                 }
             }
@@ -562,10 +558,6 @@ class EngineNormal {
                         const placeholder = `{{$${key}}}`;
                         // Properly handle boolean false - don't convert to empty string
                         let replacement = (value !== null && value !== undefined) ? String(value) : '';
-                        // Match C# boolean ToString() behavior: False/True instead of false/true
-                        if (typeof value === 'boolean') {
-                            replacement = value ? 'True' : 'False';
-                        }
                         itemBlock = itemBlock.replace(new RegExp(this.escapeRegExp(placeholder), 'gi'), replacement);
                     }
                     
