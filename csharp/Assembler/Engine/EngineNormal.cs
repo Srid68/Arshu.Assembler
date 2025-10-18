@@ -585,7 +585,12 @@ public class EngineNormal
                                     foreach (var kvp in item)
                                     {
                                         string placeholder = "{{$" + kvp.Key + "}}";
-                                        string valueStr = kvp.Value != null ? kvp.Value.ToString() ?? string.Empty : string.Empty;
+                                        string valueStr = kvp.Value switch
+                                        {
+                                            bool b => b ? "true" : "false",
+                                            null => string.Empty,
+                                            _ => kvp.Value.ToString() ?? string.Empty
+                                        };
                                         itemBlock = ReplaceAllCaseInsensitive(itemBlock, placeholder, valueStr);
                                     }
 
