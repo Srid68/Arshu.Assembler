@@ -341,14 +341,28 @@ export class EngineNormal {
                                     // Handle JsonConverter's JsonObject
                                     for (const [itemKey, itemValue] of item.entries()) {
                                         const placeholder = `{{$${itemKey}}}`;
-                                        const valueStr = itemValue != null ? String(itemValue) : '';
+                                        let valueStr = '';
+                                        if (itemValue != null) {
+                                            if (typeof itemValue === 'boolean') {
+                                                valueStr = itemValue ? 'true' : 'false';
+                                            } else {
+                                                valueStr = String(itemValue);
+                                            }
+                                        }
                                         itemBlock = this.replaceAllCaseInsensitive(itemBlock, placeholder, valueStr);
                                     }
                                 } else if (item instanceof Map) {
                                     // Handle Map
                                     for (const [itemKey, itemValue] of item) {
                                         const placeholder = `{{$${itemKey}}}`;
-                                        const valueStr = itemValue != null ? String(itemValue) : '';
+                                        let valueStr = '';
+                                        if (itemValue != null) {
+                                            if (typeof itemValue === 'boolean') {
+                                                valueStr = itemValue ? 'true' : 'false';
+                                            } else {
+                                                valueStr = String(itemValue);
+                                            }
+                                        }
                                         itemBlock = this.replaceAllCaseInsensitive(itemBlock, placeholder, valueStr);
                                     }
                                 }
@@ -433,9 +447,15 @@ export class EngineNormal {
 
         // Handle simple placeholder replacement for non-array values
         for (const [key, value] of dict) {
-            if (!Array.isArray(value) && typeof value === 'string') {
+            if (!Array.isArray(value) && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')) {
                 const placeholder = `{{$${key}}}`;
-                result = this.replaceAllCaseInsensitive(result, placeholder, value);
+                let valueStr;
+                if (typeof value === 'boolean') {
+                    valueStr = value ? 'true' : 'false';
+                } else {
+                    valueStr = String(value);
+                }
+                result = this.replaceAllCaseInsensitive(result, placeholder, valueStr);
             }
         }
         

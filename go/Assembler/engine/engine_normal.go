@@ -203,7 +203,11 @@ func MergeTemplateWithJson(template, jsonText string) string {
 											case json.JsonInteger:
 												valueStr = v.String()
 											case json.JsonBool:
-												valueStr = v.String()
+												if v.BoolVal {
+													valueStr = "true"
+												} else {
+													valueStr = "false"
+												}
 											default:
 												valueStr = ""
 											}
@@ -277,10 +281,25 @@ func MergeTemplateWithJson(template, jsonText string) string {
 
 	// Replace remaining simple placeholders
 	for key, value := range jsonObj.Iter() {
-		if value.Kind == json.JsonString {
-			placeholder := "{{$" + key + "}}"
-			result = replaceAllCaseInsensitive(result, placeholder, value.StrVal)
+		placeholder := "{{$" + key + "}}"
+		var valueStr string
+		switch value.Kind {
+		case json.JsonString:
+			valueStr = value.StrVal
+		case json.JsonNumber:
+			valueStr = value.String()
+		case json.JsonInteger:
+			valueStr = value.String()
+		case json.JsonBool:
+			if value.BoolVal {
+				valueStr = "true"
+			} else {
+				valueStr = "false"
+			}
+		default:
+			continue
 		}
+		result = replaceAllCaseInsensitive(result, placeholder, valueStr)
 	}
 
 	return result

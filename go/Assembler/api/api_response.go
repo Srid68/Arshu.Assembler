@@ -298,24 +298,8 @@ func (ar ApiResponse) serializePreProcessTemplateMetadata(pm PreProcessTemplateM
 	if indented {
 		sb.WriteString(" ")
 	}
-	if pm.JsonData != nil {
-		// JsonData should be serialized as proper JSON, not as a string
-		// Check if it's already JSON format or needs to be treated as raw JSON
-		jsonStr := fmt.Sprintf("%v", *pm.JsonData)
-		if jsonStr == "map[]" || jsonStr == "<nil>" {
-			sb.WriteString("null")
-		} else if (jsonStr[0] == '{' && jsonStr[len(jsonStr)-1] == '}') || (jsonStr[0] == '[' && jsonStr[len(jsonStr)-1] == ']') {
-			// Appears to be JSON already, include as-is
-			sb.WriteString(jsonStr)
-		} else {
-			// Treat as string value
-			sb.WriteString("\"")
-			sb.WriteString(ApiResponse_EscapeJsonString(jsonStr))
-			sb.WriteString("\"")
-		}
-	} else {
-		sb.WriteString("null")
-	}
+	// Manually serialize JsonData map to proper JSON format (handles booleans correctly)
+	sb.WriteString(serializeJsonDataMap(pm.JsonData))
 	sb.WriteString(",")
 	if indented {
 		sb.WriteString("\n")
@@ -1345,4 +1329,67 @@ func serializeReplacementMappingPretty(sb *strings.Builder, rm model.Replacement
 	sb.WriteString("\",\n  \"Type\":")
 	sb.WriteString(fmt.Sprintf("%d", rm.Type))
 	sb.WriteString("\n}")
+}
+
+// serializeJsonDataMap manually serializes a map[string]interface{} to JSON format
+// This handles booleans, strings, numbers, arrays, and nested objects properly
+func serializeJsonDataMap(data *map[string]interface{}) string {
+	if data == nil {
+		return "null"
+	}
+
+	var sb strings.Builder
+	sb.WriteString("{")
+	first := true
+
+	for key, value := range *data {
+		if !first {
+			sb.WriteString(",")
+		}
+		sb.WriteString("\"")
+		sb.WriteString(ApiResponse_EscapeJsonString(key))
+		sb.WriteString("\":")
+		sb.WriteString(serializeJsonValue(value))
+		first = false
+	}
+
+	sb.WriteString("}")
+	return sb.String()
+}
+
+// serializeJsonValue manually serializes any JSON value to proper JSON format
+func serializeJsonValue(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return "\"" + ApiResponse_EscapeJsonString(v) + "\""
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case float64:
+		return fmt.Sprintf("%g", v)
+	case int:
+		return fmt.Sprintf("%d", v)
+	case int64:
+		return fmt.Sprintf("%d", v)
+	case []interface{}:
+		var sb strings.Builder
+		sb.WriteString("[")
+		for i, item := range v {
+			if i > 0 {
+				sb.WriteString(",")
+			}
+			sb.WriteString(serializeJsonValue(item))
+		}
+		sb.WriteString("]")
+		return sb.String()
+	case map[string]interface{}:
+		return serializeJsonDataMap(&v)
+	case nil:
+		return "null"
+	default:
+		// Fallback to string representation
+		return "\"" + ApiResponse_EscapeJsonString(fmt.Sprintf("%v", v)) + "\""
+	}
 }

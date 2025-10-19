@@ -797,7 +797,12 @@ public static class LoaderPreProcess
                     foreach (var kvp in jsonItem)
                     {
                         string placeholder = "{{$" + kvp.Key + "}}";
-                        string valueStr = kvp.Value?.ToString() ?? "";
+                        string valueStr = kvp.Value switch
+                        {
+                            bool b => b ? "true" : "false",
+                            null => string.Empty,
+                            _ => kvp.Value.ToString() ?? string.Empty
+                        };
                         itemBlock = ReplaceAllCaseInsensitive(itemBlock, placeholder, valueStr);
                     }
 

@@ -597,7 +597,12 @@ class EngineNormal
                                     // Replace all placeholders dynamically
                                     foreach ($item as $kvpKey => $kvpValue) {
                                         $placeholder = '{{$' . $kvpKey . '}}';
-                                        $valueStr = $kvpValue !== null ? (string)$kvpValue : '';
+                                        // Handle boolean values explicitly to get lowercase "true"/"false"
+                                        if (is_bool($kvpValue)) {
+                                            $valueStr = $kvpValue ? 'true' : 'false';
+                                        } else {
+                                            $valueStr = $kvpValue !== null ? (string)$kvpValue : '';
+                                        }
                                         $itemBlock = $this->replaceAllCaseInsensitive($itemBlock, $placeholder, $valueStr);
                                     }
 

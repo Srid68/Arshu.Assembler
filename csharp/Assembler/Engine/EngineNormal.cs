@@ -585,7 +585,12 @@ public class EngineNormal
                                     foreach (var kvp in item)
                                     {
                                         string placeholder = "{{$" + kvp.Key + "}}";
-                                        string valueStr = kvp.Value != null ? kvp.Value.ToString() ?? string.Empty : string.Empty;
+                                        string valueStr = kvp.Value switch
+                                        {
+                                            bool b => b ? "true" : "false",
+                                            null => string.Empty,
+                                            _ => kvp.Value.ToString() ?? string.Empty
+                                        };
                                         itemBlock = ReplaceAllCaseInsensitive(itemBlock, placeholder, valueStr);
                                     }
 
@@ -637,10 +642,19 @@ public class EngineNormal
         // Replace remaining simple placeholders
         foreach (var kvp in dict)
         {
-            if (kvp.Value is string s)
+            string? valueStr = kvp.Value switch
+            {
+                string s => s,
+                bool b => b ? "true" : "false",
+                int i => i.ToString(),
+                double d => d.ToString(),
+                _ => kvp.Value?.ToString()
+            };
+
+            if (valueStr != null)
             {
                 string placeholder = "{{$" + kvp.Key + "}}";
-                result = ReplaceAllCaseInsensitive(result, placeholder, s);
+                result = ReplaceAllCaseInsensitive(result, placeholder, valueStr);
             }
         }
 
