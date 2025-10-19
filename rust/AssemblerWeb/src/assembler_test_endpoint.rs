@@ -505,9 +505,10 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
     }
     html.push_str("<th>OutputSize</th></tr>\n");
     for (app, langs) in &app_perf {
-        // Find minimum time for highlighting
+        // Find minimum time for highlighting (excluding zero values)
         let valid_times: Vec<f64> = languages.iter()
             .filter_map(|lang| langs.get(lang.as_str()).and_then(|t| t.0))
+            .filter(|&v| v > 0.0)
             .collect();
         let min_time = if !valid_times.is_empty() {
             valid_times.iter().cloned().fold(f64::INFINITY, f64::min)
@@ -519,7 +520,7 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
         for lang in &languages {
             let time_opt = langs.get(lang.as_str()).and_then(|t| t.0);
             let time_value = time_opt.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".to_string());
-            let is_best = time_opt.map(|v| !min_time.is_nan() && (v - min_time).abs() < 0.001).unwrap_or(false);
+            let is_best = time_opt.map(|v| v > 0.0 && !min_time.is_nan() && (v - min_time).abs() < 0.001).unwrap_or(false);
             let css_class = if is_best { " class=\"best-perf\"" } else { "" };
             html.push_str(&format!("<td{}>{}</td>", css_class, time_value));
         }
@@ -539,9 +540,10 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
     }
     html.push_str("<th>OutputSize</th></tr>\n");
     for (app, langs) in &app_perf {
-        // Find minimum time for highlighting
+        // Find minimum time for highlighting (excluding zero values)
         let valid_times: Vec<f64> = languages.iter()
             .filter_map(|lang| langs.get(lang.as_str()).and_then(|t| t.1))
+            .filter(|&v| v > 0.0)
             .collect();
         let min_time = if !valid_times.is_empty() {
             valid_times.iter().cloned().fold(f64::INFINITY, f64::min)
@@ -553,7 +555,7 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
         for lang in &languages {
             let time_opt = langs.get(lang.as_str()).and_then(|t| t.1);
             let time_value = time_opt.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".to_string());
-            let is_best = time_opt.map(|v| !min_time.is_nan() && (v - min_time).abs() < 0.001).unwrap_or(false);
+            let is_best = time_opt.map(|v| v > 0.0 && !min_time.is_nan() && (v - min_time).abs() < 0.001).unwrap_or(false);
             let css_class = if is_best { " class=\"best-perf\"" } else { "" };
             html.push_str(&format!("<td{}>{}</td>", css_class, time_value));
         }
@@ -698,14 +700,23 @@ pub async fn save_log(
             let content = json.get("content")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
+                .trim()
                 .to_string();
             (context, content)
         }
         Err(_) => return HttpResponse::BadRequest().body("Invalid JSON format"),
     };
 
-    if context_name.is_empty() || log_content.is_empty() {
-        return HttpResponse::BadRequest().body("Missing context or content parameter");
+    if context_name.is_empty() {
+        return HttpResponse::BadRequest().body("Missing context parameter");
+    }
+
+    // If content is empty after trimming, return success without saving
+    if log_content.is_empty() {
+        let response = TestResponse {
+            message: "No content to save".to_string(),
+        };
+        return HttpResponse::Ok().json(response);
     }
 
     // Validate context name parameter (256 char limit, no path traversal)
