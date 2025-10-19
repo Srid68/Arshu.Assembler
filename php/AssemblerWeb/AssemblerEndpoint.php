@@ -22,9 +22,56 @@ class AssemblerEndpoint
     public static function indexEndpoint(ServerRequest $request, Response $response): Response
     {
         try {
+            // Get appsite from query parameter or use default
             $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
 
+            $appSite = self::DEFAULT_APP_SITE;
+            $appFile = 'index';
+
             $queryParams = $request->getQueryParams();
+            $requestedAppSite = $queryParams['appsite'] ?? null;
+
+            // If appsite query param is provided, validate it exists in scenarios
+            if ($requestedAppSite !== null && $requestedAppSite !== '') {
+                // Validate AppSite against allowlist
+                $validAppSites = SecurityValidator::getValidAppSites();
+                $isValid = false;
+                foreach ($validAppSites as $valid) {
+                    if (strcasecmp($valid, $requestedAppSite) === 0) {
+                        $isValid = true;
+                        break;
+                    }
+                }
+                if (!$isValid) {
+                    $response->getBody()->write('Invalid AppSite value');
+                    return $response->withStatus(400);
+                }
+
+                // Validate path components for path traversal attacks
+                if (!SecurityValidator::isValidPathComponent($requestedAppSite)) {
+                    $response->getBody()->write('Invalid characters in AppSite');
+                    return $response->withStatus(400);
+                }
+
+                // Get AppFile from scenarios
+                $scenarios = ConfigUtil::getScenarios();
+                $matchingScenario = null;
+                foreach ($scenarios as $s) {
+                    if (strcasecmp($s->appSite, $requestedAppSite) === 0 && empty($s->appView)) {
+                        $matchingScenario = $s;
+                        break;
+                    }
+                }
+
+                if ($matchingScenario === null) {
+                    $response->getBody()->write("No matching scenario found for AppSite='$requestedAppSite' without AppView");
+                    return $response->withStatus(400);
+                }
+
+                $appSite = $matchingScenario->appSite;
+                $appFile = $matchingScenario->appFile;
+            }
+
             $engineType = $queryParams['engine'] ?? 'Normal';
 
             if (!SecurityValidator::isValidEngineType($engineType)) {
@@ -35,16 +82,18 @@ class AssemblerEndpoint
             LoaderNormal::clearCache();
             LoaderPreProcess::clearCache();
 
-            $normalTemplatesRaw = LoaderNormal::loadGetTemplateFiles($rootDirPath, self::DEFAULT_APP_SITE);
-            $preprocessTemplatesRaw = LoaderPreProcess::loadProcessGetTemplateFiles($rootDirPath, self::DEFAULT_APP_SITE);
+            // Load templates for requested AppSite
+            $normalTemplatesRaw = LoaderNormal::loadGetTemplateFiles($rootDirPath, $appSite);
+            $preprocessTemplatesRaw = LoaderPreProcess::loadProcessGetTemplateFiles($rootDirPath, $appSite);
 
+            // Merge using selected engine (no AppView context)
             $mergedHtml = '';
             if (strcasecmp($engineType, 'PreProcess') === 0) {
                 $engine = new EnginePreProcess();
-                $mergedHtml = $engine->mergeTemplates(self::DEFAULT_APP_SITE, 'index', null, $preprocessTemplatesRaw->templates);
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, null, $preprocessTemplatesRaw->templates);
             } else {
                 $engine = new EngineNormal();
-                $mergedHtml = $engine->mergeTemplates(self::DEFAULT_APP_SITE, 'index', null, $normalTemplatesRaw);
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, null, $normalTemplatesRaw);
             }
 
             $response->getBody()->write($mergedHtml);

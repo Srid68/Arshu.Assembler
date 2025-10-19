@@ -52,71 +52,19 @@ class ConfigUtil
     private static ?array $cachedScenarios = null;
     private static ?string $wwwrootPath = null;
 
-    private static function generateAppSitesCsv(string $wwwrootPath): void
+
+    private static function extractAppSitesFromScenarios(array $scenarios): array
     {
-        $appSitesPath = $wwwrootPath . DIRECTORY_SEPARATOR . 'AppSites';
-        $appDataPath = $wwwrootPath . DIRECTORY_SEPARATOR . 'App_Data';
-        $csvFilePath = $appDataPath . DIRECTORY_SEPARATOR . 'appsites.csv';
-
-        if (!is_dir($appSitesPath)) {
-            throw new \Exception("AppSites directory not found: $appSitesPath");
-        }
-
-        // Ensure App_Data directory exists
-        if (!is_dir($appDataPath)) {
-            mkdir($appDataPath, 0755, true);
-        }
-
-        // Get all directories in AppSites folder
-        $entries = scandir($appSitesPath);
         $appSites = [];
-
-        foreach ($entries as $entry) {
-            if ($entry === '.' || $entry === '..') continue;
-            $fullPath = $appSitesPath . DIRECTORY_SEPARATOR . $entry;
-            if (is_dir($fullPath)) {
-                $appSites[] = $entry;
+        foreach ($scenarios as $scenario) {
+            if (!empty($scenario->appSite)) {
+                $appSites[$scenario->appSite] = true;
             }
         }
 
-        sort($appSites);
+        echo sprintf("[ConfigUtil] Extracted %d AppSites from scenarios.csv\n", count($appSites));
 
-        // Add Index if not present
-        if (!in_array('Index', $appSites)) {
-            $appSites[] = 'Index';
-        }
-
-        // Write as CSV
-        $csv = implode(',', $appSites);
-        file_put_contents($csvFilePath, $csv);
-    }
-
-    private static function loadAppSitesInternal(string $wwwrootPath): array
-    {
-        $appDataPath = $wwwrootPath . DIRECTORY_SEPARATOR . 'App_Data';
-        $csvFilePath = $appDataPath . DIRECTORY_SEPARATOR . 'appsites.csv';
-
-        // Generate if not exists
-        if (!file_exists($csvFilePath)) {
-            self::generateAppSitesCsv($wwwrootPath);
-        }
-
-        // Read and parse CSV
-        $csv = trim(file_get_contents($csvFilePath));
-
-        if (empty($csv)) {
-            throw new \Exception('appsites.csv is empty');
-        }
-
-        $appSites = array_map('trim', explode(',', $csv));
-        $appSites = array_filter($appSites, fn($s) => !empty($s));
-
-        if (empty($appSites)) {
-            throw new \Exception('No AppSites found in appsites.csv');
-        }
-
-        // Return original case to match directory names, comparison should be case-insensitive
-        return $appSites;
+        return array_keys($appSites);
     }
 
     private static function calculateTotalTemplateSize(string $appSitesPath, string $appSite): int
@@ -375,8 +323,8 @@ class ConfigUtil
     public static function load(string $wwwrootPath): void
     {
         self::$wwwrootPath = $wwwrootPath;
-        self::$cachedAppSites = self::loadAppSitesInternal($wwwrootPath);
         self::$cachedScenarios = self::loadScenariosInternal($wwwrootPath);
+        self::$cachedAppSites = self::extractAppSitesFromScenarios(self::$cachedScenarios);
     }
 
     public static function reload(): void
@@ -385,8 +333,8 @@ class ConfigUtil
             throw new \Exception('ConfigUtil not loaded. Call load(wwwrootPath) first.');
         }
 
-        self::$cachedAppSites = self::loadAppSitesInternal(self::$wwwrootPath);
         self::$cachedScenarios = self::loadScenariosInternal(self::$wwwrootPath);
+        self::$cachedAppSites = self::extractAppSitesFromScenarios(self::$cachedScenarios);
     }
 
     public static function getAppSites(): array
