@@ -26,69 +26,17 @@ class ConfigUtil {
     static _cachedScenarios = null;
     static _wwwrootPath = null;
 
-    static async generateAppSitesCsv(wwwrootPath) {
-        const appSitesPath = path.join(wwwrootPath, 'AppSites');
-        const appDataPath = path.join(wwwrootPath, 'App_Data');
-        const csvFilePath = path.join(appDataPath, 'appsites.csv');
-
-        try {
-            await fs.access(appSitesPath);
-        } catch {
-            throw new Error(`AppSites directory not found: ${appSitesPath}`);
+    static extractAppSitesFromScenarios(scenarios) {
+        const appSitesSet = new Set();
+        for (const scenario of scenarios) {
+            if (scenario.appSite) {
+                appSitesSet.add(scenario.appSite.toLowerCase());
+            }
         }
 
-        // Ensure App_Data directory exists
-        await fs.mkdir(appDataPath, { recursive: true });
+        console.log(`[ConfigUtil] Extracted ${appSitesSet.size} AppSites from scenarios.csv`);
 
-        // Get all directories in AppSites folder
-        const entries = await fs.readdir(appSitesPath, { withFileTypes: true });
-        let appSites = entries
-            .filter(dirent => dirent.isDirectory())
-            .map(dirent => dirent.name)
-            .sort();
-
-        // Add Index if not present
-        if (!appSites.includes('Index')) {
-            appSites.push('Index');
-        }
-
-        // Write as CSV
-        const csv = appSites.join(',');
-        await fs.writeFile(csvFilePath, csv);
-
-        console.log(`[ConfigUtil] Generated appsites.csv with ${appSites.length} AppSites`);
-    }
-
-    static async loadAppSitesInternal(wwwrootPath) {
-        const appDataPath = path.join(wwwrootPath, 'App_Data');
-        const csvFilePath = path.join(appDataPath, 'appsites.csv');
-
-        // Generate if not exists
-        try {
-            await fs.access(csvFilePath);
-        } catch {
-            console.log('[ConfigUtil] appsites.csv not found, generating...');
-            await this.generateAppSitesCsv(wwwrootPath);
-        }
-
-        // Read and parse CSV
-        const csv = (await fs.readFile(csvFilePath, 'utf8')).trim();
-
-        if (!csv) {
-            throw new Error('appsites.csv is empty');
-        }
-
-        const appSites = csv.split(',')
-            .map(s => s.trim())
-            .filter(s => s.length > 0);
-
-        if (appSites.length === 0) {
-            throw new Error('No AppSites found in appsites.csv');
-        }
-
-        console.log(`[ConfigUtil] Loaded ${appSites.length} AppSites from appsites.csv`);
-
-        return new Set(appSites.map(s => s.toLowerCase()));
+        return appSitesSet;
     }
 
     static async calculateTotalTemplateSize(appSitesPath, appSite) {
@@ -333,8 +281,8 @@ class ConfigUtil {
 
     static async load(wwwrootPath) {
         this._wwwrootPath = wwwrootPath;
-        this._cachedAppSites = await this.loadAppSitesInternal(wwwrootPath);
         this._cachedScenarios = await this.loadScenariosInternal(wwwrootPath);
+        this._cachedAppSites = this.extractAppSitesFromScenarios(this._cachedScenarios);
     }
 
     static async reload() {
@@ -342,8 +290,8 @@ class ConfigUtil {
             throw new Error('ConfigUtil not loaded. Call load(wwwrootPath) first.');
         }
 
-        this._cachedAppSites = await this.loadAppSitesInternal(this._wwwrootPath);
         this._cachedScenarios = await this.loadScenariosInternal(this._wwwrootPath);
+        this._cachedAppSites = this.extractAppSitesFromScenarios(this._cachedScenarios);
     }
 
     static getAppSites() {

@@ -299,7 +299,7 @@ app.get('/openapi.json', (req, res) => {
 });
 
 // Routes
-app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess));
+app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ConfigUtil));
 
 app.get('/api/scenarios', (req, res) => scenariosEndpoint(req, res, ConfigUtil));
 

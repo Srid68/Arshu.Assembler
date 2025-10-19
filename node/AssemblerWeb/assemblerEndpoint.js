@@ -20,10 +20,43 @@ const { dumpPreprocessedTemplateStructures } = testingUtilsModule;
 /**
  * GET / - Root endpoint using Default AppSite
  */
-export async function indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess) {
+export async function indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ConfigUtil) {
   try {
-    // Use Default AppSite with engine toggle parameter
+    // Get appsite from query parameter or use default
     const rootDirPath = path.join(__dirname, 'wwwroot');
+
+    let appSite = DEFAULT_APP_SITE;
+    let appFile = 'index';
+
+    // Get appsite from query parameter
+    const requestedAppSite = req.query.appsite;
+
+    // If appsite query param is provided, validate it exists in scenarios
+    if (requestedAppSite) {
+      // Validate AppSite against allowlist
+      const validAppSites = getValidAppSites();
+      if (!validAppSites.has(requestedAppSite.toLowerCase())) {
+        return res.status(400).send('Invalid AppSite value');
+      }
+
+      // Validate path components for path traversal attacks
+      if (!isValidPathComponent(requestedAppSite)) {
+        return res.status(400).send('Invalid characters in AppSite');
+      }
+
+      // Get AppFile from scenarios
+      const scenarios = ConfigUtil.getScenarios();
+      const matchingScenario = scenarios.find(s =>
+        s.appSite.toLowerCase() === requestedAppSite.toLowerCase() && !s.appView
+      );
+
+      if (!matchingScenario) {
+        return res.status(400).send(`No matching scenario found for AppSite='${requestedAppSite}' without AppView`);
+      }
+
+      appSite = matchingScenario.appSite;
+      appFile = matchingScenario.appFile;
+    }
 
     // Get engine type from query parameter (default to Normal)
     const engineType = req.query.engine || 'Normal';
@@ -33,18 +66,18 @@ export async function indexEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
       return res.status(400).send('Invalid engine type. Use \'Normal\' or \'PreProcess\'');
     }
 
-    // Load templates for Default AppSite
-    const normalTemplatesRaw = LoaderNormal.loadGetTemplateFiles(rootDirPath, DEFAULT_APP_SITE);
-    const preprocessTemplatesRaw = LoaderPreProcess.loadProcessGetTemplateFiles(rootDirPath, DEFAULT_APP_SITE);
+    // Load templates for requested AppSite
+    const normalTemplatesRaw = LoaderNormal.loadGetTemplateFiles(rootDirPath, appSite);
+    const preprocessTemplatesRaw = LoaderPreProcess.loadProcessGetTemplateFiles(rootDirPath, appSite);
 
-    // Merge using selected engine (no AppView context for Default AppSite)
+    // Merge using selected engine (no AppView context)
     let mergedHtml;
     if (engineType.toLowerCase() === 'preprocess') {
       const engine = new EnginePreProcess();
-      mergedHtml = engine.mergeTemplates(DEFAULT_APP_SITE, 'index', null, preprocessTemplatesRaw.templates);
+      mergedHtml = engine.mergeTemplates(appSite, appFile, null, preprocessTemplatesRaw.templates);
     } else {
       const engine = new EngineNormal();
-      mergedHtml = engine.mergeTemplates(DEFAULT_APP_SITE, 'index', null, normalTemplatesRaw);
+      mergedHtml = engine.mergeTemplates(appSite, appFile, null, normalTemplatesRaw);
     }
 
     res.setHeader('Content-Type', 'text/html');
