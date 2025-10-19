@@ -1,8 +1,0 @@
-{
-  "NormalResultId": "normal-result",
-  "NormalTimingBarId": "normal-timing-bar",
-  "PreProcessResultId": "preprocess-result",
-  "PreProcessTimingBarId": "preprocess-timing-bar",
-  "NormalTemplateId": "normal-template",
-  "PreProcessTemplateId": "preprocess-template"
-}
