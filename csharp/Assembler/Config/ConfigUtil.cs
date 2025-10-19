@@ -44,79 +44,17 @@ public static class ConfigUtil
     private static string? _wwwrootPath = null;
 
     /// <summary>
-    /// Discovers AppSites by scanning the AppSites folder and generates appsites.csv
+    /// Extracts unique AppSites from scenarios
     /// </summary>
-    private static void GenerateAppSitesCsv(string wwwrootPath)
+    private static HashSet<string> ExtractAppSitesFromScenarios(List<Scenario> scenarios)
     {
-        var appSitesPath = Path.Combine(wwwrootPath, "AppSites");
-        var appDataPath = Path.Combine(wwwrootPath, "App_Data");
-        var csvFilePath = Path.Combine(appDataPath, "appsites.csv");
-
-        if (!Directory.Exists(appSitesPath))
-        {
-            throw new DirectoryNotFoundException($"AppSites directory not found: {appSitesPath}");
-        }
-
-        // Ensure App_Data directory exists
-        if (!Directory.Exists(appDataPath))
-        {
-            Directory.CreateDirectory(appDataPath);
-        }
-
-        // Get all directories in AppSites folder
-        var appSites = Directory.GetDirectories(appSitesPath)
-            .Select(dir => Path.GetFileName(dir))
-            .Where(dirName => !string.IsNullOrEmpty(dirName))
-            .OrderBy(name => name)
-            .ToList();
-
-        // Add Index as it's a valid AppSite
-        if (!appSites.Contains("Index"))
-        {
-            appSites.Add("Index");
-        }
-
-        // Write as CSV (comma-delimited)
-        var csv = string.Join(",", appSites);
-        File.WriteAllText(csvFilePath, csv);
-
-        Console.WriteLine($"[ConfigUtil] Generated appsites.csv with {appSites.Count} AppSites");
-    }
-
-    /// <summary>
-    /// Loads AppSites from appsites.csv, generates it if it doesn't exist (internal method)
-    /// </summary>
-    private static HashSet<string> LoadAppSitesInternal(string wwwrootPath)
-    {
-        var appDataPath = Path.Combine(wwwrootPath, "App_Data");
-        var csvFilePath = Path.Combine(appDataPath, "appsites.csv");
-
-        // Generate appsites.csv if it doesn't exist
-        if (!File.Exists(csvFilePath))
-        {
-            Console.WriteLine($"[ConfigUtil] appsites.csv not found, generating...");
-            GenerateAppSitesCsv(wwwrootPath);
-        }
-
-        // Read and parse CSV
-        var csv = File.ReadAllText(csvFilePath).Trim();
-
-        if (string.IsNullOrWhiteSpace(csv))
-        {
-            throw new InvalidOperationException("appsites.csv is empty");
-        }
-
-        var appSites = csv.Split(',')
-            .Select(s => s.Trim())
+        var appSites = scenarios
+            .Select(s => s.AppSite)
             .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (appSites.Count == 0)
-        {
-            throw new InvalidOperationException("No AppSites found in appsites.csv");
-        }
-
-        Console.WriteLine($"[ConfigUtil] Loaded {appSites.Count} AppSites from appsites.csv");
+        Console.WriteLine($"[ConfigUtil] Extracted {appSites.Count} AppSites from scenarios.csv");
 
         return new HashSet<string>(appSites, StringComparer.OrdinalIgnoreCase);
     }
@@ -419,8 +357,8 @@ public static class ConfigUtil
         lock (_cacheLock)
         {
             _wwwrootPath = wwwrootPath;
-            _cachedAppSites = LoadAppSitesInternal(wwwrootPath);
             _cachedScenarios = LoadScenariosInternal(wwwrootPath);
+            _cachedAppSites = ExtractAppSitesFromScenarios(_cachedScenarios);
         }
     }
 
@@ -434,8 +372,8 @@ public static class ConfigUtil
             if (_wwwrootPath == null)
                 throw new InvalidOperationException("ConfigUtil not loaded. Call Load(wwwrootPath) first.");
 
-            _cachedAppSites = LoadAppSitesInternal(_wwwrootPath);
             _cachedScenarios = LoadScenariosInternal(_wwwrootPath);
+            _cachedAppSites = ExtractAppSitesFromScenarios(_cachedScenarios);
         }
     }
 

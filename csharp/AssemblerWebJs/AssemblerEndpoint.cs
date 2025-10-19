@@ -64,8 +64,37 @@ namespace AssemblerWebJs
 
             assemblerGroup.MapGet("/", (HttpContext context) =>
             {
-                // Use Default AppSite with engine toggle parameter
+                // Get appsite from query parameter or use default
                 string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
+
+                var requestedAppSite = context.Request.Query["appsite"].ToString();
+                string appSite = DefaultAppSite;
+                string appFile = "index";
+
+                // If appsite query param is provided, validate it exists in scenarios
+                if (!string.IsNullOrEmpty(requestedAppSite))
+                {
+                    // Validate AppSite against allowlist
+                    var validAppSites = SecurityValidator.GetValidAppSites();
+                    if (!validAppSites.Contains(requestedAppSite))
+                        return Results.BadRequest("Invalid AppSite value");
+
+                    // Validate path components for path traversal attacks
+                    if (!SecurityValidator.IsValidPathComponent(requestedAppSite))
+                        return Results.BadRequest("Invalid characters in AppSite");
+
+                    // Get AppFile from scenarios
+                    var scenarios = ConfigUtil.GetScenarios();
+                    var matchingScenario = scenarios.FirstOrDefault(s =>
+                        s.AppSite.Equals(requestedAppSite, StringComparison.OrdinalIgnoreCase) &&
+                        string.IsNullOrEmpty(s.AppView));
+
+                    if (matchingScenario == null)
+                        return Results.BadRequest($"No matching scenario found for AppSite='{requestedAppSite}' without AppView");
+
+                    appSite = requestedAppSite;
+                    appFile = matchingScenario.AppFile;
+                }
 
                 // Get engine type from query parameter (default to Normal)
                 var engineType = context.Request.Query["engine"].ToString();
@@ -78,28 +107,28 @@ namespace AssemblerWebJs
                 if (!SecurityValidator.ValidEngineTypes.Contains(engineType))
                     return Results.BadRequest("Invalid engine type. Use 'Normal' or 'PreProcess'");
 
-                // Load templates for Default AppSite
-                var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, DefaultAppSite);
-                var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, DefaultAppSite);
+                // Load templates for requested AppSite
+                var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite);
+                var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, appSite);
 
-                // Merge using selected engine (no AppView context for Default AppSite)
+                // Merge using selected engine (no AppView context)
                 string mergedHtml = "";
                 if (engineType.Equals("PreProcess", StringComparison.OrdinalIgnoreCase))
                 {
                     var engine = new EnginePreProcess();
-                    mergedHtml = engine.MergeTemplates(DefaultAppSite, "index", null, preprocessTemplatesRaw.Templates);
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, preprocessTemplatesRaw.Templates);
                 }
                 else
                 {
                     var engine = new EngineNormal();
-                    mergedHtml = engine.MergeTemplates(DefaultAppSite, "index", null, normalTemplatesRaw);
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, normalTemplatesRaw);
                 }
 
                 return Results.Content(mergedHtml, "text/html");
             })
             .WithName("GetRootUrl")
-            .WithDisplayName("Get Method to Test Merging with Default AppSite")
-            .WithDescription("Get Method to Test Merging with Default AppSite - use ?engine=Normal or ?engine=PreProcess")
+            .WithDisplayName("Get Method to Test Merging with AppSite")
+            .WithDescription("Get Method to Test Merging with AppSite - use ?appsite={AppSite}&engine=Normal or ?engine=PreProcess")
             .WithTags("Root");
 
             #endregion
