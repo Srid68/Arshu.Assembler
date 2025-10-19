@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Arshu Assembler Architecture - Technical design and implementation details">
+    <title>Architecture - Arshu Assembler</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #ffd700;
+            --bg-color: #f5f7fa;
+            --white: #ffffff;
+            --gray-dark: #333;
+            --gray: #666;
+            --gray-light: #e0e0e0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-dark);
+            background: var(--bg-color);
+        }
+
+        .header {
+            background: var(--primary-gradient);
+            color: var(--white);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav {
+            background: var(--white);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .nav a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .nav a:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.8em;
+            border-bottom: 3px solid var(--accent-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .section h3 {
+            color: var(--secondary-color);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 1.3em;
+        }
+
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        .comparison-table th {
+            background: var(--primary-gradient);
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        .comparison-table tr:hover {
+            background: #f9f9f9;
+        }
+
+        ul {
+            margin-left: 2rem;
+            margin-top: 0.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        .component-box {
+            background: #f9f9f9;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .component-box h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.6em;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .section {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Architecture</h1>
+        <p>Technical design and implementation details</p>
+    </div>
+
+    <div class="nav">
+        <a href="../index.html">← Back to Home</a>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h2>Overview</h2>
+            <p>
+                Arshu Assembler is a polyglot declarative framework implementing a component-oriented architecture
+                for composing markup and data. The framework follows consistent design patterns across all language
+                implementations while respecting idiomatic conventions of each language.
+            </p>
+
+            <div class="highlight-box">
+                <strong>Key Design Principle:</strong> Structural consistency across all language implementations
+                is crucial. The same logic and structure is maintained across C#, Rust, Go, Node.js, PHP, and JavaScript,
+                using idiomatic patterns in respective languages.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Two Engine Architecture</h2>
+            <p>The assembler implements two distinct engines for template processing:</p>
+
+            <div class="component-box">
+                <h4>Normal Engine</h4>
+                <ul>
+                    <li>Combines parsing and merging in a single pass</li>
+                    <li>Processes templates on-the-fly</li>
+                    <li>Simpler implementation with less memory overhead</li>
+                    <li>Ideal for straightforward template scenarios</li>
+                </ul>
+            </div>
+
+            <div class="component-box">
+                <h4>PreProcess Engine</h4>
+                <ul>
+                    <li>Separates parsing from merging into distinct phases</li>
+                    <li>Parses templates and JSON into intermediate data structures</li>
+                    <li>Performs all JSON merging in the engine phase</li>
+                    <li>Provides better debugging and template analysis capabilities</li>
+                    <li>Outputs structure dumps for validation (template_analysis folder)</li>
+                </ul>
+            </div>
+
+            <h3>Role Separation</h3>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Normal Engine</th>
+                        <th>PreProcess Engine</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Loader</strong></td>
+                        <td>Loads templates</td>
+                        <td>Parse templates and structure, Parse JSON (no merging)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Engine</strong></td>
+                        <td>Parse and merge together</td>
+                        <td>Use parsed data to merge templates, All JSON merging happens here</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Core Components</h2>
+
+            <h3>Assembler Library</h3>
+            <p>The core library that implements:</p>
+            <ul>
+                <li>Normal Engine and PreProcess Engine implementations</li>
+                <li>Template parsing and merging logic</li>
+                <li>Five composition rules (Direct, Slotted, Contextual, JSON Key, JSON Array)</li>
+                <li>File system abstraction for loading templates</li>
+            </ul>
+
+            <h3>AssemblerTest</h3>
+            <p>Comprehensive test suite that:</p>
+            <ul>
+                <li>Validates all composition rules</li>
+                <li>Compares outputs between Normal and PreProcess engines</li>
+                <li>Provides performance benchmarking</li>
+                <li>Generates template structure analysis dumps</li>
+                <li>Supports command-line options for targeted testing</li>
+            </ul>
+
+            <h3>AssemblerWeb</h3>
+            <p>Web server implementation that:</p>
+            <ul>
+                <li>Exposes assembler functionality via HTTP endpoints</li>
+                <li>Provides interactive demo UI</li>
+                <li>Supports both server-side and client-side assembly (JavaScript)</li>
+                <li>Includes idle tracking for resource optimization</li>
+                <li>Serves static assets and AppSites</li>
+            </ul>
+
+            <h3>AssemblerWebJs (C# only)</h3>
+            <p>Specialized server for client-side JavaScript assembly:</p>
+            <ul>
+                <li>Hosts the JavaScript assembler implementation</li>
+                <li>Demonstrates client-side assembly capabilities</li>
+                <li>Provides comparison with server-side implementations</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Template Processing Flow</h2>
+
+            <h3>Normal Engine Flow</h3>
+            <div class="code-block">
+1. Load Template Files<br>
+2. Parse & Merge Simultaneously<br>
+&nbsp;&nbsp; - Identify placeholders<br>
+&nbsp;&nbsp; - Replace with component content or JSON data<br>
+&nbsp;&nbsp; - Process nested components recursively<br>
+3. Output Final HTML
+            </div>
+
+            <h3>PreProcess Engine Flow</h3>
+            <div class="code-block">
+1. Load & Parse Templates<br>
+&nbsp;&nbsp; - Build template structure tree<br>
+&nbsp;&nbsp; - Identify all placeholders and slots<br>
+&nbsp;&nbsp; - Parse JSON data into objects<br>
+&nbsp;&nbsp; - Output structure dump (for debugging)<br>
+2. Merge Phase<br>
+&nbsp;&nbsp; - Walk the structure tree<br>
+&nbsp;&nbsp; - Resolve all placeholders<br>
+&nbsp;&nbsp; - Apply JSON data bindings<br>
+&nbsp;&nbsp; - Handle array iterations and conditionals<br>
+3. Output Final HTML
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>File Organization</h2>
+
+            <h3>AppSite Structure</h3>
+            <p>Each AppSite (test case) follows a consistent structure:</p>
+
+            <div class="code-block">
+AppSites/<br>
+└── &lt;AppSiteName&gt;/<br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── index.html          # Main entry template<br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── Index.json          # Data file (if needed)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── Component/          # Reusable components<br>
+&nbsp;&nbsp;&nbsp;&nbsp;│   ├── Header.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;│   └── Footer.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── Common/             # Shared layouts<br>
+&nbsp;&nbsp;&nbsp;&nbsp;│   └── Layout.html<br>
+&nbsp;&nbsp;&nbsp;&nbsp;└── Views/              # Context-specific views<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── ViewA/<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── ViewB/
+            </div>
+
+            <h3>Output Structure</h3>
+            <div class="code-block">
+template_analysis/<br>
+└── output/<br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── &lt;AppSite&gt;_normal.html       # Normal engine output<br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── &lt;AppSite&gt;_preprocess.html   # PreProcess engine output<br>
+&nbsp;&nbsp;&nbsp;&nbsp;└── structure/                   # Debug dumps (PreProcess only)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── &lt;AppSite&gt;_structure.json
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Design Patterns</h2>
+
+            <h3>Consistent Naming Conventions</h3>
+            <ul>
+                <li>Placeholder: <code>{{'{{'}}ComponentName{{'}}'}}</code></li>
+                <li>JSON Data: <code>{{'{{'}}$JsonKey{{'}}'}}</code></li>
+                <li>Slot Definition: <code>{{'{{'}}$SlotName{{'}}'}}</code></li>
+                <li>Slot Usage: <code>{{'{{'}}@SlotName}}...{{'{{'}}/@SlotName{{'}}'}}</code></li>
+                <li>Layout Block: <code>{{'{{'}}#LayoutName}}...{{'{{'}}  /LayoutName{{'}}'}}</code></li>
+                <li>Array Iteration: <code>{{'{{'}}@ArrayKey}}...{{'{{'}}  /ArrayKey{{'}}'}}</code></li>
+                <li>Empty State: <code>{{'{{'}}^ArrayKey}}...{{'{{'}}  /ArrayKey{{'}}'}}</code></li>
+            </ul>
+
+            <h3>No Regular Expressions</h3>
+            <p>
+                The framework explicitly avoids using regular expressions for parsing, instead using:
+            </p>
+            <ul>
+                <li>String scanning and tokenization</li>
+                <li>Character-by-character parsing</li>
+                <li>Stack-based block tracking</li>
+                <li>Explicit state machines</li>
+            </ul>
+
+            <div class="highlight-box">
+                <strong>Rationale:</strong> Avoiding regex ensures predictable behavior, better error messages,
+                and easier debugging across different language implementations.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Language Implementations</h2>
+
+            <h3>Implementation Philosophy</h3>
+            <p>
+                All language implementations follow the same core logic and structure, adapted to each language's
+                idiomatic patterns:
+            </p>
+
+            <ul>
+                <li><strong>C#:</strong> Object-oriented with LINQ for data processing</li>
+                <li><strong>Rust:</strong> Memory-safe with ownership patterns and Result types</li>
+                <li><strong>Go:</strong> Concurrent patterns with goroutines for performance</li>
+                <li><strong>Node.js:</strong> Asynchronous I/O with Promises</li>
+                <li><strong>PHP:</strong> Procedural and object-oriented hybrid</li>
+                <li><strong>JavaScript:</strong> Client-side browser execution</li>
+            </ul>
+
+            <div class="highlight-box">
+                <strong>Validation Strategy:</strong> Each implementation is validated by comparing outputs
+                across all languages to ensure identical results for the same inputs.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Performance Considerations</h2>
+
+            <h3>Idle Tracking</h3>
+            <p>
+                All web servers implement idle tracking for deployment optimization:
+            </p>
+            <ul>
+                <li>Auto-shutdown after 10 seconds of inactivity (configurable)</li>
+                <li>Reduces resource consumption in cloud environments</li>
+                <li>Usage-based infrastructure model</li>
+                <li>Can be disabled with <code>--skipIdleTracking</code> flag</li>
+            </ul>
+
+            <h3>Performance Testing</h3>
+            <p>
+                The test suite includes performance benchmarking:
+            </p>
+            <ul>
+                <li>Measures template processing time</li>
+                <li>Compares Normal vs PreProcess engine performance</li>
+                <li>Identifies bottlenecks across implementations</li>
+                <li>Provides timing bars in the demo UI</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Future Architecture</h2>
+
+            <h3>Planned Features</h3>
+            <ul>
+                <li><strong>Data Flow:</strong> Hierarchical and cross-cutting data merging strategies</li>
+                <li><strong>Partial Rendering:</strong> Optimized UI Leaf updates (similar to virtual DOM)</li>
+                <li><strong>Markup Binding:</strong> HTMX-like event binding for full-stack interactivity</li>
+                <li><strong>API Connection:</strong> Uniform API for Ajax, WebSocket, WebRTC, WebTransport</li>
+                <li><strong>Expression Parsing:</strong> Dynamic content generation with expressions</li>
+                <li><strong>Metadata Generation:</strong> Automatic metadata extraction and generation</li>
+            </ul>
+
+            <div style="margin-top: 2rem; text-align: center;">
+                <a href="../index.html" style="display: inline-block; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                    Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

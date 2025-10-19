@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Arshu Polyglot Assembler Framework - A declarative framework for app creation across multiple languages">
+    <meta property="og:title" content="Arshu Polyglot Assembler Framework">
+    <meta property="og:description" content="AI-assisted polyglot declarative framework for app creation, inspired by Mustache, React, and HTMX">
+    <meta property="og:type" content="website">
+    <meta name="theme-color" content="#667eea">
+    <title>Arshu Polyglot Assembler Framework</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #ffd700;
+            --bg-color: #f5f7fa;
+            --white: #ffffff;
+            --gray-dark: #333;
+            --gray: #666;
+            --gray-light: #e0e0e0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-dark);
+            background: var(--bg-color);
+        }
+
+        .header {
+            background: var(--primary-gradient);
+            color: var(--white);
+            padding: 3rem 2rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .ai-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            margin-top: 1rem;
+            font-size: 0.9em;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 2em;
+            border-bottom: 3px solid var(--accent-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .section h3 {
+            color: var(--secondary-color);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 1.4em;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .demo-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: var(--white);
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .demo-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .demo-card h3 {
+            color: var(--white);
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+
+        .demo-card p {
+            opacity: 0.9;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .feature-item {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .feature-item h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 1.1em;
+        }
+
+        .status-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .status-table th,
+        .status-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        .status-table th {
+            background: var(--primary-gradient);
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        .status-table tr:hover {
+            background: #f9f9f9;
+        }
+
+        .status-check {
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+            justify-content: center;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: var(--white);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--white);
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--primary-color);
+            color: var(--white);
+        }
+
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .phase-timeline {
+            position: relative;
+            padding-left: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .phase-item {
+            position: relative;
+            padding: 1rem 0 1rem 2rem;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .phase-item::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 1.5rem;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            border: 3px solid var(--white);
+            box-shadow: 0 0 0 3px var(--primary-color);
+        }
+
+        .phase-item h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .phase-item.completed::before {
+            background: #10b981;
+            box-shadow: 0 0 0 3px #10b981;
+        }
+
+        .phase-item.completed {
+            border-left-color: #10b981;
+        }
+
+        .phase-item.completed h4 {
+            color: #10b981;
+        }
+
+        footer {
+            background: var(--gray-dark);
+            color: var(--white);
+            text-align: center;
+            padding: 2rem;
+            margin-top: 3rem;
+        }
+
+        footer a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        ul {
+            margin-left: 2rem;
+            margin-top: 0.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .header p {
+                font-size: 1em;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .section {
+                padding: 1.5rem;
+            }
+
+            .section h2 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Arshu Polyglot Assembler Framework</h1>
+        <p>A declarative framework for app creation across multiple languages</p>
+        <div class="ai-badge">✨ AI-Assisted Development</div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h2>Overview</h2>
+            <p>
+                Arshu Assembler is a <strong>polyglot declarative framework</strong> for app creation, inspired by abstractions from
+                Mustache, React, and HTMX. This project is a multi-language implementation recreated using AI-assisted development
+                in multiple programming languages.
+            </p>
+            <p style="margin-top: 1rem;">
+                This repository represents <strong>Phase 2</strong> of a larger project to build a polyglot web framework.
+            </p>
+
+            <div class="phase-timeline">
+                <div class="phase-item completed">
+                    <h4>Phase 1: Arshu Proxy</h4>
+                    <p>Multi-language Proxy - <a href="https://github.com/Arshu/Arshu.Proxy/" target="_blank" style="color: #10b981;">View Repository</a></p>
+                </div>
+                <div class="phase-item completed">
+                    <h4>Phase 2: Arshu Static Assembler</h4>
+                    <p>Static Assembly (This Repository)</p>
+                </div>
+                <div class="phase-item">
+                    <h4>Phase 3: Dynamic Server-Side Assembly</h4>
+                    <p>Planned</p>
+                </div>
+                <div class="phase-item">
+                    <h4>Phase 4: Integrated Full-Stack Framework</h4>
+                    <p>Planned</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Live Demos</h2>
+            <p>Try out the Arshu Assembler in different languages, all deployed on fly.io:</p>
+            <div class="demo-grid">
+                <a href="https://jsassembler.fly.dev" class="demo-card" target="_blank">
+                    <h3>JavaScript</h3>
+                    <p>Client-Side Assembly</p>
+                </a>
+                <a href="https://csharpassembler.fly.dev" class="demo-card" target="_blank">
+                    <h3>C#</h3>
+                    <p>Server-Side Assembly</p>
+                </a>
+                <a href="https://rustassembler.fly.dev" class="demo-card" target="_blank">
+                    <h3>Rust</h3>
+                    <p>Server-Side Assembly</p>
+                </a>
+                <a href="https://goassembler.fly.dev" class="demo-card" target="_blank">
+                    <h3>Go</h3>
+                    <p>Server-Side Assembly</p>
+                </a>
+                <a href="https://nodeassembler.fly.dev" class="demo-card" target="_blank">
+                    <h3>Node.js</h3>
+                    <p>Server-Side Assembly</p>
+                </a>
+                <a href="https://phpassembler.fly.dev" class="demo-card" target="_blank">
+                    <h3>PHP</h3>
+                    <p>Server-Side Assembly</p>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Core Features</h2>
+            <p>The framework implements a component-oriented architecture for composing markup and data.</p>
+
+            <div class="features-grid">
+                <div class="feature-item">
+                    <h4>Direct Composition</h4>
+                    <p>Directly compose markup with placeholder-based inclusion</p>
+                </div>
+                <div class="feature-item">
+                    <h4>Slotted Composition</h4>
+                    <p>Compose markup into numbered slots for reusable layouts</p>
+                </div>
+                <div class="feature-item">
+                    <h4>AppView Context</h4>
+                    <p>Compose markup based on view context for dynamic rendering</p>
+                </div>
+                <div class="feature-item">
+                    <h4>JSON Key Composition</h4>
+                    <p>Merge markup with JSON objects for data binding</p>
+                </div>
+                <div class="feature-item">
+                    <h4>JSON Array Composition</h4>
+                    <p>Render markup iteratively with JSON arrays</p>
+                </div>
+                <div class="feature-item">
+                    <h4>Dual Engines</h4>
+                    <p>Normal and PreProcess engines for different assembly strategies</p>
+                </div>
+            </div>
+
+            <div class="cta-buttons">
+                <a href="docs/rules.html" class="btn btn-primary">View Composition Rules</a>
+                <a href="docs/getting-started.html" class="btn btn-secondary">Getting Started</a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Project Status</h2>
+            <p>All language implementations are complete with full feature parity:</p>
+
+            <table class="status-table">
+                <thead>
+                    <tr>
+                        <th>Language</th>
+                        <th>Assembler (Static)</th>
+                        <th>AssemblerTest</th>
+                        <th>AssemblerWeb</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>C#</strong></td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Rust</strong></td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Go</strong></td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Node.js</strong></td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                    </tr>
+                    <tr>
+                        <td><strong>PHP</strong></td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                    </tr>
+                    <tr>
+                        <td><strong>JavaScript</strong></td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                        <td class="status-check">✅ Complete</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Quick Start</h2>
+
+            <h3>C#</h3>
+            <div class="code-block">cd csharp\AssemblerTest<br>dotnet run .<br><br># Run the web application<br>cd ..\AssemblerWeb<br>dotnet run .</div>
+
+            <h3>Rust</h3>
+            <div class="code-block">cd rust\AssemblerTest<br>cargo run .<br><br># Run the web application<br>cd ..\AssemblerWeb<br>cargo run .</div>
+
+            <h3>Go</h3>
+            <div class="code-block">cd go/AssemblerTest<br>go run .<br><br># Run the web application<br>cd ../AssemblerWeb<br>go run .</div>
+
+            <h3>Node.js</h3>
+            <div class="code-block">cd node/AssemblerTest<br>npm install<br>node index.js<br><br># Run the web application<br>cd ../AssemblerWeb<br>npm install<br>npm start</div>
+
+            <h3>PHP</h3>
+            <div class="code-block">cd php/AssemblerTest<br>composer install<br>php index.php<br><br># Run the web application<br>cd ../AssemblerWeb<br>composer install<br>php -S localhost:8001 index.php</div>
+
+            <div class="cta-buttons">
+                <a href="docs/getting-started.html" class="btn btn-primary">Detailed Setup Guide</a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Documentation</h2>
+            <div class="features-grid">
+                <a href="docs/rules.html" class="feature-item" style="text-decoration: none; color: inherit;">
+                    <h4>Composition Rules</h4>
+                    <p>Learn about the five core composition rules with visual diagrams</p>
+                </a>
+                <a href="docs/architecture.html" class="feature-item" style="text-decoration: none; color: inherit;">
+                    <h4>Architecture</h4>
+                    <p>Understand the framework architecture and design patterns</p>
+                </a>
+                <a href="docs/getting-started.html" class="feature-item" style="text-decoration: none; color: inherit;">
+                    <h4>Getting Started</h4>
+                    <p>Complete guide to setting up and running the project</p>
+                </a>
+                <a href="docs/development.html" class="feature-item" style="text-decoration: none; color: inherit;">
+                    <h4>AI Development Notes</h4>
+                    <p>Insights into AI-assisted development methodology</p>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Collaboration</h2>
+            <p>Interested in collaborating? Topics of interest include:</p>
+            <ul>
+                <li>Software Assembler & Software Supply Chains</li>
+                <li>Usage-Based Infrastructure & Distributed Computing</li>
+                <li>AI-Assisted Development & AI-Assisted Migration</li>
+                <li>Subscription Freelancing & Sustainable Open Source</li>
+                <li>Building Revenue Centers Instead of Cost Centers</li>
+                <li>Financialization of Skills</li>
+            </ul>
+
+            <div style="margin-top: 1.5rem; padding: 1.5rem; background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%); border-radius: 8px; border-left: 4px solid var(--accent-color);">
+                <p><strong>📧 Contact:</strong> srid68 [at] gmail.com</p>
+                <p style="margin-top: 0.5rem;"><strong>💻 Pair Programming with AI:</strong> $100 USD per 4-hour session</p>
+                <p style="margin-top: 0.5rem;"><strong>🔄 Subscription Freelancing:</strong> $250 USD/Month for up to $10,000 USD worth of work</p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>
+            <a href="https://github.com/Arshu/Arshu.Assembler" target="_blank">GitHub Repository</a> |
+            <a href="https://github.com/Arshu/AssembleWebApps/" target="_blank">Original Arshu Assembler</a>
+        </p>
+        <p style="margin-top: 0.5rem; opacity: 0.8;">
+            Built with AI assistance using Claude Sonnet 4 and GPT-4.1
+        </p>
+    </footer>
+</body>
+</html>

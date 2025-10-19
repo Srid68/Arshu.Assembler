@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Arshu Assembler Composition Rules - Learn about the five core composition rules">
+    <title>Composition Rules - Arshu Assembler</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #ffd700;
+            --bg-color: #f5f7fa;
+            --white: #ffffff;
+            --gray-dark: #333;
+            --gray: #666;
+            --gray-light: #e0e0e0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-dark);
+            background: var(--bg-color);
+        }
+
+        .header {
+            background: var(--primary-gradient);
+            color: var(--white);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav {
+            background: var(--white);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .nav a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .nav a:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .rule-section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .rule-section h2 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.8em;
+            border-bottom: 3px solid var(--accent-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .rule-section h3 {
+            color: var(--secondary-color);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 1.3em;
+        }
+
+        .rule-number {
+            display: inline-block;
+            background: var(--primary-gradient);
+            color: var(--white);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .diagram-container {
+            margin: 1.5rem 0;
+            text-align: center;
+            padding: 1rem;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .diagram-container img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #d63384;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        ul {
+            margin-left: 2rem;
+            margin-top: 0.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.6em;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .rule-section {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Assembler Composition Rules</h1>
+        <p>Understanding the five core composition rules</p>
+    </div>
+
+    <div class="nav">
+        <a href="../index.html">← Back to Home</a>
+    </div>
+
+    <div class="container">
+        <div class="rule-section">
+            <h2>Overview</h2>
+            <p>
+                This document outlines the five core composition rules used in the Arshu Assembler framework.
+                These rules define how HTML templates and JSON data are merged to generate the final output.
+            </p>
+        </div>
+
+        <div class="rule-section">
+            <h2>
+                <span class="rule-number">1</span>
+                Direct Composition
+            </h2>
+
+            <div class="highlight-box">
+                <strong>Concept:</strong> A main template directly includes the content of another HTML file.
+            </div>
+
+            <h3>Mechanism</h3>
+            <p>
+                The main template uses a <code>{{'{{'}}ComponentName{{'}}'}}</code> placeholder. The engine replaces this
+                placeholder with the content of <code>ComponentName.html</code>, which is typically located in a
+                <code>Component/</code> subdirectory.
+            </p>
+
+            <div class="diagram-container">
+                <img src="rule_direct_composition.svg" alt="Direct Composition Diagram">
+            </div>
+
+            <h3>Example</h3>
+            <div class="code-block">
+&lt;!-- main.html --&gt;<br>
+&lt;div&gt;<br>
+&nbsp;&nbsp;{{'{{'}}Html1AContent{{'}}'}}<br>
+&lt;/div&gt;<br>
+<br>
+&lt;!-- Component/Html1AContent.html --&gt;<br>
+&lt;h3&gt;This is the content&lt;/h3&gt;
+            </div>
+        </div>
+
+        <div class="rule-section">
+            <h2>
+                <span class="rule-number">2</span>
+                Slotted Composition
+            </h2>
+
+            <div class="highlight-box">
+                <strong>Concept:</strong> A main template defines content that is then placed into a specific "slot"
+                within a reusable layout template.
+            </div>
+
+            <h3>Mechanism</h3>
+            <ul>
+                <li>A layout template (e.g., <code>center.html</code>) defines a slot using a <code>{{'{{'}}$SlotName{{'}}'}}</code> placeholder.</li>
+                <li>The main template invokes the layout using a <code>{{'{{'}}#LayoutName}}...{{'{{'}}  /LayoutName{{'}}'}}</code> block.</li>
+                <li>Inside this block, the main template specifies the content for a slot using an <code>{{'{{'}}@SlotName}}...{{'{{'}}/@SlotName{{'}}'}}</code> block.</li>
+            </ul>
+
+            <p style="margin-top: 1rem;">
+                This allows for creating reusable page layouts where only specific sections change.
+            </p>
+
+            <div class="diagram-container">
+                <img src="rule_slotted_composition.svg" alt="Slotted Composition Diagram">
+            </div>
+
+            <h3>Example</h3>
+            <div class="code-block">
+&lt;!-- Layout/Center.html --&gt;<br>
+&lt;div class="center"&gt;<br>
+&nbsp;&nbsp;{{'{{'}}$Content{{'}}'}}<br>
+&lt;/div&gt;<br>
+<br>
+&lt;!-- main.html --&gt;<br>
+{{'{{'}}#Center}}<br>
+&nbsp;&nbsp;{{'{{'}}@Content}}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;h1&gt;Hello World&lt;/h1&gt;<br>
+&nbsp;&nbsp;{{'{{'}}/@Content}}<br>
+{{'{{'}}  /Center}}
+            </div>
+        </div>
+
+        <div class="rule-section">
+            <h2>
+                <span class="rule-number">3</span>
+                Contextual Composition
+            </h2>
+
+            <div class="highlight-box">
+                <strong>Concept:</strong> A template includes content from a component whose location is determined
+                by the current application context or view.
+            </div>
+
+            <h3>Mechanism</h3>
+            <p>
+                The main template (e.g., <code>html3A.html</code>) uses a <code>{{'{{'}}ComponentName{{'}}'}}</code> placeholder.
+                The engine resolves this by looking for <code>ComponentName.html</code> within a context-specific
+                <code>Views/</code> directory. This allows different views to use the same placeholder name but load different content.
+            </p>
+
+            <div class="diagram-container">
+                <img src="rule_context_composition.svg" alt="Contextual Composition Diagram">
+            </div>
+        </div>
+
+        <div class="rule-section">
+            <h2>
+                <span class="rule-number">4</span>
+                JSON Key Composition
+            </h2>
+
+            <div class="highlight-box">
+                <strong>Concept:</strong> A template is populated with simple string values from a corresponding JSON file.
+            </div>
+
+            <h3>Mechanism</h3>
+            <ul>
+                <li>A template (e.g., <code>json1A.html</code>) is paired with a data file of the same name (<code>json1A.json</code>).</li>
+                <li>The JSON file contains simple key-value pairs.</li>
+                <li>The template uses <code>{{'{{'}}$JsonKey{{'}}'}}</code> placeholders to access and display the values from the JSON file.</li>
+            </ul>
+
+            <div class="diagram-container">
+                <img src="rule_json_key_composition.svg" alt="JSON Key Composition Diagram">
+            </div>
+
+            <h3>Example</h3>
+            <div class="code-block">
+// data.json<br>
+{<br>
+&nbsp;&nbsp;"Title": "Welcome",<br>
+&nbsp;&nbsp;"Description": "Hello World"<br>
+}<br>
+<br>
+&lt;!-- template.html --&gt;<br>
+&lt;h1&gt;{{'{{'}}$Title{{'}}'}}&lt;/h1&gt;<br>
+&lt;p&gt;{{'{{'}}$Description{{'}}'}}&lt;/p&gt;
+            </div>
+        </div>
+
+        <div class="rule-section">
+            <h2>
+                <span class="rule-number">5</span>
+                JSON Array Composition
+            </h2>
+
+            <div class="highlight-box">
+                <strong>Concept:</strong> A template iterates over an array of objects from a JSON file to generate
+                a block of HTML for each item.
+            </div>
+
+            <h3>Mechanism</h3>
+            <ul>
+                <li>A JSON file contains a key that holds an array of objects.</li>
+                <li>The template uses a <code>{{'{{'}}@ArrayKey}}...{{'{{'}}  /ArrayKey{{'}}'}}</code> block to loop through the array.</li>
+                <li>Inside the loop, <code>{{'{{'}}$ObjectKey{{'}}'}}</code> placeholders are used to access the properties of each object in the current iteration.</li>
+                <li>The framework also supports:
+                    <ul>
+                        <li>Conditional blocks: <code>{{'{{'}}@ConditionKey}}...{{'{{'}}  /ConditionKey{{'}}'}}</code> to render content if a key is true/truthy</li>
+                        <li>Empty-state blocks: <code>{{'{{'}}^ArrayKey}}...{{'{{'}}  /ArrayKey{{'}}'}}</code> for when the array is missing or empty</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <div class="diagram-container">
+                <img src="rule_json_array_composition.svg" alt="JSON Array Composition Diagram">
+            </div>
+
+            <h3>Example</h3>
+            <div class="code-block">
+// data.json<br>
+{<br>
+&nbsp;&nbsp;"Items": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{ "Name": "Item 1", "Price": 10 },<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{ "Name": "Item 2", "Price": 20 }<br>
+&nbsp;&nbsp;]<br>
+}<br>
+<br>
+&lt;!-- template.html --&gt;<br>
+{{'{{'}}@Items}}<br>
+&nbsp;&nbsp;&lt;div&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;h3&gt;{{'{{'}}$Name{{'}}'}}&lt;/h3&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;p&gt;Price: ${{'{{'}}$Price{{'}}'}}&lt;/p&gt;<br>
+&nbsp;&nbsp;&lt;/div&gt;<br>
+{{'{{'}}  /Items}}<br>
+<br>
+{{'{{'}}^Items}}<br>
+&nbsp;&nbsp;&lt;p&gt;No items available&lt;/p&gt;<br>
+{{'{{'}}  /Items}}
+            </div>
+        </div>
+
+        <div class="rule-section">
+            <h2>Summary</h2>
+            <p>
+                These five composition rules form the foundation of the Arshu Assembler framework, enabling powerful
+                and flexible template-based content generation across multiple programming languages.
+            </p>
+
+            <div style="margin-top: 2rem; text-align: center;">
+                <a href="../index.html" style="display: inline-block; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                    Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

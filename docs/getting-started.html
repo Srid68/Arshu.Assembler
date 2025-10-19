@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Getting Started with Arshu Assembler - Setup and installation guide">
+    <title>Getting Started - Arshu Assembler</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #ffd700;
+            --bg-color: #f5f7fa;
+            --white: #ffffff;
+            --gray-dark: #333;
+            --gray: #666;
+            --gray-light: #e0e0e0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-dark);
+            background: var(--bg-color);
+        }
+
+        .header {
+            background: var(--primary-gradient);
+            color: var(--white);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav {
+            background: var(--white);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .nav a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .nav a:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.8em;
+            border-bottom: 3px solid var(--accent-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .section h3 {
+            color: var(--secondary-color);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 1.3em;
+        }
+
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+            border-left: 4px solid var(--primary-color);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        .lang-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .lang-tab {
+            padding: 0.5rem 1rem;
+            background: var(--gray-light);
+            border: none;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .lang-tab.active {
+            background: var(--primary-gradient);
+            color: var(--white);
+        }
+
+        ul {
+            margin-left: 2rem;
+            margin-top: 0.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.6em;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .section {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Getting Started</h1>
+        <p>Setup and installation guide for Arshu Assembler</p>
+    </div>
+
+    <div class="nav">
+        <a href="../index.html">← Back to Home</a>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h2>Prerequisites</h2>
+            <p>Before you begin, ensure you have the following tools installed for the language you wish to work with:</p>
+
+            <h3>C#</h3>
+            <ul>
+                <li>.NET SDK (version 8.0 or later)</li>
+                <li>Download from: <a href="https://dotnet.microsoft.com/download" target="_blank">https://dotnet.microsoft.com/download</a></li>
+            </ul>
+
+            <h3>Rust</h3>
+            <ul>
+                <li>Rust and Cargo (latest stable version)</li>
+                <li>Download from: <a href="https://www.rust-lang.org/tools/install" target="_blank">https://www.rust-lang.org/tools/install</a></li>
+            </ul>
+
+            <h3>Go</h3>
+            <ul>
+                <li>Go (version 1.21 or later)</li>
+                <li>Download from: <a href="https://golang.org/dl/" target="_blank">https://golang.org/dl/</a></li>
+            </ul>
+
+            <h3>Node.js</h3>
+            <ul>
+                <li>Node.js (version 18 or later) and npm</li>
+                <li>Download from: <a href="https://nodejs.org/" target="_blank">https://nodejs.org/</a></li>
+            </ul>
+
+            <h3>PHP</h3>
+            <ul>
+                <li>PHP (version 8.0 or later) and Composer</li>
+                <li>Download PHP from: <a href="https://www.php.net/downloads" target="_blank">https://www.php.net/downloads</a></li>
+                <li>Download Composer from: <a href="https://getcomposer.org/" target="_blank">https://getcomposer.org/</a></li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Installation</h2>
+
+            <h3>Clone the Repository</h3>
+            <div class="code-block">
+git clone https://github.com/Arshu/Arshu.Assembler.git<br>
+cd Arshu.Assembler
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Running Tests</h2>
+            <p>Each language implementation includes a test suite to validate the assembler functionality.</p>
+
+            <h3>C#</h3>
+            <div class="code-block">
+cd csharp\AssemblerTest<br>
+dotnet run .
+            </div>
+
+            <h3>Rust</h3>
+            <div class="code-block">
+cd rust\AssemblerTest<br>
+cargo run .
+            </div>
+
+            <h3>Go</h3>
+            <div class="code-block">
+cd go/AssemblerTest<br>
+go run .
+            </div>
+
+            <h3>Node.js</h3>
+            <div class="code-block">
+cd node/AssemblerTest<br>
+npm install<br>
+node index.js
+            </div>
+
+            <h3>PHP</h3>
+            <div class="code-block">
+cd php/AssemblerTest<br>
+composer install<br>
+php index.php
+            </div>
+
+            <div class="info-box">
+                <strong>Testing Tips:</strong>
+                <ul style="margin-top: 0.5rem;">
+                    <li>Use <code>--skipdetails</code> flag for concise output</li>
+                    <li>Use <code>--printhtml</code> to output HTML results</li>
+                    <li>Use <code>--advancedtests</code> for advanced test scenarios</li>
+                    <li>Use <code>--appsite &lt;name&gt;</code> to test a specific appsite</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Running the Web Server</h2>
+            <p>Each language implementation includes a web server that exposes the assembler functionality.</p>
+
+            <div class="warning-box">
+                <strong>⚠️ Important:</strong> All projects have idle tracking implemented with auto shutdown after 10 seconds
+                of inactivity (for deployment on fly.io). Use <code>--skipIdleTracking</code> option when running locally.
+            </div>
+
+            <h3>C#</h3>
+            <div class="code-block">
+cd csharp\AssemblerWeb<br>
+dotnet run . --skipIdleTracking
+            </div>
+            <p style="margin-top: 0.5rem;">Access at: <code>http://localhost:5000</code></p>
+
+            <h3>C# (JavaScript Assembler)</h3>
+            <div class="code-block">
+cd csharp\AssemblerWebJs<br>
+dotnet run . --skipIdleTracking
+            </div>
+
+            <h3>Rust</h3>
+            <div class="code-block">
+cd rust\AssemblerWeb<br>
+cargo run . --skipIdleTracking
+            </div>
+            <p style="margin-top: 0.5rem;">Access at: <code>http://localhost:8080</code></p>
+
+            <h3>Go</h3>
+            <div class="code-block">
+cd go/AssemblerWeb<br>
+go run . --skipIdleTracking
+            </div>
+            <p style="margin-top: 0.5rem;">Access at: <code>http://localhost:8080</code></p>
+
+            <h3>Node.js</h3>
+            <div class="code-block">
+cd node/AssemblerWeb<br>
+npm install<br>
+npm start -- --skipIdleTracking
+            </div>
+            <p style="margin-top: 0.5rem;">Access at: <code>http://localhost:3000</code></p>
+
+            <h3>PHP</h3>
+            <div class="code-block">
+cd php/AssemblerWeb<br>
+composer install<br>
+php -S localhost:8001 index.php
+            </div>
+            <p style="margin-top: 0.5rem;">Access at: <code>http://localhost:8001</code></p>
+        </div>
+
+        <div class="section">
+            <h2>Project Structure</h2>
+            <p>The repository is organized by language, with each language having a consistent set of subprojects:</p>
+
+            <div class="code-block">
+/<br>
+├── &lt;language&gt;/<br>
+│   ├── Assembler/       # Core static site generation logic<br>
+│   ├── AssemblerTest/   # Test project for the Assembler<br>
+│   └── AssemblerWeb/    # Web server exposing the assembler<br>
+│   └── AssemblerWebJs/  # Web server for JavaScript assembler (C# only)<br>
+...
+            </div>
+
+            <h3>Key Directories</h3>
+            <ul>
+                <li><strong>Assembler/</strong> - Core library implementing the assembly logic</li>
+                <li><strong>AssemblerTest/</strong> - Test suite with various AppSites for validation</li>
+                <li><strong>AssemblerWeb/</strong> - Web server with API endpoints and demo UI</li>
+                <li><strong>wwwroot/AppSites/</strong> - Template and data files for testing</li>
+                <li><strong>template_analysis/</strong> - Debug output for template structure analysis</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Testing Specific AppSites</h2>
+            <p>To test a single AppSite with HTML output:</p>
+
+            <h3>C#</h3>
+            <div class="code-block">
+cd csharp/AssemblerTest<br>
+dotnet run -c Release -- --skipdetails --printhtml --advancedtests --appsite HtmlRule1A
+            </div>
+
+            <h3>Rust</h3>
+            <div class="code-block">
+cd rust/AssemblerTest<br>
+cargo run --release -- --skipdetails --printhtml --advancedtests --appsite HtmlRule1A
+            </div>
+
+            <h3>Go</h3>
+            <div class="code-block">
+cd go/AssemblerTest<br>
+go run . --skipdetails --printhtml --advancedtests --appsite HtmlRule1A
+            </div>
+
+            <h3>Node.js</h3>
+            <div class="code-block">
+cd node/AssemblerTest<br>
+node index.js --skipdetails --printhtml --advancedtests --appsite HtmlRule1A
+            </div>
+
+            <h3>PHP</h3>
+            <div class="code-block">
+cd php/AssemblerTest<br>
+php index.php --skipdetails --printhtml --advancedtests --appsite HtmlRule1A
+            </div>
+
+            <div class="info-box">
+                <strong>Note:</strong> Using <code>--appsite</code> without <code>--advancedtests</code> will trigger
+                performance testing, which may slow down your testing.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Next Steps</h2>
+            <ul>
+                <li><a href="rules.html">Learn about Composition Rules</a></li>
+                <li><a href="architecture.html">Understand the Architecture</a></li>
+                <li><a href="development.html">Read AI Development Notes</a></li>
+                <li>Try the <a href="../index.html#demos">Live Demos</a></li>
+            </ul>
+
+            <div style="margin-top: 2rem; text-align: center;">
+                <a href="../index.html" style="display: inline-block; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                    Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
