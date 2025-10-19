@@ -529,9 +529,9 @@ namespace AssemblerWeb
                     htmlSb.AppendLine("        </tr>");
                     foreach (var app in appPerf.Keys.OrderBy(k => k))
                     {
-                        // Find minimum time for highlighting
+                        // Find minimum time for highlighting (excluding zero values)
                         var validTimes = languages
-                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue)
+                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue && appPerf[app][lang].NormalTimeMs!.Value > 0)
                             .Select(lang => appPerf[app][lang].NormalTimeMs!.Value)
                             .ToList();
                         var minTime = validTimes.Any() ? validTimes.Min() : (double?)null;
@@ -544,6 +544,7 @@ namespace AssemblerWeb
                                 ? appPerf[app][lang].NormalTimeMs!.Value.ToString("F2")
                                 : "-";
                             var isBest = minTime.HasValue && appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue
+                                && appPerf[app][lang].NormalTimeMs!.Value > 0
                                 && Math.Abs(appPerf[app][lang].NormalTimeMs!.Value - minTime.Value) < 0.001;
                             var cssClass = isBest ? " class=\"best-perf\"" : "";
                             htmlSb.AppendLine($"            <td{cssClass}>{timeValue}</td>");
@@ -570,9 +571,9 @@ namespace AssemblerWeb
                     htmlSb.AppendLine("        </tr>");
                     foreach (var app in appPerf.Keys.OrderBy(k => k))
                     {
-                        // Find minimum time for highlighting
+                        // Find minimum time for highlighting (excluding zero values)
                         var validTimes = languages
-                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue)
+                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue && appPerf[app][lang].PreProcessTimeMs!.Value > 0)
                             .Select(lang => appPerf[app][lang].PreProcessTimeMs!.Value)
                             .ToList();
                         var minTime = validTimes.Any() ? validTimes.Min() : (double?)null;
@@ -585,6 +586,7 @@ namespace AssemblerWeb
                                 ? appPerf[app][lang].PreProcessTimeMs!.Value.ToString("F2")
                                 : "-";
                             var isBest = minTime.HasValue && appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue
+                                && appPerf[app][lang].PreProcessTimeMs!.Value > 0
                                 && Math.Abs(appPerf[app][lang].PreProcessTimeMs!.Value - minTime.Value) < 0.001;
                             var cssClass = isBest ? " class=\"best-perf\"" : "";
                             htmlSb.AppendLine($"            <td{cssClass}>{timeValue}</td>");
@@ -745,7 +747,7 @@ namespace AssemblerWeb
                         }
                         if (jsonDoc.RootElement.TryGetProperty("content", out var contentElement))
                         {
-                            logContent = contentElement.GetString() ?? "";
+                            logContent = (contentElement.GetString() ?? "").Trim();
                         }
                     }
                     catch
@@ -753,8 +755,18 @@ namespace AssemblerWeb
                         return Results.Text("Invalid JSON format", statusCode: 400);
                     }
 
-                    if (string.IsNullOrEmpty(contextName) || string.IsNullOrEmpty(logContent))
-                        return Results.Text("Missing context or content parameter", statusCode: 400);
+                    if (string.IsNullOrEmpty(contextName))
+                        return Results.Text("Missing context parameter", statusCode: 400);
+
+                    // If content is empty after trimming, return success without saving
+                    if (string.IsNullOrEmpty(logContent))
+                    {
+                        var emptyResponse = new TestResponse
+                        {
+                            Message = "No content to save"
+                        };
+                        return Results.Json(emptyResponse, AssemblerTestJsonContext.Default.TestResponse);
+                    }
 
                     // Validate context name parameter (256 char limit, no path traversal)
                     if (!SecurityValidator.IsValidPathComponent(contextName))
