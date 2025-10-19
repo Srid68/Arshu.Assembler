@@ -52,6 +52,8 @@ namespace AssemblerWeb
 
     public static class AssemblerEndpoint
     {
+        public const string DefaultAppSite = "Test";
+
         public static void MapAssemblerEndpoints(this WebApplication app)
         // POST endpoint for merging templates
         {
@@ -62,7 +64,7 @@ namespace AssemblerWeb
 
             assemblerGroup.MapGet("/", (HttpContext context) =>
             {
-                // Use Index AppSite with engine toggle parameter
+                // Use Default AppSite with engine toggle parameter
                 string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
 
                 // Get engine type from query parameter (default to Normal)
@@ -76,28 +78,28 @@ namespace AssemblerWeb
                 if (!SecurityValidator.ValidEngineTypes.Contains(engineType))
                     return Results.BadRequest("Invalid engine type. Use 'Normal' or 'PreProcess'");
 
-                // Load templates for Index AppSite
-                var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, "Index");
-                var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, "Index");
+                // Load templates for Default AppSite
+                var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, DefaultAppSite);
+                var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, DefaultAppSite);
 
-                // Merge using selected engine (no AppView context for Index)
+                // Merge using selected engine (no AppView context for Default AppSite)
                 string mergedHtml = "";
                 if (engineType.Equals("PreProcess", StringComparison.OrdinalIgnoreCase))
                 {
                     var engine = new EnginePreProcess();
-                    mergedHtml = engine.MergeTemplates("Index", "Index", null, preprocessTemplatesRaw.Templates);
+                    mergedHtml = engine.MergeTemplates(DefaultAppSite, "index", null, preprocessTemplatesRaw.Templates);
                 }
                 else
                 {
                     var engine = new EngineNormal();
-                    mergedHtml = engine.MergeTemplates("Index", "Index", null, normalTemplatesRaw);
+                    mergedHtml = engine.MergeTemplates(DefaultAppSite, "index", null, normalTemplatesRaw);
                 }
 
                 return Results.Content(mergedHtml, "text/html");
             })
             .WithName("GetRootUrl")
-            .WithDisplayName("Get Method to Test Merging with Index AppSite")
-            .WithDescription("Get Method to Test Merging with Index AppSite - use ?engine=Normal or ?engine=PreProcess")
+            .WithDisplayName("Get Method to Test Merging with Default AppSite")
+            .WithDescription("Get Method to Test Merging with Default AppSite - use ?engine=Normal or ?engine=PreProcess")
             .WithTags("Root");
 
             #endregion
