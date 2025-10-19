@@ -17,6 +17,8 @@ use Assembler\Config\ConfigUtil;
 
 class AssemblerEndpoint
 {
+    const DEFAULT_APP_SITE = 'Test';
+
     public static function indexEndpoint(ServerRequest $request, Response $response): Response
     {
         try {
@@ -33,16 +35,16 @@ class AssemblerEndpoint
             LoaderNormal::clearCache();
             LoaderPreProcess::clearCache();
 
-            $normalTemplatesRaw = LoaderNormal::loadGetTemplateFiles($rootDirPath, 'Index');
-            $preprocessTemplatesRaw = LoaderPreProcess::loadProcessGetTemplateFiles($rootDirPath, 'Index');
+            $normalTemplatesRaw = LoaderNormal::loadGetTemplateFiles($rootDirPath, self::DEFAULT_APP_SITE);
+            $preprocessTemplatesRaw = LoaderPreProcess::loadProcessGetTemplateFiles($rootDirPath, self::DEFAULT_APP_SITE);
 
             $mergedHtml = '';
             if (strcasecmp($engineType, 'PreProcess') === 0) {
                 $engine = new EnginePreProcess();
-                $mergedHtml = $engine->mergeTemplates('Index', 'Index', null, $preprocessTemplatesRaw->templates);
+                $mergedHtml = $engine->mergeTemplates(self::DEFAULT_APP_SITE, 'index', null, $preprocessTemplatesRaw->templates);
             } else {
                 $engine = new EngineNormal();
-                $mergedHtml = $engine->mergeTemplates('Index', 'Index', null, $normalTemplatesRaw);
+                $mergedHtml = $engine->mergeTemplates(self::DEFAULT_APP_SITE, 'index', null, $normalTemplatesRaw);
             }
 
             $response->getBody()->write($mergedHtml);
