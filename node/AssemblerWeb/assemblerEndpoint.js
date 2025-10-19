@@ -7,6 +7,8 @@ import { getValidAppSites, isValidEngineType, isValidAppSite, isValidPathCompone
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const DEFAULT_APP_SITE = 'Test';
+
 // Conditional import for Logger based on environment
 const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? './Assembler/src' : '../Assembler/src';
 const loggerModule = await import(`${assemblerBasePath}/common/logger.js`);
@@ -16,11 +18,11 @@ const testingUtilsModule = await import(`${assemblerBasePath}/test/testingUtils.
 const { dumpPreprocessedTemplateStructures } = testingUtilsModule;
 
 /**
- * GET / - Root endpoint using Index AppSite
+ * GET / - Root endpoint using Default AppSite
  */
 export async function indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess) {
   try {
-    // Use Index AppSite with engine toggle parameter
+    // Use Default AppSite with engine toggle parameter
     const rootDirPath = path.join(__dirname, 'wwwroot');
 
     // Get engine type from query parameter (default to Normal)
@@ -31,18 +33,18 @@ export async function indexEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
       return res.status(400).send('Invalid engine type. Use \'Normal\' or \'PreProcess\'');
     }
 
-    // Load templates for Index AppSite
-    const normalTemplatesRaw = LoaderNormal.loadGetTemplateFiles(rootDirPath, 'Index');
-    const preprocessTemplatesRaw = LoaderPreProcess.loadProcessGetTemplateFiles(rootDirPath, 'Index');
+    // Load templates for Default AppSite
+    const normalTemplatesRaw = LoaderNormal.loadGetTemplateFiles(rootDirPath, DEFAULT_APP_SITE);
+    const preprocessTemplatesRaw = LoaderPreProcess.loadProcessGetTemplateFiles(rootDirPath, DEFAULT_APP_SITE);
 
-    // Merge using selected engine (no AppView context for Index)
+    // Merge using selected engine (no AppView context for Default AppSite)
     let mergedHtml;
     if (engineType.toLowerCase() === 'preprocess') {
       const engine = new EnginePreProcess();
-      mergedHtml = engine.mergeTemplates('Index', 'Index', null, preprocessTemplatesRaw.templates);
+      mergedHtml = engine.mergeTemplates(DEFAULT_APP_SITE, 'index', null, preprocessTemplatesRaw.templates);
     } else {
       const engine = new EngineNormal();
-      mergedHtml = engine.mergeTemplates('Index', 'Index', null, normalTemplatesRaw);
+      mergedHtml = engine.mergeTemplates(DEFAULT_APP_SITE, 'index', null, normalTemplatesRaw);
     }
 
     res.setHeader('Content-Type', 'text/html');
