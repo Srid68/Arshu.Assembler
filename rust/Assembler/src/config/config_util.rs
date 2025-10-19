@@ -45,8 +45,8 @@ pub struct ConfigUtil;
 impl ConfigUtil {
     /// Loads AppSites and scenarios from wwwroot path and caches them
     pub fn load(wwwroot_path: &str) -> Result<(), String> {
-        let app_sites = Self::load_app_sites_internal(wwwroot_path)?;
         let scenarios = Self::load_scenarios_internal(wwwroot_path)?;
+        let app_sites = Self::extract_app_sites_from_scenarios(&scenarios);
 
         let mut cache = CONFIG_CACHE.lock().unwrap();
         cache.wwwroot_path = Some(wwwroot_path.to_string());
@@ -80,38 +80,16 @@ impl ConfigUtil {
             .collect()
     }
 
-    fn load_app_sites_internal(wwwroot_path: &str) -> Result<std::collections::HashSet<String>, String> {
-        let app_data_path = Path::new(wwwroot_path).join("App_Data");
-        let csv_file_path = app_data_path.join("appsites.csv");
-
-        // Generate if doesn't exist
-        if !csv_file_path.exists() {
-            println!("[ConfigUtil] appsites.csv not found, generating...");
-            Self::generate_app_sites_csv(wwwroot_path)?;
-        }
-
-        // Read CSV
-        let csv_content = fs::read_to_string(&csv_file_path)
-            .map_err(|e| format!("Failed to read appsites.csv: {}", e))?;
-
-        let csv_content = csv_content.trim();
-        if csv_content.is_empty() {
-            return Err("appsites.csv is empty".to_string());
-        }
-
-        let app_sites: std::collections::HashSet<String> = csv_content
-            .split(',')
-            .map(|s| s.trim().to_string())
+    fn extract_app_sites_from_scenarios(scenarios: &[Scenario]) -> std::collections::HashSet<String> {
+        let app_sites: std::collections::HashSet<String> = scenarios
+            .iter()
+            .map(|s| s.app_site.clone())
             .filter(|s| !s.is_empty())
             .collect();
 
-        if app_sites.is_empty() {
-            return Err("No AppSites found in appsites.csv".to_string());
-        }
+        println!("[ConfigUtil] Extracted {} AppSites from scenarios.csv", app_sites.len());
 
-        println!("[ConfigUtil] Loaded {} AppSites from appsites.csv", app_sites.len());
-
-        Ok(app_sites)
+        app_sites
     }
 
     fn load_scenarios_internal(wwwroot_path: &str) -> Result<Vec<Scenario>, String> {
@@ -299,45 +277,4 @@ impl ConfigUtil {
         Ok(())
     }
 
-    fn generate_app_sites_csv(wwwroot_path: &str) -> Result<(), String> {
-        let app_sites_path = Path::new(wwwroot_path).join("AppSites");
-        let app_data_path = Path::new(wwwroot_path).join("App_Data");
-        let csv_file_path = app_data_path.join("appsites.csv");
-
-        if !app_sites_path.exists() {
-            return Err(format!("AppSites directory not found: {:?}", app_sites_path));
-        }
-
-        // Ensure App_Data exists
-        fs::create_dir_all(&app_data_path)
-            .map_err(|e| format!("Failed to create App_Data directory: {}", e))?;
-
-        // Get all directories in AppSites folder
-        let mut app_sites = Vec::new();
-        if let Ok(entries) = fs::read_dir(&app_sites_path) {
-            for entry in entries.filter_map(|e| e.ok()) {
-                if entry.path().is_dir() {
-                    if let Some(dir_name) = entry.file_name().to_str() {
-                        app_sites.push(dir_name.to_string());
-                    }
-                }
-            }
-        }
-
-        // Add Index if not present
-        if !app_sites.iter().any(|s| s.eq_ignore_ascii_case("Index")) {
-            app_sites.push("Index".to_string());
-        }
-
-        // Sort app sites
-        app_sites.sort();
-
-        // Write as CSV (comma-delimited)
-        let csv = app_sites.join(",");
-        fs::write(&csv_file_path, csv)
-            .map_err(|e| format!("Failed to write appsites.csv: {}", e))?;
-
-        println!("[ConfigUtil] Generated appsites.csv with {} AppSites", app_sites.len());
-        Ok(())
-    }
 }

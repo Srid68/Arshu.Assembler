@@ -9,6 +9,7 @@ use assembler::engine::engine_normal::EngineNormal;
 use assembler::engine::engine_preprocess::EnginePreProcess;
 use assembler::api::api_response::TemplateData;
 use assembler::common::logger::Logger;
+use assembler::config::config_util;
 // ...existing code...
 use crate::security_validator;
 
@@ -41,10 +42,55 @@ pub struct MergeRequest {
     )
 )]
 pub async fn index(req: HttpRequest) -> impl Responder {
-    // Use Default AppSite with engine toggle parameter
+    // Get appsite from query parameter or use default
     let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let root_dir_path = project_directory.join("wwwroot");
     let root_dir_path_str = root_dir_path.to_str().unwrap_or("");
+
+    let mut app_site = DEFAULT_APP_SITE.to_string();
+    let mut app_file = "index".to_string();
+
+    // Get appsite from query parameter
+    let requested_app_site = req.query_string()
+        .split('&')
+        .find(|param| param.starts_with("appsite="))
+        .and_then(|param| param.split('=').nth(1));
+
+    // If appsite query param is provided, validate it exists in scenarios
+    if let Some(requested) = requested_app_site {
+        // Validate AppSite against allowlist
+        let valid_app_sites = match security_validator::get_valid_app_sites() {
+            Ok(sites) => sites,
+            Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to get valid AppSites: {}", e)),
+        };
+
+        if !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(requested)) {
+            return HttpResponse::BadRequest().body("Invalid AppSite value");
+        }
+
+        // Validate path components for path traversal attacks
+        if !security_validator::is_valid_path_component(Some(requested)) {
+            return HttpResponse::BadRequest().body("Invalid characters in AppSite");
+        }
+
+        // Get AppFile from scenarios
+        let scenarios = match config_util::ConfigUtil::get_scenarios() {
+            Ok(scenarios) => scenarios,
+            Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to get scenarios: {}", e)),
+        };
+
+        let matching_scenario = scenarios.iter().find(|s|
+            s.app_site.eq_ignore_ascii_case(requested) && s.app_view.is_empty()
+        );
+
+        match matching_scenario {
+            Some(scenario) => {
+                app_site = scenario.app_site.clone();
+                app_file = scenario.app_file.clone();
+            },
+            None => return HttpResponse::BadRequest().body(format!("No matching scenario found for AppSite='{}' without AppView", requested)),
+        }
+    }
 
     // Get engine type from query parameter (default to Normal)
     let engine_type = req.query_string()
@@ -58,17 +104,17 @@ pub async fn index(req: HttpRequest) -> impl Responder {
         return HttpResponse::BadRequest().body("Invalid engine type. Use 'Normal' or 'PreProcess'");
     }
 
-    // Load templates for Default AppSite
-    let mut normal_templates_raw = LoaderNormal::load_get_template_files(root_dir_path_str, DEFAULT_APP_SITE);
-    let preprocess_templates_raw = LoaderPreProcess::load_process_get_template_files(root_dir_path_str, DEFAULT_APP_SITE);
+    // Load templates for requested AppSite
+    let mut normal_templates_raw = LoaderNormal::load_get_template_files(root_dir_path_str, &app_site);
+    let preprocess_templates_raw = LoaderPreProcess::load_process_get_template_files(root_dir_path_str, &app_site);
 
-    // Merge using selected engine (no AppView context for Default AppSite)
+    // Merge using selected engine (no AppView context)
     let merged_html = if engine_type.eq_ignore_ascii_case("PreProcess") {
         let engine = EnginePreProcess::new(String::new());
-        engine.merge_templates(DEFAULT_APP_SITE, "index", None, &preprocess_templates_raw.templates, true)
+        engine.merge_templates(&app_site, &app_file, None, &preprocess_templates_raw.templates, true)
     } else {
         let engine = EngineNormal::new(String::new());
-        engine.merge_templates(DEFAULT_APP_SITE, "index", None, &mut normal_templates_raw, true)
+        engine.merge_templates(&app_site, &app_file, None, &mut normal_templates_raw, true)
     };
 
     HttpResponse::Ok().content_type(ContentType::html()).body(merged_html)
