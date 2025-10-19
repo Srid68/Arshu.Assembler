@@ -437,11 +437,11 @@ export async function testConsolidatePerformanceEndpoint(req, res, projectDirect
             const appSite = firstData?.appSite || ''
             const appView = firstData?.appView || ''
 
-            // Find minimum time for highlighting
+            // Find minimum time for highlighting (excluding zero values)
             const validTimes = []
             for (const lang of languages) {
                 const data = langData.get(lang)
-                if (data?.normalTimeMs !== null && data?.normalTimeMs !== undefined) {
+                if (data?.normalTimeMs !== null && data?.normalTimeMs !== undefined && data.normalTimeMs > 0) {
                     validTimes.push(data.normalTimeMs)
                 }
             }
@@ -452,7 +452,7 @@ export async function testConsolidatePerformanceEndpoint(req, res, projectDirect
             for (const lang of languages) {
                 const data = langData.get(lang)
                 const timeValue = formatFloat(data?.normalTimeMs)
-                const isBest = minTime !== null && data?.normalTimeMs !== null && data?.normalTimeMs !== undefined && Math.abs(data.normalTimeMs - minTime) < 0.001
+                const isBest = minTime !== null && data?.normalTimeMs !== null && data?.normalTimeMs !== undefined && data.normalTimeMs > 0 && Math.abs(data.normalTimeMs - minTime) < 0.001
                 const cssClass = isBest ? ' class="best-perf"' : ''
                 html.push(`<td${cssClass}>${timeValue}</td>`)
             }
@@ -480,11 +480,11 @@ export async function testConsolidatePerformanceEndpoint(req, res, projectDirect
             const appSite = firstData?.appSite || ''
             const appView = firstData?.appView || ''
 
-            // Find minimum time for highlighting
+            // Find minimum time for highlighting (excluding zero values)
             const validTimes = []
             for (const lang of languages) {
                 const data = langData.get(lang)
-                if (data?.preProcessTimeMs !== null && data?.preProcessTimeMs !== undefined) {
+                if (data?.preProcessTimeMs !== null && data?.preProcessTimeMs !== undefined && data.preProcessTimeMs > 0) {
                     validTimes.push(data.preProcessTimeMs)
                 }
             }
@@ -495,7 +495,7 @@ export async function testConsolidatePerformanceEndpoint(req, res, projectDirect
             for (const lang of languages) {
                 const data = langData.get(lang)
                 const timeValue = formatFloat(data?.preProcessTimeMs)
-                const isBest = minTime !== null && data?.preProcessTimeMs !== null && data?.preProcessTimeMs !== undefined && Math.abs(data.preProcessTimeMs - minTime) < 0.001
+                const isBest = minTime !== null && data?.preProcessTimeMs !== null && data?.preProcessTimeMs !== undefined && data.preProcessTimeMs > 0 && Math.abs(data.preProcessTimeMs - minTime) < 0.001
                 const cssClass = isBest ? ' class="best-perf"' : ''
                 html.push(`<td${cssClass}>${timeValue}</td>`)
             }
@@ -602,9 +602,18 @@ export async function getReportEndpoint(req, res, projectDirectory) {
  */
 export async function saveLogEndpoint(req, res, projectDirectory) {
     try {
-        const { context, content } = req.body || {}
-        if (!context || !content) {
-            return res.status(400).json({ success: false, message: 'missing context or content' })
+        let { context, content } = req.body || {}
+
+        // Trim whitespace from content
+        content = (content || '').trim()
+
+        if (!context) {
+            return res.status(400).json({ success: false, message: 'missing context' })
+        }
+
+        // If content is empty after trimming, return success without saving
+        if (!content) {
+            return res.json({ success: true, message: 'No content to save', error: null })
         }
 
         if (!isValidPathComponent(context)) {
