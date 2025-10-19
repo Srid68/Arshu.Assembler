@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 )
@@ -44,15 +43,12 @@ type ConfigUtil struct{}
 
 // Load loads AppSites and scenarios from wwwroot path and caches them
 func Load(wwwrootPath string) error {
-	appSites, err := loadAppSitesInternal(wwwrootPath)
-	if err != nil {
-		return err
-	}
-
 	scenarios, err := loadScenariosInternal(wwwrootPath)
 	if err != nil {
 		return err
 	}
+
+	appSites := extractAppSitesFromScenarios(scenarios)
 
 	cacheMutex.Lock()
 	defer cacheMutex.Unlock()
@@ -105,45 +101,17 @@ func FilterByAppSite(scenarios []Scenario, appSiteFilter string) []Scenario {
 	return filtered
 }
 
-func loadAppSitesInternal(wwwrootPath string) (map[string]bool, error) {
-	appDataPath := filepath.Join(wwwrootPath, "App_Data")
-	csvFilePath := filepath.Join(appDataPath, "appsites.csv")
-
-	// Generate if doesn't exist
-	if _, err := os.Stat(csvFilePath); os.IsNotExist(err) {
-		fmt.Println("[ConfigUtil] appsites.csv not found, generating...")
-		if err := generateAppSitesCsv(wwwrootPath); err != nil {
-			return nil, err
-		}
-	}
-
-	// Read CSV
-	csvContent, err := os.ReadFile(csvFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to read appsites.csv: %v", err)
-	}
-
-	csvStr := strings.TrimSpace(string(csvContent))
-	if csvStr == "" {
-		return nil, fmt.Errorf("appsites.csv is empty")
-	}
-
+func extractAppSitesFromScenarios(scenarios []Scenario) map[string]bool {
 	appSitesMap := make(map[string]bool)
-	parts := strings.Split(csvStr, ",")
-	for _, part := range parts {
-		appSite := strings.TrimSpace(part)
-		if appSite != "" {
-			appSitesMap[appSite] = true
+	for _, scenario := range scenarios {
+		if scenario.AppSite != "" {
+			appSitesMap[scenario.AppSite] = true
 		}
 	}
 
-	if len(appSitesMap) == 0 {
-		return nil, fmt.Errorf("No AppSites found in appsites.csv")
-	}
+	fmt.Printf("[ConfigUtil] Extracted %d AppSites from scenarios.csv\n", len(appSitesMap))
 
-	fmt.Printf("[ConfigUtil] Loaded %d AppSites from appsites.csv\n", len(appSitesMap))
-
-	return appSitesMap, nil
+	return appSitesMap
 }
 
 func loadScenariosInternal(wwwrootPath string) ([]Scenario, error) {
@@ -338,54 +306,3 @@ func generateScenariosCsv(wwwrootPath string) error {
 	return nil
 }
 
-func generateAppSitesCsv(wwwrootPath string) error {
-	appSitesPath := filepath.Join(wwwrootPath, "AppSites")
-	appDataPath := filepath.Join(wwwrootPath, "App_Data")
-	csvFilePath := filepath.Join(appDataPath, "appsites.csv")
-
-	if _, err := os.Stat(appSitesPath); os.IsNotExist(err) {
-		return fmt.Errorf("AppSites directory not found: %s", appSitesPath)
-	}
-
-	// Ensure App_Data exists
-	if err := os.MkdirAll(appDataPath, 0755); err != nil {
-		return fmt.Errorf("Failed to create App_Data directory: %v", err)
-	}
-
-	// Get all directories in AppSites folder
-	entries, err := os.ReadDir(appSitesPath)
-	if err != nil {
-		return fmt.Errorf("Failed to read AppSites directory: %v", err)
-	}
-
-	appSites := []string{}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			appSites = append(appSites, entry.Name())
-		}
-	}
-
-	// Add Index if not present
-	hasIndex := false
-	for _, name := range appSites {
-		if strings.EqualFold(name, "Index") {
-			hasIndex = true
-			break
-		}
-	}
-	if !hasIndex {
-		appSites = append(appSites, "Index")
-	}
-
-	// Sort app sites
-	sort.Strings(appSites)
-
-	// Write as CSV (comma-delimited)
-	csv := strings.Join(appSites, ",")
-	if err := os.WriteFile(csvFilePath, []byte(csv), 0644); err != nil {
-		return fmt.Errorf("Failed to write appsites.csv: %v", err)
-	}
-
-	fmt.Printf("[ConfigUtil] Generated appsites.csv with %d AppSites\n", len(appSites))
-	return nil
-}

@@ -29,9 +29,66 @@ type MergeRequest struct {
 
 // index handles the GET / endpoint
 func index(c *gin.Context) {
-	// Use Default AppSite with engine toggle parameter
+	// Get appsite from query parameter or use default
 	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
 	rootDirPath := assemblerWebDirPath
+
+	appSite := DefaultAppSite
+	appFile := "index"
+
+	// Get appsite from query parameter
+	requestedAppSite := c.Query("appsite")
+
+	// If appsite query param is provided, validate it exists in scenarios
+	if requestedAppSite != "" {
+		// Validate AppSite against allowlist
+		validAppSites, err := GetValidAppSites()
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Failed to get valid AppSites: "+err.Error())
+			return
+		}
+
+		isValid := false
+		for validSite := range validAppSites {
+			if strings.EqualFold(validSite, requestedAppSite) {
+				isValid = true
+				break
+			}
+		}
+		if !isValid {
+			c.String(http.StatusBadRequest, "Invalid AppSite value")
+			return
+		}
+
+		// Validate path components for path traversal attacks
+		if !IsValidPathComponent(&requestedAppSite) {
+			c.String(http.StatusBadRequest, "Invalid characters in AppSite")
+			return
+		}
+
+		// Get AppFile from scenarios
+		scenarios, err := config.GetScenarios()
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Failed to get scenarios: "+err.Error())
+			return
+		}
+
+		var matchingScenario *config.Scenario
+		for _, s := range scenarios {
+			if strings.EqualFold(s.AppSite, requestedAppSite) && s.AppView == "" {
+				matchingScenario = &s
+				break
+			}
+		}
+
+		if matchingScenario == nil {
+			c.String(http.StatusBadRequest, fmt.Sprintf("No matching scenario found for AppSite='%s' without AppView", requestedAppSite))
+			return
+		}
+
+		appSite = matchingScenario.AppSite
+		appFile = matchingScenario.AppFile
+	}
 
 	// Get engine type from query parameter (default to Normal)
 	engineType := c.DefaultQuery("engine", "Normal")
@@ -42,18 +99,18 @@ func index(c *gin.Context) {
 		return
 	}
 
-	// Load templates for Default AppSite
-	normalTemplatesRaw := loader.LoadGetTemplateFiles(rootDirPath, DefaultAppSite)
-	preprocessTemplatesRaw := loader.LoadProcessGetTemplateFiles(rootDirPath, DefaultAppSite)
+	// Load templates for requested AppSite
+	normalTemplatesRaw := loader.LoadGetTemplateFiles(rootDirPath, appSite)
+	preprocessTemplatesRaw := loader.LoadProcessGetTemplateFiles(rootDirPath, appSite)
 
-	// Merge using selected engine (no AppView context for Default AppSite)
+	// Merge using selected engine (no AppView context)
 	var mergedHtml string
 	if strings.EqualFold(engineType, "PreProcess") {
 		engine := engine.NewEnginePreProcess("")
-		mergedHtml = engine.MergeTemplates(DefaultAppSite, "index", "", preprocessTemplatesRaw.Templates, true)
+		mergedHtml = engine.MergeTemplates(appSite, appFile, "", preprocessTemplatesRaw.Templates, true)
 	} else {
 		engine := engine.NewEngineNormal("")
-		mergedHtml = engine.MergeTemplates(DefaultAppSite, "index", "", normalTemplatesRaw, true)
+		mergedHtml = engine.MergeTemplates(appSite, appFile, "", normalTemplatesRaw, true)
 	}
 
 	c.Header("Content-Type", "text/html")
