@@ -1,0 +1,189 @@
+<style>
+    /* Toolbar Layout Styles */
+    .toolbar-wrapper {
+        position: static;
+        width: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .template-toggle {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: white;
+        font-size: 0.8em;
+        justify-content: flex-end;
+        padding: 6px 20px 0 20px;
+        background: rgba(255,255,255,0.1);
+    }
+
+        .template-toggle input[type="checkbox"] {
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+        }
+
+        .template-toggle input[type="radio"] {
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+        }
+
+        .template-toggle label {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+    .merge-mode-group {
+        display: inline-flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .merge-mode-group .radio-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+    .header-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px;
+        background: rgba(255,255,255,0.1);
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    #test-select {
+        flex: 1;
+        min-width: 200px;
+        font-size: 1em;
+        padding: 10px 14px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 6px;
+        background: rgba(255,255,255,0.95);
+        color: #333;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        #test-select:hover {
+            background: white;
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        #test-select:focus {
+            outline: none;
+            border-color: white;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.2);
+        }
+
+    .nav-btn, .refresh-btn {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 6px;
+        padding: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .nav-btn:hover, .refresh-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-1px);
+        }
+
+        .nav-btn:active, .refresh-btn:active {
+            transform: translateY(0);
+        }
+
+        .nav-btn svg, .refresh-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+
+    .rule-description {
+        background: rgba(255,255,255,0.95);
+        color: #333;
+        padding: 14px 18px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        border-left: 4px solid #ffd700;
+        font-size: 0.95em;
+        line-height: 1.6;
+        display: none;
+        text-align: center;
+    }
+
+        .rule-description.show {
+            display: block;
+        }
+
+        .rule-description strong {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .rule-description code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #d63384;
+            white-space: nowrap;
+        }
+
+    @media (max-width: 768px) {
+        .header-controls {
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+    }
+</style>
+
+<div class="toolbar-wrapper">
+    <div class="template-toggle">
+        <div class="merge-mode-group" style="display: {{$MergeModeDisplay}};">
+            <div class="radio-option">
+                <input type="radio" id="merge-mode-server" name="merge-mode" value="server" data-default-mode="{{$DefaultMergeMode}}" />
+                <label for="merge-mode-server">Server</label>
+            </div>
+            <div class="radio-option">
+                <input type="radio" id="merge-mode-client" name="merge-mode" value="client" />
+                <label for="merge-mode-client">Client</label>
+            </div>
+        </div>
+        <span style="margin: 0 2px; color: rgba(255,255,255,0.4);">|</span>
+        <input type="checkbox" id="show-templates" />
+        <label for="show-templates">Show Template Details</label>
+    </div>
+    <div class="header-controls">
+        <button class="nav-btn" id="prevScenarioBtn" title="Previous">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <select id="test-select">
+            <option value="">Loading scenarios...</option>
+        </select>
+        <button class="nav-btn" id="nextScenarioBtn" title="Next">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+        <button class="refresh-btn" id="refreshBtn" title="Refresh">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+            </svg>
+        </button>
+    </div>
+    <div class="rule-description" id="rule-description"></div>
+</div>
+
+{{ToolbarJs}}
+{{ToolbarServerJs}}
+{{ToolbarClientJs}}

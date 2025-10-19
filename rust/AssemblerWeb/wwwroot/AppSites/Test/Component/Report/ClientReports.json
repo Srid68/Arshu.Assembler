@@ -1,0 +1,47 @@
+{
+  "Implementation": "Rust + Client-Side JavaScript",
+  "Lang": "javascript",
+  "Title": "Test Reports",
+  "TitleIcon": "📊",
+  "Reports": [
+    {
+      "Id": "runStandardTests",
+      "Icon": "📋",
+      "Title": "Standard Test Summary",
+      "Description": "Normal Engine scenarios test results",
+      "ButtonText": "Run Client Test",
+      "FileName": "javascript_standardtest_Summary.html",
+      "UseLangPrefix": false
+    },
+    {
+      "Id": "runAdvancedTests",
+      "Icon": "🔬",
+      "Title": "Advanced Test Summary",
+      "Description": "Engine Comparison scenarios test results",
+      "ButtonText": "Run Client Test",
+      "FileName": "javascript_advancedtest_Summary.html",
+      "UseLangPrefix": false
+    },
+    {
+      "Id": "runPerfTests",
+      "Icon": "⚡",
+      "Title": "Performance Summary",
+      "Description": "Engine performance metrics",
+      "ButtonText": "Run Client Test",
+      "FileName": "javascript_perfsummary.html",
+      "UseLangPrefix": false
+    },
+    {
+      "Id": "runConsolidatePerf",
+      "Icon": "📈",
+      "Title": "Consolidated Performance Tests",
+      "Description": "Comprehensive performance data from all servers",
+      "ButtonText": "Run Server Test",
+      "FileName": "all_perf_tests.html",
+      "UseLangPrefix": false
+    }
+  ],
+  "LoadingMessage": "Loading report...",
+  "NotFoundMessage": "Report Not Found",
+  "ErrorPrefix": "File:"
+}

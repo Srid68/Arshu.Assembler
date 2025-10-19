@@ -1,0 +1,58 @@
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>About This Application</h2>
+            <button class="close" id="closeModal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>This is a <strong>server-side/client-side implementation</strong> of the Arshu Polyglot Web Assembler engine.</p>
+
+            <h3>Features</h3>
+            <ul>
+                <li><strong>Component-Based:</strong> Built using modular Html + Json components</li>
+                <li><strong>Dual Engine:</strong> Compare Normal and PreProcess engine implementations</li>
+                <li><strong>Real-Time:</strong> See merged results instantly</li>
+            </ul>
+
+            <h3>Template Engine Rules</h3>
+            <ul>
+                <li><strong>Rule 1:</strong> PlaceHolder Markup - <code>&#123;&#123;PlaceholderName&#125;&#125;</code></li>
+                <li><strong>Rule 2:</strong> Slotted Markup - <code>&#123;&#123;#SlotName&#125;&#125;</code> with <code>&#123;&#123;@HTMLPLACEHOLDER&#125;&#125;</code></li>
+                <li><strong>Rule 3:</strong> Context PlaceHolder - Context-based rendering</li>
+                <li><strong>Rule 4:</strong> JSON Key Assembly - <code>&#123;&#123;$JsonKey&#125;&#125;</code></li>
+                <li><strong>Rule 5:</strong> JSON Array Assembly - <code>&#123;&#123;@ArrayKey&#125;&#125;</code></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Modal functionality
+    const modal = document.getElementById('infoModal');
+    const infoBtn = document.getElementById('info-btn');
+    const closeBtn = document.getElementById('closeModal');
+
+    if (infoBtn) {
+        infoBtn.onclick = function() {
+            modal.style.display = 'block';
+        };
+    }
+
+    if (closeBtn) {
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        };
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    };
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && modal.style.display === 'block') {
+            modal.style.display = 'none';
+        }
+    });
+</script>

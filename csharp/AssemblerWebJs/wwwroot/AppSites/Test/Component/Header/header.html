@@ -1,0 +1,283 @@
+<style>
+/* Header Layout Styles */
+.header {
+    width: 100%;
+    background: var(--primary-gradient);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    padding: 0;
+}
+
+.header-top {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 20px;
+    position: relative;
+}
+
+.header-title {
+    color: var(--white);
+    margin: 0;
+    font-size: 1.5em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.header-tagline {
+    color: var(--white);
+    font-size: 0.9em;
+    margin: 8px 0 0 0;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    color: #1e293b;
+    border-radius: 6px;
+    font-weight: 600;
+    display: inline-block;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.info-icon {
+    background: var(--white-transparent-20);
+    color: var(--white);
+    border: 2px solid var(--white-transparent-30);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.info-icon:hover {
+    background: var(--white-transparent-30);
+    transform: scale(1.1);
+}
+
+.ai-assisted-badge {
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--white);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--white-transparent-10);
+    border-radius: 6px;
+    font-size: 0.9em;
+}
+
+.ai-assisted-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.header-links {
+    position: absolute;
+    right: 0;
+    top: 0;
+    display: flex;
+    gap: 8px;
+}
+
+.github-link, .contact-link {
+    color: var(--white);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--white-transparent-10);
+    border-radius: 6px;
+    transition: background 0.2s;
+    font-size: 0.9em;
+}
+
+.github-link:hover, .contact-link:hover {
+    background: var(--white-transparent-20);
+}
+
+.github-icon, .contact-icon {
+    width: 20px;
+    height: 20px;
+}
+
+@media (max-width: 768px) {
+    .header-top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        padding: 8px;
+        gap: 8px;
+        align-items: start;
+    }
+
+    .ai-assisted-badge {
+        position: static;
+        grid-column: 1;
+        grid-row: 1;
+        justify-self: start;
+        font-size: 0.75em;
+        padding: 4px 8px;
+    }
+
+    .header-links {
+        position: static;
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+        gap: 4px;
+    }
+
+    .github-link, .contact-link {
+        font-size: 0.75em;
+        padding: 4px 8px;
+    }
+
+    .header-title {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        width: 100%;
+        font-size: 1em;
+        justify-content: center;
+        gap: 8px;
+        margin: 0;
+    }
+
+    .ai-assisted-icon,
+    .github-icon,
+    .contact-icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    .info-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 14px;
+    }
+
+    .header-tagline {
+        font-size: 0.75em;
+        padding: 6px 12px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 940px) {
+    .header-top > div[style*="text-align: center"] {
+        padding-top: 20px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-top {
+        padding: 6px;
+    }
+
+    .ai-assisted-badge span,
+    .github-link span,
+    .contact-link span {
+        display: none;
+    }
+
+    .ai-assisted-badge,
+    .github-link,
+    .contact-link {
+        padding: 4px;
+        min-width: 28px;
+        justify-content: center;
+    }
+
+    .header-title {
+        font-size: 0.9em;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .header-tagline {
+        font-size: 0.65em;
+        padding: 4px 8px;
+        line-height: 1.4;
+    }
+
+    .header-tagline small {
+        font-size: 0.85em;
+    }
+}
+</style>
+
+<div class="header">
+    <div class="header-top">
+        <div class="ai-assisted-badge">
+            <svg class="ai-assisted-icon" viewBox="0 0 32 32">
+                <defs>
+                    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                    </linearGradient>
+                    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <rect width="32" height="32" fill="#1e293b" rx="3"/>
+                <path d="M 6 6 L 14 6 C 14 8 15 9 17 9 C 19 9 20 8 20 6 L 28 6 L 28 14 C 26 14 25 15 25 17 C 25 19 26 20 28 20 L 28 28 L 6 28 L 6 6 Z"
+                      fill="url(#grad1)" opacity="0.3"/>
+                <path d="M 4 4 L 12 4 L 12 8 C 13.5 8 14 9 14 10 C 14 11 13.5 12 12 12 L 12 14 L 4 14 Z"
+                      fill="url(#grad1)" stroke="#60a5fa" stroke-width="0.5"/>
+                <path d="M 14 4 L 15 4 C 15 5.5 16 6 17 6 C 18 6 19 5.5 19 4 L 28 4 L 28 14 L 20 14 L 20 12 C 18.5 12 18 11 18 10 C 18 9 18.5 8 20 8 L 20 4 Z"
+                      fill="url(#grad2)" stroke="#34d399" stroke-width="0.5"/>
+                <path d="M 4 16 L 12 16 L 12 18 C 13.5 18 14 19 14 20 C 14 21 13.5 22 12 22 L 12 28 L 4 28 Z"
+                      fill="#f59e0b" stroke="#fbbf24" stroke-width="0.5"/>
+                <path d="M 14 16 L 15 16 C 15 17.5 16 18 17 18 C 18 18 19 17.5 19 16 L 28 16 L 28 28 L 14 28 Z"
+                      fill="#ef4444" stroke="#f87171" stroke-width="0.5"/>
+                <circle cx="13" cy="13" r="1" fill="#fff" opacity="0.6"/>
+                <circle cx="19" cy="13" r="1" fill="#fff" opacity="0.6"/>
+                <circle cx="13" cy="19" r="1" fill="#fff" opacity="0.6"/>
+                <circle cx="19" cy="19" r="1" fill="#fff" opacity="0.6"/>
+            </svg>
+            <span>AI Assisted</span>
+        </div>
+        <div style="text-align: center; width: 100%; box-sizing: border-box; grid-column: 1 / -1; grid-row: 2;">
+            <h1 class="header-title">
+                {{$Title}}
+                <button class="info-icon" id="info-btn" title="Learn more">?</button>
+            </h1>
+            <p class="header-tagline">
+                {{$Tagline}}
+                <br>
+                <small style="font-size: 0.75em; font-weight: 400;">{{$SubTagline}}</small>
+            </p>
+        </div>
+        <div class="header-links">
+            <a href="mailto:{{$ContactEmail}}" class="contact-link" title="Contact via Email">
+                <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+                <span>Contact</span>
+            </a>
+            <a href="https://github.com/srid68/Arshu.Assembler" target="_blank" rel="noopener noreferrer" class="github-link" title="View on GitHub">
+                <svg class="github-icon" viewBox="0 0 24 24" fill="white">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                <span>GitHub</span>
+            </a>
+        </div>
+    </div>
+    {{LanguageLinks}}
+</div>
