@@ -481,11 +481,11 @@ class AssemblerTestEndpoint
             foreach ($sortedAppSites as $appSite) {
                 $langData = $performanceData[$appSite];
 
-                // Find minimum time for highlighting
+                // Find minimum time for highlighting (excluding zero values)
                 $validTimes = [];
                 foreach ($languages as $lang) {
                     $val = $langData[$lang]['normalTimeMs'] ?? null;
-                    if ($val !== null) {
+                    if ($val !== null && $val > 0) {
                         $validTimes[] = $val;
                     }
                 }
@@ -496,7 +496,7 @@ class AssemblerTestEndpoint
                 foreach ($languages as $lang) {
                     $data = $langData[$lang] ?? null;
                     $val = $data['normalTimeMs'] ?? null;
-                    $isBest = ($minTime !== null && $val !== null && abs($val - $minTime) < 0.001);
+                    $isBest = ($minTime !== null && $val !== null && $val > 0 && abs($val - $minTime) < 0.001);
                     $cssClass = $isBest ? ' class="best-perf"' : '';
                     $html[] = '<td' . $cssClass . '>' . ($val !== null ? number_format($val, 2, '.', '') : '-') . '</td>';
                 }
@@ -527,11 +527,11 @@ class AssemblerTestEndpoint
             foreach ($sortedAppSites as $appSite) {
                 $langData = $performanceData[$appSite];
 
-                // Find minimum time for highlighting
+                // Find minimum time for highlighting (excluding zero values)
                 $validTimes = [];
                 foreach ($languages as $lang) {
                     $val = $langData[$lang]['preProcessTimeMs'] ?? null;
-                    if ($val !== null) {
+                    if ($val !== null && $val > 0) {
                         $validTimes[] = $val;
                     }
                 }
@@ -542,7 +542,7 @@ class AssemblerTestEndpoint
                 foreach ($languages as $lang) {
                     $data = $langData[$lang] ?? null;
                     $val = $data['preProcessTimeMs'] ?? null;
-                    $isBest = ($minTime !== null && $val !== null && abs($val - $minTime) < 0.001);
+                    $isBest = ($minTime !== null && $val !== null && $val > 0 && abs($val - $minTime) < 0.001);
                     $cssClass = $isBest ? ' class="best-perf"' : '';
                     $html[] = '<td' . $cssClass . '>' . ($val !== null ? number_format($val, 2, '.', '') : '-') . '</td>';
                 }
@@ -687,11 +687,18 @@ class AssemblerTestEndpoint
             error_log("[/api/save-log] Endpoint called");
             $body = json_decode((string)$request->getBody(), true);
             $contextName = $body['context'] ?? '';
-            $logContent = $body['content'] ?? '';
+            $logContent = trim($body['content'] ?? '');
 
-            if (empty($contextName) || empty($logContent)) {
-                $response->getBody()->write('Missing context or content parameter');
+            if (empty($contextName)) {
+                $response->getBody()->write('Missing context parameter');
                 return $response->withStatus(400);
+            }
+
+            // If content is empty after trimming, return success without saving
+            if (empty($logContent)) {
+                $testResponse = ['success' => true, 'message' => 'No content to save', 'elapsed' => 0, 'testCount' => 0];
+                $response->getBody()->write(json_encode($testResponse));
+                return $response->withHeader('Content-Type', 'application/json');
             }
 
             // Validate context name (path component)
