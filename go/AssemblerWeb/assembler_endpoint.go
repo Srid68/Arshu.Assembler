@@ -18,6 +18,8 @@ import (
 	"assembler/test"
 )
 
+const DefaultAppSite = "Test"
+
 // MergeRequest represents the request structure for template merging
 type MergeRequest struct {
 	AppSite    *string `json:"appSite" binding:"required"`
@@ -27,7 +29,7 @@ type MergeRequest struct {
 
 // index handles the GET / endpoint
 func index(c *gin.Context) {
-	// Use Index AppSite with engine toggle parameter
+	// Use Default AppSite with engine toggle parameter
 	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
 	rootDirPath := assemblerWebDirPath
 
@@ -40,18 +42,18 @@ func index(c *gin.Context) {
 		return
 	}
 
-	// Load templates for Index AppSite
-	normalTemplatesRaw := loader.LoadGetTemplateFiles(rootDirPath, "Index")
-	preprocessTemplatesRaw := loader.LoadProcessGetTemplateFiles(rootDirPath, "Index")
+	// Load templates for Default AppSite
+	normalTemplatesRaw := loader.LoadGetTemplateFiles(rootDirPath, DefaultAppSite)
+	preprocessTemplatesRaw := loader.LoadProcessGetTemplateFiles(rootDirPath, DefaultAppSite)
 
-	// Merge using selected engine (no AppView context for Index)
+	// Merge using selected engine (no AppView context for Default AppSite)
 	var mergedHtml string
 	if strings.EqualFold(engineType, "PreProcess") {
 		engine := engine.NewEnginePreProcess("")
-		mergedHtml = engine.MergeTemplates("Index", "Index", "", preprocessTemplatesRaw.Templates, true)
+		mergedHtml = engine.MergeTemplates(DefaultAppSite, "index", "", preprocessTemplatesRaw.Templates, true)
 	} else {
 		engine := engine.NewEngineNormal("")
-		mergedHtml = engine.MergeTemplates("Index", "Index", "", normalTemplatesRaw, true)
+		mergedHtml = engine.MergeTemplates(DefaultAppSite, "index", "", normalTemplatesRaw, true)
 	}
 
 	c.Header("Content-Type", "text/html")
