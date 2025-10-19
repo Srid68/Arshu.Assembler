@@ -378,21 +378,25 @@ func testConsolidatePerformance(c *gin.Context) {
 						appSite := getStringField(item, "AppSite", "app_site", "appSite")
 						appView := getStringField(item, "AppView", "app_view", "appView")
 
-						normalTime := getFloatField(item, "NormalTimeMs", "normal_time_ms", "normalTimeMs", "NormalTimeNanos", "normal_time_nanos")
-						if _, hasNanos := item["NormalTimeNanos"]; hasNanos {
-							normalTime = normalTime / 1_000_000.0
-						} else if _, hasNanos := item["normal_time_nanos"]; hasNanos {
-							normalTime = normalTime / 1_000_000.0
+						// Get normal time - check for both ms and nanos versions
+						var normalTimePtr *float64
+						if normalTime := getFloatFieldPtr(item, "NormalTimeMs", "normal_time_ms", "normalTimeMs"); normalTime != nil {
+							normalTimePtr = normalTime
+						} else if normalTimeNanos := getFloatFieldPtr(item, "NormalTimeNanos", "normal_time_nanos"); normalTimeNanos != nil {
+							converted := *normalTimeNanos / 1_000_000.0
+							normalTimePtr = &converted
 						}
 
-						preprocessTime := getFloatField(item, "PreProcessTimeMs", "preprocess_time_ms", "preProcessTimeMs", "PreProcessTimeNanos", "preprocess_time_nanos")
-						if _, hasNanos := item["PreProcessTimeNanos"]; hasNanos {
-							preprocessTime = preprocessTime / 1_000_000.0
-						} else if _, hasNanos := item["preprocess_time_nanos"]; hasNanos {
-							preprocessTime = preprocessTime / 1_000_000.0
+						// Get preprocess time - check for both ms and nanos versions
+						var preprocessTimePtr *float64
+						if preprocessTime := getFloatFieldPtr(item, "PreProcessTimeMs", "preprocess_time_ms", "preProcessTimeMs"); preprocessTime != nil {
+							preprocessTimePtr = preprocessTime
+						} else if preprocessTimeNanos := getFloatFieldPtr(item, "PreProcessTimeNanos", "preprocess_time_nanos"); preprocessTimeNanos != nil {
+							converted := *preprocessTimeNanos / 1_000_000.0
+							preprocessTimePtr = &converted
 						}
 
-						outputSize := getIntField(item, "OutputSize", "output_size", "outputSize")
+						outputSizePtr := getIntFieldPtr(item, "OutputSize", "output_size", "outputSize")
 
 						if appSite != "" {
 							key := appSite
@@ -416,13 +420,10 @@ func testConsolidatePerformance(c *gin.Context) {
 								appPerf[key] = make(map[string]PerfData)
 							}
 
-							normPtr := &normalTime
-							prepPtr := &preprocessTime
-							outPtr := &outputSize
 							appPerf[key][lang] = PerfData{
-								NormalTimeMs:     normPtr,
-								PreProcessTimeMs: prepPtr,
-								OutputSize:       outPtr,
+								NormalTimeMs:     normalTimePtr,
+								PreProcessTimeMs: preprocessTimePtr,
+								OutputSize:       outputSizePtr,
 								AppView:          appView,
 							}
 						}
@@ -528,10 +529,10 @@ func testConsolidatePerformance(c *gin.Context) {
 	}
 
 	for _, app := range appKeys {
-		// Find minimum time for highlighting
+		// Find minimum time for highlighting (excluding zero values)
 		var validTimes []float64
 		for _, lang := range languages {
-			if appPerf[app][lang].NormalTimeMs != nil {
+			if appPerf[app][lang].NormalTimeMs != nil && *appPerf[app][lang].NormalTimeMs > 0 {
 				validTimes = append(validTimes, *appPerf[app][lang].NormalTimeMs)
 			}
 		}
@@ -550,7 +551,7 @@ func testConsolidatePerformance(c *gin.Context) {
 		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", app))
 		for _, lang := range languages {
 			timeValue := formatFloat(appPerf[app][lang].NormalTimeMs)
-			isBest := minTime != nil && appPerf[app][lang].NormalTimeMs != nil && (*appPerf[app][lang].NormalTimeMs-*minTime) < 0.001 && (*appPerf[app][lang].NormalTimeMs-*minTime) > -0.001
+			isBest := minTime != nil && appPerf[app][lang].NormalTimeMs != nil && *appPerf[app][lang].NormalTimeMs > 0 && (*appPerf[app][lang].NormalTimeMs-*minTime) < 0.001 && (*appPerf[app][lang].NormalTimeMs-*minTime) > -0.001
 			cssClass := ""
 			if isBest {
 				cssClass = " class=\"best-perf\""
@@ -577,10 +578,10 @@ func testConsolidatePerformance(c *gin.Context) {
 	htmlBuilder.WriteString("        </tr>\n")
 
 	for _, app := range appKeys {
-		// Find minimum time for highlighting
+		// Find minimum time for highlighting (excluding zero values)
 		var validTimes []float64
 		for _, lang := range languages {
-			if appPerf[app][lang].PreProcessTimeMs != nil {
+			if appPerf[app][lang].PreProcessTimeMs != nil && *appPerf[app][lang].PreProcessTimeMs > 0 {
 				validTimes = append(validTimes, *appPerf[app][lang].PreProcessTimeMs)
 			}
 		}
@@ -599,7 +600,7 @@ func testConsolidatePerformance(c *gin.Context) {
 		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", app))
 		for _, lang := range languages {
 			timeValue := formatFloat(appPerf[app][lang].PreProcessTimeMs)
-			isBest := minTime != nil && appPerf[app][lang].PreProcessTimeMs != nil && (*appPerf[app][lang].PreProcessTimeMs-*minTime) < 0.001 && (*appPerf[app][lang].PreProcessTimeMs-*minTime) > -0.001
+			isBest := minTime != nil && appPerf[app][lang].PreProcessTimeMs != nil && *appPerf[app][lang].PreProcessTimeMs > 0 && (*appPerf[app][lang].PreProcessTimeMs-*minTime) < 0.001 && (*appPerf[app][lang].PreProcessTimeMs-*minTime) > -0.001
 			cssClass := ""
 			if isBest {
 				cssClass = " class=\"best-perf\""
@@ -728,10 +729,26 @@ func saveLog(c *gin.Context) {
 		Context string `json:"context"`
 		Content string `json:"content"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil || req.Context == "" || req.Content == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields: context, content"})
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format"})
 		return
 	}
+
+	// Trim whitespace from content
+	req.Content = strings.TrimSpace(req.Content)
+
+	// Check for missing context
+	if req.Context == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required field: context"})
+		return
+	}
+
+	// If content is empty after trimming, return success without saving
+	if req.Content == "" {
+		c.JSON(http.StatusOK, gin.H{"message": "No content to save"})
+		return
+	}
+
 	if !IsValidPathComponent(&req.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in context"})
 		return
@@ -1029,6 +1046,36 @@ func getFloatField(m map[string]interface{}, keys ...string) float64 {
 		}
 	}
 	return 0
+}
+
+func getFloatFieldPtr(m map[string]interface{}, keys ...string) *float64 {
+	for _, key := range keys {
+		if val, ok := m[key]; ok {
+			switch v := val.(type) {
+			case float64:
+				return &v
+			case int:
+				f := float64(v)
+				return &f
+			}
+		}
+	}
+	return nil
+}
+
+func getIntFieldPtr(m map[string]interface{}, keys ...string) *int {
+	for _, key := range keys {
+		if val, ok := m[key]; ok {
+			switch v := val.(type) {
+			case int:
+				return &v
+			case float64:
+				i := int(v)
+				return &i
+			}
+		}
+	}
+	return nil
 }
 
 func getIntField(m map[string]interface{}, keys ...string) int {
