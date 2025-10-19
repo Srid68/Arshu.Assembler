@@ -725,20 +725,28 @@ func getReport(c *gin.Context) {
 // saveLog handles the POST /api/save-log endpoint
 func saveLog(c *gin.Context) {
 	var req struct {
-		FileName string `json:"fileName"`
-		Content  string `json:"content"`
+		Context string `json:"context"`
+		Content string `json:"content"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil || req.FileName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields: fileName, content"})
+	if err := c.ShouldBindJSON(&req); err != nil || req.Context == "" || req.Content == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields: context, content"})
 		return
 	}
-	if !IsValidPathComponent(&req.FileName) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in fileName"})
+	if !IsValidPathComponent(&req.Context) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in context"})
 		return
 	}
+
+	// Validate log content (size and format)
+	isValid, errorMessage := IsValidLogContent(&req.Content)
+	if !isValid {
+		c.JSON(http.StatusBadRequest, gin.H{"error": errorMessage})
+		return
+	}
+
 	logsDir := filepath.Join(projectDirectory, "template_analysis", "logs")
 	os.MkdirAll(logsDir, 0755)
-	logFile := filepath.Join(logsDir, req.FileName)
+	logFile := filepath.Join(logsDir, fmt.Sprintf("javascript_%s.log", strings.ToLower(req.Context)))
 	if err := os.WriteFile(logFile, []byte(req.Content), 0644); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save log file"})
 		return
@@ -748,20 +756,86 @@ func saveLog(c *gin.Context) {
 
 // saveOutput handles the POST /api/save-output endpoint
 func saveOutput(c *gin.Context) {
+	log.Println("[/api/save-output] Endpoint called")
+
 	var req struct {
 		AppSite    string `json:"appSite"`
 		AppView    string `json:"appView"`
 		EngineType string `json:"engineType"`
 		Html       string `json:"html"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil || req.AppSite == "" || req.EngineType == "" || req.Html == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields: appSite, engineType, html"})
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[/api/save-output] JSON parse error: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format"})
 		return
 	}
-	if !IsValidPathComponent(&req.AppSite) || !IsValidPathComponent(&req.EngineType) || (req.AppView != "" && !IsValidPathComponent(&req.AppView)) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid path component in parameters"})
+
+	log.Printf("[/api/save-output] Parsed: appSite=%s, appView=%s, engineType=%s, htmlLength=%d", req.AppSite, req.AppView, req.EngineType, len(req.Html))
+
+	if req.AppSite == "" || req.EngineType == "" || req.Html == "" {
+		log.Printf("[/api/save-output] Missing parameters: appSite=%s, engineType=%s, htmlLength=%d", req.AppSite, req.EngineType, len(req.Html))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required parameters"})
 		return
 	}
+
+	// Validate AppSite against allowlist
+	validAppSites, err := GetValidAppSites()
+	if err != nil {
+		log.Printf("[/api/save-output] Failed to load AppSites: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to load AppSites: %v", err)})
+		return
+	}
+	appSiteLower := strings.ToLower(req.AppSite)
+	isValid := false
+	for validAppSite := range validAppSites {
+		if strings.ToLower(validAppSite) == appSiteLower {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		log.Printf("[/api/save-output] Invalid AppSite: %s", req.AppSite)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid AppSite value"})
+		return
+	}
+
+	// Validate engine type against allowlist
+	if !IsValidEngineType(req.EngineType) {
+		log.Printf("[/api/save-output] Invalid engineType: %s", req.EngineType)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid engine type"})
+		return
+	}
+
+	// Validate path components
+	if !IsValidPathComponent(&req.AppSite) {
+		log.Printf("[/api/save-output] Invalid AppSite path component: %s", req.AppSite)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid AppSite parameter"})
+		return
+	}
+	if req.AppView != "" && !IsValidPathComponent(&req.AppView) {
+		log.Printf("[/api/save-output] Invalid AppView path component: %s", req.AppView)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid AppView parameter"})
+		return
+	}
+	if !IsValidPathComponent(&req.EngineType) {
+		log.Printf("[/api/save-output] Invalid engineType path component: %s", req.EngineType)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid engineType parameter"})
+		return
+	}
+
+	// Validate output size against template size + buffer
+	templateTotalSize := GetTemplateTotalSize(req.AppSite, req.AppView)
+	outputSize := len(req.Html)
+	maxAllowedSize := templateTotalSize + OutputSizeBuffer
+	log.Printf("[/api/save-output] Size validation: output=%d, template=%d, buffer=%d, max=%d", outputSize, templateTotalSize, OutputSizeBuffer, maxAllowedSize)
+
+	if !IsValidOutputSizeWithBuffer(&req.Html, templateTotalSize) {
+		errorMsg := fmt.Sprintf("Save output failed: output size (%d bytes) exceeds max size allowed (%d bytes = template %d + buffer %d)", outputSize, maxAllowedSize, templateTotalSize, OutputSizeBuffer)
+		log.Printf("[/api/save-output] %s", errorMsg)
+		c.JSON(http.StatusBadRequest, gin.H{"error": errorMsg})
+		return
+	}
+
 	outputDir := filepath.Join(projectDirectory, "template_analysis", "output")
 	os.MkdirAll(outputDir, 0755)
 	appViewSuffix := ""
@@ -771,9 +845,11 @@ func saveOutput(c *gin.Context) {
 	engineSuffix := strings.ToLower(req.EngineType)
 	outputFile := filepath.Join(outputDir, fmt.Sprintf("javascript_%s%s_%s.html", req.AppSite, appViewSuffix, engineSuffix))
 	if err := os.WriteFile(outputFile, []byte(req.Html), 0644); err != nil {
+		log.Printf("[/api/save-output] Failed to write file: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save output file"})
 		return
 	}
+	log.Printf("[/api/save-output] Success! Output saved to: %s", outputFile)
 	c.JSON(http.StatusOK, gin.H{"message": "Output saved successfully"})
 }
 
@@ -786,14 +862,85 @@ func saveTestResults(c *gin.Context) {
 	}
 	outputDir := filepath.Join(projectDirectory, "template_analysis", "Reports")
 	os.MkdirAll(outputDir, 0755)
-	now := time.Now().UTC().Format("20060102_150405")
-	htmlFile := filepath.Join(outputDir, fmt.Sprintf("go_test_summary_%s.html", now))
-	jsonFile := filepath.Join(outputDir, fmt.Sprintf("go_test_summary_%s.json", now))
+
+	// Get test type from query parameter
+	testType := c.Query("testType")
+	if testType == "" {
+		testType = "standardtest"
+	}
+	testTypeFile := strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(testType, " ", ""), "-", ""))
+
+	htmlFile := filepath.Join(outputDir, fmt.Sprintf("javascript_%s_Summary.html", testTypeFile))
+	jsonFile := filepath.Join(outputDir, fmt.Sprintf("javascript_%s_Summary.json", testTypeFile))
+
+	// Generate HTML table matching Rust format
+	formattedTestType := strings.ToUpper(strings.ReplaceAll(testType, "test", " TEST"))
+	var htmlBuilder strings.Builder
+	htmlBuilder.WriteString("<!DOCTYPE html>\n<html>\n<head>\n")
+	htmlBuilder.WriteString("    <meta charset=\"UTF-8\">\n")
+	htmlBuilder.WriteString("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n")
+	htmlBuilder.WriteString(fmt.Sprintf("    <title>JavaScript %s</title>\n", formattedTestType))
+	htmlBuilder.WriteString("    <style>\n")
+	htmlBuilder.WriteString("        body { font-family: Arial, sans-serif; margin: 20px; }\n")
+	htmlBuilder.WriteString("        h1 { color: #333; }\n")
+	htmlBuilder.WriteString("        .table-container { overflow-x: auto; }\n")
+	htmlBuilder.WriteString("        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }\n")
+	htmlBuilder.WriteString("        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\n")
+	htmlBuilder.WriteString("        th { background-color: #4CAF50; color: white; }\n")
+	htmlBuilder.WriteString("        tr:nth-child(even) { background-color: #f2f2f2; }\n")
+	htmlBuilder.WriteString("        .pass { color: green; font-weight: bold; }\n")
+	htmlBuilder.WriteString("        .fail { color: red; font-weight: bold; }\n")
+	htmlBuilder.WriteString("        @media (max-width: 768px) {\n")
+	htmlBuilder.WriteString("            body { margin: 10px; }\n")
+	htmlBuilder.WriteString("            th, td { padding: 8px; font-size: 14px; }\n")
+	htmlBuilder.WriteString("            h1 { font-size: 24px; }\n")
+	htmlBuilder.WriteString("        }\n")
+	htmlBuilder.WriteString("    </style>\n</head>\n<body>\n")
+	htmlBuilder.WriteString(fmt.Sprintf("    <h1>JavaScript %s</h1>\n", formattedTestType))
+	htmlBuilder.WriteString(fmt.Sprintf("    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: %s UTC</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05")))
+	htmlBuilder.WriteString("    <div class=\"table-container\">\n    <table>\n        <tr>\n")
+	htmlBuilder.WriteString("            <th>AppSite</th>\n            <th>AppFile</th>\n            <th>AppView</th>\n")
+	htmlBuilder.WriteString("            <th>OutputMatch</th>\n            <th>ViewUnMatch</th>\n            <th>Error</th>\n        </tr>\n")
+
+	for _, row := range summaryRows {
+		appSite := getStringField(row, "AppSite", "app_site", "appSite")
+		appFile := getStringField(row, "AppFile", "app_file", "appFile")
+		appView := getStringField(row, "AppView", "app_view", "appView")
+		normalPreProcess := getStringField(row, "NormalPreProcess", "normal_pre_process", "normalPreProcess")
+		crossViewUnMatch := getStringField(row, "CrossViewUnMatch", "cross_view_un_match", "crossViewUnMatch")
+		errorMsg := getStringField(row, "Error", "error")
+
+		outputMatchClass := ""
+		if normalPreProcess == "PASS" {
+			outputMatchClass = "pass"
+		} else if normalPreProcess == "FAIL" {
+			outputMatchClass = "fail"
+		}
+
+		viewUnmatchClass := ""
+		if crossViewUnMatch == "PASS" {
+			viewUnmatchClass = "pass"
+		} else if crossViewUnMatch == "FAIL" {
+			viewUnmatchClass = "fail"
+		}
+
+		htmlBuilder.WriteString("        <tr>\n")
+		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", appSite))
+		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", appFile))
+		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", appView))
+		htmlBuilder.WriteString(fmt.Sprintf("            <td class=\"%s\">%s</td>\n", outputMatchClass, normalPreProcess))
+		htmlBuilder.WriteString(fmt.Sprintf("            <td class=\"%s\">%s</td>\n", viewUnmatchClass, crossViewUnMatch))
+		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", errorMsg))
+		htmlBuilder.WriteString("        </tr>\n")
+	}
+
+	htmlBuilder.WriteString("    </table>\n    </div>\n</body>\n</html>")
+
+	os.WriteFile(htmlFile, []byte(htmlBuilder.String()), 0644)
+
+	// Save JSON summary file
 	jsonBytes, _ := json.MarshalIndent(summaryRows, "", "  ")
 	os.WriteFile(jsonFile, jsonBytes, 0644)
-	// For HTML, just dump JSON as <pre> for now
-	htmlContent := fmt.Sprintf("<html><body><pre>%s</pre></body></html>", string(jsonBytes))
-	os.WriteFile(htmlFile, []byte(htmlContent), 0644)
 	c.JSON(http.StatusOK, gin.H{"message": "Test results saved successfully"})
 }
 
@@ -806,13 +953,47 @@ func savePerformanceResults(c *gin.Context) {
 	}
 	outputDir := filepath.Join(projectDirectory, "template_analysis", "Reports")
 	os.MkdirAll(outputDir, 0755)
-	now := time.Now().UTC().Format("20060102_150405")
-	htmlFile := filepath.Join(outputDir, fmt.Sprintf("go_perf_summary_%s.html", now))
-	jsonFile := filepath.Join(outputDir, fmt.Sprintf("go_perf_summary_%s.json", now))
+
+	// Generate HTML table for performance results
+	var htmlBuilder strings.Builder
+	htmlBuilder.WriteString("<html><head><title>Client-Side Performance Summary Table</title>\n")
+	htmlBuilder.WriteString("<style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>\n")
+	htmlBuilder.WriteString("<h2>Client-Side JavaScript PERFORMANCE SUMMARY TABLE</h2>\n")
+	htmlBuilder.WriteString(fmt.Sprintf("<div class=\"meta\">Generated: %s UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05")))
+	htmlBuilder.WriteString("<table>\n<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>\n")
+
+	for _, row := range summaryRows {
+		appSite := getStringField(row, "AppSite", "app_site", "appSite")
+		appView := getStringField(row, "AppView", "app_view", "appView")
+		normalTimeMs := getFloatField(row, "NormalTimeMs", "normal_time_ms", "normalTimeMs")
+		preProcessTimeMs := getFloatField(row, "PreProcessTimeMs", "preprocess_time_ms", "preProcessTimeMs")
+		resultsMatch := getStringField(row, "ResultsMatch", "results_match", "resultsMatch")
+		perfDifference := getStringField(row, "PerfDifference", "perf_difference", "perfDifference")
+		scenarioTotalTimeMs := getIntField(row, "ScenarioTotalTimeMs", "scenario_total_time_ms", "scenarioTotalTimeMs")
+		elapsedTimeMs := getIntField(row, "ElapsedTimeMs", "elapsed_time_ms", "elapsedTimeMs")
+
+		htmlBuilder.WriteString("<tr>\n")
+		htmlBuilder.WriteString(fmt.Sprintf("<td>%s</td>\n", appSite))
+		htmlBuilder.WriteString(fmt.Sprintf("<td>%s</td>\n", appView))
+		htmlBuilder.WriteString(fmt.Sprintf("<td>%.2f</td>\n", normalTimeMs))
+		htmlBuilder.WriteString(fmt.Sprintf("<td>%.2f</td>\n", preProcessTimeMs))
+		htmlBuilder.WriteString(fmt.Sprintf("<td>%s</td>\n", resultsMatch))
+		htmlBuilder.WriteString(fmt.Sprintf("<td>%s</td>\n", perfDifference))
+		htmlBuilder.WriteString(fmt.Sprintf("<td>%d</td>\n", scenarioTotalTimeMs))
+		htmlBuilder.WriteString(fmt.Sprintf("<td>%d</td>\n", elapsedTimeMs))
+		htmlBuilder.WriteString("</tr>\n")
+	}
+
+	htmlBuilder.WriteString("</table></body></html>")
+
+	htmlFile := filepath.Join(outputDir, "javascript_perfsummary.html")
+	os.WriteFile(htmlFile, []byte(htmlBuilder.String()), 0644)
+
+	// Save JSON summary file
+	jsonFile := filepath.Join(outputDir, "javascript_perfsummary.json")
 	jsonBytes, _ := json.MarshalIndent(summaryRows, "", "  ")
 	os.WriteFile(jsonFile, jsonBytes, 0644)
-	htmlContent := fmt.Sprintf("<html><body><pre>%s</pre></body></html>", string(jsonBytes))
-	os.WriteFile(htmlFile, []byte(htmlContent), 0644)
+
 	c.JSON(http.StatusOK, gin.H{"message": "Performance results saved successfully"})
 }
 

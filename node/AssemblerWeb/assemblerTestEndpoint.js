@@ -1,7 +1,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fsSync from 'fs';
-import { getValidAppSites, isValidEngineType, isValidAppSite, isValidPathComponent, isValidLogContent, isValidOutputSizeWithBuffer, getTemplateTotalSize } from './securityValidator.js';
+import { getValidAppSites, isValidEngineType, isValidAppSite, isValidPathComponent, isValidLogContent, isValidOutputSizeWithBuffer, getTemplateTotalSize, OUTPUT_SIZE_BUFFER } from './securityValidator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -600,7 +600,7 @@ export async function getReportEndpoint(req, res, projectDirectory) {
  * POST /api/save-log - Save a log file (browser-callable)
  * Expects JSON: { context, content }
  */
-export async function saveLogEndpoint(req, res) {
+export async function saveLogEndpoint(req, res, projectDirectory) {
     try {
         const { context, content } = req.body || {}
         if (!context || !content) {
@@ -616,7 +616,6 @@ export async function saveLogEndpoint(req, res) {
             return res.status(400).json({ success: false, message: validation.errorMessage || 'invalid log content' })
         }
 
-        const projectDirectory = path.join(__dirname, '..')
         const logsDir = path.join(projectDirectory, 'template_analysis', 'logs')
         await fsSync.promises.mkdir(logsDir, { recursive: true }).catch(() => {})
 
@@ -636,32 +635,58 @@ export async function saveLogEndpoint(req, res) {
  * POST /api/save-output - Save an output file (browser-callable)
  * Expects JSON: { appSite, appView, engineType, html }
  */
-export async function saveOutputEndpoint(req, res) {
+export async function saveOutputEndpoint(req, res, projectDirectory) {
     try {
+        console.log('[/api/save-output] Endpoint called')
+
         const { appSite, appView, engineType, html } = req.body || {}
+
+        console.log(`[/api/save-output] Parsed: appSite=${appSite || ''}, appView=${appView || ''}, engineType=${engineType || ''}, htmlLength=${html ? html.length : 0}`)
+
         if (!appSite || !engineType || !html) {
-            return res.status(400).json({ success: false, message: 'missing appSite, engineType or html' })
+            console.log(`[/api/save-output] Missing parameters: appSite=${appSite || ''}, engineType=${engineType || ''}, htmlLength=${html ? html.length : 0}`)
+            return res.status(400).json({ success: false, message: 'Missing required parameters' })
         }
 
+        // Validate AppSite against allowlist
         const validAppSites = getValidAppSites()
-        if (!isValidAppSite(appSite, validAppSites)) return res.status(400).json({ success: false, message: 'invalid appSite' })
+        if (!isValidAppSite(appSite, validAppSites)) {
+            console.log(`[/api/save-output] Invalid AppSite: ${appSite}`)
+            return res.status(400).json({ success: false, message: 'Invalid AppSite value' })
+        }
 
-        if (!isValidEngineType(engineType)) return res.status(400).json({ success: false, message: 'invalid engineType' })
+        // Validate engine type against allowlist
+        if (!isValidEngineType(engineType)) {
+            console.log(`[/api/save-output] Invalid engineType: ${engineType}`)
+            return res.status(400).json({ success: false, message: 'Invalid engine type' })
+        }
 
-        if (!isValidPathComponent(appSite)) return res.status(400).json({ success: false, message: 'invalid appSite path' })
-        if (appView && !isValidPathComponent(appView)) return res.status(400).json({ success: false, message: 'invalid appView path' })
+        // Validate path components
+        if (!isValidPathComponent(appSite)) {
+            console.log(`[/api/save-output] Invalid AppSite path component: ${appSite}`)
+            return res.status(400).json({ success: false, message: 'Invalid AppSite parameter' })
+        }
+        if (appView && !isValidPathComponent(appView)) {
+            console.log(`[/api/save-output] Invalid AppView path component: ${appView}`)
+            return res.status(400).json({ success: false, message: 'Invalid AppView parameter' })
+        }
+        if (!isValidPathComponent(engineType)) {
+            console.log(`[/api/save-output] Invalid engineType path component: ${engineType}`)
+            return res.status(400).json({ success: false, message: 'Invalid engineType parameter' })
+        }
 
         // Validate output size against template total size + buffer
-        const templateTotalSize = getTemplateTotalSize(appSite)
-        if (templateTotalSize <= 0) {
-            return res.status(400).json({ success: false, message: 'unknown template total size for appSite' })
-        }
+        const templateTotalSize = getTemplateTotalSize(appSite, appView || '')
+        const outputSize = Buffer.byteLength(html, 'utf8')
+        const maxAllowedSize = templateTotalSize + OUTPUT_SIZE_BUFFER
+        console.log(`[/api/save-output] Size validation: output=${outputSize}, template=${templateTotalSize}, buffer=${OUTPUT_SIZE_BUFFER}, max=${maxAllowedSize}`)
 
         if (!isValidOutputSizeWithBuffer(html, templateTotalSize)) {
-            return res.status(400).json({ success: false, message: 'output exceeds allowed size' })
+            const errorMsg = `Save output failed: output size (${outputSize} bytes) exceeds max size allowed (${maxAllowedSize} bytes = template ${templateTotalSize} + buffer ${OUTPUT_SIZE_BUFFER})`
+            console.log(`[/api/save-output] ${errorMsg}`)
+            return res.status(400).json({ success: false, message: errorMsg })
         }
 
-        const projectDirectory = path.join(__dirname, '..')
         const outputDir = path.join(projectDirectory, 'template_analysis', 'output')
         await fsSync.promises.mkdir(outputDir, { recursive: true }).catch(() => {})
 
@@ -671,11 +696,12 @@ export async function saveOutputEndpoint(req, res) {
         const outputPath = path.join(outputDir, `javascript_${outputFileName}`)
 
         await fsSync.promises.writeFile(outputPath, html, 'utf8')
+        console.log(`[/api/save-output] Success! Output saved to: ${outputPath}`)
 
         // Return TestResponse-shaped JSON
-        return res.json({ success: true, message: 'ok', error: null })
+        return res.json({ success: true, message: 'Output saved successfully', error: null })
     } catch (error) {
-        console.error('Error in /api/save-output:', error)
+        console.error('[/api/save-output] Error:', error)
         res.status(500).json({ success: false, message: error.message })
     }
 }
@@ -683,42 +709,108 @@ export async function saveOutputEndpoint(req, res) {
 /**
  * POST /api/test-results - Save test results and generate HTML/JSON reports
  */
-export async function saveTestResultsEndpoint(req, res) {
+export async function saveTestResultsEndpoint(req, res, projectDirectory) {
   try {
     const summaryRows = req.body;
     if (!Array.isArray(summaryRows)) {
       return res.status(400).send('Invalid test results format');
     }
+
+    console.log(`POST /api/test-results called with ${summaryRows.length} rows`);
+
     // Validation
     const validAppSites = getValidAppSites();
     for (const row of summaryRows) {
-      if (row.appSite && !validAppSites.has(row.appSite)) {
-        return res.status(400).send(`Invalid AppSite: ${row.appSite}`);
+      const appSite = row.AppSite || row.appSite || row.app_site;
+      const appFile = row.AppFile || row.appFile || row.app_file;
+      const appView = row.AppView || row.appView || row.app_view;
+
+      // Validate AppSite is in allowlist (case-insensitive)
+      if (appSite && !isValidAppSite(appSite, validAppSites)) {
+        console.log(`[/api/test-results] Invalid AppSite: ${appSite}`);
+        return res.status(400).send(`Invalid AppSite: ${appSite}`);
       }
-      if (row.appSite && !isValidPathComponent(row.appSite)) {
+      // Validate parameter lengths (256 char limit)
+      if (appSite && !isValidPathComponent(appSite)) {
+        console.log(`[/api/test-results] Invalid AppSite parameter: ${appSite}`);
         return res.status(400).send('Invalid AppSite parameter');
       }
-      if (row.appFile && !isValidPathComponent(row.appFile)) {
+      if (appFile && !isValidPathComponent(appFile)) {
+        console.log(`[/api/test-results] Invalid AppFile parameter: ${appFile}`);
         return res.status(400).send('Invalid AppFile parameter');
       }
-      if (row.appView && !isValidPathComponent(row.appView)) {
+      if (appView && !isValidPathComponent(appView)) {
+        console.log(`[/api/test-results] Invalid AppView parameter: ${appView}`);
         return res.status(400).send('Invalid AppView parameter');
       }
     }
-    const projectDirectory = path.join(__dirname, '..');
     const reportsPath = path.join(projectDirectory, 'template_analysis', 'Reports');
     await fsSync.promises.mkdir(reportsPath, { recursive: true }).catch(() => {});
+
+    // Get test type from query parameter
+    const testType = req.query.testType || 'standardtest';
+    const testTypeFile = testType.toLowerCase().replace(/\s/g, '').replace(/-/g, '');
+
+    // Generate HTML table matching Rust format
+    const formattedTestType = testType.replace(/test/gi, ' TEST').toUpperCase();
+    const htmlParts = [];
+    htmlParts.push('<!DOCTYPE html>\n<html>\n<head>');
+    htmlParts.push('    <meta charset="UTF-8">');
+    htmlParts.push('    <meta name="viewport" content="width=device-width, initial-scale=1.0">');
+    htmlParts.push(`    <title>JavaScript ${formattedTestType}</title>`);
+    htmlParts.push('    <style>');
+    htmlParts.push('        body { font-family: Arial, sans-serif; margin: 20px; }');
+    htmlParts.push('        h1 { color: #333; }');
+    htmlParts.push('        .table-container { overflow-x: auto; }');
+    htmlParts.push('        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }');
+    htmlParts.push('        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }');
+    htmlParts.push('        th { background-color: #4CAF50; color: white; }');
+    htmlParts.push('        tr:nth-child(even) { background-color: #f2f2f2; }');
+    htmlParts.push('        .pass { color: green; font-weight: bold; }');
+    htmlParts.push('        .fail { color: red; font-weight: bold; }');
+    htmlParts.push('        @media (max-width: 768px) {');
+    htmlParts.push('            body { margin: 10px; }');
+    htmlParts.push('            th, td { padding: 8px; font-size: 14px; }');
+    htmlParts.push('            h1 { font-size: 24px; }');
+    htmlParts.push('        }');
+    htmlParts.push('    </style>\n</head>\n<body>');
+    htmlParts.push(`    <h1>JavaScript ${formattedTestType}</h1>`);
+    htmlParts.push(`    <div class="meta" style="color: #666; font-style: italic; margin-bottom: 10px;">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC</div>`);
+    htmlParts.push('    <div class="table-container">\n    <table>\n        <tr>');
+    htmlParts.push('            <th>AppSite</th>\n            <th>AppFile</th>\n            <th>AppView</th>');
+    htmlParts.push('            <th>OutputMatch</th>\n            <th>ViewUnMatch</th>\n            <th>Error</th>');
+    htmlParts.push('        </tr>');
+
+    for (const row of summaryRows) {
+      const appSite = getStringField(row, 'AppSite', 'app_site', 'appSite');
+      const appFile = getStringField(row, 'AppFile', 'app_file', 'appFile');
+      const appView = getStringField(row, 'AppView', 'app_view', 'appView');
+      const normalPreProcess = getStringField(row, 'NormalPreProcess', 'normal_pre_process', 'normalPreProcess');
+      const crossViewUnMatch = getStringField(row, 'CrossViewUnMatch', 'cross_view_un_match', 'crossViewUnMatch');
+      const errorMsg = getStringField(row, 'Error', 'error');
+
+      const outputMatchClass = normalPreProcess === 'PASS' ? 'pass' : (normalPreProcess === 'FAIL' ? 'fail' : '');
+      const viewUnmatchClass = crossViewUnMatch === 'PASS' ? 'pass' : (crossViewUnMatch === 'FAIL' ? 'fail' : '');
+
+      htmlParts.push('        <tr>');
+      htmlParts.push(`            <td>${appSite}</td>`);
+      htmlParts.push(`            <td>${appFile}</td>`);
+      htmlParts.push(`            <td>${appView}</td>`);
+      htmlParts.push(`            <td class="${outputMatchClass}">${normalPreProcess}</td>`);
+      htmlParts.push(`            <td class="${viewUnmatchClass}">${crossViewUnMatch}</td>`);
+      htmlParts.push(`            <td>${errorMsg}</td>`);
+      htmlParts.push('        </tr>');
+    }
+
+    htmlParts.push('    </table>\n    </div>\n</body>\n</html>');
+
     // Save HTML
-    const now = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
-    const htmlFile = path.join(reportsPath, `nodejs_test_summary_${now}.html`);
-    let html = '<html><body><pre>' + JSON.stringify(summaryRows, null, 2) + '</pre></body></html>';
-    await fsSync.promises.writeFile(htmlFile, html, 'utf8');
+    const htmlFile = path.join(reportsPath, `javascript_${testTypeFile}_Summary.html`);
+    await fsSync.promises.writeFile(htmlFile, htmlParts.join('\n'), 'utf8');
+
     // Save JSON
-    const jsonFile = path.join(reportsPath, `nodejs_test_summary_${now}.json`);
+    const jsonFile = path.join(reportsPath, `javascript_${testTypeFile}_Summary.json`);
     await fsSync.promises.writeFile(jsonFile, JSON.stringify(summaryRows, null, 2), 'utf8');
-    // Save log
-    const logFile = path.join(reportsPath, `nodejs_test_results_${now}.log`);
-    await fsSync.promises.writeFile(logFile, `Saved test results at ${now}\n`, 'utf8');
     res.json({ message: 'Test results saved successfully' });
   } catch (error) {
     console.error('Error in /api/test-results:', error);
@@ -729,26 +821,84 @@ export async function saveTestResultsEndpoint(req, res) {
 /**
  * POST /api/performance-results - Save performance results and generate HTML/JSON reports
  */
-export async function savePerformanceResultsEndpoint(req, res) {
+export async function savePerformanceResultsEndpoint(req, res, projectDirectory) {
   try {
     const summaryRows = req.body;
     if (!Array.isArray(summaryRows)) {
       return res.status(400).send('Invalid performance results format');
     }
-    const projectDirectory = path.join(__dirname, '..');
+
+    console.log(`POST /api/performance-results called with ${summaryRows.length} rows`);
+
+    // Validate each row
+    const validAppSites = getValidAppSites();
+    for (const row of summaryRows) {
+      const appSite = row.AppSite || row.appSite || row.app_site;
+      const appFile = row.AppFile || row.appFile || row.app_file;
+      const appView = row.AppView || row.appView || row.app_view;
+
+      // Validate AppSite is in allowlist (case-insensitive)
+      if (appSite && !isValidAppSite(appSite, validAppSites)) {
+        return res.status(400).send(`Invalid AppSite: ${appSite}`);
+      }
+      // Validate parameter lengths (256 char limit)
+      if (appSite && !isValidPathComponent(appSite)) {
+        return res.status(400).send('Invalid AppSite parameter');
+      }
+      if (appFile && !isValidPathComponent(appFile)) {
+        return res.status(400).send('Invalid AppFile parameter');
+      }
+      if (appView && !isValidPathComponent(appView)) {
+        return res.status(400).send('Invalid AppView parameter');
+      }
+    }
+
     const reportsPath = path.join(projectDirectory, 'template_analysis', 'Reports');
     await fsSync.promises.mkdir(reportsPath, { recursive: true }).catch(() => {});
+
+    // Generate HTML table
+    const htmlParts = [];
+    htmlParts.push('<html><head><title>Client-Side Performance Summary Table</title>');
+    htmlParts.push('<style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>');
+    htmlParts.push('<h2>Client-Side JavaScript PERFORMANCE SUMMARY TABLE</h2>');
+    htmlParts.push(`<div class="meta">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>`);
+    htmlParts.push('<table>');
+    htmlParts.push('<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>');
+
+    for (const row of summaryRows) {
+      const appSite = getStringField(row, 'AppSite', 'app_site', 'appSite');
+      const appView = getStringField(row, 'AppView', 'app_view', 'appView');
+      const normalTimeMs = getFloatField(row, 'NormalTimeMs', 'normal_time_ms', 'normalTimeMs') || 0;
+      const preProcessTimeMs = getFloatField(row, 'PreProcessTimeMs', 'preprocess_time_ms', 'preProcessTimeMs') || 0;
+      const resultsMatch = getStringField(row, 'ResultsMatch', 'results_match', 'resultsMatch');
+      const perfDifference = getStringField(row, 'PerfDifference', 'perf_difference', 'perfDifference');
+      const scenarioTotalTimeMs = getIntField(row, 'ScenarioTotalTimeMs', 'scenario_total_time_ms', 'scenarioTotalTimeMs') || 0;
+      const elapsedTimeMs = getIntField(row, 'ElapsedTimeMs', 'elapsed_time_ms', 'elapsedTimeMs') || 0;
+
+      htmlParts.push('<tr>');
+      htmlParts.push(`<td>${appSite}</td>`);
+      htmlParts.push(`<td>${appView}</td>`);
+      htmlParts.push(`<td>${normalTimeMs.toFixed(2)}</td>`);
+      htmlParts.push(`<td>${preProcessTimeMs.toFixed(2)}</td>`);
+      htmlParts.push(`<td>${resultsMatch}</td>`);
+      htmlParts.push(`<td>${perfDifference}</td>`);
+      htmlParts.push(`<td>${scenarioTotalTimeMs}</td>`);
+      htmlParts.push(`<td>${elapsedTimeMs}</td>`);
+      htmlParts.push('</tr>');
+    }
+
+    htmlParts.push('</table></body></html>');
+
     // Save HTML
-    const now = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
-    const htmlFile = path.join(reportsPath, `nodejs_perf_summary_${now}.html`);
-    let html = '<html><body><pre>' + JSON.stringify(summaryRows, null, 2) + '</pre></body></html>';
-    await fsSync.promises.writeFile(htmlFile, html, 'utf8');
+    const htmlFile = path.join(reportsPath, 'javascript_perfsummary.html');
+    await fsSync.promises.writeFile(htmlFile, htmlParts.join('\n'), 'utf8');
+    console.log(`Performance summary HTML saved to: ${htmlFile}`);
+
     // Save JSON
-    const jsonFile = path.join(reportsPath, `nodejs_perf_summary_${now}.json`);
+    const jsonFile = path.join(reportsPath, 'javascript_perfsummary.json');
     await fsSync.promises.writeFile(jsonFile, JSON.stringify(summaryRows, null, 2), 'utf8');
-    // Save log
-    const logFile = path.join(reportsPath, `nodejs_perf_results_${now}.log`);
-    await fsSync.promises.writeFile(logFile, `Saved performance results at ${now}\n`, 'utf8');
+    console.log(`Performance summary JSON saved to: ${jsonFile}`);
+
     res.json({ message: 'Performance results saved successfully' });
   } catch (error) {
     console.error('Error in /api/performance-results:', error);

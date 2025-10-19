@@ -681,7 +681,7 @@ class AssemblerTestEndpoint
      * POST /api/save-log - Save a log file (browser-callable)
      * Mirrors C# behavior: expects JSON { context, content }, validates and writes to template_analysis/logs/javascript_{context}.log
      */
-    public static function saveLogEndpoint(ServerRequest $request, Response $response): Response
+    public static function saveLogEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
     {
         try {
             error_log("[/api/save-log] Endpoint called");
@@ -707,7 +707,6 @@ class AssemblerTestEndpoint
                 return $response->withStatus(400);
             }
 
-            $projectDirectory = dirname(__DIR__, 1);
             $logsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'logs';
             if (!is_dir($logsDir)) {
                 mkdir($logsDir, 0755, true);
@@ -730,11 +729,14 @@ class AssemblerTestEndpoint
      * POST /api/save-output - Save an output file (browser-callable)
      * Mirrors C# behavior: expects JSON { appSite, appView?, engineType, html }
      */
-    public static function saveOutputEndpoint(ServerRequest $request, Response $response): Response
+    public static function saveOutputEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
     {
         try {
             error_log("[/api/save-output] Endpoint called");
-            $body = json_decode((string)$request->getBody(), true);
+            $requestBody = (string)$request->getBody();
+            error_log(sprintf("[/api/save-output] Request body length: %d", strlen($requestBody)));
+
+            $body = json_decode($requestBody, true);
             $appSite = $body['appSite'] ?? '';
             $appView = $body['appView'] ?? '';
             $engineType = $body['engineType'] ?? '';
@@ -796,7 +798,6 @@ class AssemblerTestEndpoint
                 return $response->withStatus(400);
             }
 
-            $projectDirectory = dirname(__DIR__, 1);
             $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'output';
             if (!is_dir($outputDir)) {
                 mkdir($outputDir, 0755, true);
@@ -821,7 +822,7 @@ class AssemblerTestEndpoint
     /**
      * POST /api/test-results - Save test results and generate HTML/JSON reports
      */
-    public static function saveTestResultsEndpoint(ServerRequest $request, Response $response): Response
+    public static function saveTestResultsEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
     {
         try {
             $summaryRows = json_decode((string)$request->getBody(), true);
@@ -830,22 +831,89 @@ class AssemblerTestEndpoint
                 return $response->withStatus(400);
             }
             $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
-            $projectDirectory = dirname(__DIR__, 1);
             $reportsPath = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsPath)) {
                 mkdir($reportsPath, 0755, true);
             }
+
+            // Get test type from query parameter
+            $queryParams = $request->getQueryParams();
+            $testType = $queryParams['testType'] ?? 'standardtest';
+            $testTypeFile = strtolower(str_replace([' ', '-'], '', $testType));
+
+            // Generate HTML table matching Rust format
+            $formattedTestType = strtoupper(str_replace('test', ' TEST', $testType));
+            $htmlParts = [];
+            $htmlParts[] = '<!DOCTYPE html>';
+            $htmlParts[] = '<html>';
+            $htmlParts[] = '<head>';
+            $htmlParts[] = '    <meta charset="UTF-8">';
+            $htmlParts[] = '    <meta name="viewport" content="width=device-width, initial-scale=1.0">';
+            $htmlParts[] = "    <title>JavaScript {$formattedTestType}</title>";
+            $htmlParts[] = '    <style>';
+            $htmlParts[] = '        body { font-family: Arial, sans-serif; margin: 20px; }';
+            $htmlParts[] = '        h1 { color: #333; }';
+            $htmlParts[] = '        .table-container { overflow-x: auto; }';
+            $htmlParts[] = '        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }';
+            $htmlParts[] = '        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }';
+            $htmlParts[] = '        th { background-color: #4CAF50; color: white; }';
+            $htmlParts[] = '        tr:nth-child(even) { background-color: #f2f2f2; }';
+            $htmlParts[] = '        .pass { color: green; font-weight: bold; }';
+            $htmlParts[] = '        .fail { color: red; font-weight: bold; }';
+            $htmlParts[] = '        @media (max-width: 768px) {';
+            $htmlParts[] = '            body { margin: 10px; }';
+            $htmlParts[] = '            th, td { padding: 8px; font-size: 14px; }';
+            $htmlParts[] = '            h1 { font-size: 24px; }';
+            $htmlParts[] = '        }';
+            $htmlParts[] = '    </style>';
+            $htmlParts[] = '</head>';
+            $htmlParts[] = '<body>';
+            $htmlParts[] = "    <h1>JavaScript {$formattedTestType}</h1>";
+            $htmlParts[] = '    <div class="meta" style="color: #666; font-style: italic; margin-bottom: 10px;">Generated: ' . gmdate('Y-m-d H:i:s') . ' UTC</div>';
+            $htmlParts[] = '    <div class="table-container">';
+            $htmlParts[] = '    <table>';
+            $htmlParts[] = '        <tr>';
+            $htmlParts[] = '            <th>AppSite</th>';
+            $htmlParts[] = '            <th>AppFile</th>';
+            $htmlParts[] = '            <th>AppView</th>';
+            $htmlParts[] = '            <th>OutputMatch</th>';
+            $htmlParts[] = '            <th>ViewUnMatch</th>';
+            $htmlParts[] = '            <th>Error</th>';
+            $htmlParts[] = '        </tr>';
+
+            foreach ($summaryRows as $row) {
+                $appSite = $row['AppSite'] ?? $row['app_site'] ?? $row['appSite'] ?? '';
+                $appFile = $row['AppFile'] ?? $row['app_file'] ?? $row['appFile'] ?? '';
+                $appView = $row['AppView'] ?? $row['app_view'] ?? $row['appView'] ?? '';
+                $normalPreProcess = $row['NormalPreProcess'] ?? $row['normal_pre_process'] ?? $row['normalPreProcess'] ?? '';
+                $crossViewUnMatch = $row['CrossViewUnMatch'] ?? $row['cross_view_un_match'] ?? $row['crossViewUnMatch'] ?? '';
+                $errorMsg = $row['Error'] ?? $row['error'] ?? '';
+
+                $outputMatchClass = $normalPreProcess === 'PASS' ? 'pass' : ($normalPreProcess === 'FAIL' ? 'fail' : '');
+                $viewUnmatchClass = $crossViewUnMatch === 'PASS' ? 'pass' : ($crossViewUnMatch === 'FAIL' ? 'fail' : '');
+
+                $htmlParts[] = '        <tr>';
+                $htmlParts[] = "            <td>{$appSite}</td>";
+                $htmlParts[] = "            <td>{$appFile}</td>";
+                $htmlParts[] = "            <td>{$appView}</td>";
+                $htmlParts[] = "            <td class=\"{$outputMatchClass}\">{$normalPreProcess}</td>";
+                $htmlParts[] = "            <td class=\"{$viewUnmatchClass}\">{$crossViewUnMatch}</td>";
+                $htmlParts[] = "            <td>{$errorMsg}</td>";
+                $htmlParts[] = '        </tr>';
+            }
+
+            $htmlParts[] = '    </table>';
+            $htmlParts[] = '    </div>';
+            $htmlParts[] = '</body>';
+            $htmlParts[] = '</html>';
+
             // Save HTML
-            $now = date('Ymd_His');
-            $htmlFile = $reportsPath . DIRECTORY_SEPARATOR . "php_test_summary_{$now}.html";
-            $html = '<html><body><pre>' . json_encode($summaryRows, JSON_PRETTY_PRINT) . '</pre></body></html>';
-            file_put_contents($htmlFile, $html);
+            $htmlFile = $reportsPath . DIRECTORY_SEPARATOR . "javascript_{$testTypeFile}_Summary.html";
+            file_put_contents($htmlFile, implode("\n", $htmlParts));
+
             // Save JSON
-            $jsonFile = $reportsPath . DIRECTORY_SEPARATOR . "php_test_summary_{$now}.json";
+            $jsonFile = $reportsPath . DIRECTORY_SEPARATOR . "javascript_{$testTypeFile}_Summary.json";
             file_put_contents($jsonFile, json_encode($summaryRows, JSON_PRETTY_PRINT));
-            // Save log
-            $logFile = $reportsPath . DIRECTORY_SEPARATOR . "php_test_results_{$now}.log";
-            file_put_contents($logFile, "Saved test results at {$now}\n");
             $response->getBody()->write(json_encode(['message' => 'Test results saved successfully']));
             return $response->withHeader('Content-Type', 'application/json');
         } catch (Exception $error) {
@@ -858,7 +926,7 @@ class AssemblerTestEndpoint
     /**
      * POST /api/performance-results - Save performance results and generate HTML/JSON reports
      */
-    public static function savePerformanceResultsEndpoint(ServerRequest $request, Response $response): Response
+    public static function savePerformanceResultsEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
     {
         try {
             $summaryRows = json_decode((string)$request->getBody(), true);
@@ -866,23 +934,85 @@ class AssemblerTestEndpoint
                 $response->getBody()->write('Invalid performance results format');
                 return $response->withStatus(400);
             }
+
+            error_log(sprintf('POST /api/performance-results called with %d rows', count($summaryRows)));
+
+            // Validate each row
             $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
-            $projectDirectory = dirname(__DIR__, 1);
+            $validAppSites = SecurityValidator::getValidAppSites($rootDirPath);
+            foreach ($summaryRows as $row) {
+                // Validate AppSite is in allowlist
+                if (!empty($row['AppSite'] ?? $row['appSite'] ?? null)) {
+                    $appSite = $row['AppSite'] ?? $row['appSite'];
+                    $validAppSitesLower = array_map('strtolower', $validAppSites);
+                    if (!in_array(strtolower($appSite), $validAppSitesLower, true)) {
+                        $response->getBody()->write("Invalid AppSite: {$appSite}");
+                        return $response->withStatus(400);
+                    }
+                }
+                // Validate parameter lengths (256 char limit)
+                if (!empty($row['AppSite'] ?? $row['appSite'] ?? null) && !SecurityValidator::isValidPathComponent($row['AppSite'] ?? $row['appSite'])) {
+                    $response->getBody()->write('Invalid AppSite parameter');
+                    return $response->withStatus(400);
+                }
+                if (!empty($row['AppFile'] ?? $row['appFile'] ?? null) && !SecurityValidator::isValidPathComponent($row['AppFile'] ?? $row['appFile'])) {
+                    $response->getBody()->write('Invalid AppFile parameter');
+                    return $response->withStatus(400);
+                }
+                if (!empty($row['AppView'] ?? $row['appView'] ?? null) && !SecurityValidator::isValidPathComponent($row['AppView'] ?? $row['appView'])) {
+                    $response->getBody()->write('Invalid AppView parameter');
+                    return $response->withStatus(400);
+                }
+            }
+
             $reportsPath = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsPath)) {
                 mkdir($reportsPath, 0755, true);
             }
+
+            // Generate HTML table
+            $htmlParts = [];
+            $htmlParts[] = '<html><head><title>Client-Side Performance Summary Table</title>';
+            $htmlParts[] = '<style>table{border-collapse:collapse;}th,td{border:1px solid #888;padding:4px;}th{background:#eee;}.meta{color:#666;font-style:italic;margin-bottom:10px;}</style></head><body>';
+            $htmlParts[] = '<h2>Client-Side JavaScript PERFORMANCE SUMMARY TABLE</h2>';
+            $htmlParts[] = '<div class="meta">Generated: ' . gmdate('Y-m-d H:i:s') . ' UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>';
+            $htmlParts[] = '<table>';
+            $htmlParts[] = '<tr><th>AppSite</th><th>AppView</th><th>Normal(ms)</th><th>PreProc(ms)</th><th>Match</th><th>PerfDiff</th><th>ScnTime(ms)</th><th>Elapsed(ms)</th></tr>';
+
+            foreach ($summaryRows as $row) {
+                $appSite = $row['AppSite'] ?? $row['appSite'] ?? '';
+                $appView = $row['AppView'] ?? $row['appView'] ?? '';
+                $normalTimeMs = (float)($row['NormalTimeMs'] ?? $row['normalTimeMs'] ?? 0);
+                $preProcessTimeMs = (float)($row['PreProcessTimeMs'] ?? $row['preProcessTimeMs'] ?? 0);
+                $resultsMatch = $row['ResultsMatch'] ?? $row['resultsMatch'] ?? '';
+                $perfDifference = $row['PerfDifference'] ?? $row['perfDifference'] ?? '';
+                $scenarioTotalTimeMs = (int)($row['ScenarioTotalTimeMs'] ?? $row['scenarioTotalTimeMs'] ?? 0);
+                $elapsedTimeMs = (int)($row['ElapsedTimeMs'] ?? $row['elapsedTimeMs'] ?? 0);
+
+                $htmlParts[] = '<tr>';
+                $htmlParts[] = '<td>' . htmlspecialchars($appSite) . '</td>';
+                $htmlParts[] = '<td>' . htmlspecialchars($appView) . '</td>';
+                $htmlParts[] = '<td>' . number_format($normalTimeMs, 2) . '</td>';
+                $htmlParts[] = '<td>' . number_format($preProcessTimeMs, 2) . '</td>';
+                $htmlParts[] = '<td>' . htmlspecialchars($resultsMatch) . '</td>';
+                $htmlParts[] = '<td>' . htmlspecialchars($perfDifference) . '</td>';
+                $htmlParts[] = '<td>' . $scenarioTotalTimeMs . '</td>';
+                $htmlParts[] = '<td>' . $elapsedTimeMs . '</td>';
+                $htmlParts[] = '</tr>';
+            }
+
+            $htmlParts[] = '</table></body></html>';
+
             // Save HTML
-            $now = date('Ymd_His');
-            $htmlFile = $reportsPath . DIRECTORY_SEPARATOR . "php_perf_summary_{$now}.html";
-            $html = '<html><body><pre>' . json_encode($summaryRows, JSON_PRETTY_PRINT) . '</pre></body></html>';
-            file_put_contents($htmlFile, $html);
+            $htmlFile = $reportsPath . DIRECTORY_SEPARATOR . "javascript_perfsummary.html";
+            file_put_contents($htmlFile, implode("\n", $htmlParts));
+            error_log("Performance summary HTML saved to: {$htmlFile}");
+
             // Save JSON
-            $jsonFile = $reportsPath . DIRECTORY_SEPARATOR . "php_perf_summary_{$now}.json";
+            $jsonFile = $reportsPath . DIRECTORY_SEPARATOR . "javascript_perfsummary.json";
             file_put_contents($jsonFile, json_encode($summaryRows, JSON_PRETTY_PRINT));
-            // Save log
-            $logFile = $reportsPath . DIRECTORY_SEPARATOR . "php_perf_results_{$now}.log";
-            file_put_contents($logFile, "Saved performance results at {$now}\n");
+            error_log("Performance summary JSON saved to: {$jsonFile}");
+
             $response->getBody()->write(json_encode(['message' => 'Performance results saved successfully']));
             return $response->withHeader('Content-Type', 'application/json');
         } catch (Exception $error) {
