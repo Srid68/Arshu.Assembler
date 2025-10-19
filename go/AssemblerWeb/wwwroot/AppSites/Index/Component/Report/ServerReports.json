@@ -1,6 +1,6 @@
 {
-  "Implementation": "C# Server-Side",
-  "Lang": "csharp",
+  "Implementation": "Go Server-Side",
+  "Lang": "go",
   "Title": "Test Reports",
   "TitleIcon": "📊",
   "Reports": [

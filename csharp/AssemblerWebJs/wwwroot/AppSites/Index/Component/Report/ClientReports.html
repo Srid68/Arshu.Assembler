@@ -447,14 +447,24 @@
         }
     }
 
-    // Auto-trigger performance tests if ?runPerf=true is in URL
+    // Auto-trigger tests based on URL query parameters
     window.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
+
         if (urlParams.get('runPerf') === 'true') {
             console.log('Auto-triggering performance tests from URL parameter...');
-            // Wait a moment for page to fully load
             setTimeout(() => {
                 triggerTest('runPerfTests');
+            }, 1500);
+        } else if (urlParams.get('runAdvanced') === 'true') {
+            console.log('Auto-triggering advanced tests from URL parameter...');
+            setTimeout(() => {
+                triggerTest('runAdvancedTests');
+            }, 1500);
+        } else if (urlParams.get('runStandard') === 'true') {
+            console.log('Auto-triggering standard tests from URL parameter...');
+            setTimeout(() => {
+                triggerTest('runStandardTests');
             }, 1500);
         }
     });
