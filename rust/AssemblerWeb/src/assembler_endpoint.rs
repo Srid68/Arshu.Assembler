@@ -12,6 +12,8 @@ use assembler::common::logger::Logger;
 // ...existing code...
 use crate::security_validator;
 
+pub const DEFAULT_APP_SITE: &str = "Test";
+
 #[derive(Debug, Deserialize, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ScenarioDto {
@@ -30,16 +32,16 @@ pub struct MergeRequest {
     pub engine_type: Option<String>,
 }
 
-/// GET / - Root endpoint using Index AppSite
+/// GET / - Root endpoint using Default AppSite
 #[utoipa::path(
     get,
     path = "/",
     responses(
-        (status = 200, description = "Root template HTML using Index AppSite", body = String)
+        (status = 200, description = "Root template HTML using Default AppSite", body = String)
     )
 )]
 pub async fn index(req: HttpRequest) -> impl Responder {
-    // Use Index AppSite with engine toggle parameter
+    // Use Default AppSite with engine toggle parameter
     let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let root_dir_path = project_directory.join("wwwroot");
     let root_dir_path_str = root_dir_path.to_str().unwrap_or("");
@@ -56,17 +58,17 @@ pub async fn index(req: HttpRequest) -> impl Responder {
         return HttpResponse::BadRequest().body("Invalid engine type. Use 'Normal' or 'PreProcess'");
     }
 
-    // Load templates for Index AppSite
-    let mut normal_templates_raw = LoaderNormal::load_get_template_files(root_dir_path_str, "Index");
-    let preprocess_templates_raw = LoaderPreProcess::load_process_get_template_files(root_dir_path_str, "Index");
+    // Load templates for Default AppSite
+    let mut normal_templates_raw = LoaderNormal::load_get_template_files(root_dir_path_str, DEFAULT_APP_SITE);
+    let preprocess_templates_raw = LoaderPreProcess::load_process_get_template_files(root_dir_path_str, DEFAULT_APP_SITE);
 
-    // Merge using selected engine (no AppView context for Index)
+    // Merge using selected engine (no AppView context for Default AppSite)
     let merged_html = if engine_type.eq_ignore_ascii_case("PreProcess") {
         let engine = EnginePreProcess::new(String::new());
-        engine.merge_templates("Index", "Index", None, &preprocess_templates_raw.templates, true)
+        engine.merge_templates(DEFAULT_APP_SITE, "index", None, &preprocess_templates_raw.templates, true)
     } else {
         let engine = EngineNormal::new(String::new());
-        engine.merge_templates("Index", "Index", None, &mut normal_templates_raw, true)
+        engine.merge_templates(DEFAULT_APP_SITE, "index", None, &mut normal_templates_raw, true)
     };
 
     HttpResponse::Ok().content_type(ContentType::html()).body(merged_html)
