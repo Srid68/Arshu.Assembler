@@ -303,16 +303,16 @@ app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProces
 
 app.get('/api/scenarios', (req, res) => scenariosEndpoint(req, res, ConfigUtil));
 
-app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil));
+app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil, projectDirectory));
 
-app.post('/api/templates', (req, res) => getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata));
+app.post('/api/templates', (req, res) => getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, projectDirectory));
 
 // API endpoints
 
-app.post('/api/test-results', (req, res) => saveTestResultsEndpoint(req, res));
-app.post('/api/performance-results', (req, res) => savePerformanceResultsEndpoint(req, res));
-app.post('/api/save-log', (req, res) => saveLogEndpoint(req, res));
-app.post('/api/save-output', (req, res) => saveOutputEndpoint(req, res));
+app.post('/api/test-results', (req, res) => saveTestResultsEndpoint(req, res, projectDirectory));
+app.post('/api/performance-results', (req, res) => savePerformanceResultsEndpoint(req, res, projectDirectory));
+app.post('/api/save-log', (req, res) => saveLogEndpoint(req, res, projectDirectory));
+app.post('/api/save-output', (req, res) => saveOutputEndpoint(req, res, projectDirectory));
 
 // Test endpoints - pass projectDirectory to endpoints
 app.post('/test/standard', (req, res) => testStandardEndpoint(req, res, projectDirectory, ConfigUtil));
@@ -344,4 +344,16 @@ app.listen(port, () => {
   console.log(`AssemblerWeb Node.js server running at http://localhost:${port}`);
   console.log(`Scalar API documentation available at http://localhost:${port}/scalar`);
   console.log(`OpenAPI spec available at http://localhost:${port}/openapi.json`);
+
+  // Launch browser after a short delay (only in development mode)
+  if (isDebug) {
+    setTimeout(async () => {
+      try {
+        const { default: open } = await import('open');
+        await open(`http://localhost:${port}/`);
+      } catch (e) {
+        console.log(`Failed to open browser: ${e.message}`);
+      }
+    }, 500);
+  }
 });

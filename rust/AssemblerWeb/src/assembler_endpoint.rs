@@ -116,10 +116,14 @@ pub async fn get_scenarios() -> impl Responder {
     )
 )]
 #[actix_web::post("/merge")]
-pub async fn merge_templates(req: web::Json<MergeRequest>, http_req: HttpRequest) -> impl Responder {
+pub async fn merge_templates(
+    req: web::Json<MergeRequest>,
+    http_req: HttpRequest,
+    project_dir: web::Data<std::path::PathBuf>
+) -> impl Responder {
     // Enable logging for merge operations
     let original_log_level = Logger::get_log_level();
-    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let project_directory = project_dir.as_ref().clone();
 
     let template_analysis_dir = project_directory.join("template_analysis");
     let logs_dir = template_analysis_dir.join("logs");
@@ -152,8 +156,7 @@ pub async fn merge_templates(req: web::Json<MergeRequest>, http_req: HttpRequest
         _ => return HttpResponse::BadRequest().body("Missing required field: engineType"),
     };
 
-    // Get wwwroot directory
-    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    // Get wwwroot directory (project_directory already set from parameter)
     let assembler_web_dir_path = project_directory.join("wwwroot");
     let root_dir_path = assembler_web_dir_path.to_str().unwrap_or("");
 
@@ -336,8 +339,12 @@ pub async fn merge_templates(req: web::Json<MergeRequest>, http_req: HttpRequest
         (status = 500, description = "Internal server error")
     )
 )]
-pub async fn get_templates(body: web::Bytes, req: HttpRequest) -> impl Responder {
-    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+pub async fn get_templates(
+    body: web::Bytes,
+    req: HttpRequest,
+    project_dir: web::Data<std::path::PathBuf>
+) -> impl Responder {
+    let project_directory = project_dir.as_ref();
     let root_dir_path = project_directory.join("wwwroot");
     let root_dir_path_str = root_dir_path.to_str().unwrap_or("");
 

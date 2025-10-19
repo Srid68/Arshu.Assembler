@@ -312,6 +312,35 @@ namespace AssemblerWeb
 
             #endregion
 
+            #region Browser Launch (Development Mode Only)
+
+            // Launch browser after a short delay (only in debug mode)
+            if (isDebug)
+            {
+                var urls = builder.Configuration["ASPNETCORE_URLS"]?.Split(';') ?? new[] { "http://localhost:5275" };
+                var firstUrl = urls[0];
+
+                Task.Run(async () =>
+                {
+                    await Task.Delay(500);
+                    try
+                    {
+                        var psi = new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = firstUrl,
+                            UseShellExecute = true
+                        };
+                        System.Diagnostics.Process.Start(psi);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to open browser: {ex.Message}");
+                    }
+                });
+            }
+
+            #endregion
+
             app.Run();
         }
 

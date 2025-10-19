@@ -13,6 +13,7 @@ const loggerModule = await import(`${assemblerBasePath}/common/logger.js`);
 const { Logger } = loggerModule;
 
 const testingUtilsModule = await import(`${assemblerBasePath}/test/testingUtils.js`);
+const { dumpPreprocessedTemplateStructures } = testingUtilsModule;
 
 /**
  * GET / - Root endpoint using Index AppSite
@@ -75,12 +76,11 @@ export async function scenariosEndpoint(req, res, ConfigUtil) {
 /**
  * POST /merge - Merge templates endpoint
  */
-export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil) {
+export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil, projectDirectory) {
   const serverStart = Date.now();
 
   // Enable logging for merge operations
   const originalLogLevel = Logger.getLogLevel();
-  const projectDirectory = path.join(__dirname, '..');
 
   const templateAnalysisDir = path.join(projectDirectory, 'template_analysis');
   const logsDir = path.join(templateAnalysisDir, 'logs');
@@ -250,10 +250,9 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
 /**
  * POST /api/templates - Get templates for an AppSite
  */
-export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata) {
+export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, projectDirectory) {
     try {
         const rootDirPath = path.join(__dirname, 'wwwroot')
-        const projectDirectory = path.join(__dirname, '..')
 
         // Read request body
         const { appsite } = req.body

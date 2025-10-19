@@ -79,12 +79,10 @@ class AssemblerEndpoint
         }
     }
 
-    public static function mergeEndpoint(ServerRequest $request, Response $response): Response
+    public static function mergeEndpoint(ServerRequest $request, Response $response, string $projectRootPath): Response
     {
         // Enable logging for merge operations
         $originalLogLevel = Logger::getLogLevel();
-
-        $projectRootPath = dirname(__DIR__, 1);
         $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis';
         $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
         if (!is_dir($logsDir)) {
@@ -284,11 +282,10 @@ class AssemblerEndpoint
         }
     }
 
-	public static function getTemplatesEndpoint(ServerRequest $request, Response $response): Response
+	public static function getTemplatesEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
     {
         try {
             $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
-            $projectDirectory = dirname(__DIR__, 1);
 
             // Read request body
             $requestBody = (string)$request->getBody();

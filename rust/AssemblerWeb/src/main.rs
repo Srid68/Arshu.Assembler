@@ -1,4 +1,3 @@
-#[cfg(debug_assertions)]
 use std::thread;
 use utoipa::OpenApi;
 use std::time::Duration;
@@ -98,9 +97,15 @@ async fn main() -> std::io::Result<()> {
     println!("Starting server on http://localhost:{}", port);
     println!("Scalar UI will be available at http://localhost:{}/scalar", port);
 
+    // Determine if in debug mode first (needed for browser launch decision)
+    let is_debug = std::env::var("DEBUG").as_deref() == Ok("true")
+    || std::env::var("VSCODE_DEBUG").unwrap_or_default() == "true"
+    || std::env::var("IDLE_TRACKER_DISABLED").unwrap_or_default() == "true"
+    || std::env::var("APP_ENV").unwrap_or_default() == "development"
+    || skip_idle_tracking;
+
     // Launch browser after a short delay (only in debug mode)
-    #[cfg(debug_assertions)]
-    {
+    if is_debug {
         let browser_port = port;
         thread::spawn(move || {
             thread::sleep(Duration::from_millis(500));
@@ -109,12 +114,6 @@ async fn main() -> std::io::Result<()> {
             }
         });
     }
-    
-    let is_debug = std::env::var("DEBUG").as_deref() == Ok("true")
-    || std::env::var("VSCODE_DEBUG").unwrap_or_default() == "true"
-    || std::env::var("IDLE_TRACKER_DISABLED").unwrap_or_default() == "true"
-    || std::env::var("APP_ENV").unwrap_or_default() == "development"
-    || skip_idle_tracking;
 
     if !is_debug {
         println!("[IdleTracking] Idle tracking ENABLED");

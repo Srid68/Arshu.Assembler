@@ -110,13 +110,13 @@ $app->get('/api/scenarios', function (ServerRequest $request, Response $response
 })->setName('GetScenarios');
 
 // POST /merge - Merge templates
-$app->post('/merge', function (ServerRequest $request, Response $response) {
-    return AssemblerEndpoint::mergeEndpoint($request, $response);
+$app->post('/merge', function (ServerRequest $request, Response $response) use ($projectDirectory) {
+    return AssemblerEndpoint::mergeEndpoint($request, $response, $projectDirectory);
 })->setName('PostMergeTemplate');
 
 // POST /api/templates - Get templates for an AppSite
-$app->post('/api/templates', function (ServerRequest $request, Response $response) {
-    return AssemblerEndpoint::getTemplatesEndpoint($request, $response);
+$app->post('/api/templates', function (ServerRequest $request, Response $response) use ($projectDirectory) {
+    return AssemblerEndpoint::getTemplatesEndpoint($request, $response, $projectDirectory);
 })->setName('GetTemplates');
 
 
@@ -144,24 +144,24 @@ $app->post('/api/report', function (ServerRequest $request, Response $response) 
 
 // Register /api/test-results and /api/performance-results endpoints
 
-$app->post('/api/test-results', function (ServerRequest $request, Response $response) {
-    return AssemblerTestEndpoint::saveTestResultsEndpoint($request, $response);
+$app->post('/api/test-results', function (ServerRequest $request, Response $response) use ($projectDirectory) {
+    return AssemblerTestEndpoint::saveTestResultsEndpoint($request, $response, $projectDirectory);
 })->setName('SaveTestResults');
 
 
-$app->post('/api/performance-results', function (ServerRequest $request, Response $response) {
-    return AssemblerTestEndpoint::savePerformanceResultsEndpoint($request, $response);
+$app->post('/api/performance-results', function (ServerRequest $request, Response $response) use ($projectDirectory) {
+    return AssemblerTestEndpoint::savePerformanceResultsEndpoint($request, $response, $projectDirectory);
 })->setName('SavePerformanceResults');
 
 // Register /api/save-log and /api/save-output endpoints
 
-$app->post('/api/save-log', function (ServerRequest $request, Response $response) {
-    return AssemblerTestEndpoint::saveLogEndpoint($request, $response);
+$app->post('/api/save-log', function (ServerRequest $request, Response $response) use ($projectDirectory) {
+    return AssemblerTestEndpoint::saveLogEndpoint($request, $response, $projectDirectory);
 })->setName('SaveLog');
 
 
-$app->post('/api/save-output', function (ServerRequest $request, Response $response) {
-    return AssemblerTestEndpoint::saveOutputEndpoint($request, $response);
+$app->post('/api/save-output', function (ServerRequest $request, Response $response) use ($projectDirectory) {
+    return AssemblerTestEndpoint::saveOutputEndpoint($request, $response, $projectDirectory);
 })->setName('SaveOutput');
 
 // Serve Scalar UI index.html at /scalar
