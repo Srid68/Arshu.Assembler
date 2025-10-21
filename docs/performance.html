@@ -32,33 +32,34 @@
         .chart-bars-container { display: flex; flex-direction: column; gap: 8px; }
         .chart-bar-wrapper { display: flex; align-items: center; gap: 10px; }
         .chart-bar-label { min-width: 80px; font-weight: 600; color: #555; font-size: 13px; }
+        .chart-bar { height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: white; font-weight: bold; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; min-width: 40px; }
+        .chart-bar:hover { transform: translateX(5px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+        .chart-bar-value { margin-left: 10px; font-weight: 600; color: #333; font-size: 13px; min-width: 60px; }
         .grouped-chart-section { margin-bottom: 40px; padding: 20px; background: #f9f9f9; border-radius: 8px; }
         .grouped-chart-title { font-size: 1.3em; font-weight: bold; color: #667eea; margin-bottom: 15px; border-bottom: 2px solid #667eea; padding-bottom: 8px; }
-        @media (max-width: 768px) {
-            body { margin: 10px; }
-            th, td { padding: 8px; font-size: 14px; }
-            h1 { font-size: 24px; }
-            h2 { font-size: 20px; }
-            .meta { font-size: 12px; }
-        }
+        .grouped-bar-group { display: flex; align-items: center; margin-bottom: 20px; }
+        .grouped-bar-label { min-width: 100px; font-weight: 600; color: #333; font-size: 13px; }
+        .grouped-bars { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .grouped-bar-item { display: flex; align-items: center; gap: 8px; }
+        .grouped-bar { height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; color: white; font-weight: bold; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); min-width: 30px; }
+        .grouped-lang-label { min-width: 60px; font-size: 12px; color: #666; }
     </style>
 </head>
 <body>
     <h1>Consolidated Performance Summary</h1>
-    <div class="meta">Generated: 2025-10-21 08:41:01 UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>
+    <div class="meta">Generated: 2025-10-21 15:46:02 UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>
     <div class="legend">
         <div class="legend-item"><div class="legend-box" style="background-color: #4CAF50; opacity: 0.8;"></div><span>Normal Engine (N)</span></div>
         <div class="legend-item"><div class="legend-box" style="background-color: #2196F3; opacity: 0.8;"></div><span>PreProcess Engine (P)</span></div>
-        <div class="legend-item"><div class="legend-box" style="background-color: #90EE90;"></div><span>Best (Lowest Time)</span></div>
-        <div class="legend-item"><div class="legend-box" style="background-color: #FFD700;"></div><span>Nearest to Average</span></div>
-        <div class="legend-item"><div class="legend-box" style="background-color: #FFB6C6;"></div><span>Worst (Highest Time)</span></div>
+        <div class="legend-item"><div class="legend-box" style="background-color: #90EE90;"></div><span>Best (Lowest Time - Table View)</span></div>
+        <div class="legend-item"><div class="legend-box" style="background-color: #FFD700;"></div><span>Nearest to Average (Table View)</span></div>
+        <div class="legend-item"><div class="legend-box" style="background-color: #FFB6C6;"></div><span>Worst (Highest Time - Table View)</span></div>
     </div>
     <div class="view-toggle">
         <button class="view-btn active" data-view="grouped" onclick="switchView('grouped')">Grouped View</button>
         <button class="view-btn" data-view="chart" onclick="switchView('chart')">Bar Chart View</button>
         <button class="view-btn" data-view="table" onclick="switchView('table')">Table View</button>
     </div>
-
     <div id="combined-chart" class="view-content">
         <div class="chart-container">
             <div class="chart-row">
@@ -1487,53 +1488,53 @@
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">CSharp</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 78.87323943661973%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Max: 3.92ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 61.9718309859155%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Avg: 3.08ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 45.07042253521127%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Min: 2.24ms"></div>
-                            <span style="position: absolute; left: calc(78.87323943661973% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 2.24/3.08/3.92</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 100%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Max: 4.97ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 74.04426559356136%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Avg: 3.68ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 48.08853118712274%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Min: 2.39ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">P: 2.39/3.68/4.97</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 17.200526546731023%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Max: 3.92ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 13.514699429574376%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Avg: 3.08ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 9.82887231241773%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Min: 2.24ms"></div>
+                            <span style="position: absolute; left: calc(17.200526546731023% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 2.24/3.08/3.92</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 21.80781044317683%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Max: 4.97ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 16.147433084686266%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Avg: 3.68ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 10.4870557261957%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Min: 2.39ms"></div>
+                            <span style="position: absolute; left: calc(21.80781044317683% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.39/3.68/4.97</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Rust</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 12.07ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 74.52361226180614%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 9.00ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 49.04722452361226%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 5.92ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 5.92/9.00/12.07</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 33.96851698425849%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 4.10ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 24.937862468931232%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 3.01ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 15.907207953603974%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 1.92ms"></div>
-                            <span style="position: absolute; left: calc(33.96851698425849% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.92/3.01/4.10</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 52.96182536200088%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 12.07ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 39.46906537955244%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 9.00ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 25.976305397103992%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 5.92ms"></div>
+                            <span style="position: absolute; left: calc(52.96182536200088% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 5.92/9.00/12.07</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 17.990346643264587%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 4.10ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 13.20754716981132%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 3.01ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 8.424747696358052%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 1.92ms"></div>
+                            <span style="position: absolute; left: calc(17.990346643264587% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.92/3.01/4.10</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Go</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 3.72ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 72.07986017746705%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 2.68ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 44.15972035493413%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 1.64ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 1.64/2.68/3.72</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 86.89701532670074%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 3.23ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 65.63054584565742%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 2.44ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 44.36407636461414%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 1.65ms"></div>
-                            <span style="position: absolute; right: calc(100% - 86.89701532670074% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">P: 1.65/2.44/3.23</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 16.31856077226854%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 3.72ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 11.762395787626152%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 2.68ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 7.206230802983765%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 1.64ms"></div>
+                            <span style="position: absolute; left: calc(16.31856077226854% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 1.64/2.68/3.72</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 14.180342255375164%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 3.23ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 10.709960508995172%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 2.44ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 7.2395787626151815%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 1.65ms"></div>
+                            <span style="position: absolute; left: calc(14.180342255375164% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.65/2.44/3.23</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Node</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 91.38066415835105%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 5.59ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 81.08048421397022%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 4.96ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 70.7803042695894%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 4.33ms"></div>
-                            <span style="position: absolute; right: calc(100% - 91.38066415835105% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 4.33/4.96/5.59</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 100%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 6.11ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 72.25911990839195%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 4.42ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 44.5182398167839%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 2.72ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">P: 2.72/4.42/6.11</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 24.511189118034228%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 5.59ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 21.748354541465556%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 4.96ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 18.985519964896888%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 4.33ms"></div>
+                            <span style="position: absolute; left: calc(24.511189118034228% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 4.33/4.96/5.59</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 26.823168056164988%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 6.11ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 19.382185168933745%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 4.42ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 11.941202281702502%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 2.72ms"></div>
+                            <span style="position: absolute; left: calc(26.823168056164988% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.72/4.42/6.11</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
@@ -1552,14 +1553,14 @@
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Javascript</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 5.50ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 80%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 4.40ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 60%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 3.30ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 3.30/4.40/5.50</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 58.18181818181819%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 3.20ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 53.63636363636364%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 2.95ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 49.09090909090909%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 2.70ms"></div>
-                            <span style="position: absolute; left: calc(58.18181818181819% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.70/2.95/3.20</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 24.133391838525668%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 5.50ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 19.30671347082054%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 4.40ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 14.480035103115402%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 3.30ms"></div>
+                            <span style="position: absolute; left: calc(24.133391838525668% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 3.30/4.40/5.50</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 14.041246160596755%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 3.20ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 12.944273804300133%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 2.95ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 11.847301448003511%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 2.70ms"></div>
+                            <span style="position: absolute; left: calc(14.041246160596755% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.70/2.95/3.20</span>
                         </div>
                     </div>
                 </div>
@@ -1570,53 +1571,53 @@
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">CSharp</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Max: 8.54ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 74.59016393442623%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Avg: 6.37ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 36.4168618266979%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Min: 3.11ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 3.11/6.37/8.54</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 71.42857142857143%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Max: 6.10ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 47.365339578454346%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Avg: 4.05ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 28.68852459016394%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Min: 2.45ms"></div>
-                            <span style="position: absolute; left: calc(71.42857142857143% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.45/4.05/6.10</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 16.03153745072273%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Max: 8.54ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 11.957950065703022%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Avg: 6.37ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 5.838182842125023%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Min: 3.11ms"></div>
+                            <span style="position: absolute; left: calc(16.03153745072273% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 3.11/6.37/8.54</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 11.451098179087666%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Max: 6.10ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 7.593392153181905%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Avg: 4.05ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 4.599211563731932%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Min: 2.45ms"></div>
+                            <span style="position: absolute; left: calc(11.451098179087666% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.45/4.05/6.10</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Rust</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 22.66ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 67.41688731979994%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 15.28ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 43.865842894969106%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 9.94ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 9.94/15.28/22.66</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 75.33097969991174%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 17.07ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 46.62400706090026%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 10.56ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 24.75728155339806%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 5.61ms"></div>
-                            <span style="position: absolute; left: calc(75.33097969991174% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 5.61/10.56/17.07</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 42.53801389149615%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 22.66ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 28.677804893310803%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 15.28ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 18.659658344283837%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 9.94ms"></div>
+                            <span style="position: absolute; left: calc(42.53801389149615% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 9.94/15.28/22.66</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 32.0443026093486%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 17.07ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 19.8329266003379%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 10.56ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 10.53125586634128%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 5.61ms"></div>
+                            <span style="position: absolute; left: calc(32.0443026093486% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 5.61/10.56/17.07</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Go</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 8.60ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 55.940937392240954%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 4.81ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 29.661873932095816%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 2.55ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 2.55/4.81/8.60</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 44.76073134727372%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 3.85ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 30.388145634039642%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 2.61ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 18.803249915730007%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 1.62ms"></div>
-                            <span style="position: absolute; left: calc(44.76073134727372% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.62/2.61/3.85</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 16.15036605969589%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 8.60ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 9.03466616607221%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 4.81ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 4.790501220198986%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 2.55ms"></div>
+                            <span style="position: absolute; left: calc(16.15036605969589% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 2.55/4.81/8.60</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 7.2290219635817525%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 3.85ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 4.907796758650897%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 2.61ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 3.036793692509855%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 1.62ms"></div>
+                            <span style="position: absolute; left: calc(7.2290219635817525% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.62/2.61/3.85</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Node</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 8.07ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 71.25556574393035%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 5.75ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 47.49696413967436%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 3.83ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 3.83/5.75/8.07</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 34.37089539292707%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 2.77ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 26.26328963346633%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 2.12ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 17.020643850214366%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 1.37ms"></div>
-                            <span style="position: absolute; left: calc(34.37089539292707% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.37/2.12/2.77</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 15.149615168012012%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 8.07ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 10.794943995995245%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 5.75ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 7.195607283649333%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 3.83ms"></div>
+                            <span style="position: absolute; left: calc(15.149615168012012% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 3.83/5.75/8.07</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 5.20705838182842%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 2.77ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 3.9787873099305417%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 2.12ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.57856204242538%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 1.37ms"></div>
+                            <span style="position: absolute; left: calc(5.20705838182842% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.37/2.12/2.77</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
@@ -1635,14 +1636,14 @@
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Javascript</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 9.20ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 67.7536231884058%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 6.23ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 39.130434782608695%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 3.60ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 3.60/6.23/9.20</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 40.217391304347835%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 3.70ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 26.44927536231884%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 2.43ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 14.130434782608697%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 1.30ms"></div>
-                            <span style="position: absolute; left: calc(40.217391304347835% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.30/2.43/3.70</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 17.27050872911582%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 9.20ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 11.701395407045867%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 6.23ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 6.75802515487141%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 3.60ms"></div>
+                            <span style="position: absolute; left: calc(17.27050872911582% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 3.60/6.23/9.20</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 6.94574807584006%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 3.70ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 4.567924410237156%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 2.43ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.4403979725924536%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 1.30ms"></div>
+                            <span style="position: absolute; left: calc(6.94574807584006% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.30/2.43/3.70</span>
                         </div>
                     </div>
                 </div>
@@ -1666,66 +1667,66 @@
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Rust</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 9.22ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 81.59797541576282%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 7.52ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 60.412147505423%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 5.57ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 5.57/7.52/9.22</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 40.780911062906725%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 3.76ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 32.08604483007954%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 2.96ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 23.53579175704989%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 2.17ms"></div>
-                            <span style="position: absolute; left: calc(40.780911062906725% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.17/2.96/3.76</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 39.28419258628036%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 9.22ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 32.05510580883397%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 7.52ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 23.732424371538137%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 5.57ms"></div>
+                            <span style="position: absolute; left: calc(39.28419258628036% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 5.57/7.52/9.22</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 16.02045164039199%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 3.76ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 12.6047436443687%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 2.96ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 9.245845760545377%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 2.17ms"></div>
+                            <span style="position: absolute; left: calc(16.02045164039199% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.17/2.96/3.76</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Go</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 87.97885531553874%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 2.70ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 78.20270182079229%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 2.40ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 65.73125367095217%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 2.01ms"></div>
-                            <span style="position: absolute; right: calc(100% - 87.97885531553874% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 2.01/2.40/2.70</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 100%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 3.06ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 77.98788313863692%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 2.39ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 69.24231547347125%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 2.12ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">P: 2.12/2.39/3.06</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 11.487856838517258%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 2.70ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 10.211333617383895%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 2.40ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 8.58287175117171%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 2.01ms"></div>
+                            <span style="position: absolute; left: calc(11.487856838517258% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 2.01/2.40/2.70</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 13.057520238602471%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 3.06ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 10.18328362448516%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 2.39ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 9.04132935662548%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 2.12ms"></div>
+                            <span style="position: absolute; left: calc(13.057520238602471% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.12/2.39/3.06</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Node</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 3.52ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 57.7803691800108%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 2.03ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 36.44870445689582%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 1.28ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 1.28/2.03/3.52</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 86.66344321510852%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 3.05ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 67.93613773618893%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 2.39ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 22.750931482692913%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 0.80ms"></div>
-                            <span style="position: absolute; right: calc(100% - 86.66344321510852% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">P: 0.80/2.39/3.05</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 14.980400511291009%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 3.52ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 8.655730720068172%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 2.03ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 5.46016190881977%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 1.28ms"></div>
+                            <span style="position: absolute; left: calc(14.980400511291009% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 1.28/2.03/3.52</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 12.98253089049851%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 3.05ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 10.17710552478341%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 2.39ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 3.4081806561567967%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 0.80ms"></div>
+                            <span style="position: absolute; left: calc(12.98253089049851% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 0.80/2.39/3.05</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">PHP</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Max: 21.34ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 79.8734770384255%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Avg: 17.05ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 64.62043111527647%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Min: 13.79ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 13.79/17.05/21.34</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 82.80224929709466%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Max: 17.67ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 55.06872852233678%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Avg: 11.75ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 35.61387066541706%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Min: 7.60ms"></div>
-                            <span style="position: absolute; left: calc(82.80224929709466% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 7.60/11.75/17.67</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 90.92458457605454%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Max: 21.34ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 72.62462718363871%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Avg: 17.05ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 58.75585854282062%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Min: 13.79ms"></div>
+                            <span style="position: absolute; right: calc(100% - 90.92458457605454% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 13.79/17.05/21.34</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 75.28760119301236%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Max: 17.67ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 50.07101264024997%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Avg: 11.75ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 32.381763953983814%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Min: 7.60ms"></div>
+                            <span style="position: absolute; left: calc(75.28760119301236% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 7.60/11.75/17.67</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Javascript</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 89.28571428571429%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 2.50ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 69.64285714285715%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 1.95ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 50%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 1.40ms"></div>
-                            <span style="position: absolute; right: calc(100% - 89.28571428571429% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 1.40/1.95/2.50</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 100%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 2.80ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 63.095238095238095%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 1.77ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 32.142857142857146%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 0.90ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">P: 0.90/1.77/2.80</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 10.651896037494675%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 2.50ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 8.308478909245846%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 1.95ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 5.965061780997018%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 1.40ms"></div>
+                            <span style="position: absolute; left: calc(10.651896037494675% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 1.40/1.95/2.50</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 11.930123561994035%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 2.80ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 7.527339866496235%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 1.77ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 3.8346825734980827%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 0.90ms"></div>
+                            <span style="position: absolute; left: calc(11.930123561994035% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 0.90/1.77/2.80</span>
                         </div>
                     </div>
                 </div>
@@ -1736,53 +1737,53 @@
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">CSharp</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Max: 64.41ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 53.52041608445893%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Avg: 34.47ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 21.44077006675982%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Min: 13.81ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 13.81/34.47/64.41</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 10.821301040211148%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Max: 6.97ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 6.858407079646018%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Avg: 4.42ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 4.626610774724422%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Min: 2.98ms"></div>
-                            <span style="position: absolute; left: calc(10.821301040211148% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.98/4.42/6.97</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 56.90432016962629%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Max: 64.41ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 30.45542892481668%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Avg: 34.47ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 12.200724445622406%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Min: 13.81ms"></div>
+                            <span style="position: absolute; left: calc(56.90432016962629% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 13.81/34.47/64.41</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 6.157787790440851%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Max: 6.97ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 3.9027299231380868%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Avg: 4.42ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.6327414082516123%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Min: 2.98ms"></div>
+                            <span style="position: absolute; left: calc(6.157787790440851% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.98/4.42/6.97</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Rust</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 23.08ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 69.36741767764298%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 16.01ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 45.62391681109185%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 10.53ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 10.53/16.01/23.08</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 14.731369150779896%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 3.40ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 8.936308492201041%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 2.06ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 6.672443674176777%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 1.54ms"></div>
-                            <span style="position: absolute; left: calc(14.731369150779896% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.54/2.06/3.40</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 20.390493859881616%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 23.08ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 14.144359042318225%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 16.01ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 9.30294195600318%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 10.53ms"></div>
+                            <span style="position: absolute; left: calc(20.390493859881616% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 10.53/16.01/23.08</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 3.003798922166269%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 3.40ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.8221574344023324%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 2.06ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.360544217687075%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 1.54ms"></div>
+                            <span style="position: absolute; left: calc(3.003798922166269% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.54/2.06/3.40</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Go</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 32.20ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 63.53322691941008%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 20.46ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 29.617437805305997%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 9.54ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 9.54/20.46/32.20</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 12.423722023645007%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 4.00ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 7.8619496728392955%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 2.53ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 4.988618471925046%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 1.61ms"></div>
-                            <span style="position: absolute; left: calc(12.423722023645007% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.61/2.53/4.00</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 28.448891244809616%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 32.20ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 18.07449863062108%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 20.46ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 8.42583267073063%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 9.54ms"></div>
+                            <span style="position: absolute; left: calc(28.448891244809616% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 9.54/20.46/32.20</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 3.534411167064229%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 4.00ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.2366375121477167%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 2.53ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.4192066436964397%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 1.61ms"></div>
+                            <span style="position: absolute; left: calc(3.534411167064229% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.61/2.53/4.00</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Node</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 17.48ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 53.08872079783491%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 9.28ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 22.826180245232386%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 3.99ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 3.99/9.28/17.48</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 20.379578081282578%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 3.56ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 8.645643205758327%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 1.51ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 3.2722445686690733%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 0.57ms"></div>
-                            <span style="position: absolute; left: calc(20.379578081282578% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 0.57/1.51/3.56</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 15.440674971287216%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 17.48ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 8.197256824807846%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 9.28ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 3.5245163000265043%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 3.99ms"></div>
+                            <span style="position: absolute; left: calc(15.440674971287216% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 3.99/9.28/17.48</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 3.1467444120505346%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 3.56ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.3349456665783197%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 1.51ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 0.505256648113791%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 0.57ms"></div>
+                            <span style="position: absolute; left: calc(3.1467444120505346% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 0.57/1.51/3.56</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
@@ -1801,14 +1802,14 @@
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Javascript</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 13.20ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 52.84090909090909%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 6.97ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 25%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 3.30ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 3.30/6.97/13.20</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 21.96969696969697%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 2.90ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 14.015151515151514%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 1.85ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 9.090909090909092%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 1.20ms"></div>
-                            <span style="position: absolute; left: calc(21.96969696969697% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.20/1.85/2.90</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 11.661807580174926%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 13.20ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 6.162205141796978%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 6.97ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 2.9154518950437316%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 3.30ms"></div>
+                            <span style="position: absolute; left: calc(11.661807580174926% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 3.30/6.97/13.20</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.5620637865535825%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 2.90ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.6344200017669404%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 1.85ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.0601643254704478%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 1.20ms"></div>
+                            <span style="position: absolute; left: calc(2.5620637865535825% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.20/1.85/2.90</span>
                         </div>
                     </div>
                 </div>
@@ -1832,66 +1833,66 @@
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Rust</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 140.74ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 57.48010515844819%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 80.90ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 27.149353417649564%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 38.21ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 38.21/80.90/140.74</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 10.75031973852494%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 15.13ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 4.8937757567145095%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 6.89ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 1.1013215859030836%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 1.55ms"></div>
-                            <span style="position: absolute; left: calc(10.75031973852494% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.55/6.89/15.13</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 35.28202557031838%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 140.74ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 20.280145399849587%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 80.90ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 9.578841814991227%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 38.21ms"></div>
+                            <span style="position: absolute; left: calc(35.28202557031838% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 38.21/80.90/140.74</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 3.792930559037353%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 15.13ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.7266232138380548%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 6.89ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 0.3885685635497619%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 1.55ms"></div>
+                            <span style="position: absolute; left: calc(3.792930559037353% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.55/6.89/15.13</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Go</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 199.56ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 59.26893463919644%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 118.28ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 30.738193489225125%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 61.34ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 61.34/118.28/199.56</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 3.5090936879107444%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 7.00ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 1.8794832670630357%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 3.75ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 1.0021472077529985%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 2.00ms"></div>
-                            <span style="position: absolute; left: calc(3.5090936879107444% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.00/3.75/7.00</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 50.027951867636%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 199.56ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 29.651034093757833%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 118.28ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 15.377688643770368%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 61.34ms"></div>
+                            <span style="position: absolute; left: calc(50.027951867636% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 61.34/118.28/199.56</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.7555277011782402%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 7.00ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 0.9402669842065682%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 3.75ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 0.5013537227375282%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 2.00ms"></div>
+                            <span style="position: absolute; left: calc(1.7555277011782402% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.00/3.75/7.00</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Node</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 91.61ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 59.23637187268044%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 54.27ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 28.31572283107017%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 25.94ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 25.94/54.27/91.61</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 3.5273763262454705%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 3.23ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 1.8990143212679562%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 1.74ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 1.007619089202288%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 0.92ms"></div>
-                            <span style="position: absolute; left: calc(3.5273763262454705% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 0.92/1.74/3.23</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 22.966156931561795%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 91.61ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 13.604318124843317%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 54.27ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 6.5030333416896475%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 25.94ms"></div>
+                            <span style="position: absolute; left: calc(22.966156931561795% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 25.94/54.27/91.61</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 0.8101027826522939%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 3.23ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 0.4361306091752319%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 1.74ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 0.23141138129857108%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 0.92ms"></div>
+                            <span style="position: absolute; left: calc(0.8101027826522939% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 0.92/1.74/3.23</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">PHP</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Max: 160.15ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 79.31158289103965%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Avg: 127.02ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 56.84670621292538%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Min: 91.04ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 91.04/127.02/160.15</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 9.066500156103652%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Max: 14.52ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 6.286294099281924%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Avg: 10.07ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 4.970340305963159%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Min: 7.96ms"></div>
-                            <span style="position: absolute; left: calc(9.066500156103652% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 7.96/10.07/14.52</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 40.14790674354475%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Max: 160.15ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 31.84194033592379%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Avg: 127.02ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 22.822762597142145%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP Normal Min: 91.04ms"></div>
+                            <span style="position: absolute; left: calc(40.14790674354475% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 91.04/127.02/160.15</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 3.640010027575834%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Max: 14.52ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.523815492604663%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Avg: 10.07ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.9954875908749063%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="PHP PreProcess Min: 7.96ms"></div>
+                            <span style="position: absolute; left: calc(3.640010027575834% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 7.96/10.07/14.52</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Javascript</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 107.60ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 53.46189591078067%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 57.52ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 24.25650557620818%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 26.10ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 26.10/57.52/107.60</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 4.83271375464684%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 5.20ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 2.0910780669144984%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 2.25ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 1.0223048327137547%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 1.10ms"></div>
-                            <span style="position: absolute; left: calc(4.83271375464684% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.10/2.25/5.20</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 26.97417899222863%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 107.60ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 14.420907495612934%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 57.52ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 6.542993231386313%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 26.10ms"></div>
+                            <span style="position: absolute; left: calc(26.97417899222863% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 26.10/57.52/107.60</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.3035848583604914%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 5.20ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 0.5640511406367511%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 2.25ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 0.2757583354224117%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 1.10ms"></div>
+                            <span style="position: absolute; left: calc(1.3035848583604914% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.10/2.25/5.20</span>
                         </div>
                     </div>
                 </div>
@@ -1902,53 +1903,53 @@
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">CSharp</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Max: 216.81ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 84.10589917439232%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Avg: 182.35ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 68.21179834878464%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Min: 147.89ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 147.89/182.35/216.81</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 2.89193302891933%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Max: 6.27ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 2.5298648586319814%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Avg: 5.48ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 2.167796688344634%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Min: 4.70ms"></div>
-                            <span style="position: absolute; left: calc(2.89193302891933% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 4.70/5.48/6.27</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 89.21855067692688%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Max: 216.81ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 75.03806427719024%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Avg: 182.35ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 60.85757787745359%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp Normal Min: 147.89ms"></div>
+                            <span style="position: absolute; right: calc(100% - 89.21855067692688% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 147.89/182.35/216.81</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.580140734949179%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Max: 6.27ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.257108760956339%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Avg: 5.48ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.9340767869634994%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="CSharp PreProcess Min: 4.70ms"></div>
+                            <span style="position: absolute; left: calc(2.580140734949179% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 4.70/5.48/6.27</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Rust</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 55.13ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 86.09649918374751%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 47.47ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 72.192998367495%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 39.80ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 39.80/47.47/55.13</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 13.495374569200072%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 7.44ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 10.683838200616725%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 5.89ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 7.872301832033375%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 4.34ms"></div>
-                            <span style="position: absolute; left: calc(13.495374569200072% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 4.34/5.89/7.44</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 22.686309205382496%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Max: 55.13ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 19.532118019834577%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Avg: 47.47ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 16.377926834286654%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust Normal Min: 39.80ms"></div>
+                            <span style="position: absolute; left: calc(22.686309205382496% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 39.80/47.47/55.13</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 3.0616024031932842%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Max: 7.44ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.4237685691946833%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Avg: 5.89ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.7859347351960826%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Rust PreProcess Min: 4.34ms"></div>
+                            <span style="position: absolute; left: calc(3.0616024031932842% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 4.34/5.89/7.44</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Go</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 107.30ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 82.49190851048563%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 88.52ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 64.98381702097123%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 69.73ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 69.73/88.52/107.30</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 6.0620237250953135%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 6.50ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 4.663055745307029%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 5.00ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 3.2640877655187452%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 3.50ms"></div>
-                            <span style="position: absolute; left: calc(6.0620237250953135% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 3.50/5.00/6.50</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 44.15624871404469%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Max: 107.30ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 36.42533229085223%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Avg: 88.52ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 28.694415867659767%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go Normal Min: 69.73ms"></div>
+                            <span style="position: absolute; left: calc(44.15624871404469% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 69.73/88.52/107.30</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.6767622731574834%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Max: 6.50ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.0590304925723224%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Avg: 5.00ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.4412987119871612%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Go PreProcess Min: 3.50ms"></div>
+                            <span style="position: absolute; left: calc(2.6767622731574834% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 3.50/5.00/6.50</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Node</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 42.45ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 84.86595363739163%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 36.02ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 69.73190727478325%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 29.60ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 29.60/36.02/42.45</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 12.35346777233321%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 5.24ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 8.415355258198266%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 3.57ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 4.477242744063325%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 1.90ms"></div>
-                            <span style="position: absolute; left: calc(12.35346777233321% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.90/3.57/5.24</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 17.46759392617588%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Max: 42.45ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 14.824040162956257%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Avg: 36.02ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 12.180486399736635%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node Normal Min: 29.60ms"></div>
+                            <span style="position: absolute; left: calc(17.46759392617588% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 29.60/36.02/42.45</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.1578535862721697%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Max: 5.24ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.4699600839471627%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Avg: 3.57ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 0.7820665816221555%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Node PreProcess Min: 1.90ms"></div>
+                            <span style="position: absolute; left: calc(2.1578535862721697% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 1.90/3.57/5.24</span>
                         </div>
                     </div>
                     <div class="chart-bar-wrapper">
@@ -1967,14 +1968,14 @@
                     <div class="chart-bar-wrapper">
                         <div class="chart-bar-label">Javascript</div>
                         <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">
-                            <div style="position: absolute; left: 0; top: 0; width: 100%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 38.80ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 81.70103092783506%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 31.70ms"></div>
-                            <div style="position: absolute; left: 0; top: 0; width: 63.40206185567011%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 24.60ms"></div>
-                            <span style="position: absolute; right: calc(100% - 100% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;">N: 24.60/31.70/38.80</span>
-                            <div style="position: absolute; left: 0; top: 15px; width: 15.20618556701031%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 5.90ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 10.695876288659797%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 4.15ms"></div>
-                            <div style="position: absolute; left: 0; top: 15px; width: 6.185567010309279%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 2.40ms"></div>
-                            <span style="position: absolute; left: calc(15.20618556701031% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.40/4.15/5.90</span>
+                            <div style="position: absolute; left: 0; top: 0; width: 15.966421134932718%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Max: 38.80ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 13.044730669519772%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Avg: 31.70ms"></div>
+                            <div style="position: absolute; left: 0; top: 0; width: 10.123040204106829%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript Normal Min: 24.60ms"></div>
+                            <span style="position: absolute; left: calc(15.966421134932718% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;">N: 24.60/31.70/38.80</span>
+                            <div style="position: absolute; left: 0; top: 15px; width: 2.427883626188223%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Max: 5.90ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 1.707748652318835%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Avg: 4.15ms"></div>
+                            <div style="position: absolute; left: 0; top: 15px; width: 0.9876136784494465%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Javascript PreProcess Min: 2.40ms"></div>
+                            <span style="position: absolute; left: calc(2.427883626188223% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;">P: 2.40/4.15/5.90</span>
                         </div>
                     </div>
                 </div>
@@ -2001,8 +2002,8 @@
             <td>5.92</td>
             <td class="best-perf">1.64</td>
             <td>4.33</td>
-            <td>12.91</td>
-            <td>5.50</td>
+            <td class="worst-perf">12.91</td>
+            <td class="avg-perf">5.50</td>
             <td>1264</td>
         </tr>
         <tr>
@@ -2010,85 +2011,85 @@
             <td>3.92</td>
             <td>12.07</td>
             <td>3.72</td>
-            <td>5.59</td>
-            <td>22.79</td>
+            <td class="avg-perf">5.59</td>
+            <td class="worst-perf">22.79</td>
             <td class="best-perf">3.30</td>
             <td>2123</td>
         </tr>
         <tr>
             <td>HtmlRule2A</td>
             <td>3.11</td>
-            <td>9.94</td>
+            <td class="avg-perf">9.94</td>
             <td class="best-perf">2.55</td>
             <td>4.50</td>
-            <td>19.82</td>
+            <td class="worst-perf">19.82</td>
             <td>3.60</td>
             <td>1910</td>
         </tr>
         <tr>
             <td>HtmlRule2B</td>
             <td>6.80</td>
-            <td>12.87</td>
+            <td class="avg-perf">12.87</td>
             <td class="best-perf">3.83</td>
             <td>6.92</td>
-            <td>29.04</td>
+            <td class="worst-perf">29.04</td>
             <td>5.90</td>
             <td>2365</td>
         </tr>
         <tr>
             <td>HtmlRule2C</td>
             <td>6.96</td>
-            <td>11.60</td>
+            <td class="avg-perf">11.60</td>
             <td class="best-perf">3.69</td>
             <td>5.19</td>
-            <td>32.26</td>
+            <td class="worst-perf">32.26</td>
             <td>5.20</td>
             <td>1920</td>
         </tr>
         <tr>
             <td>HtmlRule2D</td>
             <td>5.77</td>
-            <td>14.33</td>
+            <td class="avg-perf">14.33</td>
             <td class="best-perf">3.62</td>
             <td>3.83</td>
-            <td>28.86</td>
+            <td class="worst-perf">28.86</td>
             <td>4.70</td>
             <td>2083</td>
         </tr>
         <tr>
             <td>HtmlRule2E</td>
             <td>7.04</td>
-            <td>20.26</td>
+            <td class="avg-perf">20.26</td>
             <td>6.58</td>
             <td class="best-perf">5.99</td>
-            <td>43.49</td>
+            <td class="worst-perf">43.49</td>
             <td>9.20</td>
             <td>2840</td>
         </tr>
         <tr>
             <td>HtmlRule2F</td>
             <td>8.54</td>
-            <td>22.66</td>
+            <td class="avg-perf">22.66</td>
             <td>8.60</td>
             <td class="best-perf">8.07</td>
-            <td>53.27</td>
+            <td class="worst-perf">53.27</td>
             <td>8.80</td>
             <td>2874</td>
         </tr>
         <tr>
             <td>HtmlRule3A</td>
             <td>2.49</td>
-            <td>6.72</td>
+            <td class="avg-perf">6.72</td>
             <td>2.70</td>
             <td class="best-perf">1.28</td>
-            <td>13.79</td>
+            <td class="worst-perf">13.79</td>
             <td>1.40</td>
             <td>1428</td>
         </tr>
         <tr>
             <td>HtmlRule3A → Html3A</td>
-            <td>23.47</td>
-            <td>6.68</td>
+            <td class="worst-perf">23.47</td>
+            <td class="avg-perf">6.68</td>
             <td>2.69</td>
             <td>1.80</td>
             <td>14.53</td>
@@ -2098,70 +2099,70 @@
         <tr>
             <td>HtmlRule3A → Html3B</td>
             <td>2.64</td>
-            <td>5.57</td>
+            <td class="avg-perf">5.57</td>
             <td>2.14</td>
             <td>1.51</td>
-            <td>14.04</td>
+            <td class="worst-perf">14.04</td>
             <td class="best-perf">1.40</td>
             <td>1428</td>
         </tr>
         <tr>
             <td>HtmlRule3B</td>
             <td>2.86</td>
-            <td>8.25</td>
+            <td class="avg-perf">8.25</td>
             <td>2.15</td>
             <td class="best-perf">2.04</td>
-            <td>18.93</td>
+            <td class="worst-perf">18.93</td>
             <td>2.40</td>
             <td>1406</td>
         </tr>
         <tr>
             <td>HtmlRule3B → Html3A</td>
             <td>3.79</td>
-            <td>8.70</td>
+            <td class="avg-perf">8.70</td>
             <td>2.70</td>
             <td class="best-perf">2.05</td>
-            <td>19.64</td>
+            <td class="worst-perf">19.64</td>
             <td>2.40</td>
             <td>1406</td>
         </tr>
         <tr>
             <td>HtmlRule3B → Html3B</td>
             <td>4.10</td>
-            <td>9.22</td>
+            <td class="avg-perf">9.22</td>
             <td class="best-perf">2.01</td>
             <td>3.52</td>
-            <td>21.34</td>
+            <td class="worst-perf">21.34</td>
             <td>2.50</td>
             <td>1406</td>
         </tr>
         <tr>
             <td>JsonRule1A</td>
-            <td>29.70</td>
+            <td class="worst-perf">29.70</td>
             <td>10.53</td>
             <td>23.57</td>
             <td>5.92</td>
-            <td>20.36</td>
+            <td class="avg-perf">20.36</td>
             <td class="best-perf">4.20</td>
             <td>1417</td>
         </tr>
         <tr>
             <td>JsonRule1B</td>
             <td>13.81</td>
-            <td>11.08</td>
+            <td class="avg-perf">11.08</td>
             <td>9.54</td>
             <td>3.99</td>
-            <td>21.61</td>
+            <td class="worst-perf">21.61</td>
             <td class="best-perf">3.30</td>
             <td>1924</td>
         </tr>
         <tr>
             <td>JsonRule1C</td>
             <td>29.97</td>
-            <td>23.08</td>
+            <td class="avg-perf">23.08</td>
             <td>16.53</td>
             <td>9.73</td>
-            <td>47.85</td>
+            <td class="worst-perf">47.85</td>
             <td class="best-perf">7.20</td>
             <td>3798</td>
         </tr>
@@ -2169,17 +2170,17 @@
             <td>JsonRule1D</td>
             <td>64.41</td>
             <td>19.35</td>
-            <td>32.20</td>
+            <td class="avg-perf">32.20</td>
             <td>17.48</td>
-            <td>113.19</td>
+            <td class="worst-perf">113.19</td>
             <td class="best-perf">13.20</td>
             <td>320</td>
         </tr>
         <tr>
             <td>JsonRule2A</td>
-            <td>265.76</td>
+            <td class="worst-perf">265.76</td>
             <td>84.13</td>
-            <td>128.60</td>
+            <td class="avg-perf">128.60</td>
             <td>57.51</td>
             <td>153.75</td>
             <td class="best-perf">54.10</td>
@@ -2187,9 +2188,9 @@
         </tr>
         <tr>
             <td>JsonRule2B</td>
-            <td>398.90</td>
+            <td class="worst-perf">398.90</td>
             <td>140.74</td>
-            <td>199.56</td>
+            <td class="avg-perf">199.56</td>
             <td class="best-perf">91.61</td>
             <td>160.15</td>
             <td>107.60</td>
@@ -2197,9 +2198,9 @@
         </tr>
         <tr>
             <td>JsonRule2C</td>
-            <td>114.97</td>
+            <td class="worst-perf">114.97</td>
             <td>38.21</td>
-            <td>61.34</td>
+            <td class="avg-perf">61.34</td>
             <td class="best-perf">25.94</td>
             <td>91.04</td>
             <td>26.10</td>
@@ -2207,9 +2208,9 @@
         </tr>
         <tr>
             <td>JsonRule2D</td>
-            <td>152.99</td>
+            <td class="worst-perf">152.99</td>
             <td>60.51</td>
-            <td>83.60</td>
+            <td class="avg-perf">83.60</td>
             <td class="best-perf">42.01</td>
             <td>103.13</td>
             <td>42.30</td>
@@ -2219,9 +2220,9 @@
             <td>Rule1A</td>
             <td>147.89</td>
             <td>39.80</td>
-            <td>69.73</td>
+            <td class="avg-perf">69.73</td>
             <td>29.60</td>
-            <td>170.26</td>
+            <td class="worst-perf">170.26</td>
             <td class="best-perf">24.60</td>
             <td>2543</td>
         </tr>
@@ -2229,9 +2230,9 @@
             <td>Rule1B</td>
             <td>216.81</td>
             <td>55.13</td>
-            <td>107.30</td>
+            <td class="avg-perf">107.30</td>
             <td>42.45</td>
-            <td>243.01</td>
+            <td class="worst-perf">243.01</td>
             <td class="best-perf">38.80</td>
             <td>4772</td>
         </tr>
@@ -2258,8 +2259,8 @@
             <td>1.92</td>
             <td class="best-perf">1.65</td>
             <td>2.72</td>
-            <td>7.70</td>
-            <td>3.20</td>
+            <td class="worst-perf">7.70</td>
+            <td class="avg-perf">3.20</td>
             <td>1264</td>
         </tr>
         <tr>
@@ -2267,25 +2268,25 @@
             <td>4.97</td>
             <td>4.10</td>
             <td>3.23</td>
-            <td>6.11</td>
-            <td>13.25</td>
+            <td class="avg-perf">6.11</td>
+            <td class="worst-perf">13.25</td>
             <td class="best-perf">2.70</td>
             <td>2123</td>
         </tr>
         <tr>
             <td>HtmlRule2A</td>
-            <td>2.45</td>
+            <td class="avg-perf">2.45</td>
             <td>5.61</td>
             <td>2.16</td>
             <td class="best-perf">2.14</td>
-            <td>7.26</td>
+            <td class="worst-perf">7.26</td>
             <td>2.40</td>
             <td>1910</td>
         </tr>
         <tr>
             <td>HtmlRule2B</td>
-            <td>3.59</td>
-            <td>10.05</td>
+            <td class="avg-perf">3.59</td>
+            <td class="worst-perf">10.05</td>
             <td>2.11</td>
             <td>1.79</td>
             <td>8.78</td>
@@ -2294,8 +2295,8 @@
         </tr>
         <tr>
             <td>HtmlRule2C</td>
-            <td>4.21</td>
-            <td>8.88</td>
+            <td class="avg-perf">4.21</td>
+            <td class="worst-perf">8.88</td>
             <td>1.62</td>
             <td>1.37</td>
             <td>7.82</td>
@@ -2304,18 +2305,18 @@
         </tr>
         <tr>
             <td>HtmlRule2D</td>
-            <td>4.25</td>
+            <td class="avg-perf">4.25</td>
             <td>8.95</td>
             <td>2.66</td>
             <td class="best-perf">1.87</td>
-            <td>10.47</td>
+            <td class="worst-perf">10.47</td>
             <td>3.70</td>
             <td>2083</td>
         </tr>
         <tr>
             <td>HtmlRule2E</td>
-            <td>3.67</td>
-            <td>17.07</td>
+            <td class="avg-perf">3.67</td>
+            <td class="worst-perf">17.07</td>
             <td>3.29</td>
             <td class="best-perf">2.77</td>
             <td>13.48</td>
@@ -2324,41 +2325,41 @@
         </tr>
         <tr>
             <td>HtmlRule2F</td>
-            <td>6.10</td>
+            <td class="avg-perf">6.10</td>
             <td>12.83</td>
             <td>3.85</td>
             <td>2.77</td>
-            <td>13.81</td>
+            <td class="worst-perf">13.81</td>
             <td class="best-perf">2.60</td>
             <td>2874</td>
         </tr>
         <tr>
             <td>HtmlRule3A</td>
-            <td>3.07</td>
+            <td class="avg-perf">3.07</td>
             <td>3.29</td>
             <td>2.16</td>
             <td class="best-perf">0.80</td>
-            <td>7.60</td>
+            <td class="worst-perf">7.60</td>
             <td>0.90</td>
             <td>1428</td>
         </tr>
         <tr>
             <td>HtmlRule3A → Html3A</td>
-            <td>3.39</td>
+            <td class="avg-perf">3.39</td>
             <td>2.39</td>
             <td>2.19</td>
             <td>2.60</td>
-            <td>11.04</td>
+            <td class="worst-perf">11.04</td>
             <td class="best-perf">1.60</td>
             <td>1428</td>
         </tr>
         <tr>
             <td>HtmlRule3A → Html3B</td>
-            <td>3.39</td>
+            <td class="avg-perf">3.39</td>
             <td>2.44</td>
             <td>2.12</td>
             <td>2.46</td>
-            <td>9.76</td>
+            <td class="worst-perf">9.76</td>
             <td class="best-perf">1.00</td>
             <td>1428</td>
         </tr>
@@ -2367,38 +2368,38 @@
             <td>5.43</td>
             <td>2.17</td>
             <td>2.19</td>
-            <td>3.05</td>
-            <td>10.38</td>
+            <td class="avg-perf">3.05</td>
+            <td class="worst-perf">10.38</td>
             <td class="best-perf">2.10</td>
             <td>1406</td>
         </tr>
         <tr>
             <td>HtmlRule3B → Html3A</td>
             <td>7.82</td>
-            <td>3.70</td>
+            <td class="avg-perf">3.70</td>
             <td>2.61</td>
             <td class="best-perf">2.52</td>
-            <td>14.06</td>
+            <td class="worst-perf">14.06</td>
             <td>2.80</td>
             <td>1406</td>
         </tr>
         <tr>
             <td>HtmlRule3B → Html3B</td>
-            <td>7.56</td>
+            <td class="avg-perf">7.56</td>
             <td>3.76</td>
             <td>3.06</td>
             <td>2.90</td>
-            <td>17.67</td>
+            <td class="worst-perf">17.67</td>
             <td class="best-perf">2.20</td>
             <td>1406</td>
         </tr>
         <tr>
             <td>JsonRule1A</td>
-            <td>2.98</td>
+            <td class="avg-perf">2.98</td>
             <td>1.77</td>
             <td>2.00</td>
             <td class="best-perf">0.57</td>
-            <td>7.35</td>
+            <td class="worst-perf">7.35</td>
             <td>1.50</td>
             <td>1417</td>
         </tr>
@@ -2406,46 +2407,46 @@
             <td>JsonRule1B</td>
             <td>3.53</td>
             <td>1.54</td>
-            <td>2.52</td>
+            <td class="avg-perf">2.52</td>
             <td class="best-perf">1.01</td>
-            <td>7.24</td>
+            <td class="worst-perf">7.24</td>
             <td>1.20</td>
             <td>1924</td>
         </tr>
         <tr>
             <td>JsonRule1C</td>
-            <td>6.97</td>
+            <td class="avg-perf">6.97</td>
             <td>3.40</td>
             <td>4.00</td>
             <td>3.56</td>
-            <td>15.45</td>
+            <td class="worst-perf">15.45</td>
             <td class="best-perf">2.90</td>
             <td>3798</td>
         </tr>
         <tr>
             <td>JsonRule1D</td>
-            <td>4.19</td>
+            <td class="avg-perf">4.19</td>
             <td>1.54</td>
             <td>1.61</td>
             <td class="best-perf">0.90</td>
-            <td>8.53</td>
+            <td class="worst-perf">8.53</td>
             <td>1.80</td>
             <td>320</td>
         </tr>
         <tr>
             <td>JsonRule2A</td>
-            <td>4.12</td>
+            <td class="avg-perf">4.12</td>
             <td>9.25</td>
             <td>4.00</td>
             <td>1.82</td>
-            <td>9.44</td>
+            <td class="worst-perf">9.44</td>
             <td class="best-perf">1.60</td>
             <td>2355</td>
         </tr>
         <tr>
             <td>JsonRule2B</td>
-            <td>8.23</td>
-            <td>15.13</td>
+            <td class="avg-perf">8.23</td>
+            <td class="worst-perf">15.13</td>
             <td>7.00</td>
             <td class="best-perf">3.23</td>
             <td>14.52</td>
@@ -2454,72 +2455,64 @@
         </tr>
         <tr>
             <td>JsonRule2C</td>
-            <td>2.86</td>
+            <td class="avg-perf">2.86</td>
             <td>1.55</td>
             <td>2.00</td>
             <td class="best-perf">0.92</td>
-            <td>7.96</td>
+            <td class="worst-perf">7.96</td>
             <td>1.10</td>
             <td>2799</td>
         </tr>
         <tr>
             <td>JsonRule2D</td>
-            <td>2.80</td>
+            <td class="avg-perf">2.80</td>
             <td>1.62</td>
             <td>2.00</td>
             <td class="best-perf">0.99</td>
-            <td>8.35</td>
+            <td class="worst-perf">8.35</td>
             <td>1.10</td>
             <td>3217</td>
         </tr>
         <tr>
             <td>Rule1A</td>
-            <td>4.70</td>
+            <td class="avg-perf">4.70</td>
             <td>4.34</td>
             <td>3.50</td>
             <td class="best-perf">1.90</td>
-            <td>14.09</td>
+            <td class="worst-perf">14.09</td>
             <td>2.40</td>
             <td>2543</td>
         </tr>
         <tr>
             <td>Rule1B</td>
             <td>6.27</td>
-            <td>7.44</td>
+            <td class="avg-perf">7.44</td>
             <td>6.50</td>
             <td class="best-perf">5.24</td>
-            <td>21.96</td>
+            <td class="worst-perf">21.96</td>
             <td>5.90</td>
             <td>4772</td>
         </tr>
     </table>
     </div>
     </div>
-
     <script>
-        function switchView(viewType) {
-            // Hide all views
-            document.querySelectorAll('.view-content').forEach(function(el) {
-                el.classList.remove('active');
-            });
+        function switchView(viewName) {
+            // Hide all view content
+            document.querySelectorAll('.view-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.view-btn').forEach(el => el.classList.remove('active'));
 
-            // Remove active class from all buttons
-            document.querySelectorAll('.view-btn').forEach(function(btn) {
-                btn.classList.remove('active');
-            });
-
-            // Show selected view and activate button
-            if (viewType === 'grouped') {
+            // Show selected view
+            if (viewName === 'grouped') {
                 document.getElementById('combined-grouped').classList.add('active');
-                document.querySelector('[data-view="grouped"]').classList.add('active');
-            } else if (viewType === 'chart') {
+            } else if (viewName === 'chart') {
                 document.getElementById('combined-chart').classList.add('active');
-                document.querySelector('[data-view="chart"]').classList.add('active');
-            } else if (viewType === 'table') {
+            } else if (viewName === 'table') {
                 document.getElementById('normal-table').classList.add('active');
-                document.getElementById('preprocess-table').classList.add('active');
-                document.querySelector('[data-view="table"]').classList.add('active');
             }
+
+            // Activate button
+            document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
         }
     </script>
 </body>

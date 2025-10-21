@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Is Rust Slow? A Performance Comparison - Analyzing performance across C#, Rust, Go, Node.js, PHP, and JavaScript">
+    <title>Is Rust Slow? A Performance Comparison - Arshu Assembler</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #ffd700;
+            --bg-color: #f5f7fa;
+            --white: #ffffff;
+            --gray-dark: #333;
+            --gray: #666;
+            --gray-light: #e0e0e0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-dark);
+            background: var(--bg-color);
+        }
+
+        .header {
+            background: var(--primary-gradient);
+            color: var(--white);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .nav {
+            background: var(--white);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .nav a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .nav a:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .article {
+            background: var(--white);
+            padding: 3rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .meta-info {
+            font-style: italic;
+            color: var(--gray);
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: #f9f9f9;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        h2 {
+            color: var(--primary-color);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--gray-light);
+        }
+
+        h3 {
+            color: var(--secondary-color);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        ul, ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-radius: 4px;
+        }
+
+        .warning strong {
+            color: #856404;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.9em;
+            overflow-x: auto;
+            display: block;
+        }
+
+        thead {
+            background: var(--primary-gradient);
+            color: var(--white);
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border: 1px solid var(--gray-light);
+        }
+
+        tbody tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        tbody tr:hover {
+            background: #f0f0f0;
+        }
+
+        td:nth-child(2), td:nth-child(3), td:nth-child(4),
+        td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8) {
+            text-align: right;
+        }
+
+        strong {
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        .datasource-table {
+            margin: 2rem 0;
+        }
+
+        .datasource-table td:first-child {
+            font-weight: 600;
+        }
+
+        .datasource-table a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .datasource-table a:hover {
+            text-decoration: underline;
+        }
+
+        blockquote {
+            margin: 1.5rem 0;
+            padding: 1rem 1.5rem;
+            border-left: 4px solid var(--primary-color);
+            background: #f9f9f9;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .article {
+                padding: 1.5rem;
+            }
+
+            .container {
+                padding: 0 1rem;
+            }
+
+            table {
+                font-size: 0.75em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Is Rust Slow? A Performance Comparison</h1>
+        <p class="subtitle">Analyzing performance across C#, Rust, Go, Node.js, PHP, and JavaScript</p>
+    </div>
+
+    <div class="nav">
+        <a href="../index.html">← Back to Home</a>
+    </div>
+
+    <div class="container">
+        <article class="article">
+            <div class="meta-info">
+                This article has been written by me with AI Assistance.
+            </div>
+
+            <h2>Why is Rust Sometimes Slower Than Expected?</h2>
+            <p>
+                Rust is widely known for its performance and safety, often being compared to C and C++. However, there are scenarios
+                where Rust code may not perform as fast as anticipated. This article delves into the micro benchmark performance of
+                various language implementations of the same abstraction and the surprising results they produce.
+            </p>
+
+            <h2>Disclaimer</h2>
+            <p>
+                <strong>Note:</strong> I am only familiar with C#. I am not familiar with idioms or conventions in other languages.
+            </p>
+            <p>
+                The implementation used to generate the performance data are not handwritten implementations; they are all fully
+                generated using different models (GPT 4.1 and Claude Sonnet 4 and 4.5) with zero review of the implementation.
+            </p>
+            <p>
+                I have ensured the implementation output are correct by using AI-generated tests to verify the results across all
+                engines and languages and also visually confirming the expected output which are published in fly.io.
+            </p>
+            <p>
+                No optimizations have been done using AI for other languages, except for some initial minor work in Rust.
+            </p>
+
+            <div class="warning">
+                <p><strong>⚠️ Performance Results Not Reliable</strong></p>
+                <p>
+                    Since I have not reviewed any of the implementation, AI may have made mistakes which invalidate these performance
+                    testing results and their observations.
+                </p>
+                <p>
+                    I believe many more optimizations prompt request can improve the current implementations by AI, as well as
+                    re-implementing the assembler logic manually, which will invalidate the testing results and their current observations.
+                </p>
+            </div>
+
+            <h2>Datasource</h2>
+            <p>The performance reports can also be generated from the deployed language assemblers:</p>
+
+            <table class="datasource-table">
+                <thead>
+                    <tr>
+                        <th>Language</th>
+                        <th>Assembler Demo in fly.io</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Javascript</strong></td>
+                        <td><a href="https://jsassembler.fly.dev" target="_blank">javascript Assembler Web</a> Client Side Assembly</td>
+                    </tr>
+                    <tr>
+                        <td><strong>C#</strong></td>
+                        <td><a href="https://csharpassembler.fly.dev" target="_blank">csharp Assembler Web</a> Server Side Assembly</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Rust</strong></td>
+                        <td><a href="https://rustassembler.fly.dev" target="_blank">rust Assembler Web</a> Server Side Assembly</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Go</strong></td>
+                        <td><a href="https://goassembler.fly.dev" target="_blank">go Assembler Web</a> Server Side Assembly</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Node.js</strong></td>
+                        <td><a href="https://nodeassembler.fly.dev" target="_blank">node Assembler Web</a> Server Side Assembly</td>
+                    </tr>
+                    <tr>
+                        <td><strong>PHP</strong></td>
+                        <td><a href="https://phpassembler.fly.dev" target="_blank">PHP Assembler Web</a> Server Side Assembly</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>
+                The output generated in my PC which is used for analysis in this article is also available in
+                <a href="https://github.com/Srid68/Arshu.Assembler/app_perf_tests.md" target="_blank">All Performance Results</a>
+                which will be periodically regenerated as the implementations are improved as well as when newer rules are added.
+            </p>
+
+            <h2>Interesting Observations (Written by me)</h2>
+            <ol>
+                <li>
+                    <strong>Recursion Has a Cost:</strong> Based on Rule 1 with two scenarios, HtmlRule1A and HtmlRule1B, and the
+                    performance results, I can see that recursion has a higher cost since the only difference between the two scenarios
+                    is the nesting of the direct assembly of components. Maybe use iteration instead of recursion to improve performance?
+                </li>
+                <li>
+                    <strong>Testing in Debug:</strong> Testing in Debug in Rust is worse when compared with all other languages.
+                </li>
+                <li>
+                    <strong>Backup Folder Size:</strong> I thought node_modules folder size was huge leading to slow backup if they
+                    are not ignored but now i can say rust target folders are more huge and backup without doing cargo clean will
+                    increase backup time.
+                </li>
+            </ol>
+
+            <h2>Interesting Observations (Generated by GPT4.1)</h2>
+            <ol>
+                <li>
+                    <strong>Consistency Across Languages in PreProcess Engine:</strong> The performance gap between languages narrows
+                    significantly when using the PreProcess Engine. This suggests that the initial parsing and data structure setup is
+                    the main bottleneck, and once that is optimized, most modern languages can achieve similar throughput for the merging step.
+                </li>
+                <li>
+                    <strong>Go's Predictable Performance:</strong> Go consistently delivers low and stable times across both Normal and
+                    PreProcess Engine scenarios, especially for HTML rules. This highlights Go's efficiency in handling both parsing and
+                    merging workloads, making it a strong candidate for server-side template processing.
+                </li>
+                <li>
+                    <strong>Node.js and JavaScript Lead in JSON Tasks:</strong> Node.js and client-side JavaScript are often the fastest
+                    for JSON-based rules, likely due to the highly optimized V8 engine and native JSON parsing. This makes them particularly
+                    suitable for workloads that are JSON-heavy.
+                </li>
+                <li>
+                    <strong>Rust's Performance Highly Dependent on Optimization:</strong> Rust's performance is competitive in the PreProcess
+                    Engine but lags in the Normal Engine, especially without manual optimization. This underscores the importance of reviewing
+                    and tuning Rust code, as the default or AI-generated implementations may not leverage Rust's full potential.
+                </li>
+                <li>
+                    <strong>PHP Lags Behind:</strong> PHP is consistently the slowest across most scenarios, both in Normal and PreProcess
+                    Engine. This is expected due to its interpreted nature and less optimized data handling for these workloads.
+                </li>
+                <li>
+                    <strong>Impact of Output Size:</strong> For rules with larger output sizes, the performance differences between languages
+                    can become more pronounced, especially in the Normal Engine. This suggests that memory management and string handling
+                    efficiency play a bigger role as output grows.
+                </li>
+            </ol>
+
+            <h2>Interesting Observations (Generated by Gemini AI)</h2>
+            <ol>
+                <li>
+                    <strong>Pre-processing is a Game Changer:</strong> The most significant observation is the dramatic performance increase
+                    across all languages when using the "PreProcess Engine". For example, in JsonRule2A, C#'s time drops from ~266ms to ~4ms,
+                    and Node.js drops from ~58ms to ~2ms. This indicates that for this workload, the initial parsing and setup of the templates
+                    is the most expensive part of the operation.
+                </li>
+                <li>
+                    <strong>Rust is Not a Silver Bullet:</strong> In the "Normal Engine" tests, which involve file I/O and parsing, Rust is
+                    frequently outperformed. Go is consistently the winner in HTML-based rules, while Node.js and client-side JavaScript dominate
+                    the JSON-based rules. This challenges the assumption that Rust is automatically the fastest for all workloads. The performance
+                    of its initial, AI-generated code was surprisingly poor, requiring specific optimization just to beat PHP.
+                </li>
+                <li>
+                    <strong>Go and Node.js Shine in "Cold Starts":</strong> In the "Normal Engine" scenario, Go shows exceptional performance on
+                    HTML processing tasks. Node.js (and by extension, the V8 JavaScript engine) is the clear winner for JSON-related tasks, likely
+                    due to its highly optimized, built-in JSON parser.
+                </li>
+                <li>
+                    <strong>Pre-processing as the Great Equalizer:</strong> While performance differences are stark in the "Normal Engine", they
+                    shrink considerably in the "PreProcess Engine". Once the initial parsing is done, most of the languages perform within a few
+                    milliseconds of each other for many tests. However, Node.js and client-side Javascript often maintain a slight edge, clocking
+                    in at under a millisecond for several pre-processed JSON rules.
+                </li>
+                <li>
+                    <strong>The Cost of Abstraction:</strong> The results suggest that the specific abstractions used in this Assembler project
+                    have a significant performance overhead that is language-agnostic. The massive speedup from pre-processing implies that the way
+                    templates are parsed and prepared is far more critical than the language executing the final assembly. For this specific,
+                    AI-generated, non-hand-optimized workload, the choice of algorithm and I/O handling has a much larger impact on performance
+                    than the choice of language itself.
+                </li>
+            </ol>
+
+            <h2>Consolidated Performance Results</h2>
+            <p>
+                The tables below show the time in milliseconds for 1000 iterations in each language to perform a series of template assembly tasks.
+            </p>
+            <p>
+                <strong>Normal Engine:</strong> Normal Engine does the parsing and merging for each rule and during loading the raw template is loaded.
+            </p>
+            <p>
+                <strong>PreProcess Engine:</strong> PreProcess Engine does only the merging for each rule and during loading it is parsed into a
+                structure which is used by the engine to merge.
+            </p>
+            <p>
+                The results are split into two main scenarios:
+            </p>
+            <ul>
+                <li><strong>Normal Engine:</strong> This measures the performance of loading the template, parsing it, and applying the rules of
+                assembly from scratch for every operation.</li>
+                <li><strong>PreProcess Engine:</strong> This measures performance when the template is loaded and parsed once, and the resulting
+                structure is cached. Subsequent operations only need to apply the rules of assembly, which should be significantly faster.</li>
+            </ul>
+            <p>
+                The <code>OutputSize</code> column indicates the size of the generated content in bytes. The fastest time for each test is
+                highlighted in <strong>bold</strong>.
+            </p>
+            <p style="font-style: italic; color: #666;">
+                Generated: 2025-10-21 08:41:01 UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)
+            </p>
+
+            <h2>Grouped View (Min/Avg/Max by Rule Groups)</h2>
+
+            <h3>HtmlRule1</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Language</th>
+                        <th>Normal Engine (Min/Avg/Max)</th>
+                        <th>PreProcess Engine (Min/Avg/Max)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>CSharp</td><td>2.24 / 3.08 / 3.92</td><td>2.39 / 3.68 / 4.97</td></tr>
+                    <tr><td>Rust</td><td>5.92 / 9.00 / 12.07</td><td>1.92 / 3.01 / 4.10</td></tr>
+                    <tr><td>Go</td><td>1.64 / 2.68 / 3.72</td><td>1.65 / 2.44 / 3.23</td></tr>
+                    <tr><td>Node</td><td>4.33 / 4.96 / 5.59</td><td>2.72 / 4.42 / 6.11</td></tr>
+                    <tr><td>PHP</td><td>12.91 / 17.85 / 22.79</td><td>7.70 / 10.47 / 13.25</td></tr>
+                    <tr><td>Javascript</td><td>3.30 / 4.40 / 5.50</td><td>2.70 / 2.95 / 3.20</td></tr>
+                </tbody>
+            </table>
+
+            <h3>HtmlRule2</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Language</th>
+                        <th>Normal Engine (Min/Avg/Max)</th>
+                        <th>PreProcess Engine (Min/Avg/Max)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>CSharp</td><td>3.11 / 6.37 / 8.54</td><td>2.45 / 4.05 / 6.10</td></tr>
+                    <tr><td>Rust</td><td>9.94 / 15.28 / 22.66</td><td>5.61 / 10.56 / 17.07</td></tr>
+                    <tr><td>Go</td><td>2.55 / 4.81 / 8.60</td><td>1.62 / 2.61 / 3.85</td></tr>
+                    <tr><td>Node</td><td>3.83 / 5.75 / 8.07</td><td>1.37 / 2.12 / 2.77</td></tr>
+                    <tr><td>PHP</td><td>19.82 / 34.46 / 53.27</td><td>7.26 / 10.27 / 13.81</td></tr>
+                    <tr><td>Javascript</td><td>3.60 / 6.23 / 9.20</td><td>1.30 / 2.43 / 3.70</td></tr>
+                </tbody>
+            </table>
+
+            <h3>HtmlRule3</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Language</th>
+                        <th>Normal Engine (Min/Avg/Max)</th>
+                        <th>PreProcess Engine (Min/Avg/Max)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>CSharp</td><td>2.49 / 6.56 / 23.47</td><td>3.07 / 5.11 / 7.82</td></tr>
+                    <tr><td>Rust</td><td>5.57 / 7.52 / 9.22</td><td>2.17 / 2.96 / 3.76</td></tr>
+                    <tr><td>Go</td><td>2.01 / 2.40 / 2.70</td><td>2.12 / 2.39 / 3.06</td></tr>
+                    <tr><td>Node</td><td>1.28 / 2.03 / 3.52</td><td>0.80 / 2.39 / 3.05</td></tr>
+                    <tr><td>PHP</td><td>13.79 / 17.05 / 21.34</td><td>7.60 / 11.75 / 17.67</td></tr>
+                    <tr><td>Javascript</td><td>1.40 / 1.95 / 2.50</td><td>0.90 / 1.77 / 2.80</td></tr>
+                </tbody>
+            </table>
+
+            <h3>JsonRule1</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Language</th>
+                        <th>Normal Engine (Min/Avg/Max)</th>
+                        <th>PreProcess Engine (Min/Avg/Max)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>CSharp</td><td>13.81 / 34.47 / 64.41</td><td>2.98 / 4.42 / 6.97</td></tr>
+                    <tr><td>Rust</td><td>10.53 / 16.01 / 23.08</td><td>1.54 / 2.06 / 3.40</td></tr>
+                    <tr><td>Go</td><td>9.54 / 20.46 / 32.20</td><td>1.61 / 2.53 / 4.00</td></tr>
+                    <tr><td>Node</td><td>3.99 / 9.28 / 17.48</td><td>0.57 / 1.51 / 3.56</td></tr>
+                    <tr><td>PHP</td><td>20.36 / 50.75 / 113.19</td><td>7.24 / 9.64 / 15.45</td></tr>
+                    <tr><td>Javascript</td><td>3.30 / 6.97 / 13.20</td><td>1.20 / 1.85 / 2.90</td></tr>
+                </tbody>
+            </table>
+
+            <h3>JsonRule2</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Language</th>
+                        <th>Normal Engine (Min/Avg/Max)</th>
+                        <th>PreProcess Engine (Min/Avg/Max)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>CSharp</td><td>114.97 / 233.16 / 398.90</td><td>2.80 / 4.50 / 8.23</td></tr>
+                    <tr><td>Rust</td><td>38.21 / 80.90 / 140.74</td><td>1.55 / 6.89 / 15.13</td></tr>
+                    <tr><td>Go</td><td>61.34 / 118.28 / 199.56</td><td>2.00 / 3.75 / 7.00</td></tr>
+                    <tr><td>Node</td><td>25.94 / 54.27 / 91.61</td><td>0.92 / 1.74 / 3.23</td></tr>
+                    <tr><td>PHP</td><td>91.04 / 127.02 / 160.15</td><td>7.96 / 10.07 / 14.52</td></tr>
+                    <tr><td>Javascript</td><td>26.10 / 57.52 / 107.60</td><td>1.10 / 2.25 / 5.20</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Rule1</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Language</th>
+                        <th>Normal Engine (Min/Avg/Max)</th>
+                        <th>PreProcess Engine (Min/Avg/Max)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>CSharp</td><td>147.89 / 182.35 / 216.81</td><td>4.70 / 5.48 / 6.27</td></tr>
+                    <tr><td>Rust</td><td>39.80 / 47.47 / 55.13</td><td>4.34 / 5.89 / 7.44</td></tr>
+                    <tr><td>Go</td><td>69.73 / 88.52 / 107.30</td><td>3.50 / 5.00 / 6.50</td></tr>
+                    <tr><td>Node</td><td>29.60 / 36.02 / 42.45</td><td>1.90 / 3.57 / 5.24</td></tr>
+                    <tr><td>PHP</td><td>170.26 / 206.63 / 243.01</td><td>14.09 / 18.02 / 21.96</td></tr>
+                    <tr><td>Javascript</td><td>24.60 / 31.70 / 38.80</td><td>2.40 / 4.15 / 5.90</td></tr>
+                </tbody>
+            </table>
+
+            <h2>Normal Engine</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>AppSite/AppView</th>
+                        <th>CSharp</th>
+                        <th>Rust</th>
+                        <th>Go</th>
+                        <th>Node</th>
+                        <th>PHP</th>
+                        <th>Javascript</th>
+                        <th>OutputSize</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>HtmlRule1A</td><td>2.24</td><td>5.92</td><td><strong>1.64</strong></td><td>4.33</td><td>12.91</td><td>5.50</td><td>1264</td></tr>
+                    <tr><td>HtmlRule1B</td><td>3.92</td><td>12.07</td><td>3.72</td><td>5.59</td><td>22.79</td><td><strong>3.30</strong></td><td>2123</td></tr>
+                    <tr><td>HtmlRule2A</td><td>3.11</td><td>9.94</td><td><strong>2.55</strong></td><td>4.50</td><td>19.82</td><td>3.60</td><td>1910</td></tr>
+                    <tr><td>HtmlRule2B</td><td>6.80</td><td>12.87</td><td><strong>3.83</strong></td><td>6.92</td><td>29.04</td><td>5.90</td><td>2365</td></tr>
+                    <tr><td>HtmlRule2C</td><td>6.96</td><td>11.60</td><td><strong>3.69</strong></td><td>5.19</td><td>32.26</td><td>5.20</td><td>1920</td></tr>
+                    <tr><td>HtmlRule2D</td><td>5.77</td><td>14.33</td><td><strong>3.62</strong></td><td>3.83</td><td>28.86</td><td>4.70</td><td>2083</td></tr>
+                    <tr><td>HtmlRule2E</td><td>7.04</td><td>20.26</td><td>6.58</td><td><strong>5.99</strong></td><td>43.49</td><td>9.20</td><td>2840</td></tr>
+                    <tr><td>HtmlRule2F</td><td>8.54</td><td>22.66</td><td>8.60</td><td><strong>8.07</strong></td><td>53.27</td><td>8.80</td><td>2874</td></tr>
+                    <tr><td>HtmlRule3A</td><td>2.49</td><td>6.72</td><td>2.70</td><td><strong>1.28</strong></td><td>13.79</td><td>1.40</td><td>1428</td></tr>
+                    <tr><td>HtmlRule3A → Html3A</td><td>23.47</td><td>6.68</td><td>2.69</td><td>1.80</td><td>14.53</td><td><strong>1.60</strong></td><td>1428</td></tr>
+                    <tr><td>HtmlRule3A → Html3B</td><td>2.64</td><td>5.57</td><td>2.14</td><td>1.51</td><td>14.04</td><td><strong>1.40</strong></td><td>1428</td></tr>
+                    <tr><td>HtmlRule3B</td><td>2.86</td><td>8.25</td><td>2.15</td><td><strong>2.04</strong></td><td>18.93</td><td>2.40</td><td>1406</td></tr>
+                    <tr><td>HtmlRule3B → Html3A</td><td>3.79</td><td>8.70</td><td>2.70</td><td><strong>2.05</strong></td><td>19.64</td><td>2.40</td><td>1406</td></tr>
+                    <tr><td>HtmlRule3B → Html3B</td><td>4.10</td><td>9.22</td><td><strong>2.01</strong></td><td>3.52</td><td>21.34</td><td>2.50</td><td>1406</td></tr>
+                    <tr><td>JsonRule1A</td><td>29.70</td><td>10.53</td><td>23.57</td><td>5.92</td><td>20.36</td><td><strong>4.20</strong></td><td>1417</td></tr>
+                    <tr><td>JsonRule1B</td><td>13.81</td><td>11.08</td><td>9.54</td><td>3.99</td><td>21.61</td><td><strong>3.30</strong></td><td>1924</td></tr>
+                    <tr><td>JsonRule1C</td><td>29.97</td><td>23.08</td><td>16.53</td><td>9.73</td><td>47.85</td><td><strong>7.20</strong></td><td>3798</td></tr>
+                    <tr><td>JsonRule1D</td><td>64.41</td><td>19.35</td><td>32.20</td><td>17.48</td><td>113.19</td><td><strong>13.20</strong></td><td>320</td></tr>
+                    <tr><td>JsonRule2A</td><td>265.76</td><td>84.13</td><td>128.60</td><td>57.51</td><td>153.75</td><td><strong>54.10</strong></td><td>2355</td></tr>
+                    <tr><td>JsonRule2B</td><td>398.90</td><td>140.74</td><td>199.56</td><td><strong>91.61</strong></td><td>160.15</td><td>107.60</td><td>2906</td></tr>
+                    <tr><td>JsonRule2C</td><td>114.97</td><td>38.21</td><td>61.34</td><td><strong>25.94</strong></td><td>91.04</td><td>26.10</td><td>2799</td></tr>
+                    <tr><td>JsonRule2D</td><td>152.99</td><td>60.51</td><td>83.60</td><td><strong>42.01</strong></td><td>103.13</td><td>42.30</td><td>3217</td></tr>
+                    <tr><td>Rule1A</td><td>147.89</td><td>39.80</td><td>69.73</td><td>29.60</td><td>170.26</td><td><strong>24.60</strong></td><td>2543</td></tr>
+                    <tr><td>Rule1B</td><td>216.81</td><td>55.13</td><td>107.30</td><td>42.45</td><td>243.01</td><td><strong>38.80</strong></td><td>4772</td></tr>
+                </tbody>
+            </table>
+
+            <h2>PreProcess Engine</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>AppSite/AppView</th>
+                        <th>CSharp</th>
+                        <th>Rust</th>
+                        <th>Go</th>
+                        <th>Node</th>
+                        <th>PHP</th>
+                        <th>Javascript</th>
+                        <th>OutputSize</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>HtmlRule1A</td><td>2.39</td><td>1.92</td><td><strong>1.65</strong></td><td>2.72</td><td>7.70</td><td>3.20</td><td>1264</td></tr>
+                    <tr><td>HtmlRule1B</td><td>4.97</td><td>4.10</td><td>3.23</td><td>6.11</td><td>13.25</td><td><strong>2.70</strong></td><td>2123</td></tr>
+                    <tr><td>HtmlRule2A</td><td>2.45</td><td>5.61</td><td>2.16</td><td><strong>2.14</strong></td><td>7.26</td><td>2.40</td><td>1910</td></tr>
+                    <tr><td>HtmlRule2B</td><td>3.59</td><td>10.05</td><td>2.11</td><td>1.79</td><td>8.78</td><td><strong>1.60</strong></td><td>2365</td></tr>
+                    <tr><td>HtmlRule2C</td><td>4.21</td><td>8.88</td><td>1.62</td><td>1.37</td><td>7.82</td><td><strong>1.30</strong></td><td>1920</td></tr>
+                    <tr><td>HtmlRule2D</td><td>4.25</td><td>8.95</td><td>2.66</td><td><strong>1.87</strong></td><td>10.47</td><td>3.70</td><td>2083</td></tr>
+                    <tr><td>HtmlRule2E</td><td>3.67</td><td>17.07</td><td>3.29</td><td><strong>2.77</strong></td><td>13.48</td><td>3.00</td><td>2840</td></tr>
+                    <tr><td>HtmlRule2F</td><td>6.10</td><td>12.83</td><td>3.85</td><td>2.77</td><td>13.81</td><td><strong>2.60</strong></td><td>2874</td></tr>
+                    <tr><td>HtmlRule3A</td><td>3.07</td><td>3.29</td><td>2.16</td><td><strong>0.80</strong></td><td>7.60</td><td>0.90</td><td>1428</td></tr>
+                    <tr><td>HtmlRule3A → Html3A</td><td>3.39</td><td>2.39</td><td>2.19</td><td>2.60</td><td>11.04</td><td><strong>1.60</strong></td><td>1428</td></tr>
+                    <tr><td>HtmlRule3A → Html3B</td><td>3.39</td><td>2.44</td><td>2.12</td><td>2.46</td><td>9.76</td><td><strong>1.00</strong></td><td>1428</td></tr>
+                    <tr><td>HtmlRule3B</td><td>5.43</td><td>2.17</td><td>2.19</td><td>3.05</td><td>10.38</td><td><strong>2.10</strong></td><td>1406</td></tr>
+                    <tr><td>HtmlRule3B → Html3A</td><td>7.82</td><td>3.70</td><td>2.61</td><td><strong>2.52</strong></td><td>14.06</td><td>2.80</td><td>1406</td></tr>
+                    <tr><td>HtmlRule3B → Html3B</td><td>7.56</td><td>3.76</td><td>3.06</td><td>2.90</td><td>17.67</td><td><strong>2.20</strong></td><td>1406</td></tr>
+                    <tr><td>JsonRule1A</td><td>2.98</td><td>1.77</td><td>2.00</td><td><strong>0.57</strong></td><td>7.35</td><td>1.50</td><td>1417</td></tr>
+                    <tr><td>JsonRule1B</td><td>3.53</td><td>1.54</td><td>2.52</td><td><strong>1.01</strong></td><td>7.24</td><td>1.20</td><td>1924</td></tr>
+                    <tr><td>JsonRule1C</td><td>6.97</td><td>3.40</td><td>4.00</td><td>3.56</td><td>15.45</td><td><strong>2.90</strong></td><td>3798</td></tr>
+                    <tr><td>JsonRule1D</td><td>4.19</td><td>1.54</td><td>1.61</td><td><strong>0.90</strong></td><td>8.53</td><td>1.80</td><td>320</td></tr>
+                    <tr><td>JsonRule2A</td><td>4.12</td><td>9.25</td><td>4.00</td><td>1.82</td><td>9.44</td><td><strong>1.60</strong></td><td>2355</td></tr>
+                    <tr><td>JsonRule2B</td><td>8.23</td><td>15.13</td><td>7.00</td><td><strong>3.23</strong></td><td>14.52</td><td>5.20</td><td>2906</td></tr>
+                    <tr><td>JsonRule2C</td><td>2.86</td><td>1.55</td><td>2.00</td><td><strong>0.92</strong></td><td>7.96</td><td>1.10</td><td>2799</td></tr>
+                    <tr><td>JsonRule2D</td><td>2.80</td><td>1.62</td><td>2.00</td><td><strong>0.99</strong></td><td>8.35</td><td>1.10</td><td>3217</td></tr>
+                    <tr><td>Rule1A</td><td>4.70</td><td>4.34</td><td>3.50</td><td><strong>1.90</strong></td><td>14.09</td><td>2.40</td><td>2543</td></tr>
+                    <tr><td>Rule1B</td><td>6.27</td><td>7.44</td><td>6.50</td><td><strong>5.24</strong></td><td>21.96</td><td>5.90</td><td>4772</td></tr>
+                </tbody>
+            </table>
+        </article>
+    </div>
+</body>
+</html>
