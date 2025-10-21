@@ -1,0 +1,43 @@
+<script>
+    // Global event delegation for report view switching
+    // This handles switching between table, chart, and grouped views in performance reports
+    if (!window.reportViewSwitcherAdded) {
+        document.addEventListener('click', function(e) {
+            // Check if clicked element is a view button
+            if (e.target && e.target.classList.contains('view-btn')) {
+                var viewType = e.target.getAttribute('data-view');
+                if (!viewType) return;
+
+                // Update button states
+                var buttons = document.querySelectorAll('.view-btn');
+                buttons.forEach(function(btn) {
+                    btn.classList.remove('active');
+                });
+                e.target.classList.add('active');
+
+                // Get all view elements
+                var combinedChart = document.getElementById('combined-chart');
+                var combinedGrouped = document.getElementById('combined-grouped');
+                var normalTable = document.getElementById('normal-table');
+                var preprocessTable = document.getElementById('preprocess-table');
+
+                // Hide all views first
+                if (combinedChart) combinedChart.classList.remove('active');
+                if (combinedGrouped) combinedGrouped.classList.remove('active');
+                if (normalTable) normalTable.classList.remove('active');
+                if (preprocessTable) preprocessTable.classList.remove('active');
+
+                // Show the selected view
+                if (viewType === 'chart') {
+                    if (combinedChart) combinedChart.classList.add('active');
+                } else if (viewType === 'grouped') {
+                    if (combinedGrouped) combinedGrouped.classList.add('active');
+                } else if (viewType === 'table') {
+                    if (normalTable) normalTable.classList.add('active');
+                    if (preprocessTable) preprocessTable.classList.add('active');
+                }
+            }
+        });
+        window.reportViewSwitcherAdded = true;
+    }
+</script>
