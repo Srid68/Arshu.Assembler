@@ -1,0 +1,8 @@
+*.exe
+*.test
+*.out
+.git/
+.gitignore
+*.log
+.vscode/
+*.tar.gz
