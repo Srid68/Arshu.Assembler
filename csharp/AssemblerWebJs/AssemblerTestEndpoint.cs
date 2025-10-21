@@ -325,6 +325,7 @@ namespace AssemblerWebJs
 
             assemblerTestGroup.MapPost("/test/consolidate-performance", async (HttpContext context) =>
             {
+                var sw = Stopwatch.StartNew();
                 try
                 {
                     string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
@@ -976,14 +977,16 @@ namespace AssemblerWebJs
                     var htmlPath = Path.Combine(reportsDir, "all_perf_tests.html");
                     await File.WriteAllTextAsync(htmlPath, htmlContent);
 
-                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Consolidation complete - {appPerf.Count} AppSites from {serversProcessed.Count}/{serversByLang.Count} servers\n");
+                    sw.Stop();
+                    var elapsedSeconds = sw.Elapsed.TotalSeconds;
 
-                    // Count unique languages
+                    // Log completion
                     var totalLanguages = serversByLang.Count;
+                    File.AppendAllText(consolidateLogFile, $"[{DateTime.UtcNow:O}] Consolidation complete in {elapsedSeconds:F2}s - {appPerf.Count} AppSites from {serversProcessed.Count}/{totalLanguages} languages\n");
 
                     // Build detailed message
                     var messageBuilder = new System.Text.StringBuilder();
-                    messageBuilder.Append($"Consolidated {appPerf.Count} AppSites from {serversProcessed.Count}/{totalLanguages} languages");
+                    messageBuilder.Append($"Consolidated {appPerf.Count} AppSites from {serversProcessed.Count}/{totalLanguages} languages in {elapsedSeconds:F2} secs");
 
                     if (serversProcessed.Count > 0)
                     {
@@ -999,7 +1002,10 @@ namespace AssemblerWebJs
 
                     var response = new TestResponse
                     {
-                        Message = messageBuilder.ToString()
+                        Success = serversProcessed.Count > 0,
+                        Message = messageBuilder.ToString(),
+                        Elapsed = elapsedSeconds,
+                        TestCount = serversProcessed.Count
                     };
 
                     return Results.Json(response, AssemblerTestJsonContext.Default.TestResponse);
