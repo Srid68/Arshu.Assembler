@@ -20,6 +20,16 @@ import (
 	"assembler/test"
 )
 
+// RULE_GROUPS defines the configurable rule groups for consolidated report grouping
+var RULE_GROUPS = []string{
+	"HtmlRule1",
+	"HtmlRule2",
+	"HtmlRule3",
+	"JsonRule1",
+	"JsonRule2",
+	"Rule1",
+}
+
 // PerfData represents performance data for consolidation
 type PerfData struct {
 	NormalTimeMs     *float64
@@ -485,6 +495,33 @@ func testConsolidatePerformance(c *gin.Context) {
 	htmlBuilder.WriteString("        tr:nth-child(even) { background-color: #f2f2f2; }\n")
 	htmlBuilder.WriteString("        td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7) { text-align: right; }\n")
 	htmlBuilder.WriteString("        .best-perf { background-color: #90EE90; font-weight: bold; }\n")
+	htmlBuilder.WriteString("        .worst-perf { background-color: #FFB6C6; font-weight: bold; }\n")
+	htmlBuilder.WriteString("        .avg-perf { background-color: #FFD700; font-weight: bold; }\n")
+	htmlBuilder.WriteString("        .legend { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }\n")
+	htmlBuilder.WriteString("        .legend-item { display: flex; align-items: center; gap: 8px; }\n")
+	htmlBuilder.WriteString("        .legend-box { width: 24px; height: 24px; border: 1px solid #999; }\n")
+	htmlBuilder.WriteString("        .view-toggle { margin: 20px 0; }\n")
+	htmlBuilder.WriteString("        .view-btn { padding: 10px 20px; margin-right: 10px; cursor: pointer; border: 2px solid #4CAF50; background: white; color: #4CAF50; font-size: 14px; border-radius: 5px; }\n")
+	htmlBuilder.WriteString("        .view-btn.active { background: #4CAF50; color: white; }\n")
+	htmlBuilder.WriteString("        .view-content { display: none; }\n")
+	htmlBuilder.WriteString("        .view-content.active { display: block; }\n")
+	htmlBuilder.WriteString("        .chart-container { margin: 20px 0; }\n")
+	htmlBuilder.WriteString("        .chart-row { margin-bottom: 25px; }\n")
+	htmlBuilder.WriteString("        .chart-label { font-weight: bold; margin-bottom: 8px; font-size: 14px; color: #333; }\n")
+	htmlBuilder.WriteString("        .chart-bars-container { display: flex; flex-direction: column; gap: 8px; }\n")
+	htmlBuilder.WriteString("        .chart-bar-wrapper { display: flex; align-items: center; gap: 10px; }\n")
+	htmlBuilder.WriteString("        .chart-bar-label { min-width: 80px; font-weight: 600; color: #555; font-size: 13px; }\n")
+	htmlBuilder.WriteString("        .chart-bar { height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: white; font-weight: bold; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; min-width: 40px; }\n")
+	htmlBuilder.WriteString("        .chart-bar:hover { transform: translateX(5px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }\n")
+	htmlBuilder.WriteString("        .chart-bar-value { margin-left: 10px; font-weight: 600; color: #333; font-size: 13px; min-width: 60px; }\n")
+	htmlBuilder.WriteString("        .grouped-chart-section { margin-bottom: 40px; padding: 20px; background: #f9f9f9; border-radius: 8px; }\n")
+	htmlBuilder.WriteString("        .grouped-chart-title { font-size: 1.3em; font-weight: bold; color: #667eea; margin-bottom: 15px; border-bottom: 2px solid #667eea; padding-bottom: 8px; }\n")
+	htmlBuilder.WriteString("        .grouped-bar-group { display: flex; align-items: center; margin-bottom: 20px; }\n")
+	htmlBuilder.WriteString("        .grouped-bar-label { min-width: 100px; font-weight: 600; color: #333; font-size: 13px; }\n")
+	htmlBuilder.WriteString("        .grouped-bars { flex: 1; display: flex; flex-direction: column; gap: 4px; }\n")
+	htmlBuilder.WriteString("        .grouped-bar-item { display: flex; align-items: center; gap: 8px; }\n")
+	htmlBuilder.WriteString("        .grouped-bar { height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; color: white; font-weight: bold; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); min-width: 30px; }\n")
+	htmlBuilder.WriteString("        .grouped-lang-label { min-width: 60px; font-size: 12px; color: #666; }\n")
 	htmlBuilder.WriteString("        @media (max-width: 768px) {\n")
 	htmlBuilder.WriteString("            body { margin: 10px; }\n")
 	htmlBuilder.WriteString("            th, td { padding: 8px; font-size: 14px; }\n")
@@ -495,6 +532,18 @@ func testConsolidatePerformance(c *gin.Context) {
 	htmlBuilder.WriteString("    </style>\n</head>\n<body>\n")
 	htmlBuilder.WriteString("    <h1>Consolidated Performance Summary</h1>\n")
 	htmlBuilder.WriteString(fmt.Sprintf("    <div class=\"meta\">Generated: %s UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n", time.Now().UTC().Format("2006-01-02 15:04:05")))
+	htmlBuilder.WriteString("    <div class=\"legend\">\n")
+	htmlBuilder.WriteString("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #4CAF50; opacity: 0.8;\"></div><span>Normal Engine (N)</span></div>\n")
+	htmlBuilder.WriteString("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #2196F3; opacity: 0.8;\"></div><span>PreProcess Engine (P)</span></div>\n")
+	htmlBuilder.WriteString("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #90EE90;\"></div><span>Best (Lowest Time - Table View)</span></div>\n")
+	htmlBuilder.WriteString("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #FFD700;\"></div><span>Nearest to Average (Table View)</span></div>\n")
+	htmlBuilder.WriteString("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #FFB6C6;\"></div><span>Worst (Highest Time - Table View)</span></div>\n")
+	htmlBuilder.WriteString("    </div>\n")
+	htmlBuilder.WriteString("    <div class=\"view-toggle\">\n")
+	htmlBuilder.WriteString("        <button class=\"view-btn active\" data-view=\"grouped\">Grouped View</button>\n")
+	htmlBuilder.WriteString("        <button class=\"view-btn\" data-view=\"chart\">Bar Chart View</button>\n")
+	htmlBuilder.WriteString("        <button class=\"view-btn\" data-view=\"table\">Table View</button>\n")
+	htmlBuilder.WriteString("    </div>\n")
 
 	// Get list of languages dynamically from configuration
 	var languages []string
@@ -503,117 +552,456 @@ func testConsolidatePerformance(c *gin.Context) {
 	}
 	sort.Strings(languages)
 
-	// Normal Engine Table
-	htmlBuilder.WriteString("    <h2>Normal Engine</h2>\n")
-	htmlBuilder.WriteString("    <div class=\"table-container\">\n")
-	htmlBuilder.WriteString("    <table>\n")
-	htmlBuilder.WriteString("        <tr>\n")
-	htmlBuilder.WriteString("            <th>AppSite/AppView</th>\n")
-	for _, lang := range languages {
-		htmlBuilder.WriteString(fmt.Sprintf("            <th>%s</th>\n", lang))
-	}
-	htmlBuilder.WriteString("            <th>OutputSize</th>\n")
-	htmlBuilder.WriteString("        </tr>\n")
-
-	// Sort app keys
+	// Sort app keys and filter by RULE_GROUPS
 	var appKeys []string
 	for k := range appPerf {
-		appKeys = append(appKeys, k)
+		matchesRuleGroup := false
+		for _, rule := range RULE_GROUPS {
+			if strings.HasPrefix(k, rule) {
+				matchesRuleGroup = true
+				break
+			}
+		}
+		if matchesRuleGroup {
+			appKeys = append(appKeys, k)
+		}
 	}
 	sort.Strings(appKeys)
 
-	// Cache OutputSize per app to ensure consistency across both tables
+	// Cache OutputSize per app to ensure consistency across all views
 	appOutputSizes := make(map[string]*int)
 	for _, app := range appKeys {
 		appOutputSizes[app] = getFirstOutputSize(appPerf[app])
 	}
 
-	for _, app := range appKeys {
-		// Find minimum time for highlighting (excluding zero values)
-		var validTimes []float64
-		for _, lang := range languages {
-			if appPerf[app][lang].NormalTimeMs != nil && *appPerf[app][lang].NormalTimeMs > 0 {
-				validTimes = append(validTimes, *appPerf[app][lang].NormalTimeMs)
-			}
-		}
-		var minTime *float64
-		if len(validTimes) > 0 {
-			min := validTimes[0]
-			for _, t := range validTimes {
-				if t < min {
-					min = t
-				}
-			}
-			minTime = &min
-		}
+// Combined Bar Chart View
+htmlBuilder.WriteString("    <div id=\"combined-chart\" class=\"view-content\">\n")
+htmlBuilder.WriteString("        <div class=\"chart-container\">\n")
 
-		htmlBuilder.WriteString("        <tr>\n")
-		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", app))
-		for _, lang := range languages {
-			timeValue := formatFloat(appPerf[app][lang].NormalTimeMs)
-			isBest := minTime != nil && appPerf[app][lang].NormalTimeMs != nil && *appPerf[app][lang].NormalTimeMs > 0 && (*appPerf[app][lang].NormalTimeMs-*minTime) < 0.001 && (*appPerf[app][lang].NormalTimeMs-*minTime) > -0.001
-			cssClass := ""
-			if isBest {
-				cssClass = " class=\"best-perf\""
-			}
-			htmlBuilder.WriteString(fmt.Sprintf("            <td%s>%s</td>\n", cssClass, timeValue))
-		}
-		outputSize := formatInt(appOutputSizes[app])
-		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", outputSize))
-		htmlBuilder.WriteString("        </tr>\n")
-	}
-	htmlBuilder.WriteString("    </table>\n")
-	htmlBuilder.WriteString("    </div>\n")
+for _, app := range appKeys {
+	htmlBuilder.WriteString("            <div class=\"chart-row\">\n")
+	htmlBuilder.WriteString(fmt.Sprintf("                <div class=\"chart-label\">%s</div>\n", app))
+	htmlBuilder.WriteString("                <div class=\"chart-bars-container\">\n")
 
-	// PreProcess Engine Table
-	htmlBuilder.WriteString("    <h2>PreProcess Engine</h2>\n")
-	htmlBuilder.WriteString("    <div class=\"table-container\">\n")
-	htmlBuilder.WriteString("    <table>\n")
-	htmlBuilder.WriteString("        <tr>\n")
-	htmlBuilder.WriteString("            <th>AppSite/AppView</th>\n")
+	// Calculate max time across BOTH engines for consistent scaling
+	var allTimes []float64
 	for _, lang := range languages {
-		htmlBuilder.WriteString(fmt.Sprintf("            <th>%s</th>\n", lang))
+		if appPerf[app][lang].NormalTimeMs != nil && *appPerf[app][lang].NormalTimeMs > 0 {
+			allTimes = append(allTimes, *appPerf[app][lang].NormalTimeMs)
+		}
+		if appPerf[app][lang].PreProcessTimeMs != nil && *appPerf[app][lang].PreProcessTimeMs > 0 {
+			allTimes = append(allTimes, *appPerf[app][lang].PreProcessTimeMs)
+		}
 	}
-	htmlBuilder.WriteString("            <th>OutputSize</th>\n")
-	htmlBuilder.WriteString("        </tr>\n")
+	maxTimeForScale := 1.0
+	if len(allTimes) > 0 {
+		maxTimeForScale = *maxFloat(allTimes)
+	}
 
+	// Calculate highlighting for Normal Engine
+	var normalValidTimes []float64
+	for _, lang := range languages {
+		if appPerf[app][lang].NormalTimeMs != nil && *appPerf[app][lang].NormalTimeMs > 0 {
+			normalValidTimes = append(normalValidTimes, *appPerf[app][lang].NormalTimeMs)
+		}
+	}
+	normalMinTime := minFloat(normalValidTimes)
+	normalMaxTime := maxFloat(normalValidTimes)
+	normalAvgTime := avgFloat(normalValidTimes)
+
+	// Calculate highlighting for PreProcess Engine
+	var preprocessValidTimes []float64
+	for _, lang := range languages {
+		if appPerf[app][lang].PreProcessTimeMs != nil && *appPerf[app][lang].PreProcessTimeMs > 0 {
+			preprocessValidTimes = append(preprocessValidTimes, *appPerf[app][lang].PreProcessTimeMs)
+		}
+	}
+	preprocessMinTime := minFloat(preprocessValidTimes)
+	preprocessMaxTime := maxFloat(preprocessValidTimes)
+	preprocessAvgTime := avgFloat(preprocessValidTimes)
+
+	for _, lang := range languages {
+		if appPerf[app][lang].NormalTimeMs == nil && appPerf[app][lang].PreProcessTimeMs == nil {
+			continue
+		}
+		normalTime := appPerf[app][lang].NormalTimeMs
+		preprocessTime := appPerf[app][lang].PreProcessTimeMs
+
+		if (normalTime != nil && *normalTime > 0) || (preprocessTime != nil && *preprocessTime > 0) {
+			htmlBuilder.WriteString("                    <div class=\"chart-bar-wrapper\">\n")
+			htmlBuilder.WriteString(fmt.Sprintf("                        <div class=\"chart-bar-label\">%s</div>\n", lang))
+
+			// Container for overlapping bars
+			htmlBuilder.WriteString("                        <div style=\"position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;\">\n")
+
+			// Normal Engine Bar (bottom layer)
+			if normalTime != nil && *normalTime > 0 {
+				widthPercent := (*normalTime / maxTimeForScale) * 100
+				normalBgColor := "#4CAF50" // default green
+				if normalMinTime != nil && isNearValue(*normalTime, *normalMinTime, 0.01) {
+					normalBgColor = "#90EE90" // best
+				} else if normalMaxTime != nil && isNearValue(*normalTime, *normalMaxTime, 0.01) {
+					normalBgColor = "#FFB6C6" // worst
+				} else if normalAvgTime != nil && len(normalValidTimes) > 2 {
+					nearestToAvg := *normalAvgTime
+					for _, t := range normalValidTimes {
+						if isNearValue(t, *normalAvgTime, 0.01) {
+							nearestToAvg = t
+							break
+						}
+					}
+					if isNearValue(*normalTime, nearestToAvg, 0.01) {
+						normalBgColor = "#FFD700" // avg
+					}
+				}
+
+				htmlBuilder.WriteString(fmt.Sprintf("                            <div style=\"position: absolute; left: 0; top: 0; width: %.2f%%; height: 15px; background-color: %s; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"%s Normal: %.2fms\"></div>\n", widthPercent, normalBgColor, lang, *normalTime))
+
+				var normalLabelStyle string
+				if widthPercent > 85 {
+					normalLabelStyle = fmt.Sprintf("position: absolute; right: calc(100%% - %.2f%% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;", widthPercent)
+				} else {
+					normalLabelStyle = fmt.Sprintf("position: absolute; left: calc(%.2f%% + 5px); top: 0; font-size: 11px; color: %s; font-weight: 600; white-space: nowrap;", widthPercent, normalBgColor)
+				}
+				htmlBuilder.WriteString(fmt.Sprintf("                            <span style=\"%s\">N: %.2fms</span>\n", normalLabelStyle, *normalTime))
+			}
+
+			// PreProcess Engine Bar (top layer, slightly offset)
+			if preprocessTime != nil && *preprocessTime > 0 {
+				widthPercent := (*preprocessTime / maxTimeForScale) * 100
+				preprocessBgColor := "#2196F3" // default blue
+				if preprocessMinTime != nil && isNearValue(*preprocessTime, *preprocessMinTime, 0.01) {
+					preprocessBgColor = "#90EE90" // best
+				} else if preprocessMaxTime != nil && isNearValue(*preprocessTime, *preprocessMaxTime, 0.01) {
+					preprocessBgColor = "#FFB6C6" // worst
+				} else if preprocessAvgTime != nil && len(preprocessValidTimes) > 2 {
+					nearestToAvg := *preprocessAvgTime
+					for _, t := range preprocessValidTimes {
+						if isNearValue(t, *preprocessAvgTime, 0.01) {
+							nearestToAvg = t
+							break
+						}
+					}
+					if isNearValue(*preprocessTime, nearestToAvg, 0.01) {
+						preprocessBgColor = "#FFD700" // avg
+					}
+				}
+
+				htmlBuilder.WriteString(fmt.Sprintf("                            <div style=\"position: absolute; left: 0; top: 15px; width: %.2f%%; height: 15px; background-color: %s; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"%s PreProcess: %.2fms\"></div>\n", widthPercent, preprocessBgColor, lang, *preprocessTime))
+
+				var preprocessLabelStyle string
+				if widthPercent > 85 {
+					preprocessLabelStyle = fmt.Sprintf("position: absolute; right: calc(100%% - %.2f%% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;", widthPercent)
+				} else {
+					preprocessLabelStyle = fmt.Sprintf("position: absolute; left: calc(%.2f%% + 5px); top: 15px; font-size: 11px; color: %s; font-weight: 600; white-space: nowrap;", widthPercent, preprocessBgColor)
+				}
+				htmlBuilder.WriteString(fmt.Sprintf("                            <span style=\"%s\">P: %.2fms</span>\n", preprocessLabelStyle, *preprocessTime))
+			}
+
+			htmlBuilder.WriteString("                        </div>\n")
+			htmlBuilder.WriteString("                    </div>\n")
+		}
+	}
+
+	htmlBuilder.WriteString("                </div>\n")
+	htmlBuilder.WriteString("            </div>\n")
+}
+
+htmlBuilder.WriteString("        </div>\n")
+htmlBuilder.WriteString("    </div>\n")
+
+// Grouped Bar Chart View (default active)
+htmlBuilder.WriteString("    <div id=\"combined-grouped\" class=\"view-content active\">\n")
+htmlBuilder.WriteString("        <div class=\"chart-container\">\n")
+
+for _, rulePattern := range RULE_GROUPS {
+	// Find all apps matching this rule pattern
+	var matchingApps []string
 	for _, app := range appKeys {
-		// Find minimum time for highlighting (excluding zero values)
-		var validTimes []float64
-		for _, lang := range languages {
-			if appPerf[app][lang].PreProcessTimeMs != nil && *appPerf[app][lang].PreProcessTimeMs > 0 {
-				validTimes = append(validTimes, *appPerf[app][lang].PreProcessTimeMs)
+		if strings.HasPrefix(app, rulePattern) && !strings.Contains(app, "Test") {
+			matchingApps = append(matchingApps, app)
+		}
+	}
+
+	if len(matchingApps) == 0 {
+		continue
+	}
+
+	htmlBuilder.WriteString("            <div class=\"grouped-chart-section\">\n")
+	htmlBuilder.WriteString(fmt.Sprintf("                <div class=\"grouped-chart-title\">%s</div>\n", rulePattern))
+	htmlBuilder.WriteString("                <div class=\"chart-bars-container\">\n")
+
+	// Calculate max time across ALL languages in this rule group for consistent scaling
+	var allMaxValues []float64
+	for _, lang := range languages {
+		normalTimes := []float64{}
+		for _, app := range matchingApps {
+			if appPerf[app][lang].NormalTimeMs != nil && *appPerf[app][lang].NormalTimeMs > 0 {
+				normalTimes = append(normalTimes, *appPerf[app][lang].NormalTimeMs)
 			}
 		}
-		var minTime *float64
-		if len(validTimes) > 0 {
-			min := validTimes[0]
-			for _, t := range validTimes {
-				if t < min {
-					min = t
+		preprocessTimes := []float64{}
+		for _, app := range matchingApps {
+			if appPerf[app][lang].PreProcessTimeMs != nil && *appPerf[app][lang].PreProcessTimeMs > 0 {
+				preprocessTimes = append(preprocessTimes, *appPerf[app][lang].PreProcessTimeMs)
+			}
+		}
+
+		if len(normalTimes) > 0 {
+			if maxVal := maxFloat(normalTimes); maxVal != nil {
+				allMaxValues = append(allMaxValues, *maxVal)
+			}
+		}
+		if len(preprocessTimes) > 0 {
+			if maxVal := maxFloat(preprocessTimes); maxVal != nil {
+				allMaxValues = append(allMaxValues, *maxVal)
+			}
+		}
+	}
+	maxTimeForScale := 1.0
+	if len(allMaxValues) > 0 {
+		if maxVal := maxFloat(allMaxValues); maxVal != nil {
+			maxTimeForScale = *maxVal
+		}
+	}
+
+	// For each language, calculate min/avg/max across all apps in this rule group
+	for _, lang := range languages {
+		// Collect Normal Engine times for this language across all apps in the group
+		var normalTimes []float64
+		for _, app := range matchingApps {
+			if appPerf[app][lang].NormalTimeMs != nil && *appPerf[app][lang].NormalTimeMs > 0 {
+				normalTimes = append(normalTimes, *appPerf[app][lang].NormalTimeMs)
+			}
+		}
+
+		// Collect PreProcess Engine times for this language across all apps in the group
+		var preprocessTimes []float64
+		for _, app := range matchingApps {
+			if appPerf[app][lang].PreProcessTimeMs != nil && *appPerf[app][lang].PreProcessTimeMs > 0 {
+				preprocessTimes = append(preprocessTimes, *appPerf[app][lang].PreProcessTimeMs)
+			}
+		}
+
+		if len(normalTimes) == 0 && len(preprocessTimes) == 0 {
+			continue
+		}
+
+		// Calculate aggregates
+		normalMin := minFloat(normalTimes)
+		normalAvg := avgFloat(normalTimes)
+		normalMax := maxFloat(normalTimes)
+
+		preprocessMin := minFloat(preprocessTimes)
+		preprocessAvg := avgFloat(preprocessTimes)
+		preprocessMax := maxFloat(preprocessTimes)
+
+		htmlBuilder.WriteString("                    <div class=\"chart-bar-wrapper\">\n")
+		htmlBuilder.WriteString(fmt.Sprintf("                        <div class=\"chart-bar-label\">%s</div>\n", lang))
+
+		// Container for overlapping bars
+		htmlBuilder.WriteString("                        <div style=\"position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;\">\n")
+
+		// Normal Engine Bar (showing min, avg, max as segments)
+		if normalMin != nil && normalAvg != nil && normalMax != nil {
+			minWidth := (*normalMin / maxTimeForScale) * 100
+			avgWidth := (*normalAvg / maxTimeForScale) * 100
+			maxWidth := (*normalMax / maxTimeForScale) * 100
+
+			// Draw max bar (light green background)
+			htmlBuilder.WriteString(fmt.Sprintf("                            <div style=\"position: absolute; left: 0; top: 0; width: %.2f%%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"%s Normal Max: %.2fms\"></div>\n", maxWidth, lang, *normalMax))
+
+			// Draw avg bar (gold - middle layer)
+			htmlBuilder.WriteString(fmt.Sprintf("                            <div style=\"position: absolute; left: 0; top: 0; width: %.2f%%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"%s Normal Avg: %.2fms\"></div>\n", avgWidth, lang, *normalAvg))
+
+			// Draw min bar (dark green - top layer)
+			htmlBuilder.WriteString(fmt.Sprintf("                            <div style=\"position: absolute; left: 0; top: 0; width: %.2f%%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"%s Normal Min: %.2fms\"></div>\n", minWidth, lang, *normalMin))
+
+			// Label at end of max bar
+			var labelStyle string
+			if maxWidth > 85 {
+				labelStyle = fmt.Sprintf("position: absolute; right: calc(100%% - %.2f%% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;", maxWidth)
+			} else {
+				labelStyle = fmt.Sprintf("position: absolute; left: calc(%.2f%% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;", maxWidth)
+			}
+			htmlBuilder.WriteString(fmt.Sprintf("                            <span style=\"%s\">N: %.2f/%.2f/%.2f</span>\n", labelStyle, *normalMin, *normalAvg, *normalMax))
+		}
+
+		// PreProcess Engine Bar (showing min, avg, max as segments)
+		if preprocessMin != nil && preprocessAvg != nil && preprocessMax != nil {
+			minWidth := (*preprocessMin / maxTimeForScale) * 100
+			avgWidth := (*preprocessAvg / maxTimeForScale) * 100
+			maxWidth := (*preprocessMax / maxTimeForScale) * 100
+
+			// Draw max bar (light pink background)
+			htmlBuilder.WriteString(fmt.Sprintf("                            <div style=\"position: absolute; left: 0; top: 15px; width: %.2f%%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"%s PreProcess Max: %.2fms\"></div>\n", maxWidth, lang, *preprocessMax))
+
+			// Draw avg bar (gold - middle layer)
+			htmlBuilder.WriteString(fmt.Sprintf("                            <div style=\"position: absolute; left: 0; top: 15px; width: %.2f%%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"%s PreProcess Avg: %.2fms\"></div>\n", avgWidth, lang, *preprocessAvg))
+
+			// Draw min bar (dark blue - top layer)
+			htmlBuilder.WriteString(fmt.Sprintf("                            <div style=\"position: absolute; left: 0; top: 15px; width: %.2f%%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"%s PreProcess Min: %.2fms\"></div>\n", minWidth, lang, *preprocessMin))
+
+			// Label at end of max bar
+			var labelStyle string
+			if maxWidth > 85 {
+				labelStyle = fmt.Sprintf("position: absolute; right: calc(100%% - %.2f%% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;", maxWidth)
+			} else {
+				labelStyle = fmt.Sprintf("position: absolute; left: calc(%.2f%% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;", maxWidth)
+			}
+			htmlBuilder.WriteString(fmt.Sprintf("                            <span style=\"%s\">P: %.2f/%.2f/%.2f</span>\n", labelStyle, *preprocessMin, *preprocessAvg, *preprocessMax))
+		}
+
+		htmlBuilder.WriteString("                        </div>\n")
+		htmlBuilder.WriteString("                    </div>\n")
+	}
+
+	htmlBuilder.WriteString("                </div>\n")
+	htmlBuilder.WriteString("            </div>\n")
+}
+
+htmlBuilder.WriteString("        </div>\n")
+htmlBuilder.WriteString("    </div>\n")
+
+// Table View - Normal Engine
+htmlBuilder.WriteString("    <div id=\"normal-table\" class=\"view-content\">\n")
+htmlBuilder.WriteString("    <h2>Normal Engine</h2>\n")
+htmlBuilder.WriteString("    <div class=\"table-container\">\n")
+htmlBuilder.WriteString("    <table>\n")
+htmlBuilder.WriteString("        <tr>\n")
+htmlBuilder.WriteString("            <th>AppSite/AppView</th>\n")
+for _, lang := range languages {
+	htmlBuilder.WriteString(fmt.Sprintf("            <th>%s</th>\n", lang))
+}
+htmlBuilder.WriteString("            <th>OutputSize</th>\n")
+htmlBuilder.WriteString("        </tr>\n")
+
+for _, app := range appKeys {
+	// Find min, max, and avg time for highlighting
+	var validTimes []float64
+	for _, lang := range languages {
+		if appPerf[app][lang].NormalTimeMs != nil && *appPerf[app][lang].NormalTimeMs > 0 {
+			validTimes = append(validTimes, *appPerf[app][lang].NormalTimeMs)
+		}
+	}
+	minTime := minFloat(validTimes)
+	maxTime := maxFloat(validTimes)
+	avgTime := avgFloat(validTimes)
+
+	htmlBuilder.WriteString("        <tr>\n")
+	htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", app))
+	for _, lang := range languages {
+		timeValue := formatFloat(appPerf[app][lang].NormalTimeMs)
+		cssClass := ""
+		if appPerf[app][lang].NormalTimeMs != nil && *appPerf[app][lang].NormalTimeMs > 0 {
+			currentTime := *appPerf[app][lang].NormalTimeMs
+			if minTime != nil && isNearValue(currentTime, *minTime, 0.001) {
+				cssClass = " class=\"best-perf\""
+			} else if maxTime != nil && isNearValue(currentTime, *maxTime, 0.001) {
+				cssClass = " class=\"worst-perf\""
+			} else if avgTime != nil && len(validTimes) > 2 {
+				// Find the value nearest to average
+				nearestToAvg := *avgTime
+				for _, t := range validTimes {
+					if isNearValue(t, *avgTime, 0.001) {
+						nearestToAvg = t
+						break
+					}
+				}
+				if isNearValue(currentTime, nearestToAvg, 0.001) {
+					cssClass = " class=\"avg-perf\""
 				}
 			}
-			minTime = &min
 		}
-
-		htmlBuilder.WriteString("        <tr>\n")
-		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", app))
-		for _, lang := range languages {
-			timeValue := formatFloat(appPerf[app][lang].PreProcessTimeMs)
-			isBest := minTime != nil && appPerf[app][lang].PreProcessTimeMs != nil && *appPerf[app][lang].PreProcessTimeMs > 0 && (*appPerf[app][lang].PreProcessTimeMs-*minTime) < 0.001 && (*appPerf[app][lang].PreProcessTimeMs-*minTime) > -0.001
-			cssClass := ""
-			if isBest {
-				cssClass = " class=\"best-perf\""
-			}
-			htmlBuilder.WriteString(fmt.Sprintf("            <td%s>%s</td>\n", cssClass, timeValue))
-		}
-		outputSize := formatInt(appOutputSizes[app])
-		htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", outputSize))
-		htmlBuilder.WriteString("        </tr>\n")
+		htmlBuilder.WriteString(fmt.Sprintf("            <td%s>%s</td>\n", cssClass, timeValue))
 	}
-	htmlBuilder.WriteString("    </table>\n")
-	htmlBuilder.WriteString("    </div>\n")
-	htmlBuilder.WriteString("</body>\n</html>\n")
+	outputSize := formatInt(appOutputSizes[app])
+	htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", outputSize))
+	htmlBuilder.WriteString("        </tr>\n")
+}
+htmlBuilder.WriteString("    </table>\n")
+htmlBuilder.WriteString("    </div>\n")
+htmlBuilder.WriteString("    </div>\n")
+
+// Table View - PreProcess Engine
+htmlBuilder.WriteString("    <div id=\"preprocess-table\" class=\"view-content\">\n")
+htmlBuilder.WriteString("    <h2>PreProcess Engine</h2>\n")
+htmlBuilder.WriteString("    <div class=\"table-container\">\n")
+htmlBuilder.WriteString("    <table>\n")
+htmlBuilder.WriteString("        <tr>\n")
+htmlBuilder.WriteString("            <th>AppSite/AppView</th>\n")
+for _, lang := range languages {
+	htmlBuilder.WriteString(fmt.Sprintf("            <th>%s</th>\n", lang))
+}
+htmlBuilder.WriteString("            <th>OutputSize</th>\n")
+htmlBuilder.WriteString("        </tr>\n")
+
+for _, app := range appKeys {
+	// Find min, max, and avg time for highlighting
+	var validTimes []float64
+	for _, lang := range languages {
+		if appPerf[app][lang].PreProcessTimeMs != nil && *appPerf[app][lang].PreProcessTimeMs > 0 {
+			validTimes = append(validTimes, *appPerf[app][lang].PreProcessTimeMs)
+		}
+	}
+	minTime := minFloat(validTimes)
+	maxTime := maxFloat(validTimes)
+	avgTime := avgFloat(validTimes)
+
+	htmlBuilder.WriteString("        <tr>\n")
+	htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", app))
+	for _, lang := range languages {
+		timeValue := formatFloat(appPerf[app][lang].PreProcessTimeMs)
+		cssClass := ""
+		if appPerf[app][lang].PreProcessTimeMs != nil && *appPerf[app][lang].PreProcessTimeMs > 0 {
+			currentTime := *appPerf[app][lang].PreProcessTimeMs
+			if minTime != nil && isNearValue(currentTime, *minTime, 0.001) {
+				cssClass = " class=\"best-perf\""
+			} else if maxTime != nil && isNearValue(currentTime, *maxTime, 0.001) {
+				cssClass = " class=\"worst-perf\""
+			} else if avgTime != nil && len(validTimes) > 2 {
+				nearestToAvg := *avgTime
+				for _, t := range validTimes {
+					if isNearValue(t, *avgTime, 0.001) {
+						nearestToAvg = t
+						break
+					}
+				}
+				if isNearValue(currentTime, nearestToAvg, 0.001) {
+					cssClass = " class=\"avg-perf\""
+				}
+			}
+		}
+		htmlBuilder.WriteString(fmt.Sprintf("            <td%s>%s</td>\n", cssClass, timeValue))
+	}
+	outputSize := formatInt(appOutputSizes[app])
+	htmlBuilder.WriteString(fmt.Sprintf("            <td>%s</td>\n", outputSize))
+	htmlBuilder.WriteString("        </tr>\n")
+}
+htmlBuilder.WriteString("    </table>\n")
+htmlBuilder.WriteString("    </div>\n")
+htmlBuilder.WriteString("    </div>\n")
+
+// Add JavaScript for view switching
+htmlBuilder.WriteString("    <script>\n")
+htmlBuilder.WriteString("        document.querySelectorAll('.view-btn').forEach(btn => {\n")
+htmlBuilder.WriteString("            btn.addEventListener('click', function() {\n")
+htmlBuilder.WriteString("                const view = this.getAttribute('data-view');\n")
+htmlBuilder.WriteString("                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));\n")
+htmlBuilder.WriteString("                this.classList.add('active');\n")
+htmlBuilder.WriteString("                document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));\n")
+htmlBuilder.WriteString("                if (view === 'chart') {\n")
+htmlBuilder.WriteString("                    document.getElementById('combined-chart').classList.add('active');\n")
+htmlBuilder.WriteString("                } else if (view === 'grouped') {\n")
+htmlBuilder.WriteString("                    document.getElementById('combined-grouped').classList.add('active');\n")
+htmlBuilder.WriteString("                } else if (view === 'table') {\n")
+htmlBuilder.WriteString("                    document.getElementById('normal-table').classList.add('active');\n")
+htmlBuilder.WriteString("                    document.getElementById('preprocess-table').classList.add('active');\n")
+htmlBuilder.WriteString("                }\n")
+htmlBuilder.WriteString("            });\n")
+htmlBuilder.WriteString("        });\n")
+htmlBuilder.WriteString("    </script>\n")
+htmlBuilder.WriteString("</body>\n</html>\n")
 
 	// Write HTML to template_analysis/Reports directory
 	reportsDir := filepath.Join(projectDirectory, "template_analysis", "Reports")
@@ -1113,4 +1501,48 @@ func getFirstOutputSize(langData map[string]PerfData) *int {
 		}
 	}
 	return nil
+}
+
+// Helper functions for statistical calculations
+func minFloat(vals []float64) *float64 {
+	if len(vals) == 0 {
+		return nil
+	}
+	min := vals[0]
+	for _, v := range vals {
+		if v < min {
+			min = v
+		}
+	}
+	return &min
+}
+
+func maxFloat(vals []float64) *float64 {
+	if len(vals) == 0 {
+		return nil
+	}
+	max := vals[0]
+	for _, v := range vals {
+		if v > max {
+			max = v
+		}
+	}
+	return &max
+}
+
+func avgFloat(vals []float64) *float64 {
+	if len(vals) == 0 {
+		return nil
+	}
+	sum := 0.0
+	for _, v := range vals {
+		sum += v
+	}
+	avg := sum / float64(len(vals))
+	return &avg
+}
+
+func isNearValue(a, b float64, epsilon float64) bool {
+	diff := a - b
+	return diff < epsilon && diff > -epsilon
 }

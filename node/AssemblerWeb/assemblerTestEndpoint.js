@@ -21,6 +21,16 @@ const { PerformanceUtils } = performanceUtilsModule;
 const commonUtilModule = await import(`${assemblerBasePath}/common/commonUtil.js`);
 const { CommonUtil } = commonUtilModule;
 
+// Configurable rule groups for consolidated report grouping
+const RULE_GROUPS = [
+    'HtmlRule1',
+    'HtmlRule2',
+    'HtmlRule3',
+    'JsonRule1',
+    'JsonRule2',
+    'Rule1'
+];
+
 /**
  * GET /test/standard - Run standard tests
  */
@@ -395,117 +405,517 @@ export async function testConsolidatePerformanceEndpoint(req, res, projectDirect
         html.push('<head>')
         html.push('    <meta charset="UTF-8">')
         html.push('    <meta name="viewport" content="width=device-width, initial-scale=1.0">')
-        html.push('    <title>All Performance Tests</title>')
+        html.push('    <title>Consolidated Performance Summary</title>')
         html.push('    <style>')
         html.push('        body { font-family: Arial, sans-serif; margin: 20px; }')
-        html.push('        h1, h2 { color: #333; }')
+        html.push('        h1 { color: #333; }')
+        html.push('        h2 { color: #333; margin-top: 40px; }')
+        html.push('        .meta { color: #666; font-style: italic; margin-bottom: 10px; }')
         html.push('        .table-container { overflow-x: auto; }')
-        html.push('        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }')
+        html.push('        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 700px; }')
         html.push('        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }')
         html.push('        th { background-color: #4CAF50; color: white; }')
         html.push('        tr:nth-child(even) { background-color: #f2f2f2; }')
+        html.push('        td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7) { text-align: right; }')
         html.push('        .best-perf { background-color: #90EE90; font-weight: bold; }')
-        html.push('        @media (max-width: 768px) {')
-        html.push('            body { margin: 10px; }')
-        html.push('            th, td { padding: 8px; font-size: 14px; }')
-        html.push('            h1, h2 { font-size: 24px; }')
-        html.push('        }')
+        html.push('        .worst-perf { background-color: #FFB6C6; font-weight: bold; }')
+        html.push('        .avg-perf { background-color: #FFD700; font-weight: bold; }')
+        html.push('        .legend { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }')
+        html.push('        .legend-item { display: flex; align-items: center; gap: 8px; }')
+        html.push('        .legend-box { width: 24px; height: 24px; border: 1px solid #999; }')
+        html.push('        .view-toggle { margin: 20px 0; }')
+        html.push('        .view-btn { padding: 10px 20px; margin-right: 10px; cursor: pointer; border: 2px solid #4CAF50; background: white; color: #4CAF50; font-size: 14px; border-radius: 5px; }')
+        html.push('        .view-btn.active { background: #4CAF50; color: white; }')
+        html.push('        .view-content { display: none; }')
+        html.push('        .view-content.active { display: block; }')
+        html.push('        .chart-container { margin: 20px 0; }')
+        html.push('        .chart-row { margin-bottom: 25px; }')
+        html.push('        .chart-label { font-weight: bold; margin-bottom: 8px; font-size: 14px; color: #333; }')
+        html.push('        .chart-bars-container { display: flex; flex-direction: column; gap: 8px; }')
+        html.push('        .chart-bar-wrapper { display: flex; align-items: center; gap: 10px; }')
+        html.push('        .chart-bar-label { min-width: 80px; font-weight: 600; color: #555; font-size: 13px; }')
+        html.push('        .chart-bar { height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: white; font-weight: bold; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; min-width: 40px; }')
+        html.push('        .chart-bar:hover { transform: translateX(5px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }')
+        html.push('        .chart-bar-value { margin-left: 10px; font-weight: 600; color: #333; font-size: 13px; min-width: 60px; }')
+        html.push('        .grouped-chart-section { margin-bottom: 40px; padding: 20px; background: #f9f9f9; border-radius: 8px; }')
+        html.push('        .grouped-chart-title { font-size: 1.3em; font-weight: bold; color: #667eea; margin-bottom: 15px; border-bottom: 2px solid #667eea; padding-bottom: 8px; }')
+        html.push('        .grouped-bar-group { display: flex; align-items: center; margin-bottom: 20px; }')
+        html.push('        .grouped-bar-label { min-width: 100px; font-weight: 600; color: #333; font-size: 13px; }')
+        html.push('        .grouped-bars { flex: 1; display: flex; flex-direction: column; gap: 4px; }')
+        html.push('        .grouped-bar-item { display: flex; align-items: center; gap: 8px; }')
+        html.push('        .grouped-bar { height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; color: white; font-weight: bold; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); min-width: 30px; }')
+        html.push('        .grouped-lang-label { min-width: 60px; font-size: 12px; color: #666; }')
         html.push('    </style>')
         html.push('</head>')
         html.push('<body>')
-        html.push('<h1>Consolidated Performance Tests</h1>')
-        html.push(`<div class="meta" style="color:#666;font-style:italic;margin-bottom:10px;">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>`)
-
-        // Sort appSites
-        const sortedAppSites = Array.from(performanceData.keys()).sort()
+        html.push('    <h1>Consolidated Performance Summary</h1>')
+        html.push(`    <div class="meta">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>`)
+        html.push('    <div class="legend">')
+        html.push('        <div class="legend-item"><div class="legend-box" style="background-color: #4CAF50; opacity: 0.8;"></div><span>Normal Engine (N)</span></div>')
+        html.push('        <div class="legend-item"><div class="legend-box" style="background-color: #2196F3; opacity: 0.8;"></div><span>PreProcess Engine (P)</span></div>')
+        html.push('        <div class="legend-item"><div class="legend-box" style="background-color: #90EE90;"></div><span>Best (Lowest Time - Table View)</span></div>')
+        html.push('        <div class="legend-item"><div class="legend-box" style="background-color: #FFD700;"></div><span>Nearest to Average (Table View)</span></div>')
+        html.push('        <div class="legend-item"><div class="legend-box" style="background-color: #FFB6C6;"></div><span>Worst (Highest Time - Table View)</span></div>')
+        html.push('    </div>')
+        html.push('    <div class="view-toggle">')
+        html.push('        <button class="view-btn active" data-view="grouped">Grouped View</button>')
+        html.push('        <button class="view-btn" data-view="chart">Bar Chart View</button>')
+        html.push('        <button class="view-btn" data-view="table">Table View</button>')
+        html.push('    </div>')
 
         // Get list of languages dynamically from configuration
         const languages = Array.from(serversByLang.keys()).sort()
 
-        // Normal Engine Table
-        html.push('<h2>Normal Engine Performance (ms)</h2>')
-        html.push('<div class="table-container">')
-        html.push('<table><tr><th>AppSite</th><th>AppView</th>')
-        for (const lang of languages) {
-            html.push(`<th>${lang}</th>`)
+        // Combined Bar Chart View
+        html.push('    <div id="combined-chart" class="view-content">')
+        html.push('        <div class="chart-container">')
+
+        // Generate combined chart data showing both engines (filter by rule groups)
+        const filteredApps = Array.from(performanceData.keys())
+            .filter(app => RULE_GROUPS.some(rule => app.startsWith(rule)))
+            .sort()
+
+        for (const app of filteredApps) {
+            html.push('            <div class="chart-row">')
+            html.push(`                <div class="chart-label">${app}</div>`)
+            html.push('                <div class="chart-bars-container">')
+
+            // Calculate max time across BOTH engines for consistent scaling
+            const allTimes = []
+            for (const lang of languages) {
+                const langData = performanceData.get(app)
+                if (langData && langData.has(lang)) {
+                    const data = langData.get(lang)
+                    if (data.normalTimeMs !== null && data.normalTimeMs !== undefined && data.normalTimeMs > 0) {
+                        allTimes.push(data.normalTimeMs)
+                    }
+                    if (data.preProcessTimeMs !== null && data.preProcessTimeMs !== undefined && data.preProcessTimeMs > 0) {
+                        allTimes.push(data.preProcessTimeMs)
+                    }
+                }
+            }
+            const maxTimeForScale = allTimes.length > 0 ? Math.max(...allTimes) : 1.0
+
+            // Calculate highlighting for Normal Engine
+            const normalValidTimes = []
+            for (const lang of languages) {
+                const langData = performanceData.get(app)
+                if (langData && langData.has(lang)) {
+                    const data = langData.get(lang)
+                    if (data.normalTimeMs !== null && data.normalTimeMs !== undefined && data.normalTimeMs > 0) {
+                        normalValidTimes.push(data.normalTimeMs)
+                    }
+                }
+            }
+            const normalMinTime = normalValidTimes.length > 0 ? Math.min(...normalValidTimes) : null
+            const normalMaxTime = normalValidTimes.length > 0 ? Math.max(...normalValidTimes) : null
+            const normalAvgTime = normalValidTimes.length > 0 ? normalValidTimes.reduce((a, b) => a + b, 0) / normalValidTimes.length : null
+
+            // Calculate highlighting for PreProcess Engine
+            const preprocessValidTimes = []
+            for (const lang of languages) {
+                const langData = performanceData.get(app)
+                if (langData && langData.has(lang)) {
+                    const data = langData.get(lang)
+                    if (data.preProcessTimeMs !== null && data.preProcessTimeMs !== undefined && data.preProcessTimeMs > 0) {
+                        preprocessValidTimes.push(data.preProcessTimeMs)
+                    }
+                }
+            }
+            const preprocessMinTime = preprocessValidTimes.length > 0 ? Math.min(...preprocessValidTimes) : null
+            const preprocessMaxTime = preprocessValidTimes.length > 0 ? Math.max(...preprocessValidTimes) : null
+            const preprocessAvgTime = preprocessValidTimes.length > 0 ? preprocessValidTimes.reduce((a, b) => a + b, 0) / preprocessValidTimes.length : null
+
+            for (const lang of languages) {
+                const langData = performanceData.get(app)
+                if (langData && langData.has(lang)) {
+                    const data = langData.get(lang)
+                    const normalTime = data.normalTimeMs
+                    const preprocessTime = data.preProcessTimeMs
+
+                    if ((normalTime !== null && normalTime !== undefined && normalTime > 0) ||
+                        (preprocessTime !== null && preprocessTime !== undefined && preprocessTime > 0)) {
+                        html.push('                    <div class="chart-bar-wrapper">')
+                        html.push(`                        <div class="chart-bar-label">${lang}</div>`)
+
+                        // Container for overlapping bars (both start from 0) - with overflow visible for labels
+                        html.push('                        <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">')
+
+                        // Normal Engine Bar (bottom layer) with label at the end
+                        if (normalTime !== null && normalTime !== undefined && normalTime > 0) {
+                            const widthPercent = (normalTime / maxTimeForScale) * 100
+
+                            // Determine highlight color
+                            let normalBgColor = '#4CAF50' // default green
+                            if (normalMinTime !== null && Math.abs(normalTime - normalMinTime) < 0.01) {
+                                normalBgColor = '#90EE90' // best (light green)
+                            } else if (normalMaxTime !== null && Math.abs(normalTime - normalMaxTime) < 0.01) {
+                                normalBgColor = '#FFB6C6' // worst (light red)
+                            } else if (normalAvgTime !== null && normalValidTimes.length > 2) {
+                                const nearestToAvg = normalValidTimes.reduce((prev, curr) =>
+                                    Math.abs(curr - normalAvgTime) < Math.abs(prev - normalAvgTime) ? curr : prev
+                                )
+                                if (Math.abs(normalTime - nearestToAvg) < 0.01) {
+                                    normalBgColor = '#FFD700' // avg (gold)
+                                }
+                            }
+
+                            // Position label: inside bar if very wide (>85%), otherwise outside at end
+                            const normalLabelStyle = widthPercent > 85
+                                ? `position: absolute; right: calc(100% - ${widthPercent}% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;`
+                                : `position: absolute; left: calc(${widthPercent}% + 5px); top: 0; font-size: 11px; color: ${normalBgColor}; font-weight: 600; white-space: nowrap;`
+                            html.push(`                            <div style="position: absolute; left: 0; top: 0; width: ${widthPercent}%; height: 15px; background-color: ${normalBgColor}; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="${lang} Normal: ${normalTime.toFixed(2)}ms"></div>`)
+                            html.push(`                            <span style="${normalLabelStyle}">N: ${normalTime.toFixed(2)}ms</span>`)
+                        }
+
+                        // PreProcess Engine Bar (top layer, slightly offset) with label at the end
+                        if (preprocessTime !== null && preprocessTime !== undefined && preprocessTime > 0) {
+                            const widthPercent = (preprocessTime / maxTimeForScale) * 100
+
+                            // Determine highlight color
+                            let preprocessBgColor = '#2196F3' // default blue
+                            if (preprocessMinTime !== null && Math.abs(preprocessTime - preprocessMinTime) < 0.01) {
+                                preprocessBgColor = '#90EE90' // best (light green)
+                            } else if (preprocessMaxTime !== null && Math.abs(preprocessTime - preprocessMaxTime) < 0.01) {
+                                preprocessBgColor = '#FFB6C6' // worst (light red)
+                            } else if (preprocessAvgTime !== null && preprocessValidTimes.length > 2) {
+                                const nearestToAvg = preprocessValidTimes.reduce((prev, curr) =>
+                                    Math.abs(curr - preprocessAvgTime) < Math.abs(prev - preprocessAvgTime) ? curr : prev
+                                )
+                                if (Math.abs(preprocessTime - nearestToAvg) < 0.01) {
+                                    preprocessBgColor = '#FFD700' // avg (gold)
+                                }
+                            }
+
+                            // Position label: inside bar if very wide (>85%), otherwise outside at end
+                            const preprocessLabelStyle = widthPercent > 85
+                                ? `position: absolute; right: calc(100% - ${widthPercent}% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;`
+                                : `position: absolute; left: calc(${widthPercent}% + 5px); top: 15px; font-size: 11px; color: ${preprocessBgColor}; font-weight: 600; white-space: nowrap;`
+                            html.push(`                            <div style="position: absolute; left: 0; top: 15px; width: ${widthPercent}%; height: 15px; background-color: ${preprocessBgColor}; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="${lang} PreProcess: ${preprocessTime.toFixed(2)}ms"></div>`)
+                            html.push(`                            <span style="${preprocessLabelStyle}">P: ${preprocessTime.toFixed(2)}ms</span>`)
+                        }
+
+                        html.push('                        </div>')
+                        html.push('                    </div>')
+                    }
+                }
+            }
+
+            html.push('                </div>')
+            html.push('            </div>')
         }
-        html.push('<th>Output Size</th></tr>')
 
-        for (const compositeKey of sortedAppSites) {
-            const langData = performanceData.get(compositeKey)
-            const firstData = langData.values().next().value
-            const appSite = firstData?.appSite || ''
-            const appView = firstData?.appView || ''
+        html.push('        </div>')
+        html.push('    </div>')
 
-            // Find minimum time for highlighting (excluding zero values)
+        // Grouped Bar Chart View
+        html.push('    <div id="combined-grouped" class="view-content active">')
+        html.push('        <div class="chart-container">')
+
+        for (const rulePattern of RULE_GROUPS) {
+            // Find all apps matching this rule pattern (excluding Test AppSite for now)
+            const matchingApps = Array.from(performanceData.keys())
+                .filter(app => app.startsWith(rulePattern) && !app.includes('Test'))
+                .sort()
+
+            if (matchingApps.length === 0) continue
+
+            html.push('            <div class="grouped-chart-section">')
+            html.push(`                <div class="grouped-chart-title">${rulePattern}</div>`)
+            html.push('                <div class="chart-bars-container">')
+
+            // Calculate max time across ALL languages in this rule group for consistent scaling
+            const allMaxValues = []
+            for (const lang of languages) {
+                const normalTimes = []
+                for (const app of matchingApps) {
+                    const langData = performanceData.get(app)
+                    if (langData && langData.has(lang)) {
+                        const data = langData.get(lang)
+                        if (data.normalTimeMs !== null && data.normalTimeMs !== undefined && data.normalTimeMs > 0) {
+                            normalTimes.push(data.normalTimeMs)
+                        }
+                    }
+                }
+                const preprocessTimes = []
+                for (const app of matchingApps) {
+                    const langData = performanceData.get(app)
+                    if (langData && langData.has(lang)) {
+                        const data = langData.get(lang)
+                        if (data.preProcessTimeMs !== null && data.preProcessTimeMs !== undefined && data.preProcessTimeMs > 0) {
+                            preprocessTimes.push(data.preProcessTimeMs)
+                        }
+                    }
+                }
+
+                if (normalTimes.length > 0) allMaxValues.push(Math.max(...normalTimes))
+                if (preprocessTimes.length > 0) allMaxValues.push(Math.max(...preprocessTimes))
+            }
+            const maxTimeForScale = allMaxValues.length > 0 ? Math.max(...allMaxValues) : 1.0
+
+            // For each language, calculate min/avg/max across all apps in this rule group
+            for (const lang of languages) {
+                // Collect Normal Engine times for this language across all apps in the group
+                const normalTimes = []
+                for (const app of matchingApps) {
+                    const langData = performanceData.get(app)
+                    if (langData && langData.has(lang)) {
+                        const data = langData.get(lang)
+                        if (data.normalTimeMs !== null && data.normalTimeMs !== undefined && data.normalTimeMs > 0) {
+                            normalTimes.push(data.normalTimeMs)
+                        }
+                    }
+                }
+
+                // Collect PreProcess Engine times for this language across all apps in the group
+                const preprocessTimes = []
+                for (const app of matchingApps) {
+                    const langData = performanceData.get(app)
+                    if (langData && langData.has(lang)) {
+                        const data = langData.get(lang)
+                        if (data.preProcessTimeMs !== null && data.preProcessTimeMs !== undefined && data.preProcessTimeMs > 0) {
+                            preprocessTimes.push(data.preProcessTimeMs)
+                        }
+                    }
+                }
+
+                if (normalTimes.length === 0 && preprocessTimes.length === 0) continue
+
+                // Calculate aggregates
+                const normalMin = normalTimes.length > 0 ? Math.min(...normalTimes) : null
+                const normalAvg = normalTimes.length > 0 ? normalTimes.reduce((a, b) => a + b, 0) / normalTimes.length : null
+                const normalMax = normalTimes.length > 0 ? Math.max(...normalTimes) : null
+
+                const preprocessMin = preprocessTimes.length > 0 ? Math.min(...preprocessTimes) : null
+                const preprocessAvg = preprocessTimes.length > 0 ? preprocessTimes.reduce((a, b) => a + b, 0) / preprocessTimes.length : null
+                const preprocessMax = preprocessTimes.length > 0 ? Math.max(...preprocessTimes) : null
+
+                html.push('                    <div class="chart-bar-wrapper">')
+                html.push(`                        <div class="chart-bar-label">${lang}</div>`)
+
+                // Container for overlapping bars
+                html.push('                        <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">')
+
+                // Normal Engine Bar (showing min, avg, max as segments)
+                if (normalMin !== null && normalAvg !== null && normalMax !== null) {
+                    const minWidth = (normalMin / maxTimeForScale) * 100
+                    const avgWidth = (normalAvg / maxTimeForScale) * 100
+                    const maxWidth = (normalMax / maxTimeForScale) * 100
+
+                    // Draw max bar (light green background)
+                    html.push(`                            <div style="position: absolute; left: 0; top: 0; width: ${maxWidth}%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="${lang} Normal Max: ${normalMax.toFixed(2)}ms"></div>`)
+
+                    // Draw avg bar (gold - middle layer)
+                    html.push(`                            <div style="position: absolute; left: 0; top: 0; width: ${avgWidth}%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="${lang} Normal Avg: ${normalAvg.toFixed(2)}ms"></div>`)
+
+                    // Draw min bar (dark green - top layer)
+                    html.push(`                            <div style="position: absolute; left: 0; top: 0; width: ${minWidth}%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="${lang} Normal Min: ${normalMin.toFixed(2)}ms"></div>`)
+
+                    // Label at end of max bar
+                    const labelStyle = maxWidth > 85
+                        ? `position: absolute; right: calc(100% - ${maxWidth}% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;`
+                        : `position: absolute; left: calc(${maxWidth}% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;`
+                    html.push(`                            <span style="${labelStyle}">N: ${normalMin.toFixed(2)}/${normalAvg.toFixed(2)}/${normalMax.toFixed(2)}</span>`)
+                }
+
+                // PreProcess Engine Bar (showing min, avg, max as segments)
+                if (preprocessMin !== null && preprocessAvg !== null && preprocessMax !== null) {
+                    const minWidth = (preprocessMin / maxTimeForScale) * 100
+                    const avgWidth = (preprocessAvg / maxTimeForScale) * 100
+                    const maxWidth = (preprocessMax / maxTimeForScale) * 100
+
+                    // Draw max bar (light pink background)
+                    html.push(`                            <div style="position: absolute; left: 0; top: 15px; width: ${maxWidth}%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="${lang} PreProcess Max: ${preprocessMax.toFixed(2)}ms"></div>`)
+
+                    // Draw avg bar (gold - middle layer)
+                    html.push(`                            <div style="position: absolute; left: 0; top: 15px; width: ${avgWidth}%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="${lang} PreProcess Avg: ${preprocessAvg.toFixed(2)}ms"></div>`)
+
+                    // Draw min bar (dark blue - top layer)
+                    html.push(`                            <div style="position: absolute; left: 0; top: 15px; width: ${minWidth}%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="${lang} PreProcess Min: ${preprocessMin.toFixed(2)}ms"></div>`)
+
+                    // Label at end of max bar
+                    const labelStyle = maxWidth > 85
+                        ? `position: absolute; right: calc(100% - ${maxWidth}% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;`
+                        : `position: absolute; left: calc(${maxWidth}% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;`
+                    html.push(`                            <span style="${labelStyle}">P: ${preprocessMin.toFixed(2)}/${preprocessAvg.toFixed(2)}/${preprocessMax.toFixed(2)}</span>`)
+                }
+
+                html.push('                        </div>')
+                html.push('                    </div>')
+            }
+
+            html.push('                </div>')
+            html.push('            </div>')
+        }
+
+        html.push('        </div>')
+        html.push('    </div>')
+
+        // Normal Engine Table View
+        html.push('    <div id="normal-table" class="view-content">')
+        html.push('    <h2>Normal Engine</h2>')
+        html.push('    <div class="table-container">')
+        html.push('    <table>')
+        html.push('        <tr>')
+        html.push('            <th>AppSite/AppView</th>')
+        for (const lang of languages) {
+            html.push(`            <th>${lang}</th>`)
+        }
+        html.push('            <th>OutputSize</th>')
+        html.push('        </tr>')
+        for (const app of filteredApps) {
+            const langData = performanceData.get(app)
+
+            // Find min, max, and avg time for highlighting (excluding zero values)
             const validTimes = []
             for (const lang of languages) {
-                const data = langData.get(lang)
-                if (data?.normalTimeMs !== null && data?.normalTimeMs !== undefined && data.normalTimeMs > 0) {
-                    validTimes.push(data.normalTimeMs)
+                if (langData && langData.has(lang)) {
+                    const data = langData.get(lang)
+                    if (data.normalTimeMs !== null && data.normalTimeMs !== undefined && data.normalTimeMs > 0) {
+                        validTimes.push(data.normalTimeMs)
+                    }
                 }
             }
             const minTime = validTimes.length > 0 ? Math.min(...validTimes) : null
+            const maxTime = validTimes.length > 0 ? Math.max(...validTimes) : null
+            const avgTime = validTimes.length > 0 ? validTimes.reduce((a, b) => a + b, 0) / validTimes.length : null
 
-            html.push(`<tr><td>${appSite}</td><td>${appView}</td>`)
-
+            html.push('        <tr>')
+            html.push(`            <td>${app}</td>`)
             for (const lang of languages) {
-                const data = langData.get(lang)
-                const timeValue = formatFloat(data?.normalTimeMs)
-                const isBest = minTime !== null && data?.normalTimeMs !== null && data?.normalTimeMs !== undefined && data.normalTimeMs > 0 && Math.abs(data.normalTimeMs - minTime) < 0.001
-                const cssClass = isBest ? ' class="best-perf"' : ''
-                html.push(`<td${cssClass}>${timeValue}</td>`)
+                const data = langData && langData.has(lang) ? langData.get(lang) : null
+                const timeValue = data && data.normalTimeMs !== null && data.normalTimeMs !== undefined
+                    ? data.normalTimeMs.toFixed(2)
+                    : '-'
+
+                let cssClass = ''
+                if (data && data.normalTimeMs !== null && data.normalTimeMs !== undefined && data.normalTimeMs > 0) {
+                    const currentTime = data.normalTimeMs
+                    if (minTime !== null && Math.abs(currentTime - minTime) < 0.001) {
+                        cssClass = ' class="best-perf"'
+                    } else if (maxTime !== null && Math.abs(currentTime - maxTime) < 0.001) {
+                        cssClass = ' class="worst-perf"'
+                    } else if (avgTime !== null && validTimes.length > 2) {
+                        // Find the value nearest to average
+                        const nearestToAvg = validTimes.reduce((prev, curr) =>
+                            Math.abs(curr - avgTime) < Math.abs(prev - avgTime) ? curr : prev
+                        )
+                        if (Math.abs(currentTime - nearestToAvg) < 0.001) {
+                            cssClass = ' class="avg-perf"'
+                        }
+                    }
+                }
+
+                html.push(`            <td${cssClass}>${timeValue}</td>`)
             }
-
-            // Output size from first available language
-            const firstOutputSize = getFirstOutputSize(langData)
-            html.push(`<td>${formatInt(firstOutputSize)}</td>`)
-            html.push('</tr>')
+            const outputSize = getFirstOutputSize(langData)
+            html.push(`            <td>${formatInt(outputSize)}</td>`)
+            html.push('        </tr>')
         }
-        html.push('</table>')
-        html.push('</div>')
+        html.push('    </table>')
+        html.push('    </div>')
+        html.push('    </div>')
 
-        // PreProcess Engine Table
-        html.push('<h2>PreProcess Engine Performance (ms)</h2>')
-        html.push('<div class="table-container">')
-        html.push('<table><tr><th>AppSite</th><th>AppView</th>')
+        // PreProcess Engine Table View
+        html.push('    <div id="preprocess-table" class="view-content">')
+        html.push('    <h2>PreProcess Engine</h2>')
+        html.push('    <div class="table-container">')
+        html.push('    <table>')
+        html.push('        <tr>')
+        html.push('            <th>AppSite/AppView</th>')
         for (const lang of languages) {
-            html.push(`<th>${lang}</th>`)
+            html.push(`            <th>${lang}</th>`)
         }
-        html.push('<th>Output Size</th></tr>')
+        html.push('            <th>OutputSize</th>')
+        html.push('        </tr>')
+        for (const app of filteredApps) {
+            const langData = performanceData.get(app)
 
-        for (const compositeKey of sortedAppSites) {
-            const langData = performanceData.get(compositeKey)
-            const firstData = langData.values().next().value
-            const appSite = firstData?.appSite || ''
-            const appView = firstData?.appView || ''
-
-            // Find minimum time for highlighting (excluding zero values)
+            // Find min, max, and avg time for highlighting (excluding zero values)
             const validTimes = []
             for (const lang of languages) {
-                const data = langData.get(lang)
-                if (data?.preProcessTimeMs !== null && data?.preProcessTimeMs !== undefined && data.preProcessTimeMs > 0) {
-                    validTimes.push(data.preProcessTimeMs)
+                if (langData && langData.has(lang)) {
+                    const data = langData.get(lang)
+                    if (data.preProcessTimeMs !== null && data.preProcessTimeMs !== undefined && data.preProcessTimeMs > 0) {
+                        validTimes.push(data.preProcessTimeMs)
+                    }
                 }
             }
             const minTime = validTimes.length > 0 ? Math.min(...validTimes) : null
+            const maxTime = validTimes.length > 0 ? Math.max(...validTimes) : null
+            const avgTime = validTimes.length > 0 ? validTimes.reduce((a, b) => a + b, 0) / validTimes.length : null
 
-            html.push(`<tr><td>${appSite}</td><td>${appView}</td>`)
+            html.push('        <tr>')
+            html.push(`            <td>${app}</td>`)
 
             for (const lang of languages) {
-                const data = langData.get(lang)
-                const timeValue = formatFloat(data?.preProcessTimeMs)
-                const isBest = minTime !== null && data?.preProcessTimeMs !== null && data?.preProcessTimeMs !== undefined && data.preProcessTimeMs > 0 && Math.abs(data.preProcessTimeMs - minTime) < 0.001
-                const cssClass = isBest ? ' class="best-perf"' : ''
-                html.push(`<td${cssClass}>${timeValue}</td>`)
-            }
+                const data = langData && langData.has(lang) ? langData.get(lang) : null
+                const timeValue = data && data.preProcessTimeMs !== null && data.preProcessTimeMs !== undefined
+                    ? data.preProcessTimeMs.toFixed(2)
+                    : '-'
 
-            const firstOutputSize = getFirstOutputSize(langData)
-            html.push(`<td>${formatInt(firstOutputSize)}</td>`)
-            html.push('</tr>')
+                let cssClass = ''
+                if (data && data.preProcessTimeMs !== null && data.preProcessTimeMs !== undefined && data.preProcessTimeMs > 0) {
+                    const currentTime = data.preProcessTimeMs
+                    if (minTime !== null && Math.abs(currentTime - minTime) < 0.001) {
+                        cssClass = ' class="best-perf"'
+                    } else if (maxTime !== null && Math.abs(currentTime - maxTime) < 0.001) {
+                        cssClass = ' class="worst-perf"'
+                    } else if (avgTime !== null && validTimes.length > 2) {
+                        const nearestToAvg = validTimes.reduce((prev, curr) =>
+                            Math.abs(curr - avgTime) < Math.abs(prev - avgTime) ? curr : prev
+                        )
+                        if (Math.abs(currentTime - nearestToAvg) < 0.001) {
+                            cssClass = ' class="avg-perf"'
+                        }
+                    }
+                }
+
+                html.push(`            <td${cssClass}>${timeValue}</td>`)
+            }
+            const outputSize = getFirstOutputSize(langData)
+            html.push(`            <td>${formatInt(outputSize)}</td>`)
+            html.push('        </tr>')
         }
-        html.push('</table>')
-        html.push('</div>')
+        html.push('    </table>')
+        html.push('    </div>')
+        html.push('    </div>')
+
+        // Add JavaScript for view switching
+        html.push('    <script>')
+        html.push('        document.addEventListener("DOMContentLoaded", function() {')
+        html.push('            const viewButtons = document.querySelectorAll(".view-btn");')
+        html.push('            const viewContents = document.querySelectorAll(".view-content");')
+        html.push('            ')
+        html.push('            function switchView(viewName) {')
+        html.push('                viewButtons.forEach(btn => {')
+        html.push('                    if (btn.getAttribute("data-view") === viewName) {')
+        html.push('                        btn.classList.add("active");')
+        html.push('                    } else {')
+        html.push('                        btn.classList.remove("active");')
+        html.push('                    }')
+        html.push('                });')
+        html.push('                ')
+        html.push('                viewContents.forEach(content => {')
+        html.push('                    if (viewName === "grouped" && content.id === "combined-grouped") {')
+        html.push('                        content.classList.add("active");')
+        html.push('                    } else if (viewName === "chart" && content.id === "combined-chart") {')
+        html.push('                        content.classList.add("active");')
+        html.push('                    } else if (viewName === "table" && (content.id === "normal-table" || content.id === "preprocess-table")) {')
+        html.push('                        content.classList.add("active");')
+        html.push('                    } else {')
+        html.push('                        content.classList.remove("active");')
+        html.push('                    }')
+        html.push('                });')
+        html.push('            }')
+        html.push('            ')
+        html.push('            viewButtons.forEach(btn => {')
+        html.push('                btn.addEventListener("click", function() {')
+        html.push('                    switchView(this.getAttribute("data-view"));')
+        html.push('                });')
+        html.push('            });')
+        html.push('        });')
+        html.push('    </script>')
         html.push('</body>')
         html.push('</html>')
 

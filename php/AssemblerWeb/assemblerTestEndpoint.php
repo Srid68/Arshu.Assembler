@@ -11,6 +11,16 @@ use Assembler\Config\ConfigUtil;
 
 class AssemblerTestEndpoint
 {
+	// Configurable rule groups for consolidated report grouping
+	const RULE_GROUPS = [
+		'HtmlRule1',
+		'HtmlRule2',
+		'HtmlRule3',
+		'JsonRule1',
+		'JsonRule2',
+		'Rule1'
+	];
+
 	 public static function testStandardEndpoint(ServerRequest $request, Response $response, string $wwwrootPath, string $projectRootPath): Response
     {
         $start = microtime(true);
@@ -440,126 +450,517 @@ class AssemblerTestEndpoint
             $html[] = '<head>';
             $html[] = '    <meta charset="UTF-8">';
             $html[] = '    <meta name="viewport" content="width=device-width, initial-scale=1.0">';
-            $html[] = '    <title>All Performance Tests</title>';
+            $html[] = '    <title>Consolidated Performance Summary</title>';
             $html[] = '    <style>';
             $html[] = '        body { font-family: Arial, sans-serif; margin: 20px; }';
-            $html[] = '        h1, h2 { color: #333; }';
+            $html[] = '        h1 { color: #333; }';
+            $html[] = '        h2 { color: #333; margin-top: 40px; }';
+            $html[] = '        .meta { color: #666; font-style: italic; margin-bottom: 10px; }';
             $html[] = '        .table-container { overflow-x: auto; }';
-            $html[] = '        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 600px; }';
+            $html[] = '        table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 700px; }';
             $html[] = '        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }';
             $html[] = '        th { background-color: #4CAF50; color: white; }';
             $html[] = '        tr:nth-child(even) { background-color: #f2f2f2; }';
+            $html[] = '        td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7) { text-align: right; }';
             $html[] = '        .best-perf { background-color: #90EE90; font-weight: bold; }';
-            $html[] = '        @media (max-width: 768px) {';
-            $html[] = '            body { margin: 10px; }';
-            $html[] = '            th, td { padding: 8px; font-size: 14px; }';
-            $html[] = '            h1, h2 { font-size: 24px; }';
-            $html[] = '        }';
+            $html[] = '        .worst-perf { background-color: #FFB6C6; font-weight: bold; }';
+            $html[] = '        .avg-perf { background-color: #FFD700; font-weight: bold; }';
+            $html[] = '        .legend { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }';
+            $html[] = '        .legend-item { display: flex; align-items: center; gap: 8px; }';
+            $html[] = '        .legend-box { width: 24px; height: 24px; border: 1px solid #999; }';
+            $html[] = '        .view-toggle { margin: 20px 0; }';
+            $html[] = '        .view-btn { padding: 10px 20px; margin-right: 10px; cursor: pointer; border: 2px solid #4CAF50; background: white; color: #4CAF50; font-size: 14px; border-radius: 5px; }';
+            $html[] = '        .view-btn.active { background: #4CAF50; color: white; }';
+            $html[] = '        .view-content { display: none; }';
+            $html[] = '        .view-content.active { display: block; }';
+            $html[] = '        .chart-container { margin: 20px 0; }';
+            $html[] = '        .chart-row { margin-bottom: 25px; }';
+            $html[] = '        .chart-label { font-weight: bold; margin-bottom: 8px; font-size: 14px; color: #333; }';
+            $html[] = '        .chart-bars-container { display: flex; flex-direction: column; gap: 8px; }';
+            $html[] = '        .chart-bar-wrapper { display: flex; align-items: center; gap: 10px; }';
+            $html[] = '        .chart-bar-label { min-width: 80px; font-weight: 600; color: #555; font-size: 13px; }';
+            $html[] = '        .chart-bar { height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: white; font-weight: bold; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; min-width: 40px; }';
+            $html[] = '        .chart-bar:hover { transform: translateX(5px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }';
+            $html[] = '        .chart-bar-value { margin-left: 10px; font-weight: 600; color: #333; font-size: 13px; min-width: 60px; }';
+            $html[] = '        .grouped-chart-section { margin-bottom: 40px; padding: 20px; background: #f9f9f9; border-radius: 8px; }';
+            $html[] = '        .grouped-chart-title { font-size: 1.3em; font-weight: bold; color: #667eea; margin-bottom: 15px; border-bottom: 2px solid #667eea; padding-bottom: 8px; }';
+            $html[] = '        .grouped-bar-group { display: flex; align-items: center; margin-bottom: 20px; }';
+            $html[] = '        .grouped-bar-label { min-width: 100px; font-weight: 600; color: #333; font-size: 13px; }';
+            $html[] = '        .grouped-bars { flex: 1; display: flex; flex-direction: column; gap: 4px; }';
+            $html[] = '        .grouped-bar-item { display: flex; align-items: center; gap: 8px; }';
+            $html[] = '        .grouped-bar { height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; color: white; font-weight: bold; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); min-width: 30px; }';
+            $html[] = '        .grouped-lang-label { min-width: 60px; font-size: 12px; color: #666; }';
             $html[] = '    </style>';
             $html[] = '</head>';
             $html[] = '<body>';
-            $html[] = '<h1>Consolidated Performance Tests</h1>';
-            $html[] = '<div class="meta" style="color:#666;font-style:italic;margin-bottom:10px;">Generated: ' . gmdate('Y-m-d H:i:s') . ' UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>';
-
-            // Sort appSites
-            $sortedAppSites = array_keys($performanceData);
-            sort($sortedAppSites);
+            $html[] = '    <h1>Consolidated Performance Summary</h1>';
+            $html[] = '    <div class="meta">Generated: ' . gmdate('Y-m-d H:i:s') . ' UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>';
+            $html[] = '    <div class="legend">';
+            $html[] = '        <div class="legend-item"><div class="legend-box" style="background-color: #4CAF50; opacity: 0.8;"></div><span>Normal Engine (N)</span></div>';
+            $html[] = '        <div class="legend-item"><div class="legend-box" style="background-color: #2196F3; opacity: 0.8;"></div><span>PreProcess Engine (P)</span></div>';
+            $html[] = '        <div class="legend-item"><div class="legend-box" style="background-color: #90EE90;"></div><span>Best (Lowest Time - Table View)</span></div>';
+            $html[] = '        <div class="legend-item"><div class="legend-box" style="background-color: #FFD700;"></div><span>Nearest to Average (Table View)</span></div>';
+            $html[] = '        <div class="legend-item"><div class="legend-box" style="background-color: #FFB6C6;"></div><span>Worst (Highest Time - Table View)</span></div>';
+            $html[] = '    </div>';
+            $html[] = '    <div class="view-toggle">';
+            $html[] = '        <button class="view-btn active" data-view="grouped">Grouped View</button>';
+            $html[] = '        <button class="view-btn" data-view="chart">Bar Chart View</button>';
+            $html[] = '        <button class="view-btn" data-view="table">Table View</button>';
+            $html[] = '    </div>';
 
             // Get list of languages dynamically from configuration
             $languages = array_keys($serversByLang);
             sort($languages);
 
-            // Normal Engine Table
-            $html[] = '<h2>Normal Engine Performance (ms)</h2>';
-            $html[] = '<div class="table-container">';
-            $html[] = '<table><tr><th>AppSite</th>';
-            foreach ($languages as $lang) {
-                $html[] = "<th>{$lang}</th>";
+            // Combined Bar Chart View (Normal + PreProcess)
+            $html[] = '    <div id="combined-chart" class="view-content">';
+            $html[] = '        <div class="chart-container">';
+
+            // Filter by rule groups
+            $filteredApps = array_filter(array_keys($performanceData), function($app) {
+                foreach (self::RULE_GROUPS as $rule) {
+                    if (strpos($app, $rule) === 0) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+            sort($filteredApps);
+
+            foreach ($filteredApps as $app) {
+                $html[] = '            <div class="chart-row">';
+                $html[] = '                <div class="chart-label">' . htmlspecialchars($app) . '</div>';
+                $html[] = '                <div class="chart-bars-container">';
+
+                // Calculate max time across BOTH engines for consistent scaling
+                $allTimes = [];
+                foreach ($languages as $lang) {
+                    if (isset($performanceData[$app][$lang])) {
+                        $normalTime = $performanceData[$app][$lang]['normalTimeMs'];
+                        $preprocessTime = $performanceData[$app][$lang]['preProcessTimeMs'];
+                        if ($normalTime !== null && $normalTime > 0) $allTimes[] = $normalTime;
+                        if ($preprocessTime !== null && $preprocessTime > 0) $allTimes[] = $preprocessTime;
+                    }
+                }
+                $maxTimeForScale = !empty($allTimes) ? max($allTimes) : 1.0;
+
+                // Calculate highlighting for Normal Engine
+                $normalValidTimes = [];
+                foreach ($languages as $lang) {
+                    if (isset($performanceData[$app][$lang])) {
+                        $normalTime = $performanceData[$app][$lang]['normalTimeMs'];
+                        if ($normalTime !== null && $normalTime > 0) {
+                            $normalValidTimes[] = $normalTime;
+                        }
+                    }
+                }
+                $normalMinTime = !empty($normalValidTimes) ? min($normalValidTimes) : null;
+                $normalMaxTime = !empty($normalValidTimes) ? max($normalValidTimes) : null;
+                $normalAvgTime = !empty($normalValidTimes) ? array_sum($normalValidTimes) / count($normalValidTimes) : null;
+
+                // Calculate highlighting for PreProcess Engine
+                $preprocessValidTimes = [];
+                foreach ($languages as $lang) {
+                    if (isset($performanceData[$app][$lang])) {
+                        $preprocessTime = $performanceData[$app][$lang]['preProcessTimeMs'];
+                        if ($preprocessTime !== null && $preprocessTime > 0) {
+                            $preprocessValidTimes[] = $preprocessTime;
+                        }
+                    }
+                }
+                $preprocessMinTime = !empty($preprocessValidTimes) ? min($preprocessValidTimes) : null;
+                $preprocessMaxTime = !empty($preprocessValidTimes) ? max($preprocessValidTimes) : null;
+                $preprocessAvgTime = !empty($preprocessValidTimes) ? array_sum($preprocessValidTimes) / count($preprocessValidTimes) : null;
+
+                foreach ($languages as $lang) {
+                    if (isset($performanceData[$app][$lang])) {
+                        $normalTime = $performanceData[$app][$lang]['normalTimeMs'];
+                        $preprocessTime = $performanceData[$app][$lang]['preProcessTimeMs'];
+
+                        if (($normalTime !== null && $normalTime > 0) || ($preprocessTime !== null && $preprocessTime > 0)) {
+                            $html[] = '                    <div class="chart-bar-wrapper">';
+                            $html[] = '                        <div class="chart-bar-label">' . htmlspecialchars($lang) . '</div>';
+                            $html[] = '                        <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">';
+
+                            // Normal Engine Bar (bottom layer)
+                            if ($normalTime !== null && $normalTime > 0) {
+                                $widthPercent = ($normalTime / $maxTimeForScale) * 100;
+
+                                // Determine highlight color
+                                $normalBgColor = '#4CAF50';
+                                if ($normalMinTime !== null && abs($normalTime - $normalMinTime) < 0.01) {
+                                    $normalBgColor = '#90EE90';
+                                } else if ($normalMaxTime !== null && abs($normalTime - $normalMaxTime) < 0.01) {
+                                    $normalBgColor = '#FFB6C6';
+                                } else if ($normalAvgTime !== null && count($normalValidTimes) > 2) {
+                                    usort($normalValidTimes, function($a, $b) use ($normalAvgTime) {
+                                        return abs($a - $normalAvgTime) <=> abs($b - $normalAvgTime);
+                                    });
+                                    if (abs($normalTime - $normalValidTimes[0]) < 0.01) {
+                                        $normalBgColor = '#FFD700';
+                                    }
+                                }
+
+                                $normalLabelStyle = $widthPercent > 85
+                                    ? 'position: absolute; right: calc(100% - ' . $widthPercent . '% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;'
+                                    : 'position: absolute; left: calc(' . $widthPercent . '% + 5px); top: 0; font-size: 11px; color: ' . $normalBgColor . '; font-weight: 600; white-space: nowrap;';
+
+                                $html[] = '                            <div style="position: absolute; left: 0; top: 0; width: ' . $widthPercent . '%; height: 15px; background-color: ' . $normalBgColor . '; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="' . htmlspecialchars($lang) . ' Normal: ' . number_format($normalTime, 2) . 'ms"></div>';
+                                $html[] = '                            <span style="' . $normalLabelStyle . '">N: ' . number_format($normalTime, 2) . 'ms</span>';
+                            }
+
+                            // PreProcess Engine Bar (top layer, slightly offset)
+                            if ($preprocessTime !== null && $preprocessTime > 0) {
+                                $widthPercent = ($preprocessTime / $maxTimeForScale) * 100;
+
+                                // Determine highlight color
+                                $preprocessBgColor = '#2196F3';
+                                if ($preprocessMinTime !== null && abs($preprocessTime - $preprocessMinTime) < 0.01) {
+                                    $preprocessBgColor = '#90EE90';
+                                } else if ($preprocessMaxTime !== null && abs($preprocessTime - $preprocessMaxTime) < 0.01) {
+                                    $preprocessBgColor = '#FFB6C6';
+                                } else if ($preprocessAvgTime !== null && count($preprocessValidTimes) > 2) {
+                                    usort($preprocessValidTimes, function($a, $b) use ($preprocessAvgTime) {
+                                        return abs($a - $preprocessAvgTime) <=> abs($b - $preprocessAvgTime);
+                                    });
+                                    if (abs($preprocessTime - $preprocessValidTimes[0]) < 0.01) {
+                                        $preprocessBgColor = '#FFD700';
+                                    }
+                                }
+
+                                $preprocessLabelStyle = $widthPercent > 85
+                                    ? 'position: absolute; right: calc(100% - ' . $widthPercent . '% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;'
+                                    : 'position: absolute; left: calc(' . $widthPercent . '% + 5px); top: 15px; font-size: 11px; color: ' . $preprocessBgColor . '; font-weight: 600; white-space: nowrap;';
+
+                                $html[] = '                            <div style="position: absolute; left: 0; top: 15px; width: ' . $widthPercent . '%; height: 15px; background-color: ' . $preprocessBgColor . '; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="' . htmlspecialchars($lang) . ' PreProcess: ' . number_format($preprocessTime, 2) . 'ms"></div>';
+                                $html[] = '                            <span style="' . $preprocessLabelStyle . '">P: ' . number_format($preprocessTime, 2) . 'ms</span>';
+                            }
+
+                            $html[] = '                        </div>';
+                            $html[] = '                    </div>';
+                        }
+                    }
+                }
+
+                $html[] = '                </div>';
+                $html[] = '            </div>';
             }
-            $html[] = '<th>Output Size</th></tr>';
 
-            foreach ($sortedAppSites as $appSite) {
-                $langData = $performanceData[$appSite];
+            $html[] = '        </div>';
+            $html[] = '    </div>';
 
-                // Find minimum time for highlighting (excluding zero values)
+            // Grouped Chart View (Group by configured rule groups)
+            $html[] = '    <div id="combined-grouped" class="view-content active">';
+            $html[] = '        <div class="chart-container">';
+
+            foreach (self::RULE_GROUPS as $rulePattern) {
+                // Find all apps matching this rule pattern
+                $matchingApps = array_filter(array_keys($performanceData), function($app) use ($rulePattern) {
+                    return strpos($app, $rulePattern) === 0 && strpos($app, 'Test') === false;
+                });
+                sort($matchingApps);
+
+                if (empty($matchingApps)) continue;
+
+                $html[] = '            <div class="grouped-chart-section">';
+                $html[] = '                <div class="grouped-chart-title">' . htmlspecialchars($rulePattern) . '</div>';
+                $html[] = '                <div class="chart-bars-container">';
+
+                // Calculate max time across ALL languages in this rule group for consistent scaling
+                $allMaxValues = [];
+                foreach ($languages as $lang) {
+                    $normalTimes = [];
+                    foreach ($matchingApps as $app) {
+                        if (isset($performanceData[$app][$lang])) {
+                            $normalTime = $performanceData[$app][$lang]['normalTimeMs'];
+                            if ($normalTime !== null && $normalTime > 0) {
+                                $normalTimes[] = $normalTime;
+                            }
+                        }
+                    }
+                    $preprocessTimes = [];
+                    foreach ($matchingApps as $app) {
+                        if (isset($performanceData[$app][$lang])) {
+                            $preprocessTime = $performanceData[$app][$lang]['preProcessTimeMs'];
+                            if ($preprocessTime !== null && $preprocessTime > 0) {
+                                $preprocessTimes[] = $preprocessTime;
+                            }
+                        }
+                    }
+
+                    if (!empty($normalTimes)) $allMaxValues[] = max($normalTimes);
+                    if (!empty($preprocessTimes)) $allMaxValues[] = max($preprocessTimes);
+                }
+                $maxTimeForScale = !empty($allMaxValues) ? max($allMaxValues) : 1.0;
+
+                // For each language, calculate min/avg/max across all apps in this rule group
+                foreach ($languages as $lang) {
+                    // Collect Normal Engine times
+                    $normalTimes = [];
+                    foreach ($matchingApps as $app) {
+                        if (isset($performanceData[$app][$lang])) {
+                            $normalTime = $performanceData[$app][$lang]['normalTimeMs'];
+                            if ($normalTime !== null && $normalTime > 0) {
+                                $normalTimes[] = $normalTime;
+                            }
+                        }
+                    }
+
+                    // Collect PreProcess Engine times
+                    $preprocessTimes = [];
+                    foreach ($matchingApps as $app) {
+                        if (isset($performanceData[$app][$lang])) {
+                            $preprocessTime = $performanceData[$app][$lang]['preProcessTimeMs'];
+                            if ($preprocessTime !== null && $preprocessTime > 0) {
+                                $preprocessTimes[] = $preprocessTime;
+                            }
+                        }
+                    }
+
+                    if (empty($normalTimes) && empty($preprocessTimes)) continue;
+
+                    // Calculate aggregates
+                    $normalMin = !empty($normalTimes) ? min($normalTimes) : null;
+                    $normalAvg = !empty($normalTimes) ? array_sum($normalTimes) / count($normalTimes) : null;
+                    $normalMax = !empty($normalTimes) ? max($normalTimes) : null;
+
+                    $preprocessMin = !empty($preprocessTimes) ? min($preprocessTimes) : null;
+                    $preprocessAvg = !empty($preprocessTimes) ? array_sum($preprocessTimes) / count($preprocessTimes) : null;
+                    $preprocessMax = !empty($preprocessTimes) ? max($preprocessTimes) : null;
+
+                    $html[] = '                    <div class="chart-bar-wrapper">';
+                    $html[] = '                        <div class="chart-bar-label">' . htmlspecialchars($lang) . '</div>';
+                    $html[] = '                        <div style="position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;">';
+
+                    // Normal Engine Bar (showing min, avg, max as segments)
+                    if ($normalMin !== null && $normalAvg !== null && $normalMax !== null) {
+                        $minWidth = ($normalMin / $maxTimeForScale) * 100;
+                        $avgWidth = ($normalAvg / $maxTimeForScale) * 100;
+                        $maxWidth = ($normalMax / $maxTimeForScale) * 100;
+
+                        $html[] = '                            <div style="position: absolute; left: 0; top: 0; width: ' . $maxWidth . '%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="' . htmlspecialchars($lang) . ' Normal Max: ' . number_format($normalMax, 2) . 'ms"></div>';
+                        $html[] = '                            <div style="position: absolute; left: 0; top: 0; width: ' . $avgWidth . '%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="' . htmlspecialchars($lang) . ' Normal Avg: ' . number_format($normalAvg, 2) . 'ms"></div>';
+                        $html[] = '                            <div style="position: absolute; left: 0; top: 0; width: ' . $minWidth . '%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="' . htmlspecialchars($lang) . ' Normal Min: ' . number_format($normalMin, 2) . 'ms"></div>';
+
+                        $labelStyle = $maxWidth > 85
+                            ? 'position: absolute; right: calc(100% - ' . $maxWidth . '% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;'
+                            : 'position: absolute; left: calc(' . $maxWidth . '% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;';
+                        $html[] = '                            <span style="' . $labelStyle . '">N: ' . number_format($normalMin, 2) . '/' . number_format($normalAvg, 2) . '/' . number_format($normalMax, 2) . '</span>';
+                    }
+
+                    // PreProcess Engine Bar (showing min, avg, max as segments)
+                    if ($preprocessMin !== null && $preprocessAvg !== null && $preprocessMax !== null) {
+                        $minWidth = ($preprocessMin / $maxTimeForScale) * 100;
+                        $avgWidth = ($preprocessAvg / $maxTimeForScale) * 100;
+                        $maxWidth = ($preprocessMax / $maxTimeForScale) * 100;
+
+                        $html[] = '                            <div style="position: absolute; left: 0; top: 15px; width: ' . $maxWidth . '%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="' . htmlspecialchars($lang) . ' PreProcess Max: ' . number_format($preprocessMax, 2) . 'ms"></div>';
+                        $html[] = '                            <div style="position: absolute; left: 0; top: 15px; width: ' . $avgWidth . '%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="' . htmlspecialchars($lang) . ' PreProcess Avg: ' . number_format($preprocessAvg, 2) . 'ms"></div>';
+                        $html[] = '                            <div style="position: absolute; left: 0; top: 15px; width: ' . $minWidth . '%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="' . htmlspecialchars($lang) . ' PreProcess Min: ' . number_format($preprocessMin, 2) . 'ms"></div>';
+
+                        $labelStyle = $maxWidth > 85
+                            ? 'position: absolute; right: calc(100% - ' . $maxWidth . '% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;'
+                            : 'position: absolute; left: calc(' . $maxWidth . '% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;';
+                        $html[] = '                            <span style="' . $labelStyle . '">P: ' . number_format($preprocessMin, 2) . '/' . number_format($preprocessAvg, 2) . '/' . number_format($preprocessMax, 2) . '</span>';
+                    }
+
+                    $html[] = '                        </div>';
+                    $html[] = '                    </div>';
+                }
+
+                $html[] = '                </div>';
+                $html[] = '            </div>';
+            }
+
+            $html[] = '        </div>';
+            $html[] = '    </div>';
+
+            // Table View - Normal Engine
+            $html[] = '    <div id="normal-table" class="view-content">';
+            $html[] = '    <h2>Normal Engine</h2>';
+            $html[] = '    <div class="table-container">';
+            $html[] = '    <table>';
+            $html[] = '        <tr>';
+            $html[] = '            <th>AppSite/AppView</th>';
+            foreach ($languages as $lang) {
+                $html[] = '            <th>' . htmlspecialchars($lang) . '</th>';
+            }
+            $html[] = '            <th>OutputSize</th>';
+            $html[] = '        </tr>';
+
+            $sortedAppSites = array_filter(array_keys($performanceData), function($app) {
+                foreach (self::RULE_GROUPS as $rule) {
+                    if (strpos($app, $rule) === 0) return true;
+                }
+                return false;
+            });
+            sort($sortedAppSites);
+
+            foreach ($sortedAppSites as $app) {
+                // Find min, max, and avg time for highlighting (excluding zero values)
                 $validTimes = [];
                 foreach ($languages as $lang) {
-                    $val = $langData[$lang]['normalTimeMs'] ?? null;
-                    if ($val !== null && $val > 0) {
-                        $validTimes[] = $val;
+                    if (isset($performanceData[$app][$lang])) {
+                        $normalTime = $performanceData[$app][$lang]['normalTimeMs'];
+                        if ($normalTime !== null && $normalTime > 0) {
+                            $validTimes[] = $normalTime;
+                        }
                     }
                 }
                 $minTime = !empty($validTimes) ? min($validTimes) : null;
+                $maxTime = !empty($validTimes) ? max($validTimes) : null;
+                $avgTime = !empty($validTimes) ? array_sum($validTimes) / count($validTimes) : null;
 
-                $html[] = "<tr><td>{$appSite}</td>";
+                $html[] = '        <tr>';
+                $html[] = '            <td>' . htmlspecialchars($app) . '</td>';
 
                 foreach ($languages as $lang) {
-                    $data = $langData[$lang] ?? null;
-                    $val = $data['normalTimeMs'] ?? null;
-                    $isBest = ($minTime !== null && $val !== null && $val > 0 && abs($val - $minTime) < 0.001);
-                    $cssClass = $isBest ? ' class="best-perf"' : '';
-                    $html[] = '<td' . $cssClass . '>' . ($val !== null ? number_format($val, 2, '.', '') : '-') . '</td>';
+                    $timeValue = '-';
+                    $cssClass = '';
+
+                    if (isset($performanceData[$app][$lang])) {
+                        $normalTime = $performanceData[$app][$lang]['normalTimeMs'];
+                        if ($normalTime !== null) {
+                            $timeValue = number_format($normalTime, 2);
+
+                            if ($normalTime > 0) {
+                                if ($minTime !== null && abs($normalTime - $minTime) < 0.001) {
+                                    $cssClass = ' class="best-perf"';
+                                } else if ($maxTime !== null && abs($normalTime - $maxTime) < 0.001) {
+                                    $cssClass = ' class="worst-perf"';
+                                } else if ($avgTime !== null && count($validTimes) > 2) {
+                                    usort($validTimes, function($a, $b) use ($avgTime) {
+                                        return abs($a - $avgTime) <=> abs($b - $avgTime);
+                                    });
+                                    if (abs($normalTime - $validTimes[0]) < 0.001) {
+                                        $cssClass = ' class="avg-perf"';
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    $html[] = '            <td' . $cssClass . '>' . $timeValue . '</td>';
                 }
 
                 // Output size from first available language
                 $firstOutputSize = null;
                 foreach ($languages as $lang) {
-                    if (isset($langData[$lang]['outputSize'])) {
-                        $firstOutputSize = $langData[$lang]['outputSize'];
+                    if (isset($performanceData[$app][$lang]['outputSize'])) {
+                        $firstOutputSize = $performanceData[$app][$lang]['outputSize'];
                         break;
                     }
                 }
-                $html[] = '<td>' . ($firstOutputSize !== null ? (string)$firstOutputSize : '-') . '</td>';
-                $html[] = '</tr>';
+                $html[] = '            <td>' . ($firstOutputSize !== null ? (string)$firstOutputSize : '-') . '</td>';
+                $html[] = '        </tr>';
             }
-            $html[] = '</table>';
-            $html[] = '</div>';
 
-            // PreProcess Engine Table
-            $html[] = '<h2>PreProcess Engine Performance (ms)</h2>';
-            $html[] = '<div class="table-container">';
-            $html[] = '<table><tr><th>AppSite</th>';
+            $html[] = '    </table>';
+            $html[] = '    </div>';
+            $html[] = '    </div>';
+
+            // Table View - PreProcess Engine
+            $html[] = '    <div id="preprocess-table" class="view-content">';
+            $html[] = '    <h2>PreProcess Engine</h2>';
+            $html[] = '    <div class="table-container">';
+            $html[] = '    <table>';
+            $html[] = '        <tr>';
+            $html[] = '            <th>AppSite/AppView</th>';
             foreach ($languages as $lang) {
-                $html[] = "<th>{$lang}</th>";
+                $html[] = '            <th>' . htmlspecialchars($lang) . '</th>';
             }
-            $html[] = '<th>Output Size</th></tr>';
+            $html[] = '            <th>OutputSize</th>';
+            $html[] = '        </tr>';
 
-            foreach ($sortedAppSites as $appSite) {
-                $langData = $performanceData[$appSite];
-
-                // Find minimum time for highlighting (excluding zero values)
+            foreach ($sortedAppSites as $app) {
+                // Find min, max, and avg time for highlighting (excluding zero values)
                 $validTimes = [];
                 foreach ($languages as $lang) {
-                    $val = $langData[$lang]['preProcessTimeMs'] ?? null;
-                    if ($val !== null && $val > 0) {
-                        $validTimes[] = $val;
+                    if (isset($performanceData[$app][$lang])) {
+                        $preprocessTime = $performanceData[$app][$lang]['preProcessTimeMs'];
+                        if ($preprocessTime !== null && $preprocessTime > 0) {
+                            $validTimes[] = $preprocessTime;
+                        }
                     }
                 }
                 $minTime = !empty($validTimes) ? min($validTimes) : null;
+                $maxTime = !empty($validTimes) ? max($validTimes) : null;
+                $avgTime = !empty($validTimes) ? array_sum($validTimes) / count($validTimes) : null;
 
-                $html[] = "<tr><td>{$appSite}</td>";
+                $html[] = '        <tr>';
+                $html[] = '            <td>' . htmlspecialchars($app) . '</td>';
 
                 foreach ($languages as $lang) {
-                    $data = $langData[$lang] ?? null;
-                    $val = $data['preProcessTimeMs'] ?? null;
-                    $isBest = ($minTime !== null && $val !== null && $val > 0 && abs($val - $minTime) < 0.001);
-                    $cssClass = $isBest ? ' class="best-perf"' : '';
-                    $html[] = '<td' . $cssClass . '>' . ($val !== null ? number_format($val, 2, '.', '') : '-') . '</td>';
+                    $timeValue = '-';
+                    $cssClass = '';
+
+                    if (isset($performanceData[$app][$lang])) {
+                        $preprocessTime = $performanceData[$app][$lang]['preProcessTimeMs'];
+                        if ($preprocessTime !== null) {
+                            $timeValue = number_format($preprocessTime, 2);
+
+                            if ($preprocessTime > 0) {
+                                if ($minTime !== null && abs($preprocessTime - $minTime) < 0.001) {
+                                    $cssClass = ' class="best-perf"';
+                                } else if ($maxTime !== null && abs($preprocessTime - $maxTime) < 0.001) {
+                                    $cssClass = ' class="worst-perf"';
+                                } else if ($avgTime !== null && count($validTimes) > 2) {
+                                    usort($validTimes, function($a, $b) use ($avgTime) {
+                                        return abs($a - $avgTime) <=> abs($b - $avgTime);
+                                    });
+                                    if (abs($preprocessTime - $validTimes[0]) < 0.001) {
+                                        $cssClass = ' class="avg-perf"';
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    $html[] = '            <td' . $cssClass . '>' . $timeValue . '</td>';
                 }
 
                 // Output size from first available language
                 $firstOutputSize = null;
                 foreach ($languages as $lang) {
-                    if (isset($langData[$lang]['outputSize'])) {
-                        $firstOutputSize = $langData[$lang]['outputSize'];
+                    if (isset($performanceData[$app][$lang]['outputSize'])) {
+                        $firstOutputSize = $performanceData[$app][$lang]['outputSize'];
                         break;
                     }
                 }
-                $html[] = '<td>' . ($firstOutputSize !== null ? (string)$firstOutputSize : '-') . '</td>';
-                $html[] = '</tr>';
+                $html[] = '            <td>' . ($firstOutputSize !== null ? (string)$firstOutputSize : '-') . '</td>';
+                $html[] = '        </tr>';
             }
-            $html[] = '</table>';
-            $html[] = '</div>';
+
+            $html[] = '    </table>';
+            $html[] = '    </div>';
+            $html[] = '    </div>';
+
+            // Add JavaScript for view switching
+            $html[] = '    <script>';
+            $html[] = '        document.addEventListener("DOMContentLoaded", function() {';
+            $html[] = '            const buttons = document.querySelectorAll(".view-btn");';
+            $html[] = '            buttons.forEach(btn => {';
+            $html[] = '                btn.addEventListener("click", function() {';
+            $html[] = '                    const view = this.getAttribute("data-view");';
+            $html[] = '                    // Remove active class from all buttons';
+            $html[] = '                    buttons.forEach(b => b.classList.remove("active"));';
+            $html[] = '                    // Add active class to clicked button';
+            $html[] = '                    this.classList.add("active");';
+            $html[] = '                    // Hide all view contents';
+            $html[] = '                    document.querySelectorAll(".view-content").forEach(vc => vc.classList.remove("active"));';
+            $html[] = '                    // Show selected views';
+            $html[] = '                    if (view === "grouped") {';
+            $html[] = '                        document.getElementById("combined-grouped").classList.add("active");';
+            $html[] = '                    } else if (view === "chart") {';
+            $html[] = '                        document.getElementById("combined-chart").classList.add("active");';
+            $html[] = '                    } else if (view === "table") {';
+            $html[] = '                        document.getElementById("normal-table").classList.add("active");';
+            $html[] = '                        document.getElementById("preprocess-table").classList.add("active");';
+            $html[] = '                    }';
+            $html[] = '                });';
+            $html[] = '            });';
+            $html[] = '        });';
+            $html[] = '    </script>';
             $html[] = '</body>';
             $html[] = '</html>';
 

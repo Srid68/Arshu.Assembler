@@ -85,7 +85,7 @@ namespace AssemblerWeb
             "HtmlRule3",
             "JsonRule1",
             "JsonRule2",
-            "JsonRule3"
+            "Rule1"
         };
 
         public static void MapAssemblerTestEndpoints(this WebApplication app)
@@ -716,6 +716,24 @@ namespace AssemblerWeb
                         htmlSb.AppendLine($"                <div class=\"grouped-chart-title\">{rulePattern}</div>");
                         htmlSb.AppendLine("                <div class=\"chart-bars-container\">");
 
+                        // Calculate max time across ALL languages in this rule group for consistent scaling
+                        var allMaxValues = new List<double>();
+                        foreach (var lang in languages)
+                        {
+                            var normalTimes = matchingApps
+                                .Where(app => appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue && appPerf[app][lang].NormalTimeMs!.Value > 0)
+                                .Select(app => appPerf[app][lang].NormalTimeMs!.Value)
+                                .ToList();
+                            var preprocessTimes = matchingApps
+                                .Where(app => appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue && appPerf[app][lang].PreProcessTimeMs!.Value > 0)
+                                .Select(app => appPerf[app][lang].PreProcessTimeMs!.Value)
+                                .ToList();
+
+                            if (normalTimes.Any()) allMaxValues.Add(normalTimes.Max());
+                            if (preprocessTimes.Any()) allMaxValues.Add(preprocessTimes.Max());
+                        }
+                        var maxTimeForScale = allMaxValues.Any() ? allMaxValues.Max() : 1.0;
+
                         // For each language, calculate min/avg/max across all apps in this rule group
                         foreach (var lang in languages)
                         {
@@ -741,12 +759,6 @@ namespace AssemblerWeb
                             var preprocessMin = preprocessTimes.Any() ? preprocessTimes.Min() : (double?)null;
                             var preprocessAvg = preprocessTimes.Any() ? preprocessTimes.Average() : (double?)null;
                             var preprocessMax = preprocessTimes.Any() ? preprocessTimes.Max() : (double?)null;
-
-                            // Calculate max time for scaling
-                            var allValues = new List<double>();
-                            if (normalMax.HasValue) allValues.Add(normalMax.Value);
-                            if (preprocessMax.HasValue) allValues.Add(preprocessMax.Value);
-                            var maxTimeForScale = allValues.Any() ? allValues.Max() : 1.0;
 
                             htmlSb.AppendLine("                    <div class=\"chart-bar-wrapper\">");
                             htmlSb.AppendLine($"                        <div class=\"chart-bar-label\">{lang}</div>");

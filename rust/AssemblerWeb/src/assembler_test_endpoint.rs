@@ -8,6 +8,16 @@ use assembler::test::testing_utils::TestingUtils;
 use assembler::performance::performance_utils::PerformanceUtils;
 use crate::security_validator;
 
+// Configurable rule groups for consolidated report grouping
+const RULE_GROUPS: &[&str] = &[
+    "HtmlRule1",
+    "HtmlRule2",
+    "HtmlRule3",
+    "JsonRule1",
+    "JsonRule2",
+    "Rule1"
+];
+
 #[derive(Debug, Deserialize, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportRequest {
@@ -478,6 +488,27 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
     html.push_str("        tr:nth-child(even) { background-color: #f2f2f2; }\n");
     html.push_str("        td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7) { text-align: right; }\n");
     html.push_str("        .best-perf { background-color: #90EE90; font-weight: bold; }\n");
+    html.push_str("        .worst-perf { background-color: #FFB6C6; font-weight: bold; }\n");
+    html.push_str("        .avg-perf { background-color: #FFD700; font-weight: bold; }\n");
+    html.push_str("        .legend { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }\n");
+    html.push_str("        .legend-item { display: flex; align-items: center; gap: 8px; }\n");
+    html.push_str("        .legend-box { width: 24px; height: 24px; border: 1px solid #999; }\n");
+    html.push_str("        .view-toggle { margin: 20px 0; }\n");
+    html.push_str("        .view-btn { padding: 10px 20px; margin-right: 10px; cursor: pointer; border: 2px solid #4CAF50; background: white; color: #4CAF50; font-size: 14px; border-radius: 5px; }\n");
+    html.push_str("        .view-btn.active { background: #4CAF50; color: white; }\n");
+    html.push_str("        .view-content { display: none; }\n");
+    html.push_str("        .view-content.active { display: block; }\n");
+    html.push_str("        .chart-container { margin: 20px 0; }\n");
+    html.push_str("        .chart-row { margin-bottom: 25px; }\n");
+    html.push_str("        .chart-label { font-weight: bold; margin-bottom: 8px; font-size: 14px; color: #333; }\n");
+    html.push_str("        .chart-bars-container { display: flex; flex-direction: column; gap: 8px; }\n");
+    html.push_str("        .chart-bar-wrapper { display: flex; align-items: center; gap: 10px; }\n");
+    html.push_str("        .chart-bar-label { min-width: 80px; font-weight: 600; color: #555; font-size: 13px; }\n");
+    html.push_str("        .chart-bar { height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: white; font-weight: bold; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; min-width: 40px; }\n");
+    html.push_str("        .chart-bar:hover { transform: translateX(5px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }\n");
+    html.push_str("        .chart-bar-value { margin-left: 10px; font-weight: 600; color: #333; font-size: 13px; min-width: 60px; }\n");
+    html.push_str("        .grouped-chart-section { margin-bottom: 40px; padding: 20px; background: #f9f9f9; border-radius: 8px; }\n");
+    html.push_str("        .grouped-chart-title { font-size: 1.3em; font-weight: bold; color: #667eea; margin-bottom: 15px; border-bottom: 2px solid #667eea; padding-bottom: 8px; }\n");
     html.push_str("        @media (max-width: 768px) {\n");
     html.push_str("            body { margin: 10px; }\n");
     html.push_str("            th, td { padding: 8px; font-size: 14px; }\n");
@@ -490,12 +521,157 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
     html.push_str("<body>\n");
     html.push_str("    <h1>Consolidated Performance Summary</h1>\n");
     html.push_str(&format!("    <div class=\"meta\">Generated: {} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
+    html.push_str("    <div class=\"legend\">\n");
+    html.push_str("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #4CAF50; opacity: 0.8;\"></div><span>Normal Engine (N)</span></div>\n");
+    html.push_str("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #2196F3; opacity: 0.8;\"></div><span>PreProcess Engine (P)</span></div>\n");
+    html.push_str("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #90EE90;\"></div><span>Best (Lowest Time - Table View)</span></div>\n");
+    html.push_str("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #FFD700;\"></div><span>Nearest to Average (Table View)</span></div>\n");
+    html.push_str("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #FFB6C6;\"></div><span>Worst (Highest Time - Table View)</span></div>\n");
+    html.push_str("    </div>\n");
+    html.push_str("    <div class=\"view-toggle\">\n");
+    html.push_str("        <button class=\"view-btn active\" data-view=\"grouped\">Grouped View</button>\n");
+    html.push_str("        <button class=\"view-btn\" data-view=\"chart\">Bar Chart View</button>\n");
+    html.push_str("        <button class=\"view-btn\" data-view=\"table\">Table View</button>\n");
+    html.push_str("    </div>\n");
 
     // Get list of languages dynamically from configuration
     let mut languages: Vec<String> = servers_by_lang.keys().map(|k| k.clone()).collect();
     languages.sort();
 
-    // Normal Engine Table
+    // Grouped Bar Chart View (active by default)
+    html.push_str("    <div id=\"combined-grouped\" class=\"view-content active\">\n");
+    html.push_str("        <div class=\"chart-container\">\n");
+
+    for rule_pattern in RULE_GROUPS {
+        // Find all apps matching this rule pattern (excluding Test AppSite)
+        let matching_apps: Vec<&String> = app_perf.keys()
+            .filter(|app| app.starts_with(rule_pattern) && !app.contains("Test"))
+            .collect();
+
+        if matching_apps.is_empty() {
+            continue;
+        }
+
+        html.push_str("            <div class=\"grouped-chart-section\">\n");
+        html.push_str(&format!("                <div class=\"grouped-chart-title\">{}</div>\n", rule_pattern));
+        html.push_str("                <div class=\"chart-bars-container\">\n");
+
+        // Calculate max time across ALL languages in this rule group for consistent scaling
+        let mut all_max_values = Vec::new();
+        for lang in &languages {
+            let normal_times: Vec<f64> = matching_apps.iter()
+                .filter_map(|app| app_perf.get(*app).and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.0)))
+                .filter(|&v| v > 0.0)
+                .collect();
+            let preprocess_times: Vec<f64> = matching_apps.iter()
+                .filter_map(|app| app_perf.get(*app).and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.1)))
+                .filter(|&v| v > 0.0)
+                .collect();
+
+            if !normal_times.is_empty() {
+                all_max_values.push(normal_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max));
+            }
+            if !preprocess_times.is_empty() {
+                all_max_values.push(preprocess_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max));
+            }
+        }
+        let max_time_for_scale = if !all_max_values.is_empty() {
+            all_max_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+        } else {
+            1.0
+        };
+
+        // For each language, calculate min/avg/max across all apps in this rule group
+        for lang in &languages {
+            // Collect Normal Engine times
+            let normal_times: Vec<f64> = matching_apps.iter()
+                .filter_map(|app| app_perf.get(*app).and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.0)))
+                .filter(|&v| v > 0.0)
+                .collect();
+
+            // Collect PreProcess Engine times
+            let preprocess_times: Vec<f64> = matching_apps.iter()
+                .filter_map(|app| app_perf.get(*app).and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.1)))
+                .filter(|&v| v > 0.0)
+                .collect();
+
+            if normal_times.is_empty() && preprocess_times.is_empty() {
+                continue;
+            }
+
+            // Calculate aggregates
+            let normal_min = if !normal_times.is_empty() { Some(normal_times.iter().cloned().fold(f64::INFINITY, f64::min)) } else { None };
+            let normal_avg = if !normal_times.is_empty() { Some(normal_times.iter().sum::<f64>() / normal_times.len() as f64) } else { None };
+            let normal_max = if !normal_times.is_empty() { Some(normal_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max)) } else { None };
+
+            let preprocess_min = if !preprocess_times.is_empty() { Some(preprocess_times.iter().cloned().fold(f64::INFINITY, f64::min)) } else { None };
+            let preprocess_avg = if !preprocess_times.is_empty() { Some(preprocess_times.iter().sum::<f64>() / preprocess_times.len() as f64) } else { None };
+            let preprocess_max = if !preprocess_times.is_empty() { Some(preprocess_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max)) } else { None };
+
+            html.push_str("                    <div class=\"chart-bar-wrapper\">\n");
+            html.push_str(&format!("                        <div class=\"chart-bar-label\">{}</div>\n", lang));
+            html.push_str("                        <div style=\"position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;\">\n");
+
+            // Normal Engine Bar (showing min, avg, max as segments)
+            if let (Some(min), Some(avg), Some(max)) = (normal_min, normal_avg, normal_max) {
+                let min_width = (min / max_time_for_scale) * 100.0;
+                let avg_width = (avg / max_time_for_scale) * 100.0;
+                let max_width = (max / max_time_for_scale) * 100.0;
+
+                // Draw max bar (light green background)
+                html.push_str(&format!("                            <div style=\"position: absolute; left: 0; top: 0; width: {:.2}%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{} Normal Max: {:.2}ms\"></div>\n", max_width, lang, max));
+                // Draw avg bar (gold - middle layer)
+                html.push_str(&format!("                            <div style=\"position: absolute; left: 0; top: 0; width: {:.2}%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{} Normal Avg: {:.2}ms\"></div>\n", avg_width, lang, avg));
+                // Draw min bar (dark green - top layer)
+                html.push_str(&format!("                            <div style=\"position: absolute; left: 0; top: 0; width: {:.2}%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{} Normal Min: {:.2}ms\"></div>\n", min_width, lang, min));
+                // Label
+                let label_style = if max_width > 85.0 {
+                    format!("position: absolute; right: calc(100% - {:.2}% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;", max_width)
+                } else {
+                    format!("position: absolute; left: calc({:.2}% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;", max_width)
+                };
+                html.push_str(&format!("                            <span style=\"{}\">N: {:.2}/{:.2}/{:.2}</span>\n", label_style, min, avg, max));
+            }
+
+            // PreProcess Engine Bar (showing min, avg, max as segments)
+            if let (Some(min), Some(avg), Some(max)) = (preprocess_min, preprocess_avg, preprocess_max) {
+                let min_width = (min / max_time_for_scale) * 100.0;
+                let avg_width = (avg / max_time_for_scale) * 100.0;
+                let max_width = (max / max_time_for_scale) * 100.0;
+
+                // Draw max bar (light pink background)
+                html.push_str(&format!("                            <div style=\"position: absolute; left: 0; top: 15px; width: {:.2}%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{} PreProcess Max: {:.2}ms\"></div>\n", max_width, lang, max));
+                // Draw avg bar (gold - middle layer)
+                html.push_str(&format!("                            <div style=\"position: absolute; left: 0; top: 15px; width: {:.2}%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{} PreProcess Avg: {:.2}ms\"></div>\n", avg_width, lang, avg));
+                // Draw min bar (dark blue - top layer)
+                html.push_str(&format!("                            <div style=\"position: absolute; left: 0; top: 15px; width: {:.2}%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{} PreProcess Min: {:.2}ms\"></div>\n", min_width, lang, min));
+                // Label
+                let label_style = if max_width > 85.0 {
+                    format!("position: absolute; right: calc(100% - {:.2}% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;", max_width)
+                } else {
+                    format!("position: absolute; left: calc({:.2}% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;", max_width)
+                };
+                html.push_str(&format!("                            <span style=\"{}\">P: {:.2}/{:.2}/{:.2}</span>\n", label_style, min, avg, max));
+            }
+
+            html.push_str("                        </div>\n");
+            html.push_str("                    </div>\n");
+        }
+
+        html.push_str("                </div>\n");
+        html.push_str("            </div>\n");
+    }
+
+    html.push_str("        </div>\n");
+    html.push_str("    </div>\n");
+
+    // Bar Chart View (placeholder for now - can be enhanced later)
+    html.push_str("    <div id=\"combined-chart\" class=\"view-content\">\n");
+    html.push_str("        <p>Bar Chart View - Coming Soon</p>\n");
+    html.push_str("    </div>\n");
+
+    // Table View (Normal and PreProcess Engine Tables)
+    html.push_str("    <div id=\"normal-table\" class=\"view-content\">\n");
     html.push_str("    <h2>Normal Engine</h2>\n");
     html.push_str("    <div class=\"table-container\">\n");
     html.push_str("    <table>\n");
@@ -504,24 +680,51 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
         html.push_str(&format!("<th>{}</th>", lang));
     }
     html.push_str("<th>OutputSize</th></tr>\n");
-    for (app, langs) in &app_perf {
-        // Find minimum time for highlighting (excluding zero values)
+
+    // Filter apps by RULE_GROUPS
+    let filtered_apps: Vec<&String> = app_perf.keys()
+        .filter(|app| RULE_GROUPS.iter().any(|rule| app.starts_with(rule)))
+        .collect();
+
+    for app in filtered_apps.iter() {
+        let langs = app_perf.get(*app).unwrap();
+        // Find min, max, and avg time for highlighting (excluding zero values)
         let valid_times: Vec<f64> = languages.iter()
             .filter_map(|lang| langs.get(lang.as_str()).and_then(|t| t.0))
             .filter(|&v| v > 0.0)
             .collect();
-        let min_time = if !valid_times.is_empty() {
-            valid_times.iter().cloned().fold(f64::INFINITY, f64::min)
-        } else {
-            f64::NAN
-        };
+        let min_time = if !valid_times.is_empty() { valid_times.iter().cloned().fold(f64::INFINITY, f64::min) } else { f64::NAN };
+        let max_time = if !valid_times.is_empty() { valid_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max) } else { f64::NAN };
+        let avg_time = if !valid_times.is_empty() { valid_times.iter().sum::<f64>() / valid_times.len() as f64 } else { f64::NAN };
 
         html.push_str(&format!("        <tr><td>{}</td>", app));
         for lang in &languages {
             let time_opt = langs.get(lang.as_str()).and_then(|t| t.0);
             let time_value = time_opt.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".to_string());
-            let is_best = time_opt.map(|v| v > 0.0 && !min_time.is_nan() && (v - min_time).abs() < 0.001).unwrap_or(false);
-            let css_class = if is_best { " class=\"best-perf\"" } else { "" };
+
+            let css_class = if let Some(current_time) = time_opt {
+                if current_time > 0.0 {
+                    if !min_time.is_nan() && (current_time - min_time).abs() < 0.001 {
+                        " class=\"best-perf\""
+                    } else if !max_time.is_nan() && (current_time - max_time).abs() < 0.001 {
+                        " class=\"worst-perf\""
+                    } else if !avg_time.is_nan() && valid_times.len() > 2 {
+                        let nearest_to_avg = valid_times.iter().cloned().min_by(|a, b| (a - avg_time).abs().partial_cmp(&(b - avg_time).abs()).unwrap()).unwrap();
+                        if (current_time - nearest_to_avg).abs() < 0.001 {
+                            " class=\"avg-perf\""
+                        } else {
+                            ""
+                        }
+                    } else {
+                        ""
+                    }
+                } else {
+                    ""
+                }
+            } else {
+                ""
+            };
+
             html.push_str(&format!("<td{}>{}</td>", css_class, time_value));
         }
         let output_size = langs.values().find_map(|t| t.2).map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
@@ -539,24 +742,46 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
         html.push_str(&format!("<th>{}</th>", lang));
     }
     html.push_str("<th>OutputSize</th></tr>\n");
-    for (app, langs) in &app_perf {
-        // Find minimum time for highlighting (excluding zero values)
+
+    for app in filtered_apps.iter() {
+        let langs = app_perf.get(*app).unwrap();
+        // Find min, max, and avg time for highlighting (excluding zero values)
         let valid_times: Vec<f64> = languages.iter()
             .filter_map(|lang| langs.get(lang.as_str()).and_then(|t| t.1))
             .filter(|&v| v > 0.0)
             .collect();
-        let min_time = if !valid_times.is_empty() {
-            valid_times.iter().cloned().fold(f64::INFINITY, f64::min)
-        } else {
-            f64::NAN
-        };
+        let min_time = if !valid_times.is_empty() { valid_times.iter().cloned().fold(f64::INFINITY, f64::min) } else { f64::NAN };
+        let max_time = if !valid_times.is_empty() { valid_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max) } else { f64::NAN };
+        let avg_time = if !valid_times.is_empty() { valid_times.iter().sum::<f64>() / valid_times.len() as f64 } else { f64::NAN };
 
         html.push_str(&format!("        <tr><td>{}</td>", app));
         for lang in &languages {
             let time_opt = langs.get(lang.as_str()).and_then(|t| t.1);
             let time_value = time_opt.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".to_string());
-            let is_best = time_opt.map(|v| v > 0.0 && !min_time.is_nan() && (v - min_time).abs() < 0.001).unwrap_or(false);
-            let css_class = if is_best { " class=\"best-perf\"" } else { "" };
+
+            let css_class = if let Some(current_time) = time_opt {
+                if current_time > 0.0 {
+                    if !min_time.is_nan() && (current_time - min_time).abs() < 0.001 {
+                        " class=\"best-perf\""
+                    } else if !max_time.is_nan() && (current_time - max_time).abs() < 0.001 {
+                        " class=\"worst-perf\""
+                    } else if !avg_time.is_nan() && valid_times.len() > 2 {
+                        let nearest_to_avg = valid_times.iter().cloned().min_by(|a, b| (a - avg_time).abs().partial_cmp(&(b - avg_time).abs()).unwrap()).unwrap();
+                        if (current_time - nearest_to_avg).abs() < 0.001 {
+                            " class=\"avg-perf\""
+                        } else {
+                            ""
+                        }
+                    } else {
+                        ""
+                    }
+                } else {
+                    ""
+                }
+            } else {
+                ""
+            };
+
             html.push_str(&format!("<td{}>{}</td>", css_class, time_value));
         }
         let output_size = langs.values().find_map(|t| t.2).map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
@@ -564,6 +789,22 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
     }
     html.push_str("    </table>\n");
     html.push_str("    </div>\n");
+    html.push_str("    </div>\n");
+
+    // Add JavaScript for view switching
+    html.push_str("    <script>\n");
+    html.push_str("        document.querySelectorAll('.view-btn').forEach(btn => {\n");
+    html.push_str("            btn.addEventListener('click', () => {\n");
+    html.push_str("                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));\n");
+    html.push_str("                document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));\n");
+    html.push_str("                btn.classList.add('active');\n");
+    html.push_str("                const view = btn.getAttribute('data-view');\n");
+    html.push_str("                if (view === 'grouped') document.getElementById('combined-grouped').classList.add('active');\n");
+    html.push_str("                else if (view === 'chart') document.getElementById('combined-chart').classList.add('active');\n");
+    html.push_str("                else if (view === 'table') document.getElementById('normal-table').classList.add('active');\n");
+    html.push_str("            });\n");
+    html.push_str("        });\n");
+    html.push_str("    </script>\n");
     html.push_str("</body>\n</html>");
 
     // Write HTML to Reports directory
