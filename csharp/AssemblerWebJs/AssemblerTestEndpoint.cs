@@ -77,6 +77,17 @@ namespace AssemblerWebJs
 
     public static class AssemblerTestEndpoint
     {
+        // Configurable rule groups for consolidated report grouping
+        private static readonly string[] RULE_GROUPS = new[]
+        {
+            "HtmlRule1",
+            "HtmlRule2",
+            "HtmlRule3",
+            "JsonRule1",
+            "JsonRule2",
+            "Rule1"
+        };
+
         public static void MapAssemblerTestEndpoints(this WebApplication app)
         // POST endpoint for merging templates
         {
@@ -506,16 +517,318 @@ namespace AssemblerWebJs
                     htmlSb.AppendLine("        tr:nth-child(even) { background-color: #f2f2f2; }");
                     htmlSb.AppendLine("        td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7) { text-align: right; }");
                     htmlSb.AppendLine("        .best-perf { background-color: #90EE90; font-weight: bold; }");
+                    htmlSb.AppendLine("        .worst-perf { background-color: #FFB6C6; font-weight: bold; }");
+                    htmlSb.AppendLine("        .avg-perf { background-color: #FFD700; font-weight: bold; }");
+                    htmlSb.AppendLine("        .legend { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }");
+                    htmlSb.AppendLine("        .legend-item { display: flex; align-items: center; gap: 8px; }");
+                    htmlSb.AppendLine("        .legend-box { width: 24px; height: 24px; border: 1px solid #999; }");
+                    htmlSb.AppendLine("        .view-toggle { margin: 20px 0; }");
+                    htmlSb.AppendLine("        .view-btn { padding: 10px 20px; margin-right: 10px; cursor: pointer; border: 2px solid #4CAF50; background: white; color: #4CAF50; font-size: 14px; border-radius: 5px; }");
+                    htmlSb.AppendLine("        .view-btn.active { background: #4CAF50; color: white; }");
+                    htmlSb.AppendLine("        .view-content { display: none; }");
+                    htmlSb.AppendLine("        .view-content.active { display: block; }");
+                    htmlSb.AppendLine("        .chart-container { margin: 20px 0; }");
+                    htmlSb.AppendLine("        .chart-row { margin-bottom: 25px; }");
+                    htmlSb.AppendLine("        .chart-label { font-weight: bold; margin-bottom: 8px; font-size: 14px; color: #333; }");
+                    htmlSb.AppendLine("        .chart-bars-container { display: flex; flex-direction: column; gap: 8px; }");
+                    htmlSb.AppendLine("        .chart-bar-wrapper { display: flex; align-items: center; gap: 10px; }");
+                    htmlSb.AppendLine("        .chart-bar-label { min-width: 80px; font-weight: 600; color: #555; font-size: 13px; }");
+                    htmlSb.AppendLine("        .chart-bar { height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: white; font-weight: bold; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; min-width: 40px; }");
+                    htmlSb.AppendLine("        .chart-bar:hover { transform: translateX(5px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }");
+                    htmlSb.AppendLine("        .chart-bar-value { margin-left: 10px; font-weight: 600; color: #333; font-size: 13px; min-width: 60px; }");
+                    htmlSb.AppendLine("        .grouped-chart-section { margin-bottom: 40px; padding: 20px; background: #f9f9f9; border-radius: 8px; }");
+                    htmlSb.AppendLine("        .grouped-chart-title { font-size: 1.3em; font-weight: bold; color: #667eea; margin-bottom: 15px; border-bottom: 2px solid #667eea; padding-bottom: 8px; }");
+                    htmlSb.AppendLine("        .grouped-bar-group { display: flex; align-items: center; margin-bottom: 20px; }");
+                    htmlSb.AppendLine("        .grouped-bar-label { min-width: 100px; font-weight: 600; color: #333; font-size: 13px; }");
+                    htmlSb.AppendLine("        .grouped-bars { flex: 1; display: flex; flex-direction: column; gap: 4px; }");
+                    htmlSb.AppendLine("        .grouped-bar-item { display: flex; align-items: center; gap: 8px; }");
+                    htmlSb.AppendLine("        .grouped-bar { height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; color: white; font-weight: bold; font-size: 11px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); min-width: 30px; }");
+                    htmlSb.AppendLine("        .grouped-lang-label { min-width: 60px; font-size: 12px; color: #666; }");
                     htmlSb.AppendLine("    </style>");
                     htmlSb.AppendLine("</head>");
                     htmlSb.AppendLine("<body>");
                     htmlSb.AppendLine("    <h1>Consolidated Performance Summary</h1>");
                     htmlSb.AppendLine($"    <div class=\"meta\">Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC | Iterations: 1000, Warmup: 100 | All times in milliseconds (ms)</div>");
+                    htmlSb.AppendLine("    <div class=\"legend\">");
+                    htmlSb.AppendLine("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #4CAF50; opacity: 0.8;\"></div><span>Normal Engine (N)</span></div>");
+                    htmlSb.AppendLine("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #2196F3; opacity: 0.8;\"></div><span>PreProcess Engine (P)</span></div>");
+                    htmlSb.AppendLine("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #90EE90;\"></div><span>Best (Lowest Time - Table View)</span></div>");
+                    htmlSb.AppendLine("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #FFD700;\"></div><span>Nearest to Average (Table View)</span></div>");
+                    htmlSb.AppendLine("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #FFB6C6;\"></div><span>Worst (Highest Time - Table View)</span></div>");
+                    htmlSb.AppendLine("    </div>");
+                    htmlSb.AppendLine("    <div class=\"view-toggle\">");
+                    htmlSb.AppendLine("        <button class=\"view-btn active\" data-view=\"grouped\">Grouped View</button>");
+                    htmlSb.AppendLine("        <button class=\"view-btn\" data-view=\"chart\">Bar Chart View</button>");
+                    htmlSb.AppendLine("        <button class=\"view-btn\" data-view=\"table\">Table View</button>");
+                    htmlSb.AppendLine("    </div>");
 
                     // Get list of languages dynamically from configuration
                     var languages = serversByLang.Select(g => g.Key).OrderBy(l => l).ToList();
 
-                    // Normal Engine Table
+                    #region Combined Bar Chart View
+
+                    // Combined Chart View (Normal + PreProcess)
+                    htmlSb.AppendLine("    <div id=\"combined-chart\" class=\"view-content\">");
+                    htmlSb.AppendLine("        <div class=\"chart-container\">");
+
+                    // Generate combined chart data showing both engines (filter by rule groups)
+                    var filteredApps = appPerf.Keys
+                        .Where(app => RULE_GROUPS.Any(rule => app.StartsWith(rule)))
+                        .OrderBy(k => k);
+
+                    foreach (var app in filteredApps)
+                    {
+                        htmlSb.AppendLine("            <div class=\"chart-row\">");
+                        htmlSb.AppendLine($"                <div class=\"chart-label\">{app}</div>");
+                        htmlSb.AppendLine("                <div class=\"chart-bars-container\">");
+
+                        // Calculate max time across BOTH engines for consistent scaling
+                        var allTimes = new List<double>();
+                        foreach (var lang in languages)
+                        {
+                            if (appPerf[app].ContainsKey(lang))
+                            {
+                                if (appPerf[app][lang].NormalTimeMs.HasValue && appPerf[app][lang].NormalTimeMs!.Value > 0)
+                                    allTimes.Add(appPerf[app][lang].NormalTimeMs!.Value);
+                                if (appPerf[app][lang].PreProcessTimeMs.HasValue && appPerf[app][lang].PreProcessTimeMs!.Value > 0)
+                                    allTimes.Add(appPerf[app][lang].PreProcessTimeMs!.Value);
+                            }
+                        }
+                        var maxTimeForScale = allTimes.Any() ? allTimes.Max() : 1.0;
+
+                        // Calculate highlighting for Normal Engine
+                        var normalValidTimes = languages
+                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue && appPerf[app][lang].NormalTimeMs!.Value > 0)
+                            .Select(lang => appPerf[app][lang].NormalTimeMs!.Value)
+                            .ToList();
+                        var normalMinTime = normalValidTimes.Any() ? normalValidTimes.Min() : (double?)null;
+                        var normalMaxTime = normalValidTimes.Any() ? normalValidTimes.Max() : (double?)null;
+                        var normalAvgTime = normalValidTimes.Any() ? normalValidTimes.Average() : (double?)null;
+
+                        // Calculate highlighting for PreProcess Engine
+                        var preprocessValidTimes = languages
+                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue && appPerf[app][lang].PreProcessTimeMs!.Value > 0)
+                            .Select(lang => appPerf[app][lang].PreProcessTimeMs!.Value)
+                            .ToList();
+                        var preprocessMinTime = preprocessValidTimes.Any() ? preprocessValidTimes.Min() : (double?)null;
+                        var preprocessMaxTime = preprocessValidTimes.Any() ? preprocessValidTimes.Max() : (double?)null;
+                        var preprocessAvgTime = preprocessValidTimes.Any() ? preprocessValidTimes.Average() : (double?)null;
+
+                        foreach (var lang in languages)
+                        {
+                            if (appPerf[app].ContainsKey(lang))
+                            {
+                                var normalTime = appPerf[app][lang].NormalTimeMs;
+                                var preprocessTime = appPerf[app][lang].PreProcessTimeMs;
+
+                                if ((normalTime.HasValue && normalTime.Value > 0) || (preprocessTime.HasValue && preprocessTime.Value > 0))
+                                {
+                                    htmlSb.AppendLine("                    <div class=\"chart-bar-wrapper\">");
+                                    htmlSb.AppendLine($"                        <div class=\"chart-bar-label\">{lang}</div>");
+
+                                    // Container for overlapping bars (both start from 0) - with overflow visible for labels
+                                    htmlSb.AppendLine("                        <div style=\"position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;\">");
+
+                                    // Normal Engine Bar (bottom layer) with label at the end
+                                    if (normalTime.HasValue && normalTime.Value > 0)
+                                    {
+                                        var widthPercent = (normalTime.Value / maxTimeForScale) * 100;
+
+                                        // Determine highlight color
+                                        var normalBgColor = "#4CAF50"; // default green
+                                        if (normalMinTime.HasValue && Math.Abs(normalTime.Value - normalMinTime.Value) < 0.01)
+                                            normalBgColor = "#90EE90"; // best (light green)
+                                        else if (normalMaxTime.HasValue && Math.Abs(normalTime.Value - normalMaxTime.Value) < 0.01)
+                                            normalBgColor = "#FFB6C6"; // worst (light red)
+                                        else if (normalAvgTime.HasValue && normalValidTimes.Count > 2)
+                                        {
+                                            var nearestToAvg = normalValidTimes.OrderBy(t => Math.Abs(t - normalAvgTime.Value)).First();
+                                            if (Math.Abs(normalTime.Value - nearestToAvg) < 0.01)
+                                                normalBgColor = "#FFD700"; // avg (gold)
+                                        }
+
+                                        // Position label: inside bar if very wide (>85%), otherwise outside at end
+                                        var normalLabelStyle = widthPercent > 85
+                                            ? $"position: absolute; right: calc(100% - {widthPercent}% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;"
+                                            : $"position: absolute; left: calc({widthPercent}% + 5px); top: 0; font-size: 11px; color: {normalBgColor}; font-weight: 600; white-space: nowrap;";
+                                        htmlSb.AppendLine($"                            <div style=\"position: absolute; left: 0; top: 0; width: {widthPercent}%; height: 15px; background-color: {normalBgColor}; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{lang} Normal: {normalTime.Value:F2}ms\"></div>");
+                                        htmlSb.AppendLine($"                            <span style=\"{normalLabelStyle}\">N: {normalTime.Value:F2}ms</span>");
+                                    }
+
+                                    // PreProcess Engine Bar (top layer, slightly offset) with label at the end
+                                    if (preprocessTime.HasValue && preprocessTime.Value > 0)
+                                    {
+                                        var widthPercent = (preprocessTime.Value / maxTimeForScale) * 100;
+
+                                        // Determine highlight color
+                                        var preprocessBgColor = "#2196F3"; // default blue
+                                        if (preprocessMinTime.HasValue && Math.Abs(preprocessTime.Value - preprocessMinTime.Value) < 0.01)
+                                            preprocessBgColor = "#90EE90"; // best (light green)
+                                        else if (preprocessMaxTime.HasValue && Math.Abs(preprocessTime.Value - preprocessMaxTime.Value) < 0.01)
+                                            preprocessBgColor = "#FFB6C6"; // worst (light red)
+                                        else if (preprocessAvgTime.HasValue && preprocessValidTimes.Count > 2)
+                                        {
+                                            var nearestToAvg = preprocessValidTimes.OrderBy(t => Math.Abs(t - preprocessAvgTime.Value)).First();
+                                            if (Math.Abs(preprocessTime.Value - nearestToAvg) < 0.01)
+                                                preprocessBgColor = "#FFD700"; // avg (gold)
+                                        }
+
+                                        // Position label: inside bar if very wide (>85%), otherwise outside at end
+                                        var preprocessLabelStyle = widthPercent > 85
+                                            ? $"position: absolute; right: calc(100% - {widthPercent}% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;"
+                                            : $"position: absolute; left: calc({widthPercent}% + 5px); top: 15px; font-size: 11px; color: {preprocessBgColor}; font-weight: 600; white-space: nowrap;";
+                                        htmlSb.AppendLine($"                            <div style=\"position: absolute; left: 0; top: 15px; width: {widthPercent}%; height: 15px; background-color: {preprocessBgColor}; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{lang} PreProcess: {preprocessTime.Value:F2}ms\"></div>");
+                                        htmlSb.AppendLine($"                            <span style=\"{preprocessLabelStyle}\">P: {preprocessTime.Value:F2}ms</span>");
+                                    }
+
+                                    htmlSb.AppendLine("                        </div>");
+                                    htmlSb.AppendLine("                    </div>");
+                                }
+                            }
+                        }
+
+                        htmlSb.AppendLine("                </div>");
+                        htmlSb.AppendLine("            </div>");
+                    }
+
+                    htmlSb.AppendLine("        </div>");
+                    htmlSb.AppendLine("    </div>");
+
+                    #endregion
+
+                    #region Grouped Bar Chart View
+
+                    // Grouped Chart View (Group by configured rule groups)
+                    htmlSb.AppendLine("    <div id=\"combined-grouped\" class=\"view-content active\">");
+                    htmlSb.AppendLine("        <div class=\"chart-container\">");
+
+                    foreach (var rulePattern in RULE_GROUPS)
+                    {
+                        // Find all apps matching this rule pattern (excluding Test AppSite for now)
+                        var matchingApps = appPerf.Keys
+                            .Where(app => app.StartsWith(rulePattern) && !app.Contains("Test"))
+                            .OrderBy(app => app)
+                            .ToList();
+
+                        if (!matchingApps.Any()) continue;
+
+                        htmlSb.AppendLine("            <div class=\"grouped-chart-section\">");
+                        htmlSb.AppendLine($"                <div class=\"grouped-chart-title\">{rulePattern}</div>");
+                        htmlSb.AppendLine("                <div class=\"chart-bars-container\">");
+
+                        // Calculate max time across ALL languages in this rule group for consistent scaling
+                        var allMaxValues = new List<double>();
+                        foreach (var lang in languages)
+                        {
+                            var normalTimes = matchingApps
+                                .Where(app => appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue && appPerf[app][lang].NormalTimeMs!.Value > 0)
+                                .Select(app => appPerf[app][lang].NormalTimeMs!.Value)
+                                .ToList();
+                            var preprocessTimes = matchingApps
+                                .Where(app => appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue && appPerf[app][lang].PreProcessTimeMs!.Value > 0)
+                                .Select(app => appPerf[app][lang].PreProcessTimeMs!.Value)
+                                .ToList();
+
+                            if (normalTimes.Any()) allMaxValues.Add(normalTimes.Max());
+                            if (preprocessTimes.Any()) allMaxValues.Add(preprocessTimes.Max());
+                        }
+                        var maxTimeForScale = allMaxValues.Any() ? allMaxValues.Max() : 1.0;
+
+                        // For each language, calculate min/avg/max across all apps in this rule group
+                        foreach (var lang in languages)
+                        {
+                            // Collect Normal Engine times for this language across all apps in the group
+                            var normalTimes = matchingApps
+                                .Where(app => appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue && appPerf[app][lang].NormalTimeMs!.Value > 0)
+                                .Select(app => appPerf[app][lang].NormalTimeMs!.Value)
+                                .ToList();
+
+                            // Collect PreProcess Engine times for this language across all apps in the group
+                            var preprocessTimes = matchingApps
+                                .Where(app => appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue && appPerf[app][lang].PreProcessTimeMs!.Value > 0)
+                                .Select(app => appPerf[app][lang].PreProcessTimeMs!.Value)
+                                .ToList();
+
+                            if (!normalTimes.Any() && !preprocessTimes.Any()) continue;
+
+                            // Calculate aggregates
+                            var normalMin = normalTimes.Any() ? normalTimes.Min() : (double?)null;
+                            var normalAvg = normalTimes.Any() ? normalTimes.Average() : (double?)null;
+                            var normalMax = normalTimes.Any() ? normalTimes.Max() : (double?)null;
+
+                            var preprocessMin = preprocessTimes.Any() ? preprocessTimes.Min() : (double?)null;
+                            var preprocessAvg = preprocessTimes.Any() ? preprocessTimes.Average() : (double?)null;
+                            var preprocessMax = preprocessTimes.Any() ? preprocessTimes.Max() : (double?)null;
+
+                            htmlSb.AppendLine("                    <div class=\"chart-bar-wrapper\">");
+                            htmlSb.AppendLine($"                        <div class=\"chart-bar-label\">{lang}</div>");
+
+                            // Container for overlapping bars
+                            htmlSb.AppendLine("                        <div style=\"position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;\">");
+
+                            // Normal Engine Bar (showing min, avg, max as segments)
+                            if (normalMin.HasValue && normalAvg.HasValue && normalMax.HasValue)
+                            {
+                                var minWidth = (normalMin.Value / maxTimeForScale) * 100;
+                                var avgWidth = (normalAvg.Value / maxTimeForScale) * 100;
+                                var maxWidth = (normalMax.Value / maxTimeForScale) * 100;
+
+                                // Draw max bar (light green background)
+                                htmlSb.AppendLine($"                            <div style=\"position: absolute; left: 0; top: 0; width: {maxWidth}%; height: 15px; background-color: #90EE90; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{lang} Normal Max: {normalMax.Value:F2}ms\"></div>");
+
+                                // Draw avg bar (gold - middle layer)
+                                htmlSb.AppendLine($"                            <div style=\"position: absolute; left: 0; top: 0; width: {avgWidth}%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{lang} Normal Avg: {normalAvg.Value:F2}ms\"></div>");
+
+                                // Draw min bar (dark green - top layer)
+                                htmlSb.AppendLine($"                            <div style=\"position: absolute; left: 0; top: 0; width: {minWidth}%; height: 15px; background-color: #4CAF50; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{lang} Normal Min: {normalMin.Value:F2}ms\"></div>");
+
+                                // Label at end of max bar
+                                var labelStyle = maxWidth > 85
+                                    ? $"position: absolute; right: calc(100% - {maxWidth}% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;"
+                                    : $"position: absolute; left: calc({maxWidth}% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;";
+                                htmlSb.AppendLine($"                            <span style=\"{labelStyle}\">N: {normalMin.Value:F2}/{normalAvg.Value:F2}/{normalMax.Value:F2}</span>");
+                            }
+
+                            // PreProcess Engine Bar (showing min, avg, max as segments)
+                            if (preprocessMin.HasValue && preprocessAvg.HasValue && preprocessMax.HasValue)
+                            {
+                                var minWidth = (preprocessMin.Value / maxTimeForScale) * 100;
+                                var avgWidth = (preprocessAvg.Value / maxTimeForScale) * 100;
+                                var maxWidth = (preprocessMax.Value / maxTimeForScale) * 100;
+
+                                // Draw max bar (light pink background)
+                                htmlSb.AppendLine($"                            <div style=\"position: absolute; left: 0; top: 15px; width: {maxWidth}%; height: 15px; background-color: #FFB6C6; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{lang} PreProcess Max: {preprocessMax.Value:F2}ms\"></div>");
+
+                                // Draw avg bar (gold - middle layer)
+                                htmlSb.AppendLine($"                            <div style=\"position: absolute; left: 0; top: 15px; width: {avgWidth}%; height: 15px; background-color: #FFD700; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{lang} PreProcess Avg: {preprocessAvg.Value:F2}ms\"></div>");
+
+                                // Draw min bar (dark blue - top layer)
+                                htmlSb.AppendLine($"                            <div style=\"position: absolute; left: 0; top: 15px; width: {minWidth}%; height: 15px; background-color: #2196F3; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{lang} PreProcess Min: {preprocessMin.Value:F2}ms\"></div>");
+
+                                // Label at end of max bar
+                                var labelStyle = maxWidth > 85
+                                    ? $"position: absolute; right: calc(100% - {maxWidth}% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;"
+                                    : $"position: absolute; left: calc({maxWidth}% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;";
+                                htmlSb.AppendLine($"                            <span style=\"{labelStyle}\">P: {preprocessMin.Value:F2}/{preprocessAvg.Value:F2}/{preprocessMax.Value:F2}</span>");
+                            }
+
+                            htmlSb.AppendLine("                        </div>");
+                            htmlSb.AppendLine("                    </div>");
+                        }
+
+                        htmlSb.AppendLine("                </div>");
+                        htmlSb.AppendLine("            </div>");
+                    }
+
+                    htmlSb.AppendLine("        </div>");
+                    htmlSb.AppendLine("    </div>");
+
+                    #endregion
+
+                    #region Normal Engine Table View
+
+                    // Table View - Normal Engine
+                    htmlSb.AppendLine("    <div id=\"normal-table\" class=\"view-content\">");
                     htmlSb.AppendLine("    <h2>Normal Engine</h2>");
                     htmlSb.AppendLine("    <div class=\"table-container\">");
                     htmlSb.AppendLine("    <table>");
@@ -527,14 +840,16 @@ namespace AssemblerWebJs
                     }
                     htmlSb.AppendLine("            <th>OutputSize</th>");
                     htmlSb.AppendLine("        </tr>");
-                    foreach (var app in appPerf.Keys.OrderBy(k => k))
+                    foreach (var app in appPerf.Keys.Where(app => RULE_GROUPS.Any(rule => app.StartsWith(rule))).OrderBy(k => k))
                     {
-                        // Find minimum time for highlighting
+                        // Find min, max, and avg time for highlighting (excluding zero values)
                         var validTimes = languages
-                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue)
+                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue && appPerf[app][lang].NormalTimeMs!.Value > 0)
                             .Select(lang => appPerf[app][lang].NormalTimeMs!.Value)
                             .ToList();
                         var minTime = validTimes.Any() ? validTimes.Min() : (double?)null;
+                        var maxTime = validTimes.Any() ? validTimes.Max() : (double?)null;
+                        var avgTime = validTimes.Any() ? validTimes.Average() : (double?)null;
 
                         htmlSb.AppendLine("        <tr>");
                         htmlSb.AppendLine($"            <td>{app}</td>");
@@ -543,9 +858,30 @@ namespace AssemblerWebJs
                             var timeValue = appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue
                                 ? appPerf[app][lang].NormalTimeMs!.Value.ToString("F2")
                                 : "-";
-                            var isBest = minTime.HasValue && appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue
-                                && Math.Abs(appPerf[app][lang].NormalTimeMs!.Value - minTime.Value) < 0.001;
-                            var cssClass = isBest ? " class=\"best-perf\"" : "";
+
+                            var cssClass = "";
+                            if (appPerf[app].ContainsKey(lang) && appPerf[app][lang].NormalTimeMs.HasValue && appPerf[app][lang].NormalTimeMs!.Value > 0)
+                            {
+                                var currentTime = appPerf[app][lang].NormalTimeMs!.Value;
+                                if (minTime.HasValue && Math.Abs(currentTime - minTime.Value) < 0.001)
+                                {
+                                    cssClass = " class=\"best-perf\"";
+                                }
+                                else if (maxTime.HasValue && Math.Abs(currentTime - maxTime.Value) < 0.001)
+                                {
+                                    cssClass = " class=\"worst-perf\"";
+                                }
+                                else if (avgTime.HasValue && validTimes.Count > 2)
+                                {
+                                    // Find the value nearest to average
+                                    var nearestToAvg = validTimes.OrderBy(t => Math.Abs(t - avgTime.Value)).First();
+                                    if (Math.Abs(currentTime - nearestToAvg) < 0.001)
+                                    {
+                                        cssClass = " class=\"avg-perf\"";
+                                    }
+                                }
+                            }
+
                             htmlSb.AppendLine($"            <td{cssClass}>{timeValue}</td>");
                         }
                         var outputSizeTuple = appPerf[app].Values.Where(v => v.OutputSize.HasValue).FirstOrDefault();
@@ -555,8 +891,14 @@ namespace AssemblerWebJs
                     }
                     htmlSb.AppendLine("    </table>");
                     htmlSb.AppendLine("    </div>");
+                    htmlSb.AppendLine("    </div>");
+
+                    #endregion
+
+                    #region PreProcess Engine Table View
 
                     // PreProcess Engine Table
+                    htmlSb.AppendLine("    <div id=\"preprocess-table\" class=\"view-content\">");
                     htmlSb.AppendLine("    <h2>PreProcess Engine</h2>");
                     htmlSb.AppendLine("    <div class=\"table-container\">");
                     htmlSb.AppendLine("    <table>");
@@ -568,25 +910,48 @@ namespace AssemblerWebJs
                     }
                     htmlSb.AppendLine("            <th>OutputSize</th>");
                     htmlSb.AppendLine("        </tr>");
-                    foreach (var app in appPerf.Keys.OrderBy(k => k))
+                    foreach (var app in appPerf.Keys.Where(app => RULE_GROUPS.Any(rule => app.StartsWith(rule))).OrderBy(k => k))
                     {
-                        // Find minimum time for highlighting
+                        // Find min, max, and avg time for highlighting (excluding zero values)
                         var validTimes = languages
-                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue)
+                            .Where(lang => appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue && appPerf[app][lang].PreProcessTimeMs!.Value > 0)
                             .Select(lang => appPerf[app][lang].PreProcessTimeMs!.Value)
                             .ToList();
                         var minTime = validTimes.Any() ? validTimes.Min() : (double?)null;
+                        var maxTime = validTimes.Any() ? validTimes.Max() : (double?)null;
+                        var avgTime = validTimes.Any() ? validTimes.Average() : (double?)null;
 
                         htmlSb.AppendLine("        <tr>");
                         htmlSb.AppendLine($"            <td>{app}</td>");
+
                         foreach (var lang in languages)
                         {
                             var timeValue = appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue
                                 ? appPerf[app][lang].PreProcessTimeMs!.Value.ToString("F2")
                                 : "-";
-                            var isBest = minTime.HasValue && appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue
-                                && Math.Abs(appPerf[app][lang].PreProcessTimeMs!.Value - minTime.Value) < 0.001;
-                            var cssClass = isBest ? " class=\"best-perf\"" : "";
+
+                            var cssClass = "";
+                            if (appPerf[app].ContainsKey(lang) && appPerf[app][lang].PreProcessTimeMs.HasValue && appPerf[app][lang].PreProcessTimeMs!.Value > 0)
+                            {
+                                var currentTime = appPerf[app][lang].PreProcessTimeMs!.Value;
+                                if (minTime.HasValue && Math.Abs(currentTime - minTime.Value) < 0.001)
+                                {
+                                    cssClass = " class=\"best-perf\"";
+                                }
+                                else if (maxTime.HasValue && Math.Abs(currentTime - maxTime.Value) < 0.001)
+                                {
+                                    cssClass = " class=\"worst-perf\"";
+                                }
+                                else if (avgTime.HasValue && validTimes.Count > 2)
+                                {
+                                    var nearestToAvg = validTimes.OrderBy(t => Math.Abs(t - avgTime.Value)).First();
+                                    if (Math.Abs(currentTime - nearestToAvg) < 0.001)
+                                    {
+                                        cssClass = " class=\"avg-perf\"";
+                                    }
+                                }
+                            }
+
                             htmlSb.AppendLine($"            <td{cssClass}>{timeValue}</td>");
                         }
                         var outputSizeTuple = appPerf[app].Values.Where(v => v.OutputSize.HasValue).FirstOrDefault();
@@ -596,6 +961,10 @@ namespace AssemblerWebJs
                     }
                     htmlSb.AppendLine("    </table>");
                     htmlSb.AppendLine("    </div>");
+                    htmlSb.AppendLine("    </div>");
+
+                    #endregion
+
                     htmlSb.AppendLine("</body>");
                     htmlSb.AppendLine("</html>");
 
