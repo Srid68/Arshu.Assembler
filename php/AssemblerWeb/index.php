@@ -32,8 +32,6 @@ $logRotation = Logger::ROTATION_NONE;
 $projectDirectory = __DIR__;
 $assemblerWebDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
 
-// Load ConfigUtil with wwwroot path
-ConfigUtil::load($assemblerWebDirPath);
 $templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
 $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
 if (!is_dir($logsDir)) {
@@ -49,10 +47,14 @@ $contextLogFiles = [
     'Index' => $logsDir . DIRECTORY_SEPARATOR . 'php_index.log',
     'MergeEndpoint' => $logsDir . DIRECTORY_SEPARATOR . 'php_mergeendpoint.log',
     'IdleTracking' => $logsDir . DIRECTORY_SEPARATOR . 'php_idletracking.log',
+    'ConfigUtil' => $logsDir . DIRECTORY_SEPARATOR . 'php_configutil.log',
 ];
 
 Logger::configure(Logger::DEBUG, null, false, $logRotation);
 Logger::configureContextLogFiles($contextLogFiles);
+
+// Load ConfigUtil with wwwroot path (after Logger is configured)
+ConfigUtil::load($assemblerWebDirPath);
 Logger::info('AssemblerWeb starting up', 'Index');
 
 // Create App

@@ -62,7 +62,7 @@ class ConfigUtil
             }
         }
 
-        echo sprintf("[ConfigUtil] Extracted %d AppSites from scenarios.csv\n", count($appSites));
+        \Assembler\Common\Logger::info(sprintf("Extracted %d AppSites from scenarios.csv", count($appSites)), "ConfigUtil");
 
         return array_keys($appSites);
     }
