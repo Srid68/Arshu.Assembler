@@ -4,6 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Authors>Sridharan Srinivasan</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Srid68/Arshu.Assembler</PackageProjectUrl>
   </PropertyGroup>
 
   <PropertyGroup>
