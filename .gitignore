@@ -55,6 +55,7 @@ Thumbs.db
 *.iso
 *.bin
 *.tmp
+*.tgz
 
 # Ignore Python cache
 __pycache__/
