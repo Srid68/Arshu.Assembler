@@ -24,17 +24,6 @@ func (e *EngineNormal) GetAppViewPrefix() string {
 	return e.AppViewPrefix
 }
 
-// ReplaceCaseInsensitive replaces the first occurrence of 'from' in 'text' (case-insensitive) with 'to'
-func ReplaceCaseInsensitive(text, from, to string) string {
-	textLower := strings.ToLower(text)
-	fromLower := strings.ToLower(from)
-	if idx := strings.Index(textLower, fromLower); idx != -1 {
-		end := idx + len(from)
-		return text[:idx] + to + text[end:]
-	}
-	return text
-}
-
 // MergeTemplates merges templates by replacing placeholders with corresponding HTML
 // This is a hybrid method that processes both slotted templates and simple placeholders
 // JSON files with matching names are automatically merged with HTML templates before processing
@@ -324,7 +313,7 @@ func (e *EngineNormal) GetTemplate(appSite, templateName string, templates map[s
 		if strings.Contains(templateNameLower, viewPrefixLower) {
 			// Direct replacement: Replace the AppViewPrefix with the AppView value
 			// For example: Html3AContent with AppViewPrefix=Html3A and AppView=html3B becomes html3BContent
-			appKey := ReplaceCaseInsensitive(templateName, viewPrefix, appView)
+			appKey := common.ReplaceCaseInsensitive(templateName, viewPrefix, appView)
 			fallbackTemplateKey := strings.ToLower(appSite) + "_" + strings.ToLower(appKey)
 			for k := range templates {
 				if strings.EqualFold(k, fallbackTemplateKey) {
@@ -391,7 +380,7 @@ func (e *EngineNormal) ReplaceTemplatePlaceholdersWithJson(html, appSite string,
 				prefixLower := strings.ToLower(e.AppViewPrefix)
 				if strings.Contains(placeholderLower, prefixLower) {
 					// Replace AppViewPrefix with AppView in placeholderName
-					appKey := ReplaceCaseInsensitive(placeholderName, e.AppViewPrefix, appView)
+					appKey := common.ReplaceCaseInsensitive(placeholderName, e.AppViewPrefix, appView)
 					fallbackTemplateKey := strings.ToLower(appSite) + "_" + strings.ToLower(appKey)
 					if fallbackContent, exists := htmlFiles[fallbackTemplateKey]; exists {
 						processedReplacement = e.ReplaceTemplatePlaceholdersWithJson(fallbackContent, appSite, htmlFiles, jsonValues, appView)

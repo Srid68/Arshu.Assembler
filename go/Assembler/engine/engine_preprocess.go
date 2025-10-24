@@ -151,17 +151,6 @@ func (e *EnginePreProcess) ApplyTemplateReplacements(content string, preprocesse
 	return result
 }
 
-// replaceCaseInsensitive replaces the first occurrence of 'from' in 'text' (case-insensitive) with 'to'
-func replaceCaseInsensitive(text, from, to string) string {
-	textLower := strings.ToLower(text)
-	fromLower := strings.ToLower(from)
-	if idx := strings.Index(textLower, fromLower); idx != -1 {
-		end := idx + len(from)
-		return text[:idx] + to + text[end:]
-	}
-	return text
-}
-
 // ApplyAppViewLogicToReplacement applies AppView fallback logic to template replacement text
 func (e *EnginePreProcess) ApplyAppViewLogicToReplacement(originalText, replacementText string, preprocessedTemplates map[string]model.PreprocessedTemplate, appView string) string {
 	// If no appView context, use the default replacement text (which already has JSON values baked in)
