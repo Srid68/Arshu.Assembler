@@ -7,7 +7,7 @@ Todo Demo of the original Assembler Framework is deployed in [MicroVM (fly.io)](
 This repository represents Phase 2 of a larger project to build a polyglot web framework.
 
 - **Phase 1:** [Arshu Proxy](https://github.com/Arshu/Arshu.Proxy/) (Multi-language Proxy)
-- **Phase 2:** **Arshu Static Assembler** (This repository - Static Assembly)
+- **Phase 2:** **Arshu Static Assembler** ([This repository](https://github.com/Srid68/Arshu.Assembler) - Static Assembly)
 - **Phase 3:** Dynamic Server-Side Assembly (Planned)
 - **Phase 4:** Integrated Full-Stack Framework (Planned)
 
