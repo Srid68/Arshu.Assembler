@@ -24,23 +24,6 @@ impl EngineNormal {
         self.app_view_prefix = prefix;
     }
     
-    /// Helper method for case-insensitive string replacement
-    fn replace_case_insensitive(text: &str, from: &str, to: &str) -> String {
-        let text_lower = text.to_lowercase();
-        let from_lower = from.to_lowercase();
-        
-        if let Some(start) = text_lower.find(&from_lower) {
-            let end = start + from.len();
-            let mut result = String::new();
-            result.push_str(&text[..start]);
-            result.push_str(to);
-            result.push_str(&text[end..]);
-            result
-        } else {
-            text.to_string()
-        }
-    }
-    
     /// <summary>
     /// Merges templates by replacing placeholders with corresponding HTML
     /// This is a hybrid method that processes both slotted templates and simple placeholders
@@ -198,7 +181,7 @@ impl EngineNormal {
                 if template_name_lower.contains(&view_prefix_lower) {
                     // Direct replacement: Replace the AppViewPrefix with the AppView value
                     // For example: Html3AContent with AppViewPrefix=Html3A and AppView=html3B becomes html3BContent
-                    let app_key = Self::replace_case_insensitive(template_name, view_prefix, app_view);
+                    let app_key = CommonUtil::replace_case_insensitive(template_name, view_prefix, app_view);
                     let fallback_template_key = format!("{}_{}", app_site.to_lowercase(), app_key.to_lowercase());
                     if let Some(fallback_found_key) = templates.keys().find(|k| k.eq_ignore_ascii_case(&fallback_template_key)) {
                         if let Some((html, json)) = templates.get(fallback_found_key) {
