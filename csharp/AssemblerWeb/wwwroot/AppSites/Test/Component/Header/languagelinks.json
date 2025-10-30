@@ -1,9 +1,9 @@
 {
-  "Language": "C#",
-  "LanguageId": "csharp",
+  "Language": "JavaScript",
+  "LanguageId": "javascript",
   "Title": "Web Assembler",
-  "Label": "Try different implementations generated using AI Assistance:",
   "HighlightText": "recreating abstractions from Mustache, React, and HTMX",
+  "Label": "Try different implementations:",
   "FeatureParityText": "Towards Feature parity with Arshu Data",
   "ArshuDataUrl": "https://ovharshudata.roottns.com/",
   "ArshuDataGitHubUrl": "https://github.com/Arshu/ArshuData",

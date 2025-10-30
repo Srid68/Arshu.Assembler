@@ -8,61 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="wwwtest\AppSites\HtmlRule1D\Component\html1Bcontent.html">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-    <Content Include="wwwtest\AppSites\HtmlRule1D\Component\html1BcontentB.html">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-    <Content Include="wwwtest\AppSites\HtmlRule1D\html1B.html">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-    <Content Include="wwwtest\AppSites\HtmlRule1C\html1A.html">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-    <Content Include="wwwtest\AppSites\Test0\Common\center.html" />
-    <Content Include="wwwtest\AppSites\Test0\Common\zoomin.html" />
-    <Content Include="wwwtest\AppSites\Test0\Component\content.html" />
-    <Content Include="wwwtest\AppSites\Test0\Component\demotodo.html" />
-    <Content Include="wwwtest\AppSites\Test0\Component\deployinfo.html" />
-    <Content Include="wwwtest\AppSites\Test0\Component\footer.html" />
-    <Content Include="wwwtest\AppSites\Test0\Component\header.html" />
-    <Content Include="wwwtest\AppSites\Test0\Component\maininfo.html" />
-    <Content Include="wwwtest\AppSites\Test0\styles.css" />
-    <Content Include="wwwtest\AppSites\Test0\test0.html" />
-    <Content Include="wwwtest\AppSites\Test1\Component\test1content.html" />
-    <Content Include="wwwtest\AppSites\Test1\Component\test1contentcontent.html" />
-    <Content Include="wwwtest\AppSites\Test1\Component\test2content.html" />
-    <Content Include="wwwtest\AppSites\Test1\test1.html" />
-    <Content Include="wwwtest\AppSites\Test2\Common\center.html" />
-    <Content Include="wwwtest\AppSites\Test2\test2.html" />
-    <Content Include="wwwtest\AppSites\Test3\Common\columns.html" />
-    <Content Include="wwwtest\AppSites\Test3\test3.html" />
-    <Content Include="wwwtest\AppSites\Test4\Common\center.html" />
-    <Content Include="wwwtest\AppSites\Test4\Common\zoomin.html" />
-    <Content Include="wwwtest\AppSites\Test4\Component\demotodo.html" />
-    <Content Include="wwwtest\AppSites\Test4\Component\deployinfo.html" />
-    <Content Include="wwwtest\AppSites\Test4\Component\maininfo.html" />
-    <Content Include="wwwtest\AppSites\Test4\test4.html" />
-    <Content Include="wwwtest\AppSites\Test5\test5.html" />
-    <Content Include="wwwtest\AppSites\JsonRule1D\json2A.html" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.10" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.9.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Assembler\Assembler.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="wwwroot\Resource\css\" />
   </ItemGroup>
 
   <PropertyGroup>

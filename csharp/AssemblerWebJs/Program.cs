@@ -355,15 +355,21 @@ public class Program
 
         #endregion
 
+        #region Is Debug Checking
+
+        var isDebug = Environment.GetEnvironmentVariable("DEBUG") == "true"
+            || Environment.GetEnvironmentVariable("VSCODE_DEBUG") == "true"
+            || Environment.GetEnvironmentVariable("IDLE_TRACKER_DISABLED") == "true";
+#if DEBUG
+        isDebug = true;
+#endif
+
+        #endregion
+
         #region Idle Tracking Middleware
 
         // Idle Tracking Middleware
-        var isDebug = Environment.GetEnvironmentVariable("DEBUG") == "true"
-            || Environment.GetEnvironmentVariable("VSCODE_DEBUG") == "true"
-            || Environment.GetEnvironmentVariable("IDLE_TRACKER_DISABLED") == "true"
-            || skipIdleTracking;
-
-        if (!isDebug)
+        if ((!isDebug) && (!skipIdleTracking))
         {
             Console.WriteLine("[IdleTracking] Idle tracking ENABLED");
             var idleSecondsEnv = Environment.GetEnvironmentVariable("IDLE_SECONDS");

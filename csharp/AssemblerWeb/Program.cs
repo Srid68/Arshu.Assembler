@@ -243,15 +243,21 @@ namespace AssemblerWeb
 
             #endregion
 
+            #region Is Debug Checking
+
+            var isDebug = Environment.GetEnvironmentVariable("DEBUG") == "true"
+                || Environment.GetEnvironmentVariable("VSCODE_DEBUG") == "true"
+                || Environment.GetEnvironmentVariable("IDLE_TRACKER_DISABLED") == "true";
+#if DEBUG
+        isDebug = true;
+#endif
+
+            #endregion
+
             #region Idle Tracking Middleware
 
             // Idle Tracking Middleware
-            var isDebug = Environment.GetEnvironmentVariable("DEBUG") == "true"
-                || Environment.GetEnvironmentVariable("VSCODE_DEBUG") == "true"
-                || Environment.GetEnvironmentVariable("IDLE_TRACKER_DISABLED") == "true"
-                || skipIdleTracking;
-
-            if (!isDebug)
+            if ((!isDebug) && (!skipIdleTracking))
             {
                 Console.WriteLine("[IdleTracking] Idle tracking ENABLED");
                 var idleSecondsEnv = Environment.GetEnvironmentVariable("IDLE_SECONDS");
@@ -300,7 +306,6 @@ namespace AssemblerWeb
 
             #region Assembler Endpoint
 
-            // Register endpoints grouped by tag "Assembler"
             app.MapAssemblerEndpoints();
 
             #endregion
@@ -311,36 +316,7 @@ namespace AssemblerWeb
             app.MapAssemblerTestEndpoints();
 
             #endregion
-
-            #region Browser Launch (Development Mode Only)
-
-            // Launch browser after a short delay (only in debug mode)
-            if (isDebug)
-            {
-                var urls = builder.Configuration["ASPNETCORE_URLS"]?.Split(';') ?? new[] { "http://localhost:5275" };
-                var firstUrl = urls[0];
-
-                Task.Run(async () =>
-                {
-                    await Task.Delay(500);
-                    try
-                    {
-                        var psi = new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = firstUrl,
-                            UseShellExecute = true
-                        };
-                        System.Diagnostics.Process.Start(psi);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Failed to open browser: {ex.Message}");
-                    }
-                });
-            }
-
-            #endregion
-
+           
             app.Run();
         }
 
