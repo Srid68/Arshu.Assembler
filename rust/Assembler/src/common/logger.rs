@@ -28,8 +28,7 @@ struct LoggerConfig {
     log_file_path: Option<String>,
     console_output: bool,
     log_rotation: LogRotation,
-    base_log_file_path: Option<String>,
-    current_rotated_path: Option<String>,
+    logs_directory: Option<String>, // Directory for scanning/clearing logs
     context_log_files: HashMap<String, String>,
 }
 
@@ -38,9 +37,8 @@ lazy_static::lazy_static! {
         current_log_level: LogLevel::NONE,
         log_file_path: None,
         console_output: true,
-        log_rotation: LogRotation::NONE,
-        base_log_file_path: None,
-        current_rotated_path: None,
+        log_rotation: LogRotation::HOURLY,
+        logs_directory: None,
         context_log_files: HashMap::new(),
     });
 }
@@ -48,58 +46,21 @@ lazy_static::lazy_static! {
 pub struct Logger;
 
 impl Logger {
-    /// Configure the logger
-    pub fn configure(level: LogLevel, log_file_path: Option<String>, console_output: bool, rotation: LogRotation) {
+    /// Configure the logger (no log file path - use set_logs_directory instead)
+    pub fn configure(level: LogLevel, console_output: bool, rotation: LogRotation) {
         let mut config = LOGGER_CONFIG.lock().unwrap();
         config.current_log_level = level;
-        config.base_log_file_path = log_file_path.clone();
         config.console_output = console_output;
         config.log_rotation = rotation;
-
-        // Generate the initial rotated path
-        config.current_rotated_path = Self::get_rotated_file_path_internal(&config);
-        config.log_file_path = config.current_rotated_path.clone();
-
-        // Create or clear log file if specified
-        if let Some(path) = &config.log_file_path {
-            if let Ok(mut file) = File::create(path) {
-                let _ = writeln!(file, "=== Log started at {} ===", Local::now().format("%Y-%m-%d %H:%M:%S"));
-            } else {
-                eprintln!("Failed to initialize log file: {}", path);
-            }
-        }
     }
 
-    /// Generate the rotated file path based on rotation setting
-    fn get_rotated_file_path_internal(config: &LoggerConfig) -> Option<String> {
-        let base_path = config.base_log_file_path.as_ref()?;
-
-        if config.log_rotation == LogRotation::NONE {
-            return Some(base_path.clone());
-        }
-
-        let path = Path::new(base_path);
-        let directory = path.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
-        let file_stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-        let extension = path.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
-
-        let now = Local::now();
-        let suffix = match config.log_rotation {
-            LogRotation::HOURLY => now.format("%Y-%m-%d_%H").to_string(),
-            LogRotation::DAILY => now.format("%Y-%m-%d").to_string(),
-            LogRotation::NONE => String::new(),
-        };
-
-        let rotated_file_name = format!("{}_{}{}", file_stem, suffix, extension);
-
-        if directory.is_empty() {
-            Some(rotated_file_name)
-        } else {
-            Some(format!("{}/{}", directory, rotated_file_name))
-        }
+    /// Set the logs directory - the ONLY way to specify where logs are stored
+    pub fn set_logs_directory(logs_directory: String) {
+        let mut config = LOGGER_CONFIG.lock().unwrap();
+        config.logs_directory = Some(logs_directory);
     }
 
-    /// Configure context-specific log files
+    /// Configure context-specific log files (replaces all existing contexts)
     pub fn configure_context_log_files(context_log_files: HashMap<String, String>) {
         let mut config = LOGGER_CONFIG.lock().unwrap();
         config.context_log_files = context_log_files.clone();
@@ -111,11 +72,115 @@ impl Logger {
                 let _ = std::fs::create_dir_all(parent);
             }
 
-            if let Ok(mut file) = File::create(path) {
-                let _ = writeln!(file, "=== Log started at {} [{}] ===",
-                    Local::now().format("%Y-%m-%d %H:%M:%S"), context);
-            } else {
-                eprintln!("Failed to initialize log file for context {}: {}", context, path);
+            // Only write header if file doesn't exist (don't overwrite)
+            if !Path::new(path).exists() {
+                if let Ok(mut file) = File::create(path) {
+                    let _ = writeln!(file, "=== Log started at {} [{}] ===",
+                        Local::now().format("%Y-%m-%d %H:%M:%S"), context);
+                } else {
+                    eprintln!("Failed to initialize log file for context {}: {}", context, path);
+                }
+            }
+        }
+    }
+
+    /// Add context-specific log files (merges with existing contexts)
+    pub fn add_context_log_files(context_log_files: HashMap<String, String>) {
+        let mut config = LOGGER_CONFIG.lock().unwrap();
+
+        // Add or update each context
+        for (context, path) in context_log_files {
+            // Skip if already configured with same path
+            if let Some(existing_path) = config.context_log_files.get(&context) {
+                if existing_path == &path {
+                    continue;
+                }
+            }
+
+            // Create directory if it doesn't exist
+            if let Some(parent) = Path::new(&path).parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+
+            // Only write header if file doesn't exist (don't overwrite)
+            if !Path::new(&path).exists() {
+                if let Ok(mut file) = File::create(&path) {
+                    let _ = writeln!(file, "=== Log started at {} [{}] ===",
+                        Local::now().format("%Y-%m-%d %H:%M:%S"), context);
+                } else {
+                    eprintln!("Failed to add log file for context {}: {}", context, path);
+                }
+            }
+
+            config.context_log_files.insert(context, path);
+        }
+    }
+
+    /// Remove specific context log files
+    pub fn remove_context_log_files(contexts: &[&str]) {
+        let mut config = LOGGER_CONFIG.lock().unwrap();
+        for context in contexts {
+            config.context_log_files.remove(*context);
+        }
+    }
+
+    /// Clear all log files (main and context-specific)
+    pub fn clear_logs() {
+        let config = LOGGER_CONFIG.lock().unwrap();
+        
+        // Delete main log file
+        if let Some(path) = &config.log_file_path {
+            let _ = std::fs::remove_file(path);
+        }
+        
+        // Delete all context log files
+        for (_, path) in &config.context_log_files {
+            let _ = std::fs::remove_file(path);
+        }
+
+        // Clear all .log files in the logs directory
+        if let Some(logs_dir) = &config.logs_directory {
+            if let Ok(entries) = std::fs::read_dir(logs_dir) {
+                for entry in entries.flatten() {
+                    if let Ok(file_type) = entry.file_type() {
+                        if file_type.is_file() {
+                            if let Some(file_name) = entry.file_name().to_str() {
+                                if file_name.ends_with(".log") {
+                                    let _ = std::fs::remove_file(entry.path());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Clear old log files older than the specified number of days
+    pub fn clear_old_logs(days: i64) {
+        use std::time::{SystemTime, Duration};
+        
+        let config = LOGGER_CONFIG.lock().unwrap();
+        let cutoff = SystemTime::now() - Duration::from_secs((days * 24 * 60 * 60) as u64);
+        
+        // Clear old files in logs directory
+        if let Some(logs_dir) = &config.logs_directory {
+            if let Ok(entries) = std::fs::read_dir(logs_dir) {
+                for entry in entries.flatten() {
+                    if let Ok(metadata) = entry.metadata() {
+                        if metadata.is_file() {
+                            if let Some(file_name) = entry.file_name().to_str() {
+                                if file_name.ends_with(".log") {
+                                    if let Ok(modified) = metadata.modified() {
+                                        if modified < cutoff {
+                                            let _ = std::fs::remove_file(entry.path());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -154,7 +219,7 @@ impl Logger {
 
     /// Core logging method
     fn log(level: LogLevel, message: &str, context: Option<&str>) {
-        let mut config = LOGGER_CONFIG.lock().unwrap();
+        let config = LOGGER_CONFIG.lock().unwrap();
 
         if level < config.current_log_level {
             return;
@@ -189,27 +254,9 @@ impl Logger {
                     let _ = writeln!(file, "{}", log_line);
                 }
             }
-        } else if config.base_log_file_path.is_some() {
-            // Check if we need to rotate to a new file
-            let new_rotated_path = Self::get_rotated_file_path_internal(&config);
-            if new_rotated_path != config.current_rotated_path {
-                config.current_rotated_path = new_rotated_path.clone();
-                config.log_file_path = new_rotated_path.clone();
-
-                // Write header to new rotated file
-                if let Some(path) = &config.log_file_path {
-                    if !std::path::Path::new(path).exists() {
-                        if let Ok(mut file) = File::create(path) {
-                            let _ = writeln!(file, "=== Log started at {} ===", Local::now().format("%Y-%m-%d %H:%M:%S"));
-                        }
-                    }
-                }
-            }
-
-            if let Some(path) = &config.log_file_path {
-                if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
-                    let _ = writeln!(file, "{}", log_line);
-                }
+        } else if let Some(path) = &config.log_file_path {
+            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
+                let _ = writeln!(file, "{}", log_line);
             }
         }
     }

@@ -3,18 +3,13 @@ use utoipa::OpenApi;
 use std::time::Duration;
 use actix_web::{web, App, HttpServer, Responder, HttpResponse};
 use actix_files as fs;
-use std::sync::{Arc, Mutex};
-use std::time::Instant;
-use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
-use futures_util::future::{self, LocalBoxFuture};
-use actix_web::Error;
 
-mod security_validator;
-mod assembler_endpoint;
-mod assembler_test_endpoint;
+mod endpoint;
+mod services;
 
-use assembler_endpoint::{MergeRequest, ScenarioDto, index, get_scenarios, get_templates, merge_templates};
-use assembler_test_endpoint::{save_test_results, save_performance_results, save_log, save_output, test_standard, test_advanced, test_performance, test_consolidate_performance, get_report};
+use endpoint::{MergeRequest, ScenarioDto, index, get_scenarios, get_templates, merge_templates};
+use endpoint::{save_test_results, save_performance_results, save_log, save_output, test_standard, test_advanced, test_performance, test_consolidate_performance, get_report};
+use services::IdleTracking;
 
 
 async fn openapi_handler() -> impl Responder {
@@ -29,21 +24,21 @@ async fn openapi_handler() -> impl Responder {
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        assembler_endpoint::index,
-        assembler_endpoint::get_scenarios,
-        assembler_endpoint::get_templates,
-        assembler_endpoint::merge_templates,
-        assembler_test_endpoint::save_test_results,
-        assembler_test_endpoint::save_performance_results,
-        assembler_test_endpoint::save_log,
-        assembler_test_endpoint::save_output,
-        assembler_test_endpoint::test_standard,
-        assembler_test_endpoint::test_advanced,
-        assembler_test_endpoint::test_performance,
-        assembler_test_endpoint::test_consolidate_performance,
-        assembler_test_endpoint::get_report
+        endpoint::assembler_endpoint::index,
+        endpoint::assembler_endpoint::get_scenarios,
+        endpoint::assembler_endpoint::get_templates,
+        endpoint::assembler_endpoint::merge_templates,
+        endpoint::assembler_test_endpoint::save_test_results,
+        endpoint::assembler_test_endpoint::save_performance_results,
+        endpoint::assembler_test_endpoint::save_log,
+        endpoint::assembler_test_endpoint::save_output,
+        endpoint::assembler_test_endpoint::test_standard,
+        endpoint::assembler_test_endpoint::test_advanced,
+        endpoint::assembler_test_endpoint::test_performance,
+        endpoint::assembler_test_endpoint::test_consolidate_performance,
+        endpoint::assembler_test_endpoint::get_report
     ),
-    components(schemas(MergeRequest, ScenarioDto, assembler_test_endpoint::ReportRequest, assembler_test_endpoint::TestResponse, assembler_test_endpoint::TestSummaryRowDto, assembler_test_endpoint::PerfSummaryRowDto)),
+    components(schemas(MergeRequest, ScenarioDto, endpoint::assembler_test_endpoint::ReportRequest, endpoint::assembler_test_endpoint::TestResponse, endpoint::assembler_test_endpoint::TestSummaryRowDto, endpoint::assembler_test_endpoint::PerfSummaryRowDto)),
     tags((name = "Assembler", description = "Assembler API endpoints"))
 )]
 struct ApiDoc;
@@ -77,12 +72,24 @@ async fn main() -> std::io::Result<()> {
     context_log_files.insert("Main".to_string(), logs_dir.join("rust_main.log").to_string_lossy().to_string());
     context_log_files.insert("IdleTracking".to_string(), logs_dir.join("rust_idletracking.log").to_string_lossy().to_string());
 
+    // Configure logger (no main log file - only context files)
     assembler::common::logger::Logger::configure(
-        assembler::common::logger::LogLevel::DEBUG,
-        None,
+        assembler::common::logger::LogLevel::INFO,
         false,
-        assembler::common::logger::LogRotation::NONE
+        assembler::common::logger::LogRotation::HOURLY
     );
+    
+    // Set logs directory for clearing
+    assembler::common::logger::Logger::set_logs_directory(logs_dir.to_string_lossy().to_string());
+
+    // Clear logs based on build mode
+    #[cfg(debug_assertions)]
+    assembler::common::logger::Logger::clear_logs();
+    
+    #[cfg(not(debug_assertions))]
+    assembler::common::logger::Logger::clear_old_logs(7);
+
+    // Configure context log files AFTER clearing (which would delete them)
     assembler::common::logger::Logger::configure_context_log_files(context_log_files);
     assembler::common::logger::Logger::info("AssemblerWeb starting up", Some("Main"));
 
@@ -98,11 +105,26 @@ async fn main() -> std::io::Result<()> {
     println!("Scalar UI will be available at http://localhost:{}/scalar", port);
 
     // Determine if in debug mode first (needed for browser launch decision)
-    let is_debug = std::env::var("DEBUG").as_deref() == Ok("true")
+    let mut is_debug = std::env::var("DEBUG").as_deref() == Ok("true")
     || std::env::var("VSCODE_DEBUG").unwrap_or_default() == "true"
-    || std::env::var("IDLE_TRACKER_DISABLED").unwrap_or_default() == "true"
-    || std::env::var("APP_ENV").unwrap_or_default() == "development"
-    || skip_idle_tracking;
+    || std::env::var("APP_ENV").unwrap_or_default() == "development";
+    
+    // Also check if compiled in debug mode
+    if cfg!(debug_assertions) {
+        is_debug = true;
+    }
+
+    // Separate check for idle tracking
+    // Command line args and explicit env vars take precedence
+    let idle_tracking_enabled = if skip_idle_tracking {
+        false  // --skipIdleTracking flag explicitly disables
+    } else {
+        match std::env::var("IDLE_TRACKER_DISABLED").as_deref() {
+            Ok("false") => true,  // Explicitly enable idle tracking
+            Ok("true") => false,  // Explicitly disable idle tracking
+            _ => !is_debug  // Default: disable in debug mode
+        }
+    };
 
     // Launch browser after a short delay (only in debug mode)
     if is_debug {
@@ -115,7 +137,7 @@ async fn main() -> std::io::Result<()> {
         });
     }
 
-    if !is_debug {
+    if idle_tracking_enabled {
         println!("[IdleTracking] Idle tracking ENABLED");
     } else {
         println!("[IdleTracking] Idle tracking DISABLED");
@@ -124,7 +146,8 @@ async fn main() -> std::io::Result<()> {
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
         .unwrap_or(10);
-    let idle_tracking = IdleTracking::new(idle_seconds, !is_debug);
+    let idle_tracking = IdleTracking::new(idle_seconds, idle_tracking_enabled);
+    let idle_tracking_for_shutdown = idle_tracking.clone();
 
     let project_dir_data = web::Data::new(project_directory.clone());
     let wwwroot_path = project_directory.join("wwwroot");
@@ -154,171 +177,30 @@ async fn main() -> std::io::Result<()> {
     })
     .bind(("0.0.0.0", port))?;
     println!("Server listening on http://localhost:{}", port);
-    server.run().await
-}
-
-// Idle Tracking Middleware
-#[derive(Clone)]
-pub struct IdleTracking {
-    last_request: Arc<Mutex<Instant>>,
-    shutdown_initiated: Arc<Mutex<bool>>,
-    active_holds: Arc<Mutex<std::collections::HashMap<String, Instant>>>,
-    idle_seconds: u64,
-    hold_timeout_seconds: u64,
-    enabled: bool,
-}
-
-impl IdleTracking {
-    pub fn new(idle_seconds: u64, enabled: bool) -> Self {
-        IdleTracking {
-            last_request: Arc::new(Mutex::new(Instant::now())),
-            shutdown_initiated: Arc::new(Mutex::new(false)),
-            active_holds: Arc::new(Mutex::new(std::collections::HashMap::new())),
-            idle_seconds,
-            hold_timeout_seconds: 300, // Safety timeout for stuck holds
-            enabled,
+    
+    let server = server.run();
+    let server_handle = server.handle();
+    
+    // Register shutdown handler using actix-web's runtime
+    actix_web::rt::spawn(async move {
+        actix_web::rt::signal::ctrl_c().await.ok();
+        println!("Received shutdown signal");
+        
+        if idle_tracking_enabled {
+            idle_tracking_for_shutdown.shutdown();
         }
-    }
-}
-
-impl<S, B> Transform<S, ServiceRequest> for IdleTracking
-where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
-    B: 'static,
-{
-    type Response = ServiceResponse<B>;
-    type Error = Error;
-    type Transform = IdleTrackingMiddleware<S>;
-    type InitError = (); 
-    type Future = future::Ready<Result<Self::Transform, Self::InitError>>;
-
-    fn new_transform(&self, service: S) -> Self::Future {
-        let last_request = self.last_request.clone();
-        let shutdown_initiated = self.shutdown_initiated.clone();
-        let active_holds = self.active_holds.clone();
-        let idle_seconds = self.idle_seconds;
-        let hold_timeout_seconds = self.hold_timeout_seconds;
-        let enabled = self.enabled;
-
-        // Start idle checker thread only if enabled
-        if enabled {
-            println!("[STARTUP] Configured idleSeconds = {}", idle_seconds);
-            println!("[STARTUP] Starting idle monitor with 10-second check interval");
-
-            std::thread::spawn({
-                let last_request = last_request.clone();
-                let shutdown_initiated = shutdown_initiated.clone();
-                let active_holds = active_holds.clone();
-                move || {
-                    loop {
-                        std::thread::sleep(Duration::from_secs(10));
-                        let last = *last_request.lock().unwrap();
-                        let idle = last.elapsed().as_secs();
-
-                        // Clean up expired holds and count active holds
-                        let mut holds = active_holds.lock().unwrap();
-                        let now = Instant::now();
-                        let mut expired_holds = Vec::new();
-
-                        for (hold_id, hold_time) in holds.iter() {
-                            let hold_age = now.duration_since(*hold_time).as_secs();
-                            if hold_age >= hold_timeout_seconds {
-                                expired_holds.push(hold_id.clone());
-                            }
-                        }
-
-                        for hold_id in &expired_holds {
-                            holds.remove(hold_id);
-                            println!("[MONITOR] Removed expired hold: {} (age: {}s)", hold_id, hold_timeout_seconds);
-                        }
-
-                        let active_holds_count = holds.len();
-                        drop(holds); // Release lock before potentially exiting
-
-                        println!("[MONITOR] IdleTime: {}s, Threshold: {}s, ActiveHolds: {}", idle, idle_seconds, active_holds_count);
-
-                        let mut shutdown = shutdown_initiated.lock().unwrap();
-                        // Only trigger shutdown if idle time exceeded AND no active holds
-                        if !*shutdown && idle > idle_seconds && active_holds_count == 0 {
-                            *shutdown = true;
-                            println!("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown");
-                            assembler::common::logger::Logger::info(&format!("Idle timeout reached ({}s) with no active requests, shutting down server...", idle_seconds), Some("IdleTracking"));
-                            std::process::exit(0);
-                        }
-                    }
-                }
-            });
-        }
-        future::ok(IdleTrackingMiddleware {
-            service,
-            last_request,
-            active_holds,
-        })
-    }
-}
-
-pub struct IdleTrackingMiddleware<S> {
-    service: S,
-    last_request: Arc<Mutex<Instant>>,
-    active_holds: Arc<Mutex<std::collections::HashMap<String, Instant>>>,
-}
-
-impl<S, B> Service<ServiceRequest> for IdleTrackingMiddleware<S>
-where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
-    B: 'static,
-{
-    type Response = ServiceResponse<B>;
-    type Error = Error;
-    type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
-
-    fn poll_ready(
-        &self,
-        ctx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), Self::Error>> {
-        self.service.poll_ready(ctx)
-    }
-
-    fn call(&self, req: ServiceRequest) -> Self::Future {
-        let last_request = self.last_request.clone();
-        let active_holds = self.active_holds.clone();
-
-        // Generate unique hold ID for this request
-        let hold_id = format!("hold_{}", uuid::Uuid::new_v4().to_string().replace("-", ""));
-
-        // Set hold before processing to prevent shutdown during long-running requests
-        {
-            let mut holds = active_holds.lock().unwrap();
-            holds.insert(hold_id.clone(), Instant::now());
-            println!("[REQUEST] Request started, hold set: {}", hold_id);
-        }
-
-        // Update last request time
-        {
-            let mut last = last_request.lock().unwrap();
-            *last = Instant::now();
-        }
-
-        let fut = self.service.call(req);
-        let hold_id_for_cleanup = hold_id.clone();
-
-        Box::pin(async move {
-            let res = fut.await;
-
-            // Update timestamp after processing
-            {
-                let mut last = last_request.lock().unwrap();
-                *last = Instant::now();
-            }
-
-            // Always remove hold after processing (even if error occurs)
-            {
-                let mut holds = active_holds.lock().unwrap();
-                holds.remove(&hold_id_for_cleanup);
-                println!("[REQUEST] Request completed, hold removed: {}", hold_id_for_cleanup);
-            }
-
-            res
-        })
-    }
+        
+        assembler::common::logger::Logger::info("AssemblerWeb shutting down...", Some("Main"));
+        println!("AssemblerWeb shutting down...");
+        
+        server_handle.stop(true).await;
+        
+        assembler::common::logger::Logger::info("AssemblerWeb stopped", Some("Main"));
+        println!("AssemblerWeb stopped");
+        
+        // Give time for logs to flush
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    });
+    
+    server.await
 }

@@ -1,21 +1,23 @@
 package main
 
 import (
+	"assemblerweb/endpoint"
+	"assemblerweb/services"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
+	"syscall"
 	"time"
 
 	"assembler/common"
 	"assembler/config"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/skratchdot/open-golang/open"
 )
 
@@ -104,80 +106,10 @@ func openapi(c *gin.Context) {
 	c.JSON(http.StatusOK, spec)
 }
 
-// Idle Tracking Middleware
-func IdleTrackingMiddleware(idleSeconds int) gin.HandlerFunc {
-	var lastRequest = time.Now()
-	var shutdownInitiated = false
-	var activeHolds = make(map[string]time.Time)
-	var mu sync.Mutex
-	const holdTimeoutSeconds = 300 // Safety timeout for stuck holds
-
-	fmt.Printf("[STARTUP] Configured idleSeconds = %d\n", idleSeconds)
-	fmt.Println("[STARTUP] Starting idle monitor with 10-second check interval")
-
-	// Start idle checker goroutine
-	go func() {
-		for {
-			time.Sleep(10 * time.Second)
-			mu.Lock()
-			idle := time.Since(lastRequest).Seconds()
-
-			// Clean up expired holds and count active holds
-			now := time.Now()
-			expiredHolds := []string{}
-			for holdID, holdTime := range activeHolds {
-				holdAge := now.Sub(holdTime).Seconds()
-				if holdAge >= holdTimeoutSeconds {
-					expiredHolds = append(expiredHolds, holdID)
-				}
-			}
-
-			for _, holdID := range expiredHolds {
-				delete(activeHolds, holdID)
-				fmt.Printf("[MONITOR] Removed expired hold: %s (age: %ds)\n", holdID, holdTimeoutSeconds)
-			}
-
-			activeHoldsCount := len(activeHolds)
-			fmt.Printf("[MONITOR] IdleTime: %.1fs, Threshold: %ds, ActiveHolds: %d\n", idle, idleSeconds, activeHoldsCount)
-
-			// Only trigger shutdown if idle time exceeded AND no active holds
-			if !shutdownInitiated && idle > float64(idleSeconds) && activeHoldsCount == 0 {
-				shutdownInitiated = true
-				fmt.Println("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown")
-				common.Info(fmt.Sprintf("Idle timeout reached (%ds) with no active requests, shutting down server...", idleSeconds), "IdleTracking")
-				mu.Unlock()
-				os.Exit(0)
-			}
-			mu.Unlock()
-		}
-	}()
-
-	return func(c *gin.Context) {
-		// Generate unique hold ID for this request
-		holdID := fmt.Sprintf("hold_%s", strings.ReplaceAll(uuid.New().String(), "-", ""))
-
-		// Set hold before processing to prevent shutdown during long-running requests
-		mu.Lock()
-		activeHolds[holdID] = time.Now()
-		fmt.Printf("[REQUEST] Request started, hold set: %s\n", holdID)
-		lastRequest = time.Now()
-		mu.Unlock()
-
-		// Process request
-		c.Next()
-
-		// Always remove hold after processing (even if error occurs)
-		mu.Lock()
-		delete(activeHolds, holdID)
-		fmt.Printf("[REQUEST] Request completed, hold removed: %s\n", holdID)
-		lastRequest = time.Now()
-		mu.Unlock()
-	}
-}
-
 func main() {
 	// Configure Logger - set global projectDirectory variable
 	_, projectDirectory = common.GetAssemblerWebDirPath()
+	endpoint.ProjectDirectory = projectDirectory
 	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
@@ -190,10 +122,30 @@ func main() {
 		"EnginePreProcess": filepath.Join(logsDir, "go_enginepreprocess.log"),
 		"Main":             filepath.Join(logsDir, "go_main.log"),
 		"MergeEndpoint":    filepath.Join(logsDir, "go_mergeendpoint.log"),
+		"IdleTracking":     filepath.Join(logsDir, "go_idletracking.log"),
 	}
 
-	common.Configure(common.DEBUG, "", false, common.ROTATION_NONE)
+	// Configure logger (no main log file - only context files)
+	common.Configure(common.DEBUG, false, common.ROTATION_HOURLY)
+
+	// Set logs directory for clearing
+	common.SetLogsDirectory(logsDir)
+
+	// Check if running in VSCode debugger or explicitly in debug mode
+	isDebug := os.Getenv("DEBUG") == "true" ||
+		os.Getenv("VSCODE_DEBUG") == "true" ||
+		os.Getenv("APP_ENV") == "development"
+
+	// Clear logs based on build mode - always clear in debug/development
+	if isDebug {
+		common.ClearLogs()
+	} else {
+		common.ClearOldLogs(7)
+	}
+
+	// Configure context log files AFTER clearing (which would delete them)
 	common.ConfigureContextLogFiles(contextLogFiles)
+
 	common.Info("AssemblerWeb starting up", "Main")
 
 	// Load ConfigUtil (AppSites and Scenarios)
@@ -247,34 +199,47 @@ func main() {
 	}
 	fmt.Println("Starting Go AssemblerWeb server...")
 
-	// Check if running in VSCode debugger or explicitly in debug mode
-	isDebug := os.Getenv("DEBUG") == "true" ||
-		os.Getenv("VSCODE_DEBUG") == "true" ||
-		os.Getenv("IDLE_TRACKER_DISABLED") == "true" ||
-		os.Getenv("APP_ENV") == "development" ||
-		skipIdleTracking
+	// Determine if idle tracking should be enabled
+	// Command line args and explicit env vars take precedence
+	var idleTrackingEnabled bool
+	if skipIdleTracking {
+		idleTrackingEnabled = false // --skipIdleTracking flag explicitly disables
+	} else {
+		idleTrackerDisabledEnv := os.Getenv("IDLE_TRACKER_DISABLED")
+		if idleTrackerDisabledEnv == "false" {
+			idleTrackingEnabled = true // Explicitly enable idle tracking
+		} else if idleTrackerDisabledEnv == "true" {
+			idleTrackingEnabled = false // Explicitly disable idle tracking
+		} else {
+			idleTrackingEnabled = !isDebug // Default: disable in debug mode
+		}
+	}
 
 	if isDebug {
 		// Set Gin to debug mode for development
 		gin.SetMode(gin.DebugMode)
-		fmt.Println("[IdleTracking] Idle tracking DISABLED")
 	} else {
 		// Set Gin to release mode (default/production)
 		gin.SetMode(gin.ReleaseMode)
+	}
+
+	if idleTrackingEnabled {
 		fmt.Println("[IdleTracking] Idle tracking ENABLED")
+	} else {
+		fmt.Println("[IdleTracking] Idle tracking DISABLED")
 	}
 
 	r := gin.Default()
 
-	// Idle Tracking Middleware - enabled by default, disabled only in debug mode
-	if !isDebug {
+	// Idle Tracking Middleware
+	if idleTrackingEnabled {
 		idleSeconds := 10
 		if v := os.Getenv("IDLE_SECONDS"); v != "" {
 			if parsed, err := strconv.Atoi(v); err == nil {
 				idleSeconds = parsed
 			}
 		}
-		r.Use(IdleTrackingMiddleware(idleSeconds))
+		r.Use(services.IdleTrackingMiddleware(idleSeconds))
 		fmt.Printf("[PRODUCTION] Idle tracking enabled (%d seconds)\n", idleSeconds)
 	}
 
@@ -282,26 +247,26 @@ func main() {
 	r.Static("/scalar", "./wwwroot/scalar")
 
 	// API routes
-	r.GET("/", index)
-	r.GET("/api/scenarios", scenarios)
-	r.POST("/merge", mergeTemplates)
+	r.GET("/", endpoint.Index)
+	r.GET("/api/scenarios", endpoint.Scenarios)
+	r.POST("/merge", endpoint.MergeTemplates)
 	r.GET("/openapi.json", openapi)
 
 	// Test endpoints
-	r.POST("/test/standard", testStandard)
-	r.POST("/test/advanced", testAdvanced)
-	r.POST("/test/performance", testPerformance)
-	r.POST("/test/consolidate-performance", testConsolidatePerformance)
+	r.POST("/test/standard", endpoint.TestStandard)
+	r.POST("/test/advanced", endpoint.TestAdvanced)
+	r.POST("/test/performance", endpoint.TestPerformance)
+	r.POST("/test/consolidate-performance", endpoint.TestConsolidatePerformance)
 
 	// Report endpoint
-	r.POST("/api/report", getReport)
+	r.POST("/api/report", endpoint.GetReport)
 
 	// Add missing endpoints for parity
-	r.POST("/api/save-log", saveLog)
-	r.POST("/api/save-output", saveOutput)
-	r.POST("/api/templates", getTemplates)
-	r.POST("/api/test-results", saveTestResults)
-	r.POST("/api/performance-results", savePerformanceResults)
+	r.POST("/api/save-log", endpoint.SaveLog)
+	r.POST("/api/save-output", endpoint.SaveOutput)
+	r.POST("/api/templates", endpoint.GetTemplates)
+	r.POST("/api/test-results", endpoint.SaveTestResults)
+	r.POST("/api/performance-results", endpoint.SavePerformanceResults)
 
 	// Serve static files from wwwroot (HTML, JSON, etc.) - use NoRoute to avoid conflicts
 	r.NoRoute(func(c *gin.Context) {
@@ -322,5 +287,24 @@ func main() {
 		open.Run(fmt.Sprintf("http://127.0.0.1:%s", port))
 	}()
 
-	log.Fatal(r.Run(":" + port))
+	// Setup signal handling for graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	// Run server in goroutine
+	go func() {
+		if err := r.Run(":" + port); err != nil {
+			log.Fatalf("Failed to run server: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	<-quit
+
+	// Shutdown logging
+	if idleTrackingEnabled {
+		services.Shutdown()
+	}
+	common.Info("AssemblerWeb shutting down...", "Main")
+	common.Info("AssemblerWeb stopped", "Main")
 }

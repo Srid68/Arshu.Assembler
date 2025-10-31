@@ -117,8 +117,8 @@ namespace AssemblerWebJs
                     { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") }
                 };
 
-                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
-                Logger.ConfigureContextLogFiles(contextLogFiles);
+                Logger.Configure(Logger.LogLevel.DEBUG, false, Logger.LogRotation.HOURLY);
+                Logger.AddContextLogFiles(contextLogFiles);
 
                 try
                 {
@@ -198,8 +198,8 @@ namespace AssemblerWebJs
                     { "EnginePreProcess", Path.Combine(logsDir, "csharp_enginepreprocess.log") }
                 };
 
-                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
-                Logger.ConfigureContextLogFiles(contextLogFiles);
+                Logger.Configure(Logger.LogLevel.DEBUG, false, Logger.LogRotation.HOURLY);
+                Logger.AddContextLogFiles(contextLogFiles);
 
                 try
                 {

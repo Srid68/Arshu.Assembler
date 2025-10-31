@@ -1,5 +1,6 @@
 using Assembler.Common;
 using Assembler.Config;
+using AssemblerWeb.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,120 +13,6 @@ using System.Threading.Tasks;
 
 namespace AssemblerWeb
 {
-    #region Idle Tracking Middleware
-
-    public class IdleTrackingMiddleware
-    {
-        private static DateTime _lastRequest = DateTime.UtcNow;
-        private static Timer? _timer;
-        private static bool _shutdownInitiated = false;
-        private static int _idleSeconds = 10;
-        private static int _holdTimeoutSeconds = 300; // Safety timeout for stuck holds
-        private static object _lock = new object();
-        private static System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> _activeHolds = new();
-
-        private static void Log(string message)
-        {
-            Logger.Info($"{DateTime.UtcNow:O} {message}", "IdleTrackingMiddleware");
-        }
-
-        public static void Configure(int idleSeconds)
-        {
-            _idleSeconds = idleSeconds;
-            Console.WriteLine($"[STARTUP] Configured idleSeconds = {_idleSeconds}");
-            Log($"Configured idleSeconds = {_idleSeconds}");
-        }
-
-        public static void StartTimer(IHostApplicationLifetime appLifetime)
-        {
-            Console.WriteLine("[STARTUP] Starting idle monitor with 10-second check interval");
-            Log("Starting idle timer");
-            _timer = new Timer(_ => CheckIdle(appLifetime), null, 10000, 10000);
-        }
-
-        public static void UpdateLastRequest()
-        {
-            lock (_lock)
-            {
-                _lastRequest = DateTime.UtcNow;
-                Log("Last request time updated");
-            }
-        }
-
-        private static void CheckIdle(IHostApplicationLifetime appLifetime)
-        {
-            if (_shutdownInitiated) return;
-
-            // Clean up expired holds and count active holds
-            int activeHolds = 0;
-            var now = DateTime.UtcNow;
-            foreach (var hold in _activeHolds.ToArray())
-            {
-                var holdAge = (now - hold.Value).TotalSeconds;
-                if (holdAge >= _holdTimeoutSeconds)
-                {
-                    // Remove expired hold
-                    _activeHolds.TryRemove(hold.Key, out _);
-                    Console.WriteLine($"[MONITOR] Removed expired hold: {hold.Key} (age: {holdAge}s)");
-                    Log($"Removed expired hold: {hold.Key} (age: {holdAge}s)");
-                }
-                else
-                {
-                    activeHolds++;
-                }
-            }
-
-            var idleTime = DateTime.UtcNow - _lastRequest;
-            Console.WriteLine($"[MONITOR] IdleTime: {idleTime.TotalSeconds:F1}s, Threshold: {_idleSeconds}s, ActiveHolds: {activeHolds}");
-            Log($"Idle check: idleTime={idleTime.TotalSeconds}s, idleSeconds={_idleSeconds}, activeHolds={activeHolds}");
-
-            // Only trigger shutdown if idle time exceeded AND no active holds
-            if (idleTime.TotalSeconds > _idleSeconds && activeHolds == 0)
-            {
-                Console.WriteLine("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown");
-                Log("Idle period exceeded with no active holds, shutting down application");
-                _shutdownInitiated = true;
-                appLifetime.StopApplication();
-            }
-        }
-
-        public static async Task InvokeAsync(HttpContext context, RequestDelegate next, IHostApplicationLifetime appLifetime)
-        {
-            // Generate unique hold ID for this request
-            var holdId = $"hold_{Guid.NewGuid():N}";
-
-            // Set hold before processing to prevent shutdown during long-running requests
-            _activeHolds[holdId] = DateTime.UtcNow;
-            Console.WriteLine($"[REQUEST] Request started, hold set: {holdId}");
-            Log($"Request started, hold set: {holdId}");
-
-            UpdateLastRequest();
-            if (_timer == null)
-            {
-                StartTimer(appLifetime);
-            }
-
-            try
-            {
-                await next(context);
-
-                // Update timestamp after processing
-                UpdateLastRequest();
-                Console.WriteLine($"[REQUEST] Request completed");
-                Log("Request completed");
-            }
-            finally
-            {
-                // Always remove hold after processing (even if exception occurs)
-                _activeHolds.TryRemove(holdId, out _);
-                Console.WriteLine($"[REQUEST] Hold removed: {holdId}");
-                Log($"Hold removed: {holdId}");
-            }
-        }
-    }
-
-    #endregion
-
     public class Program
     {
         public static void Main(string[] args)
@@ -142,7 +29,7 @@ namespace AssemblerWeb
                     skipIdleTracking = true;
                 }
             }
-
+            
             #endregion
 
             #region Print Environment Info
@@ -192,7 +79,7 @@ namespace AssemblerWeb
             #region Logger Configuration
 
             // Configure custom logger
-            var logLevel = Logger.LogLevel.NONE; // Default: no logging for production
+            var logLevel = Logger.LogLevel.INFO; // Default: INFO level for idle tracking and general logging
             var logLevelEnv = Environment.GetEnvironmentVariable("LOG_LEVEL");
 
             if (!string.IsNullOrEmpty(logLevelEnv))
@@ -216,8 +103,22 @@ namespace AssemblerWeb
                 { "IdleTrackingMiddleware", Path.Combine(logsDir, "csharp_idletracking.log") }
             };
 
-            Logger.Configure(logLevel, null, consoleOutput: false);
+            // Configure logger (no main log file - only context files)
+            Logger.Configure(logLevel, consoleOutput: false, Logger.LogRotation.HOURLY);
+            
+            // Set logs directory for clearing
+            Logger.SetLogsDirectory(logsDir);
+            
+            // Clear logs in debug mode, clear old logs in production
+            #if DEBUG
+            Logger.ClearLogs();
+            #else
+            Logger.ClearOldLogs(7); // Clear logs older than 7 days
+            #endif
+            
+            // Configure context log files AFTER clearing (which disposes writers)
             Logger.ConfigureContextLogFiles(contextLogFiles);
+            
             Logger.Info("AssemblerWeb starting up", "Program");
 
             #endregion
@@ -246,18 +147,41 @@ namespace AssemblerWeb
             #region Is Debug Checking
 
             var isDebug = Environment.GetEnvironmentVariable("DEBUG") == "true"
-                || Environment.GetEnvironmentVariable("VSCODE_DEBUG") == "true"
-                || Environment.GetEnvironmentVariable("IDLE_TRACKER_DISABLED") == "true";
+                || Environment.GetEnvironmentVariable("VSCODE_DEBUG") == "true";
 #if DEBUG
-        isDebug = true;
+            isDebug = true;
 #endif
 
             #endregion
 
             #region Idle Tracking Middleware
 
+            // Determine if idle tracking should be enabled
+            // Command line args and explicit env vars take precedence
+            bool idleTrackingEnabled;
+            if (skipIdleTracking)
+            {
+                idleTrackingEnabled = false; // --skipIdleTracking flag explicitly disables
+            }
+            else
+            {
+                var idleTrackerDisabledEnv = Environment.GetEnvironmentVariable("IDLE_TRACKER_DISABLED");
+                if (idleTrackerDisabledEnv == "false")
+                {
+                    idleTrackingEnabled = true; // Explicitly enable idle tracking
+                }
+                else if (idleTrackerDisabledEnv == "true")
+                {
+                    idleTrackingEnabled = false; // Explicitly disable idle tracking
+                }
+                else
+                {
+                    idleTrackingEnabled = !isDebug; // Default: disable in debug mode
+                }
+            }
+
             // Idle Tracking Middleware
-            if ((!isDebug) && (!skipIdleTracking))
+            if (idleTrackingEnabled)
             {
                 Console.WriteLine("[IdleTracking] Idle tracking ENABLED");
                 var idleSecondsEnv = Environment.GetEnvironmentVariable("IDLE_SECONDS");
@@ -268,6 +192,12 @@ namespace AssemblerWeb
                 var appLifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
                 IdleTrackingMiddleware.StartTimer(appLifetime);
                 app.Use((context, next) => IdleTrackingMiddleware.InvokeAsync(context, next, appLifetime));
+                
+                // Register shutdown handler for idle tracking
+                appLifetime.ApplicationStopping.Register(() =>
+                {
+                    IdleTrackingMiddleware.Shutdown();
+                });
             }
             else
             {
@@ -316,6 +246,19 @@ namespace AssemblerWeb
             app.MapAssemblerTestEndpoints();
 
             #endregion
+
+            // Register application lifetime events for logging
+            var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+            lifetime.ApplicationStopping.Register(() =>
+            {
+                Logger.Info("AssemblerWeb shutting down...", "Main");
+                Logger.Flush();
+            });
+            lifetime.ApplicationStopped.Register(() =>
+            {
+                Logger.Info("AssemblerWeb stopped", "Main");
+                Logger.Flush();
+            });
            
             app.Run();
         }

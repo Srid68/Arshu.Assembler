@@ -8,10 +8,10 @@ require_once __DIR__ . '/../Assembler/vendor/autoload.php';
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/../Assembler/src/Model/ModelPreProcess.php';
 require_once __DIR__ . '/../Assembler/src/Api/ApiResponse.php';
-require_once __DIR__ . '/MergeRequest.php';
-require_once __DIR__ . '/IdleTrackingMiddleware.php';
-require_once __DIR__ . '/assemblerEndpoint.php';
-require_once __DIR__ . '/assemblerTestEndpoint.php';
+require_once __DIR__ . '/model/MergeRequest.php';
+require_once __DIR__ . '/services/IdleTrackingMiddleware.php';
+require_once __DIR__ . '/endpoint/assemblerEndpoint.php';
+require_once __DIR__ . '/endpoint/assemblerTestEndpoint.php';
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as ServerRequest;
@@ -28,7 +28,7 @@ use Assembler\Common\Logger;
 use Assembler\Config\ConfigUtil;
 
 // Configure logger with context-specific log files
-$logRotation = Logger::ROTATION_NONE;
+$logRotation = Logger::ROTATION_HOURLY;
 $projectDirectory = __DIR__;
 $assemblerWebDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
 
@@ -50,7 +50,53 @@ $contextLogFiles = [
     'ConfigUtil' => $logsDir . DIRECTORY_SEPARATOR . 'php_configutil.log',
 ];
 
-Logger::configure(Logger::DEBUG, null, false, $logRotation);
+Logger::configure(Logger::DEBUG, false, $logRotation);
+Logger::setLogsDirectory($logsDir);
+
+// Clear logs only once per server start using a marker file persisted on disk
+$logInitMarker = $logsDir . DIRECTORY_SEPARATOR . '.logs_initialized';
+$isDebugEnv = getenv('DEBUG') === 'true'
+    || getenv('VSCODE_DEBUG') === 'true'
+    || getenv('APP_ENV') === 'development'
+    || extension_loaded('xdebug');
+
+$currentPid = function_exists('getmypid') ? getmypid() : null;
+$markerData = null;
+
+if (file_exists($logInitMarker)) {
+    $existingMarker = @file_get_contents($logInitMarker);
+    if ($existingMarker !== false) {
+        $decoded = json_decode($existingMarker, true);
+        if (is_array($decoded)) {
+            $markerData = $decoded;
+        }
+    }
+}
+
+$shouldInitialiseLogs = true;
+if ($markerData !== null) {
+    if ($currentPid !== null && isset($markerData['pid']) && $markerData['pid'] === $currentPid) {
+        $shouldInitialiseLogs = false;
+    }
+}
+
+if ($shouldInitialiseLogs) {
+    if ($isDebugEnv) {
+        Logger::clearLogs();
+    } else {
+        Logger::clearOldLogs(7);
+    }
+
+    $markerPayload = [
+        'pid' => $currentPid,
+        'timestamp' => time(),
+        'debug' => $isDebugEnv,
+    ];
+
+    @file_put_contents($logInitMarker, json_encode($markerPayload));
+}
+
+// Ensure context log files exist every request (important when marker already present)
 Logger::configureContextLogFiles($contextLogFiles);
 
 // Load ConfigUtil with wwwroot path (after Logger is configured)
@@ -77,33 +123,64 @@ $app->addErrorMiddleware(true, true, true);
 
 // Configure and add idle tracking middleware
 // Check if running in debug mode via environment variables or CLI
-$skipIdleTracking = in_array('--skipIdleTracking', $argv ?? []);
 $isDebug = getenv('DEBUG') === 'true'
     || getenv('VSCODE_DEBUG') === 'true'
-    || getenv('IDLE_TRACKER_DISABLED') === 'true'
-    || getenv('APP_ENV') === 'development'
-    || $skipIdleTracking;
+    || getenv('APP_ENV') === 'development';
 
 // Also check if Xdebug extension is loaded (indicates development environment)
 if (extension_loaded('xdebug')) {
     $isDebug = true;
 }
 
-Logger::info('Debug mode: ' . ($isDebug ? 'enabled' : 'disabled'), 'Index');
-
-if (!$isDebug) {
-    $idleSeconds = getenv('IDLE_SHUTDOWN_SECONDS') ?: 10;
-    $idleSeconds = is_numeric($idleSeconds) ? (int)$idleSeconds : 10;
-    IdleTrackingMiddleware::configure($idleSeconds);
-    $app->add(new IdleTrackingMiddleware());
-    Logger::info("Idle tracking enabled with {$idleSeconds} seconds timeout", 'Index');
+// Determine if idle tracking should be enabled
+// Command line args and explicit env vars take precedence
+$skipIdleTrackingArg = in_array('--skipIdleTracking', $argv ?? []);
+if ($skipIdleTrackingArg) {
+    $idleTrackingEnabled = false; // --skipIdleTracking flag explicitly disables
 } else {
-    Logger::info('Idle tracking disabled in debug mode', 'Index');
+    $idleTrackerDisabledEnv = getenv('IDLE_TRACKER_DISABLED');
+    if ($idleTrackerDisabledEnv === 'false') {
+        $idleTrackingEnabled = true; // Explicitly enable idle tracking
+    } elseif ($idleTrackerDisabledEnv === 'true') {
+        $idleTrackingEnabled = false; // Explicitly disable idle tracking
+    } else {
+        $idleTrackingEnabled = !$isDebug; // Default: disable in debug mode
+    }
 }
 
+Logger::info('Debug mode: ' . ($isDebug ? 'enabled' : 'disabled'), 'Index');
+
+if ($idleTrackingEnabled) {
+    $idleSeconds = getenv('IDLE_SHUTDOWN_SECONDS') ?: 10;
+    $idleSeconds = is_numeric($idleSeconds) ? (int)$idleSeconds : 10;
+    
+    // Configure idle tracking only once per process (logging, PID file)
+    static $idleTrackingConfigured = false;
+    if (!$idleTrackingConfigured) {
+        IdleTrackingMiddleware::configure($idleSeconds);
+        Logger::info("Idle tracking enabled with {$idleSeconds} seconds timeout", 'Index');
+        
+        // Write server PID file so monitor knows what process to track
+        $tmpDir = $projectDirectory . DIRECTORY_SEPARATOR . 'tmp';
+        $pidFile = $tmpDir . DIRECTORY_SEPARATOR . 'php_assembler_server_pid.txt';
+        file_put_contents($pidFile, getmypid());
+        
+        $idleTrackingConfigured = true;
+    }
+    
+    // Add middleware to app on every request (since $app is recreated)
+    $app->add(new IdleTrackingMiddleware());
+    
+    // Note: No shutdown handler needed - the IdleTrackingMonitor process handles shutdown
+} else {
+    Logger::info('Idle tracking disabled (debug mode or explicitly disabled)', 'Index');
+}
+
+Logger::info('Setting up routes...', 'Index');
+
 // GET / - Root endpoint
-$app->get('/', function (ServerRequest $request, Response $response) {
-    return AssemblerEndpoint::indexEndpoint($request, $response);
+$app->get('/', function (ServerRequest $request, Response $response) use ($projectDirectory) {
+    return AssemblerEndpoint::indexEndpoint($request, $response, $projectDirectory);
 })->setName('GetRootUrl');
 
 // GET /api/scenarios - Get all scenarios

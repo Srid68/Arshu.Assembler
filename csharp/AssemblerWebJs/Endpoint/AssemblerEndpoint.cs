@@ -52,10 +52,58 @@ namespace AssemblerWebJs
 
     public static class AssemblerEndpoint
     {
+        #region Constants
+
         public const string DefaultAppSite = "Test";
 
+        // Maximum parameter length to prevent DoS attacks
+        private const int ParamMaxLength = 256;
+
+        #endregion
+
+        #region Validations
+
+        // Valid engine types allowlist
+        private static readonly HashSet<string> ValidEngineTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Normal", "PreProcess"
+        };
+
+        /// <summary>
+        /// Gets the valid AppSites from TemplateConfig. Throws if not loaded.
+        /// </summary>
+        private static HashSet<string> GetValidAppSites()
+        {
+            return ConfigUtil.GetAppSites();
+        }
+
+        /// <summary>
+        /// Validates if a path component is safe (no traversal, invalid chars, or excessive length)
+        /// </summary>
+        private static bool IsValidPathComponent(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            // Check parameter length to prevent DoS
+            if (value.Length > ParamMaxLength)
+                return false;
+
+            // Check for path traversal attempts
+            if (value.Contains("..") || value.Contains("/") || value.Contains("\\"))
+                return false;
+
+            // Check for other suspicious characters
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            if (value.Any(c => invalidChars.Contains(c)))
+                return false;
+
+            return true;
+        }
+
+        #endregion
+
         public static void MapAssemblerEndpoints(this WebApplication app)
-        // POST endpoint for merging templates
         {
             var assemblerGroup = app.MapGroup("")
                 .WithTags("Assembler");
@@ -75,12 +123,12 @@ namespace AssemblerWebJs
                 if (!string.IsNullOrEmpty(requestedAppSite))
                 {
                     // Validate AppSite against allowlist
-                    var validAppSites = SecurityValidator.GetValidAppSites();
+                    var validAppSites = GetValidAppSites();
                     if (!validAppSites.Contains(requestedAppSite))
                         return Results.BadRequest("Invalid AppSite value");
 
                     // Validate path components for path traversal attacks
-                    if (!SecurityValidator.IsValidPathComponent(requestedAppSite))
+                    if (!IsValidPathComponent(requestedAppSite))
                         return Results.BadRequest("Invalid characters in AppSite");
 
                     // Get AppFile from scenarios
@@ -104,7 +152,7 @@ namespace AssemblerWebJs
                 }
 
                 // Validate EngineType against allowlist
-                if (!SecurityValidator.ValidEngineTypes.Contains(engineType))
+                if (!ValidEngineTypes.Contains(engineType))
                     return Results.BadRequest("Invalid engine type. Use 'Normal' or 'PreProcess'");
 
                 // Load templates for requested AppSite
@@ -185,8 +233,8 @@ namespace AssemblerWebJs
                     { "EnginePreProcess", Path.Combine(logsDir, "csharp_enginepreprocess.log") }
                 };
 
-                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
-                Logger.ConfigureContextLogFiles(contextLogFiles);
+                Logger.Configure(Logger.LogLevel.DEBUG, false, Logger.LogRotation.HOURLY);
+                Logger.AddContextLogFiles(contextLogFiles);
 
                 try
                 {
@@ -202,19 +250,19 @@ namespace AssemblerWebJs
                     string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
 
                     // Validate AppSite against allowlist loaded from appsites.csv
-                    var validAppSites = SecurityValidator.GetValidAppSites();
+                    var validAppSites = GetValidAppSites();
                     if (!validAppSites.Contains(input.AppSite))
                         return Results.BadRequest("Invalid AppSite value");
 
                     // Validate EngineType against allowlist
-                    if (!SecurityValidator.ValidEngineTypes.Contains(input.EngineType))
+                    if (!ValidEngineTypes.Contains(input.EngineType))
                         return Results.BadRequest("Invalid EngineType value");
 
                     // Validate path components for path traversal attacks
-                    if (!SecurityValidator.IsValidPathComponent(input.AppSite))
+                    if (!IsValidPathComponent(input.AppSite))
                         return Results.BadRequest("Invalid characters in AppSite");
 
-                    if (!string.IsNullOrEmpty(input.AppView) && !SecurityValidator.IsValidPathComponent(input.AppView))
+                    if (!string.IsNullOrEmpty(input.AppView) && !IsValidPathComponent(input.AppView))
                         return Results.BadRequest("Invalid characters in AppView");
 
                     // Get AppFile from scenarios
@@ -345,8 +393,8 @@ namespace AssemblerWebJs
                         { "LoaderPreProcess", Path.Combine(logsDir, "csharp_loaderpreprocess.log") }
                     };
 
-                Logger.Configure(Logger.LogLevel.DEBUG, null, false);
-                Logger.ConfigureContextLogFiles(contextLogFiles);
+                Logger.Configure(Logger.LogLevel.DEBUG, false, Logger.LogRotation.HOURLY);
+                Logger.AddContextLogFiles(contextLogFiles);
 
                 try
                 {
@@ -375,12 +423,12 @@ namespace AssemblerWebJs
                         return Results.Text("Missing appsite parameter", statusCode: 400);
 
                     // Validate AppSite against allowlist loaded from appsites.csv
-                    var validAppSites = SecurityValidator.GetValidAppSites();
+                    var validAppSites = GetValidAppSites();
                     if (!validAppSites.Contains(appSite))
                         return Results.Text("Invalid AppSite value", statusCode: 400);
 
                     // Validate path components for path traversal attacks
-                    if (!SecurityValidator.IsValidPathComponent(appSite))
+                    if (!IsValidPathComponent(appSite))
                         return Results.Text("Invalid characters in AppSite", statusCode: 400);
                   
                     // Load Normal templates

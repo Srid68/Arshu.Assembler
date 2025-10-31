@@ -38,82 +38,48 @@ var logLevelNames = map[LogLevel]string{
 }
 
 var logLevelColors = map[LogLevel]string{
-	DEBUG: "\033[90m",  // Gray
-	INFO:  "\033[97m",  // White
-	WARN:  "\033[93m",  // Yellow
-	ERROR: "\033[91m",  // Red
+	DEBUG: "\033[90m", // Gray
+	INFO:  "\033[97m", // White
+	WARN:  "\033[93m", // Yellow
+	ERROR: "\033[91m", // Red
 }
 
 const colorReset = "\033[0m"
 
 // Logger is a simple custom logger for consistent logging across all language implementations
 type LoggerType struct {
-	currentLogLevel   LogLevel
-	logFilePath       string
-	consoleOutput     bool
-	mutex             sync.Mutex
-	logRotation       LogRotation
-	baseLogFilePath   string
+	currentLogLevel    LogLevel
+	logFilePath        string
+	consoleOutput      bool
+	mutex              sync.Mutex
+	logRotation        LogRotation
+	logsDirectory      string
 	currentRotatedPath string
-	contextLogFiles   map[string]string
+	contextLogFiles    map[string]string
 }
 
 var globalLogger = &LoggerType{
 	currentLogLevel: INFO,
 	consoleOutput:   true,
+	logRotation:     ROTATION_HOURLY,
 	contextLogFiles: make(map[string]string),
 }
 
-// Configure sets up the logger with the specified level, file path, and console output
-func Configure(level LogLevel, logFilePath string, consoleOutput bool, rotation LogRotation) {
+// Configure sets up the logger (no log file path - use SetLogsDirectory instead)
+func Configure(level LogLevel, consoleOutput bool, rotation LogRotation) {
 	globalLogger.mutex.Lock()
 	defer globalLogger.mutex.Unlock()
 
 	globalLogger.currentLogLevel = level
-	globalLogger.baseLogFilePath = logFilePath
 	globalLogger.consoleOutput = consoleOutput
 	globalLogger.logRotation = rotation
-
-	// Generate the initial rotated path
-	globalLogger.currentRotatedPath = getRotatedFilePath()
-	globalLogger.logFilePath = globalLogger.currentRotatedPath
-
-	// Create or clear log file if specified
-	if globalLogger.logFilePath != "" {
-		timestamp := time.Now().Format("2006-01-02 15:04:05")
-		header := fmt.Sprintf("=== Log started at %s ===\n", timestamp)
-		err := os.WriteFile(globalLogger.logFilePath, []byte(header), 0644)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to initialize log file: %v\n", err)
-		}
-	}
 }
 
-// getRotatedFilePath generates the rotated file path based on rotation setting
-func getRotatedFilePath() string {
-	if globalLogger.baseLogFilePath == "" {
-		return ""
-	}
-
-	if globalLogger.logRotation == ROTATION_NONE {
-		return globalLogger.baseLogFilePath
-	}
-
-	dir := filepath.Dir(globalLogger.baseLogFilePath)
-	ext := filepath.Ext(globalLogger.baseLogFilePath)
-	nameWithoutExt := strings.TrimSuffix(filepath.Base(globalLogger.baseLogFilePath), ext)
-
-	now := time.Now()
-	var suffix string
-
-	if globalLogger.logRotation == ROTATION_HOURLY {
-		suffix = now.Format("2006-01-02_15")
-	} else { // ROTATION_DAILY
-		suffix = now.Format("2006-01-02")
-	}
-
-	rotatedFileName := fmt.Sprintf("%s_%s%s", nameWithoutExt, suffix, ext)
-	return filepath.Join(dir, rotatedFileName)
+// SetLogsDirectory sets the logs directory - the ONLY way to specify where logs are stored
+func SetLogsDirectory(logsDirectory string) {
+	globalLogger.mutex.Lock()
+	defer globalLogger.mutex.Unlock()
+	globalLogger.logsDirectory = logsDirectory
 }
 
 // SetLogLevel sets the current log level
@@ -189,8 +155,7 @@ func log(level LogLevel, message string, context string) {
 		fmt.Printf("%s%s%s\n", color, logLine, colorReset)
 	}
 
-	// File output with rotation check
-	// First, check if there's a context-specific log file
+	// File output - check if there's a context-specific log file
 	if context != "" {
 		if contextPath, ok := globalLogger.contextLogFiles[context]; ok {
 			file, err := os.OpenFile(contextPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -202,27 +167,11 @@ func log(level LogLevel, message string, context string) {
 		}
 	}
 
-	if globalLogger.baseLogFilePath != "" {
-		// Check if we need to rotate to a new file
-		newRotatedPath := getRotatedFilePath()
-		if newRotatedPath != globalLogger.currentRotatedPath {
-			globalLogger.currentRotatedPath = newRotatedPath
-			globalLogger.logFilePath = newRotatedPath
-
-			// Write header to new rotated file
-			if _, err := os.Stat(globalLogger.logFilePath); os.IsNotExist(err) {
-				timestamp := time.Now().Format("2006-01-02 15:04:05")
-				header := fmt.Sprintf("=== Log started at %s ===\n", timestamp)
-				os.WriteFile(globalLogger.logFilePath, []byte(header), 0644)
-			}
-		}
-
-		if globalLogger.logFilePath != "" {
-			file, err := os.OpenFile(globalLogger.logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err == nil {
-				file.WriteString(logLine + "\n")
-				file.Close()
-			}
+	if globalLogger.logFilePath != "" {
+		file, err := os.OpenFile(globalLogger.logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err == nil {
+			file.WriteString(logLine + "\n")
+			file.Close()
 		}
 	}
 }
@@ -248,6 +197,58 @@ func DisableFileLogging() {
 	globalLogger.logFilePath = ""
 }
 
+// ClearLogs deletes all log files in the logs directory
+func ClearLogs() {
+	globalLogger.mutex.Lock()
+	defer globalLogger.mutex.Unlock()
+
+	if globalLogger.logsDirectory == "" {
+		return
+	}
+
+	entries, err := os.ReadDir(globalLogger.logsDirectory)
+	if err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() && filepath.Ext(entry.Name()) == ".log" {
+				os.Remove(filepath.Join(globalLogger.logsDirectory, entry.Name()))
+			}
+		}
+	}
+}
+
+// ClearOldLogs deletes log files older than the specified number of days
+func ClearOldLogs(days int) {
+	globalLogger.mutex.Lock()
+	defer globalLogger.mutex.Unlock()
+
+	if globalLogger.logsDirectory == "" {
+		return
+	}
+
+	cutoff := time.Now().AddDate(0, 0, -days)
+	entries, err := os.ReadDir(globalLogger.logsDirectory)
+	if err != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		fileName := entry.Name()
+		if !strings.HasSuffix(fileName, ".log") {
+			continue
+		}
+
+		fullPath := filepath.Join(globalLogger.logsDirectory, fileName)
+		info, err := os.Stat(fullPath)
+		if err == nil && info.ModTime().Before(cutoff) {
+			os.Remove(fullPath)
+		}
+	}
+}
+
 // EnableConsoleOutput enables console output
 func EnableConsoleOutput() {
 	globalLogger.mutex.Lock()
@@ -262,7 +263,7 @@ func DisableConsoleOutput() {
 	globalLogger.consoleOutput = false
 }
 
-// ConfigureContextLogFiles configures context-specific log files
+// ConfigureContextLogFiles configures context-specific log files (replaces all existing contexts)
 func ConfigureContextLogFiles(contextLogFiles map[string]string) {
 	globalLogger.mutex.Lock()
 	defer globalLogger.mutex.Unlock()
@@ -280,11 +281,56 @@ func ConfigureContextLogFiles(contextLogFiles map[string]string) {
 			os.MkdirAll(dir, 0755)
 		}
 
-		timestamp := time.Now().Format("2006-01-02 15:04:05")
-		header := fmt.Sprintf("=== Log started at %s [%s] ===\n", timestamp, context)
-		err := os.WriteFile(path, []byte(header), 0644)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to initialize log file for context %s: %v\n", context, err)
+		// Only write header if file doesn't exist (don't overwrite)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			timestamp := time.Now().Format("2006-01-02 15:04:05")
+			header := fmt.Sprintf("=== Log started at %s [%s] ===\n", timestamp, context)
+			err := os.WriteFile(path, []byte(header), 0644)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to initialize log file for context %s: %v\n", context, err)
+			}
 		}
+	}
+}
+
+// AddContextLogFiles adds context-specific log files (merges with existing contexts)
+func AddContextLogFiles(contextLogFiles map[string]string) {
+	globalLogger.mutex.Lock()
+	defer globalLogger.mutex.Unlock()
+
+	// Add or update each context
+	for context, path := range contextLogFiles {
+		// Skip if already configured with same path
+		if existingPath, exists := globalLogger.contextLogFiles[context]; exists && existingPath == path {
+			continue
+		}
+
+		// Create directory if it doesn't exist
+		dir := filepath.Dir(path)
+		if dir != "" {
+			os.MkdirAll(dir, 0755)
+		}
+
+		// Only write header if file doesn't exist (don't overwrite)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			timestamp := time.Now().Format("2006-01-02 15:04:05")
+			header := fmt.Sprintf("=== Log started at %s [%s] ===\n", timestamp, context)
+			err := os.WriteFile(path, []byte(header), 0644)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to add log file for context %s: %v\n", context, err)
+			}
+		}
+
+		globalLogger.contextLogFiles[context] = path
+	}
+}
+
+// RemoveContextLogFiles removes specific context log files
+func RemoveContextLogFiles(contexts ...string) {
+	globalLogger.mutex.Lock()
+	defer globalLogger.mutex.Unlock()
+
+	for _, context := range contexts {
+		delete(globalLogger.contextLogFiles, context)
 	}
 }

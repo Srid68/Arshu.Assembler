@@ -30,54 +30,54 @@ namespace Assembler.Common
         private static string? _logFilePath = null;
         private static bool _consoleOutput = true;
         private static readonly object _lock = new object();
-        private static LogRotation _logRotation = LogRotation.NONE;
-        private static string? _baseLogFilePath = null;
-        private static string? _currentRotatedPath = null;
+        private static LogRotation _logRotation = LogRotation.HOURLY;
+        private static string? _logsDirectory = null; // Directory for scanning/clearing logs
 
-        // Support for context-specific log files
+        // Support for context-specific log files with persistent StreamWriters
         private static Dictionary<string, string> _contextLogFiles = new Dictionary<string, string>();
         private static Dictionary<string, string> _contextRotatedPaths = new Dictionary<string, string>();
+        private static Dictionary<string, StreamWriter> _contextWriters = new Dictionary<string, StreamWriter>();
 
         /// <summary>
-        /// Configure the logger
+        /// Configure the logger (no log file path - use SetLogsDirectory instead)
         /// </summary>
-        public static void Configure(LogLevel level, string? logFilePath = null, bool consoleOutput = true, LogRotation rotation = LogRotation.NONE)
+        public static void Configure(LogLevel level, bool consoleOutput = true, LogRotation rotation = LogRotation.HOURLY)
         {
             _currentLogLevel = level;
-            _baseLogFilePath = logFilePath;
             _consoleOutput = consoleOutput;
             _logRotation = rotation;
+        }
 
-            // Generate the initial rotated path
-            _currentRotatedPath = GetRotatedFilePath();
-            _logFilePath = _currentRotatedPath;
-
-            // Create or clear log file if specified
-            if (_logFilePath != null)
+        /// <summary>
+        /// Set the logs directory - the ONLY way to specify where logs are stored
+        /// </summary>
+        public static void SetLogsDirectory(string logsDirectory)
+        {
+            lock (_lock)
             {
-                try
-                {
-                    File.WriteAllText(_logFilePath, $"=== Log started at {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===\n");
-                }
-                catch (Exception ex)
-                {
-                    Console.Error.WriteLine($"Failed to initialize log file: {ex.Message}");
-                }
+                _logsDirectory = logsDirectory;
             }
         }
 
         /// <summary>
-        /// Configure context-specific log files
+        /// Configure context-specific log files (replaces all existing contexts)
         /// </summary>
         public static void ConfigureContextLogFiles(Dictionary<string, string> contextLogFiles)
         {
             lock (_lock)
             {
-                _contextLogFiles = new Dictionary<string, string>(contextLogFiles);
+                // Close existing writers
+                foreach (var writer in _contextWriters.Values)
+                {
+                    writer?.Flush();
+                    writer?.Dispose();
+                }
+                _contextWriters.Clear();
+                _contextLogFiles.Clear();
                 _contextRotatedPaths.Clear();
 
-                // Initialize each context log file
-                foreach (var kvp in _contextLogFiles)
+                // Initialize each context log file with persistent StreamWriter
+                foreach (var kvp in contextLogFiles)
                 {
                     try
                     {
@@ -86,12 +86,209 @@ namespace Assembler.Common
                         {
                             Directory.CreateDirectory(directory);
                         }
-                        File.WriteAllText(kvp.Value, $"=== Log started at {DateTime.Now:yyyy-MM-dd HH:mm:ss} [{kvp.Key}] ===\n");
+                        
+                        // Only write header if file doesn't exist (don't overwrite)
+                        bool fileExists = File.Exists(kvp.Value);
+                        
+                        // Create StreamWriter with AutoFlush enabled
+                        var writer = new StreamWriter(kvp.Value, append: true)
+                        {
+                            AutoFlush = true
+                        };
+                        _contextWriters[kvp.Key] = writer;
+                        _contextLogFiles[kvp.Key] = kvp.Value;
+                        
+                        if (!fileExists)
+                        {
+                            writer.WriteLine($"=== Log started at {DateTime.Now:yyyy-MM-dd HH:mm:ss} [{kvp.Key}] ===");
+                        }
+                        
                         _contextRotatedPaths[kvp.Key] = kvp.Value;
                     }
                     catch (Exception ex)
                     {
                         Console.Error.WriteLine($"Failed to initialize log file for context {kvp.Key}: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Add context-specific log files (merges with existing contexts)
+        /// </summary>
+        public static void AddContextLogFiles(Dictionary<string, string> contextLogFiles)
+        {
+            lock (_lock)
+            {
+                foreach (var kvp in contextLogFiles)
+                {
+                    try
+                    {
+                        // Skip if already configured with same path
+                        if (_contextLogFiles.ContainsKey(kvp.Key) && _contextLogFiles[kvp.Key] == kvp.Value)
+                        {
+                            continue;
+                        }
+
+                        // Close old writer if exists
+                        if (_contextWriters.ContainsKey(kvp.Key))
+                        {
+                            _contextWriters[kvp.Key]?.Flush();
+                            _contextWriters[kvp.Key]?.Dispose();
+                            _contextWriters.Remove(kvp.Key);
+                        }
+
+                        var directory = Path.GetDirectoryName(kvp.Value);
+                        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                        {
+                            Directory.CreateDirectory(directory);
+                        }
+                        
+                        bool fileExists = File.Exists(kvp.Value);
+                        
+                        var writer = new StreamWriter(kvp.Value, append: true)
+                        {
+                            AutoFlush = true
+                        };
+                        _contextWriters[kvp.Key] = writer;
+                        _contextLogFiles[kvp.Key] = kvp.Value;
+                        
+                        if (!fileExists)
+                        {
+                            writer.WriteLine($"=== Log started at {DateTime.Now:yyyy-MM-dd HH:mm:ss} [{kvp.Key}] ===");
+                        }
+                        
+                        _contextRotatedPaths[kvp.Key] = kvp.Value;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"Failed to add log file for context {kvp.Key}: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Remove specific context log files
+        /// </summary>
+        public static void RemoveContextLogFiles(params string[] contexts)
+        {
+            lock (_lock)
+            {
+                foreach (var context in contexts)
+                {
+                    if (_contextWriters.ContainsKey(context))
+                    {
+                        _contextWriters[context]?.Flush();
+                        _contextWriters[context]?.Dispose();
+                        _contextWriters.Remove(context);
+                    }
+                    _contextLogFiles.Remove(context);
+                    _contextRotatedPaths.Remove(context);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Clear all log files (for development mode)
+        /// </summary>
+        public static void ClearLogs()
+        {
+            lock (_lock)
+            {
+                // Close and dispose all StreamWriters first
+                foreach (var writer in _contextWriters.Values)
+                {
+                    try
+                    {
+                        writer?.Flush();
+                        writer?.Dispose();
+                    }
+                    catch { }
+                }
+                _contextWriters.Clear();
+
+                // Clear main log file
+                if (_logFilePath != null && File.Exists(_logFilePath))
+                {
+                    try { File.Delete(_logFilePath); } catch { }
+                }
+
+                // Clear context-specific log files
+                foreach (var kvp in _contextLogFiles)
+                {
+                    if (File.Exists(kvp.Value))
+                    {
+                        try { File.Delete(kvp.Value); } catch { }
+                    }
+                }
+
+                // Also clear all .log files in the logs directory (for DEBUG mode)
+                if (_logsDirectory != null && Directory.Exists(_logsDirectory))
+                {
+                    try
+                    {
+                        var logFiles = Directory.GetFiles(_logsDirectory, "*.log");
+                        foreach (var logFile in logFiles)
+                        {
+                            try { File.Delete(logFile); } catch { }
+                        }
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Clear old log files older than specified days
+        /// </summary>
+        public static void ClearOldLogs(int days)
+        {
+            if (days <= 0) return;
+
+            var cutoffDate = DateTime.Now.AddDays(-days);
+
+            lock (_lock)
+            {
+                // Clear old main log files
+                if (_logsDirectory != null && Directory.Exists(_logsDirectory))
+                {
+                    try
+                    {
+                        foreach (var file in Directory.GetFiles(_logsDirectory, "*.log"))
+                        {
+                            var fileInfo = new FileInfo(file);
+                            if (fileInfo.LastWriteTime < cutoffDate)
+                            {
+                                try { File.Delete(file); } catch { }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // Clear old context-specific log files
+                foreach (var kvp in _contextLogFiles)
+                {
+                    var directory = Path.GetDirectoryName(kvp.Value);
+                    if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+                    {
+                        var fileName = Path.GetFileNameWithoutExtension(kvp.Value);
+                        var extension = Path.GetExtension(kvp.Value);
+                        var pattern = $"{fileName}_*{extension}";
+                        
+                        try
+                        {
+                            foreach (var file in Directory.GetFiles(directory, pattern))
+                            {
+                                var fileInfo = new FileInfo(file);
+                                if (fileInfo.LastWriteTime < cutoffDate)
+                                {
+                                    try { File.Delete(file); } catch { }
+                                }
+                            }
+                        }
+                        catch { }
                     }
                 }
             }
@@ -146,23 +343,32 @@ namespace Assembler.Common
         }
 
         /// <summary>
-        /// Generate the rotated file path based on rotation setting
+        /// Generate the rotated file path based on the rotation setting (not used since we don't have main log file)
         /// </summary>
-        private static string? GetRotatedFilePath()
+        private static string GetRotatedFilePath()
         {
-            if (_baseLogFilePath == null)
+            // No main log file - only context files
+            return "";
+        }
+
+        /// <summary>
+        /// Get the rotated file path for a context log file
+        /// </summary>
+        private static string GetRotatedFilePathForContext(string contextLogPath)
+        {
+            if (string.IsNullOrEmpty(contextLogPath))
             {
-                return null;
+                return "";
             }
 
             if (_logRotation == LogRotation.NONE)
             {
-                return _baseLogFilePath;
+                return contextLogPath;
             }
 
-            var directory = Path.GetDirectoryName(_baseLogFilePath) ?? "";
-            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(_baseLogFilePath);
-            var extension = Path.GetExtension(_baseLogFilePath);
+            var directory = Path.GetDirectoryName(contextLogPath) ?? "";
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(contextLogPath);
+            var extension = Path.GetExtension(contextLogPath);
 
             var now = DateTime.Now;
             string suffix;
@@ -221,46 +427,21 @@ namespace Assembler.Common
 
                 // File output with rotation check
                 // First, check if there's a context-specific log file
-                if (context != null && _contextLogFiles.ContainsKey(context))
+                if (context != null && _contextWriters.ContainsKey(context))
                 {
                     try
                     {
-                        var contextLogFile = _contextLogFiles[context];
-                        File.AppendAllText(contextLogFile, logLine + "\n");
+                        var writer = _contextWriters[context];
+                        writer.WriteLine(logLine);
+                        writer.Flush(); // Explicit flush in addition to AutoFlush
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Silently fail to avoid recursive logging issues
+                        // Log to console so we can see what's wrong
+                        Console.Error.WriteLine($"[Logger ERROR] Failed to write to context log '{context}': {ex.Message}");
                     }
                 }
-                else if (_baseLogFilePath != null)
-                {
-                    try
-                    {
-                        // Check if we need to rotate to a new file
-                        var newRotatedPath = GetRotatedFilePath();
-                        if (newRotatedPath != _currentRotatedPath)
-                        {
-                            _currentRotatedPath = newRotatedPath;
-                            _logFilePath = _currentRotatedPath;
-
-                            // Write header to new rotated file
-                            if (_logFilePath != null && !File.Exists(_logFilePath))
-                            {
-                                File.WriteAllText(_logFilePath, $"=== Log started at {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===\n");
-                            }
-                        }
-
-                        if (_logFilePath != null)
-                        {
-                            File.AppendAllText(_logFilePath, logLine + "\n");
-                        }
-                    }
-                    catch
-                    {
-                        // Silently fail to avoid recursive logging issues
-                    }
-                }
+                // No main log file - only context files are used
             }
         }
 
@@ -305,6 +486,27 @@ namespace Assembler.Common
         public static void DisableConsoleOutput()
         {
             _consoleOutput = false;
+        }
+
+        /// <summary>
+        /// Flush any pending logs
+        /// </summary>
+        public static void Flush()
+        {
+            lock (_lock)
+            {
+                foreach (var writer in _contextWriters.Values)
+                {
+                    try
+                    {
+                        writer?.Flush();
+                    }
+                    catch
+                    {
+                        // Silently fail
+                    }
+                }
+            }
         }
     }
 }

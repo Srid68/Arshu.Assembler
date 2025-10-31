@@ -1,4 +1,4 @@
-package main
+package endpoint
 
 import (
 	"fmt"
@@ -20,6 +20,78 @@ import (
 
 const DefaultAppSite = "Test"
 
+// Maximum parameter length to prevent DoS attacks
+const paramMaxLength = 256
+
+// ValidEngineTypes is the allowlist of valid engine types
+var validEngineTypes = map[string]bool{
+	"Normal":     true,
+	"PreProcess": true,
+}
+
+// GetValidAppSites gets the valid AppSites from ConfigUtil
+func getValidAppSites() (map[string]bool, error) {
+	return config.GetAppSites()
+}
+
+// IsValidPathComponent validates if a path component is safe
+func isValidPathComponent(value *string) bool {
+	if value == nil {
+		return false
+	}
+
+	v := strings.TrimSpace(*value)
+	if v == "" {
+		return false
+	}
+
+	// Check parameter length to prevent DoS
+	if len(v) > paramMaxLength {
+		return false
+	}
+
+	// Check for path traversal attempts
+	if strings.Contains(v, "..") || strings.Contains(v, "/") || strings.Contains(v, "\\") {
+		return false
+	}
+
+	// Check for suspicious characters
+	invalidChars := []rune{'<', '>', ':', '"', '|', '?', '*', '\x00'}
+	for _, char := range v {
+		for _, invalid := range invalidChars {
+			if char == invalid {
+				return false
+			}
+		}
+		// Check for control characters
+		if char < 32 {
+			return false
+		}
+	}
+
+	return true
+}
+
+// IsValidEngineType validates engine type against allowlist (case-insensitive)
+func isValidEngineType(engineType string) bool {
+	for validType := range validEngineTypes {
+		if strings.EqualFold(validType, engineType) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsValidAppSite validates app_site against allowlist (case-insensitive)
+func isValidAppSite(appSite string, validAppSites map[string]bool) bool {
+	for validSite := range validAppSites {
+		if strings.EqualFold(validSite, appSite) {
+			return true
+		}
+	}
+	return false
+}
+
 // MergeRequest represents the request structure for template merging
 type MergeRequest struct {
 	AppSite    *string `json:"appSite" binding:"required"`
@@ -27,8 +99,8 @@ type MergeRequest struct {
 	EngineType *string `json:"engineType" binding:"required"`
 }
 
-// index handles the GET / endpoint
-func index(c *gin.Context) {
+// Index handles the GET / endpoint
+func Index(c *gin.Context) {
 	// Get appsite from query parameter or use default
 	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
 	rootDirPath := assemblerWebDirPath
@@ -42,7 +114,7 @@ func index(c *gin.Context) {
 	// If appsite query param is provided, validate it exists in scenarios
 	if requestedAppSite != "" {
 		// Validate AppSite against allowlist
-		validAppSites, err := GetValidAppSites()
+		validAppSites, err := getValidAppSites()
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Failed to get valid AppSites: "+err.Error())
 			return
@@ -61,7 +133,7 @@ func index(c *gin.Context) {
 		}
 
 		// Validate path components for path traversal attacks
-		if !IsValidPathComponent(&requestedAppSite) {
+		if !isValidPathComponent(&requestedAppSite) {
 			c.String(http.StatusBadRequest, "Invalid characters in AppSite")
 			return
 		}
@@ -94,7 +166,7 @@ func index(c *gin.Context) {
 	engineType := c.DefaultQuery("engine", "Normal")
 
 	// Validate EngineType against allowlist
-	if !IsValidEngineType(engineType) {
+	if !isValidEngineType(engineType) {
 		c.String(http.StatusBadRequest, "Invalid engine type. Use 'Normal' or 'PreProcess'")
 		return
 	}
@@ -117,8 +189,8 @@ func index(c *gin.Context) {
 	c.String(http.StatusOK, mergedHtml)
 }
 
-// scenarios handles the GET /api/scenarios endpoint
-func scenarios(c *gin.Context) {
+// Scenarios handles the GET /api/scenarios endpoint
+func Scenarios(c *gin.Context) {
 	allScenarios, err := config.GetScenarios()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error loading scenarios: " + err.Error()})
@@ -147,12 +219,12 @@ func scenarios(c *gin.Context) {
 	c.JSON(http.StatusOK, scenarioDtos)
 }
 
-// mergeTemplates handles the POST /merge endpoint
-func mergeTemplates(c *gin.Context) {
+// MergeTemplates handles the POST /merge endpoint
+func MergeTemplates(c *gin.Context) {
 	// Enable logging for merge operations
 	originalLogLevel := common.GetLogLevel()
 
-	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
+	templateAnalysisDir := filepath.Join(ProjectDirectory, "template_analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 
@@ -163,8 +235,8 @@ func mergeTemplates(c *gin.Context) {
 		"EnginePreProcess": filepath.Join(logsDir, "go_enginepreprocess.log"),
 	}
 
-	common.Configure(common.DEBUG, "", false, common.ROTATION_NONE)
-	common.ConfigureContextLogFiles(contextLogFiles)
+	common.Configure(common.DEBUG, false, common.ROTATION_NONE)
+	common.AddContextLogFiles(contextLogFiles)
 
 	var req MergeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -227,41 +299,41 @@ func mergeTemplates(c *gin.Context) {
 	rootDirPath := assemblerWebDirPath
 
 	// Validate EngineType against allowlist
-	if !IsValidEngineType(*req.EngineType) {
+	if !isValidEngineType(*req.EngineType) {
 		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid EngineType value"})
 		return
 	}
 
 	// Validate AppSite against allowlist from ConfigUtil
-	validAppSites, err := GetValidAppSites()
+	validAppSites, err := getValidAppSites()
 	if err != nil {
 		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get AppSites: " + err.Error()})
 		return
 	}
 
-	if !IsValidAppSite(*req.AppSite, validAppSites) {
+	if !isValidAppSite(*req.AppSite, validAppSites) {
 		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid AppSite value"})
 		return
 	}
 
 	// Validate path components for path traversal attacks
-	if !IsValidPathComponent(req.AppSite) {
+	if !isValidPathComponent(req.AppSite) {
 		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in AppSite"})
 		return
 	}
 
 	// Validate appFile from scenario
-	if !IsValidPathComponent(&appFile) {
+	if !isValidPathComponent(&appFile) {
 		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in AppFile"})
 		return
 	}
 
-	if req.AppView != nil && *req.AppView != "" && !IsValidPathComponent(req.AppView) {
+	if req.AppView != nil && *req.AppView != "" && !isValidPathComponent(req.AppView) {
 		common.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in AppView"})
 		return
@@ -285,7 +357,7 @@ func mergeTemplates(c *gin.Context) {
 	// Save HTML output only if save query parameter is present
 	saveParam := c.Query("save")
 	if strings.EqualFold(saveParam, "true") {
-		outputDir := filepath.Join(projectDirectory, "template_analysis", "output")
+		outputDir := filepath.Join(ProjectDirectory, "template_analysis", "output")
 		os.MkdirAll(outputDir, 0755)
 
 		appViewSuffix := ""
@@ -312,8 +384,8 @@ func mergeTemplates(c *gin.Context) {
 	c.JSON(http.StatusOK, responseObj)
 }
 
-// getTemplates handles the POST /api/templates endpoint
-func getTemplates(c *gin.Context) {
+// GetTemplates handles the POST /api/templates endpoint
+func GetTemplates(c *gin.Context) {
 	var req struct {
 		AppSite string `json:"appSite"`
 	}
@@ -323,7 +395,7 @@ func getTemplates(c *gin.Context) {
 	}
 
 	// Validate AppSite against allowlist loaded from appsites.csv
-	validAppSites, err := GetValidAppSites()
+	validAppSites, err := getValidAppSites()
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Error loading valid AppSites")
 		return
@@ -334,7 +406,7 @@ func getTemplates(c *gin.Context) {
 	}
 
 	// Validate path components for path traversal attacks
-	if !IsValidPathComponent(&req.AppSite) {
+	if !isValidPathComponent(&req.AppSite) {
 		c.String(http.StatusBadRequest, "Invalid characters in AppSite")
 		return
 	}
@@ -400,7 +472,7 @@ func getTemplates(c *gin.Context) {
 	// Check if save query parameter is present
 	saveParam := c.Query("save")
 	if strings.EqualFold(saveParam, "true") {
-		templatesDir := filepath.Join(projectDirectory, "template_analysis", "templates")
+		templatesDir := filepath.Join(ProjectDirectory, "template_analysis", "templates")
 		os.MkdirAll(templatesDir, 0755)
 
 		saveFile := filepath.Join(templatesDir, fmt.Sprintf("go_%s_templates.json", req.AppSite))
@@ -411,7 +483,7 @@ func getTemplates(c *gin.Context) {
 		scenarios := []config.Scenario{
 			{AppSite: req.AppSite, AppFile: "", AppView: ""},
 		}
-		test.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true)
+		test.DumpPreprocessedTemplateStructures(rootDirPath, ProjectDirectory, scenarios, true)
 	}
 
 	c.Header("Content-Type", "application/json")

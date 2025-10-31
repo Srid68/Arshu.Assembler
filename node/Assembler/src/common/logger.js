@@ -47,70 +47,26 @@ class LoggerClass {
         this.currentLogLevel = LogLevel.INFO;
         this.logFilePath = null;
         this.consoleOutput = true;
-        this.logRotation = LogRotation.NONE;
-        this.baseLogFilePath = null;
+        this.logRotation = LogRotation.HOURLY;
+        this.logsDirectory = null;
         this.currentRotatedPath = null;
         this.contextLogFiles = {};
     }
 
     /**
-     * Configure the logger
+     * Configure the logger (no log file path - use setLogsDirectory instead)
      */
-    configure(level, logFilePath = null, consoleOutput = true, rotation = LogRotation.NONE) {
+    configure(level, consoleOutput = true, rotation = LogRotation.NONE) {
         this.currentLogLevel = level;
-        this.baseLogFilePath = logFilePath;
         this.consoleOutput = consoleOutput;
         this.logRotation = rotation;
-
-        // Generate the initial rotated path
-        this.currentRotatedPath = this._getRotatedFilePath();
-        this.logFilePath = this.currentRotatedPath;
-
-        // Create or clear log file if specified
-        if (this.logFilePath) {
-            try {
-                const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                fs.writeFileSync(this.logFilePath, `=== Log started at ${timestamp} ===\n`);
-            } catch (err) {
-                console.error(`Failed to initialize log file: ${err.message}`);
-            }
-        }
     }
 
     /**
-     * Generate the rotated file path based on rotation setting
+     * Set the logs directory - the ONLY way to specify where logs are stored
      */
-    _getRotatedFilePath() {
-        if (!this.baseLogFilePath) {
-            return null;
-        }
-
-        if (this.logRotation === LogRotation.NONE) {
-            return this.baseLogFilePath;
-        }
-
-        const dir = path.dirname(this.baseLogFilePath);
-        const ext = path.extname(this.baseLogFilePath);
-        const nameWithoutExt = path.basename(this.baseLogFilePath, ext);
-
-        const now = new Date();
-        let suffix;
-
-        if (this.logRotation === LogRotation.HOURLY) {
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hour = String(now.getHours()).padStart(2, '0');
-            suffix = `${year}-${month}-${day}_${hour}`;
-        } else { // DAILY
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            suffix = `${year}-${month}-${day}`;
-        }
-
-        const rotatedFileName = `${nameWithoutExt}_${suffix}${ext}`;
-        return path.join(dir, rotatedFileName);
+    setLogsDirectory(logsDirectory) {
+        this.logsDirectory = logsDirectory;
     }
 
     /**
@@ -175,8 +131,7 @@ class LoggerClass {
             console.log(`${color}${logLine}${colorReset}`);
         }
 
-        // File output with rotation check
-        // First, check if there's a context-specific log file
+        // File output - check if there's a context-specific log file
         if (context && this.contextLogFiles[context]) {
             try {
                 fs.appendFileSync(this.contextLogFiles[context], logLine + '\n');
@@ -186,24 +141,9 @@ class LoggerClass {
             }
         }
 
-        if (this.baseLogFilePath) {
+        if (this.logFilePath) {
             try {
-                // Check if we need to rotate to a new file
-                const newRotatedPath = this._getRotatedFilePath();
-                if (newRotatedPath !== this.currentRotatedPath) {
-                    this.currentRotatedPath = newRotatedPath;
-                    this.logFilePath = newRotatedPath;
-
-                    // Write header to new rotated file
-                    if (this.logFilePath && !fs.existsSync(this.logFilePath)) {
-                        const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                        fs.writeFileSync(this.logFilePath, `=== Log started at ${timestamp} ===\n`);
-                    }
-                }
-
-                if (this.logFilePath) {
-                    fs.appendFileSync(this.logFilePath, logLine + '\n');
-                }
+                fs.appendFileSync(this.logFilePath, logLine + '\n');
             } catch {
                 // Silently fail to avoid recursive logging issues
             }
@@ -245,7 +185,78 @@ class LoggerClass {
     }
 
     /**
-     * Configure context-specific log files
+     * Clear all log files in the logs directory
+     */
+    clearLogs() {
+        if (!this.logsDirectory) {
+            return;
+        }
+
+        if (fs.existsSync(this.logsDirectory)) {
+            try {
+                const files = fs.readdirSync(this.logsDirectory);
+                for (const file of files) {
+                    if (file.endsWith('.log')) {
+                        const filePath = path.join(this.logsDirectory, file);
+                        if (fs.statSync(filePath).isFile()) {
+                            fs.unlinkSync(filePath);
+                        }
+                    }
+                }
+            } catch (err) {
+                // Ignore errors
+            }
+        }
+    }
+
+    /**
+     * Clear old log files older than the specified number of days
+     */
+    clearOldLogs(days) {
+        if (!this.logsDirectory) {
+            return;
+        }
+
+        const cutoffTime = Date.now() - (days * 24 * 60 * 60 * 1000);
+        
+        try {
+            const files = fs.readdirSync(this.logsDirectory);
+            
+            for (const fileName of files) {
+                if (!fileName.endsWith('.log')) {
+                    continue;
+                }
+
+                const fullPath = path.join(this.logsDirectory, fileName);
+                const stats = fs.statSync(fullPath);
+                if (stats.isFile() && stats.mtimeMs < cutoffTime) {
+                    fs.unlinkSync(fullPath);
+                }
+            }
+        } catch (err) {
+            // Ignore errors
+        }
+    }
+    /**
+     * Clear old log files older than the specified number of days
+     */
+    clearOldLogs(days) {
+        const cutoffTime = Date.now() - (days * 24 * 60 * 60 * 1000);
+        const filesToCheck = [];
+        
+        // Add main log file pattern
+        if (this.baseLogFilePath) {
+            filesToCheck.push(this.baseLogFilePath);
+        }
+        
+        // Add context log file patterns
+        for (const path of Object.values(this.contextLogFiles)) {
+            filesToCheck.push(path);
+        }
+    }
+
+    /**
+     * Configure context-specific log files (replaces all existing contexts)
      */
     configureContextLogFiles(contextLogFiles) {
         this.contextLogFiles = { ...contextLogFiles };
@@ -258,11 +269,53 @@ class LoggerClass {
                     fs.mkdirSync(dir, { recursive: true });
                 }
 
-                const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                fs.writeFileSync(filePath, `=== Log started at ${timestamp} [${context}] ===\n`);
+                // Only write header if file doesn't exist (don't overwrite)
+                if (!fs.existsSync(filePath)) {
+                    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                    fs.writeFileSync(filePath, `=== Log started at ${timestamp} [${context}] ===\n`);
+                }
             } catch (err) {
                 console.error(`Failed to initialize log file for context ${context}: ${err.message}`);
             }
+        }
+    }
+
+    /**
+     * Add context-specific log files (merges with existing contexts)
+     */
+    addContextLogFiles(contextLogFiles) {
+        // Add or update each context
+        for (const [context, filePath] of Object.entries(contextLogFiles)) {
+            // Skip if already configured with same path
+            if (this.contextLogFiles[context] === filePath) {
+                continue;
+            }
+
+            try {
+                const dir = path.dirname(filePath);
+                if (dir && !fs.existsSync(dir)) {
+                    fs.mkdirSync(dir, { recursive: true });
+                }
+
+                // Only write header if file doesn't exist (don't overwrite)
+                if (!fs.existsSync(filePath)) {
+                    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                    fs.writeFileSync(filePath, `=== Log started at ${timestamp} [${context}] ===\n`);
+                }
+
+                this.contextLogFiles[context] = filePath;
+            } catch (err) {
+                console.error(`Failed to add log file for context ${context}: ${err.message}`);
+            }
+        }
+    }
+
+    /**
+     * Remove specific context log files
+     */
+    removeContextLogFiles(...contexts) {
+        for (const context of contexts) {
+            delete this.contextLogFiles[context];
         }
     }
 }
@@ -283,3 +336,5 @@ export const disableFileLogging = () => Logger.disableFileLogging();
 export const enableConsoleOutput = () => Logger.enableConsoleOutput();
 export const disableConsoleOutput = () => Logger.disableConsoleOutput();
 export const configureContextLogFiles = (...args) => Logger.configureContextLogFiles(...args);
+export const addContextLogFiles = (...args) => Logger.addContextLogFiles(...args);
+export const removeContextLogFiles = (...args) => Logger.removeContextLogFiles(...args);
