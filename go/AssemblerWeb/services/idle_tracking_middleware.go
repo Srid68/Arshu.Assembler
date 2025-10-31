@@ -118,6 +118,26 @@ func IdleTrackingMiddleware(idleSeconds int) gin.HandlerFunc {
 	}
 }
 
+// AcquireHold creates a hold and returns its ID
+func AcquireHold() string {
+	muGlobal.Lock()
+	defer muGlobal.Unlock()
+	holdID := fmt.Sprintf("hold_%s", strings.ReplaceAll(uuid.New().String(), "-", ""))
+	activeHoldsGlobal[holdID] = time.Now()
+	common.Info(fmt.Sprintf("[AcquireHold] Hold set: %s", holdID), "IdleTracking")
+	return holdID
+}
+
+// ReleaseHold removes a hold by its ID
+func ReleaseHold(holdID string) {
+	muGlobal.Lock()
+	defer muGlobal.Unlock()
+	if _, exists := activeHoldsGlobal[holdID]; exists {
+		delete(activeHoldsGlobal, holdID)
+		common.Info(fmt.Sprintf("[ReleaseHold] Hold removed: %s", holdID), "IdleTracking")
+	}
+}
+
 func Shutdown() {
 	muGlobal.Lock()
 	defer muGlobal.Unlock()

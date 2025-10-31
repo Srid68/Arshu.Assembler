@@ -30,6 +30,23 @@ impl IdleTracking {
         }
     }
 
+    /// AcquireHold: creates a hold and returns its ID
+    pub fn acquire_hold(&self) -> String {
+        let hold_id = format!("hold_{}", uuid::Uuid::new_v4().to_string().replace("-", ""));
+        let mut holds = self.active_holds.lock().unwrap();
+        holds.insert(hold_id.clone(), Instant::now());
+        assembler::common::logger::Logger::info(&format!("[AcquireHold] Hold set: {}", hold_id), Some("IdleTracking"));
+        hold_id
+    }
+
+    /// ReleaseHold: removes a hold by its ID
+    pub fn release_hold(&self, hold_id: &str) {
+        let mut holds = self.active_holds.lock().unwrap();
+        if holds.remove(hold_id).is_some() {
+            assembler::common::logger::Logger::info(&format!("[ReleaseHold] Hold removed: {}", hold_id), Some("IdleTracking"));
+        }
+    }
+
     pub fn shutdown(&self) {
         let holds = self.active_holds.lock().unwrap();
         println!("[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: {}", holds.len());
@@ -125,6 +142,7 @@ impl IdleTracking {
             }
         });
     }
+
 }
 
 impl<S, B> Transform<S, ServiceRequest> for IdleTracking

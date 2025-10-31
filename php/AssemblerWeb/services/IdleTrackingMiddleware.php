@@ -110,6 +110,29 @@ class IdleTrackingMiddleware {
         }
     }
 
+    public static function AcquireHold(): string {
+        if (self::$holdDir === null) {
+            return '';
+        }
+        $holdId = uniqid('hold_', true);
+        $holdFile = self::$holdDir . DIRECTORY_SEPARATOR . $holdId . '.txt';
+        $timestamp = time();
+        file_put_contents($holdFile, (string)$timestamp);
+        Logger::info("[AcquireHold] Hold set: $holdId", 'IdleTracking');
+        return $holdId;
+    }
+
+    public static function ReleaseHold(string $holdId): void {
+        if (self::$holdDir === null || $holdId === '') {
+            return;
+        }
+        $holdFile = self::$holdDir . DIRECTORY_SEPARATOR . $holdId . '.txt';
+        if (file_exists($holdFile)) {
+            @unlink($holdFile);
+            Logger::info("[ReleaseHold] Hold removed: $holdId", 'IdleTracking');
+        }
+    }
+
     public static function shutdown(): void {
         if (self::$holdDir === null || !is_dir(self::$holdDir)) {
             Logger::info('[SHUTDOWN] IdleTrackingMiddleware shutting down, hold directory not initialized', 'IdleTracking');
@@ -131,4 +154,5 @@ class IdleTrackingMiddleware {
 
         Logger::info('[SHUTDOWN] IdleTrackingMiddleware stopped', 'IdleTracking');
     }
+
 }

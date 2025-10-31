@@ -112,6 +112,22 @@ export function idleTrackingMiddleware(idleSeconds = 10) {
   };
 }
 
+// AcquireHold: creates a hold and returns its ID
+export function acquireHold() {
+  const holdId = `hold_${randomUUID().replace(/-/g, '')}`;
+  activeHoldsGlobal.set(holdId, Date.now());
+  Logger.info(`[AcquireHold] Hold set: ${holdId}`, 'IdleTracking');
+  return holdId;
+}
+
+// ReleaseHold: removes a hold by its ID
+export function releaseHold(holdId) {
+  if (activeHoldsGlobal.has(holdId)) {
+    activeHoldsGlobal.delete(holdId);
+    Logger.info(`[ReleaseHold] Hold removed: ${holdId}`, 'IdleTracking');
+  }
+}
+
 export function shutdown() {
   console.log(`[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: ${activeHoldsGlobal.size}`);
   Logger.info(`[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: ${activeHoldsGlobal.size}`, 'IdleTracking');
@@ -126,3 +142,4 @@ export function shutdown() {
   Logger.info('[SHUTDOWN] IdleTrackingMiddleware stopped', 'IdleTracking');
   Logger.flush();
 }
+

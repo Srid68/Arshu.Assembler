@@ -5,7 +5,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace AssemblerWebJs.Services
+namespace AssemblerWeb.Services
 {
     public class IdleTrackingMiddleware
     {
@@ -20,6 +20,28 @@ namespace AssemblerWebJs.Services
         private static void Log(string message)
         {
             Logger.Info(message, "IdleTrackingMiddleware");
+        }
+
+        /// <summary>
+        /// Acquire a hold to prevent shutdown during critical operations.
+        /// </summary>
+        public static void AcquireHold(string holdId)
+        {
+            _activeHolds[holdId] = DateTime.UtcNow;
+            Console.WriteLine($"[HOLD] Hold acquired: {holdId}");
+            Log($"[HOLD] Hold acquired: {holdId}");
+        }
+
+        /// <summary>
+        /// Release a previously acquired hold.
+        /// </summary>
+        public static void ReleaseHold(string holdId)
+        {
+            if (_activeHolds.TryRemove(holdId, out _))
+            {
+                Console.WriteLine($"[HOLD] Hold released: {holdId}");
+                Log($"[HOLD] Hold released: {holdId}");
+            }
         }
 
         public static void Configure(int idleSeconds)
