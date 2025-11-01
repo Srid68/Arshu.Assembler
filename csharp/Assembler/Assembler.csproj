@@ -5,11 +5,16 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <Version>1.0.0</Version>
+    <PackageId>Arshu.Assembler</PackageId>
     <PackageVersion>1.0.0</PackageVersion>
+    <Title>Arshu Assembler</Title>
+    <Description>Template assembly engine for dynamic HTML generation with normal and preprocess modes. Supports component composition, slotted composition, and JSON data merging.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Authors>Sridharan Srinivasan</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/Srid68/Arshu.Assembler</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Srid68/Arshu.Assembler</RepositoryUrl>
+    <PackageTags>template;assembler;html;engine;preprocess;component</PackageTags>
   </PropertyGroup>
 
   <PropertyGroup>

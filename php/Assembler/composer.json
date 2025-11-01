@@ -5,6 +5,17 @@
     "type": "library",
     "keywords": ["template", "assembler", "html", "engine", "preprocess"],
     "license": "MIT",
+    "authors": [
+        {
+            "name": "Sridharan Srinivasan",
+            "email": "srid68@gmail.com"
+        }
+    ],
+    "homepage": "https://github.com/Srid68/Arshu.Assembler",
+    "support": {
+        "issues": "https://github.com/Srid68/Arshu.Assembler/issues",
+        "source": "https://github.com/Srid68/Arshu.Assembler"
+    },
     "autoload": {
         "psr-4": {
             "Assembler\\": "src/"

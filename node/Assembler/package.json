@@ -24,8 +24,16 @@
     "engine",
     "preprocess"
   ],
-  "author": "",
+  "author": "Sridharan Srinivasan <srid68@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Srid68/Arshu.Assembler.git"
+  },
+  "homepage": "https://github.com/Srid68/Arshu.Assembler#readme",
+  "bugs": {
+    "url": "https://github.com/Srid68/Arshu.Assembler/issues"
+  },
   "dependencies": {},
   "devDependencies": {}
 }

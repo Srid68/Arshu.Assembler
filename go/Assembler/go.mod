@@ -1,3 +1,3 @@
-module assembler
+module github.com/srid68/arshu-assembler
 
-go 1.20
+go 1.21
