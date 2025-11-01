@@ -107,9 +107,15 @@ func openapi(c *gin.Context) {
 }
 
 func main() {
-	// Configure Logger - set global projectDirectory variable
-	_, projectDirectory = common.GetAssemblerWebDirPath()
+	// Set projectDirectory to current working directory (same as C#/Rust)
+	projectDirectory, _ = os.Getwd()
+	wwwrootPath := filepath.Join(projectDirectory, "wwwroot")
+
+	// Set endpoint package variables
 	endpoint.ProjectDirectory = projectDirectory
+	endpoint.WwwrootPath = wwwrootPath
+
+	// Configure Logger
 	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
@@ -149,8 +155,7 @@ func main() {
 	common.Info("AssemblerWeb starting up", "Main")
 
 	// Load ConfigUtil (AppSites and Scenarios)
-	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
-	if err := config.Load(assemblerWebDirPath); err != nil {
+	if err := config.Load(wwwrootPath); err != nil {
 		fmt.Printf("[WARNING] Failed to load ConfigUtil: %v\n", err)
 		common.Warn(fmt.Sprintf("Failed to load ConfigUtil: %v", err), "Main")
 	}

@@ -1,12 +1,31 @@
 {
-  "name": "assembler",
+  "name": "@arshu/assembler",
   "version": "1.0.0",
-  "main": "src/index.js",
+  "description": "Template assembly engine for dynamic HTML generation with normal and preprocess modes",
   "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./engine": "./src/engine/index.js",
+    "./loader": "./src/loader/index.js",
+    "./config": "./src/config/index.js",
+    "./api": "./src/api/index.js",
+    "./common": "./src/common/index.js",
+    "./model": "./src/model/index.js"
+  },
   "scripts": {
     "build": "echo 'No build step needed for Node.js'",
     "test": "node test/index.js"
   },
+  "keywords": [
+    "template",
+    "assembler",
+    "html",
+    "engine",
+    "preprocess"
+  ],
+  "author": "",
+  "license": "MIT",
   "dependencies": {},
   "devDependencies": {}
 }

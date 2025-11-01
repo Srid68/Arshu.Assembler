@@ -29,6 +29,12 @@ var validEngineTypes = map[string]bool{
 	"PreProcess": true,
 }
 
+// WwwrootPath stores the wwwroot directory path (set from main)
+var WwwrootPath string
+
+// ProjectDirectory stores the project directory path (set from main)
+var ProjectDirectory string
+
 // GetValidAppSites gets the valid AppSites from ConfigUtil
 func getValidAppSites() (map[string]bool, error) {
 	return config.GetAppSites()
@@ -102,8 +108,7 @@ type MergeRequest struct {
 // Index handles the GET / endpoint
 func Index(c *gin.Context) {
 	// Get appsite from query parameter or use default
-	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
-	rootDirPath := assemblerWebDirPath
+	rootDirPath := WwwrootPath
 
 	appSite := DefaultAppSite
 	appFile := "index"
@@ -295,8 +300,7 @@ func MergeTemplates(c *gin.Context) {
 	common.Info(logMsg, "MergeEndpoint")
 
 	// Get wwwroot directory
-	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
-	rootDirPath := assemblerWebDirPath
+	rootDirPath := WwwrootPath
 
 	// Validate EngineType against allowlist
 	if !isValidEngineType(*req.EngineType) {
@@ -413,8 +417,7 @@ func GetTemplates(c *gin.Context) {
 
 	serverStart := time.Now()
 
-	assemblerWebDirPath, _ := common.GetAssemblerWebDirPath()
-	rootDirPath := assemblerWebDirPath
+	rootDirPath := WwwrootPath
 
 	// Load Normal templates
 	normalTemplates := loader.LoadGetTemplateFiles(rootDirPath, req.AppSite)

@@ -1,7 +1,10 @@
 {
-    "name": "assembler/assembler",
-    "description": "Template assembler library for PHP",
+    "name": "arshu/assembler",
+    "description": "Template assembly engine for dynamic HTML generation with normal and preprocess modes",
     "version": "1.0.0",
+    "type": "library",
+    "keywords": ["template", "assembler", "html", "engine", "preprocess"],
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Assembler\\": "src/"

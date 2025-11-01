@@ -1,47 +1,9 @@
 package common
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"unicode"
 )
-
-// GetAssemblerWebDirPath returns the path to the AssemblerWeb wwwroot directory and the project directory
-func GetAssemblerWebDirPath() (assemblerWebDirPath string, projectDirectory string) {
-	// Docker: /app/wwwroot
-	dockerWebroot := "/app/wwwroot"
-	if stat, err := os.Stat(dockerWebroot); err == nil && stat.IsDir() {
-		assemblerWebDirPath = dockerWebroot
-		projectDirectory = "/app" // Not used in Docker, but returned for compatibility
-		return assemblerWebDirPath, projectDirectory
-	}
-
-	currentDirectory, _ := os.Getwd()
-	projectDirectory = currentDirectory
-	currentDirInfo := filepath.Base(currentDirectory)
-	idxBin := strings.Index(currentDirectory, "bin")
-	if idxBin > -1 {
-		projectDirectory = currentDirectory[:idxBin]
-	} else if strings.HasSuffix(currentDirInfo, "AssemblerTest") {
-		// Already in AssemblerTest
-	} else if strings.HasSuffix(currentDirInfo, "go") {
-		projectDirectory = filepath.Join(currentDirectory, "AssemblerTest")
-	} else if strings.HasPrefix(currentDirInfo, "AssemblerWeb") {
-		// Already in AssemblerWeb
-	} else if strings.HasPrefix(currentDirInfo, "Arshu.Assembler") {
-		projectDirectory = filepath.Join(currentDirectory, "go", "AssemblerTest")
-	}
-	assemblerWebDirPath = ""
-	if projectDirectory != "" {
-		parent := filepath.Dir(projectDirectory)
-		webDirPath := filepath.Join(parent, "AssemblerWeb", "wwwroot")
-		if stat, err := os.Stat(webDirPath); err == nil && stat.IsDir() {
-			assemblerWebDirPath = webDirPath
-		}
-	}
-	return assemblerWebDirPath, projectDirectory
-}
 
 // IsAlphaNumeric checks if a string contains only alphanumeric characters
 func IsAlphaNumeric(str string) bool {

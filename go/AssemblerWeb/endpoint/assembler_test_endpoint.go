@@ -20,9 +20,6 @@ import (
 	"assembler/test"
 )
 
-// ProjectDirectory stores the project directory path (set from main)
-var ProjectDirectory string
-
 // RULE_GROUPS defines the configurable rule groups for consolidated report grouping
 var RULE_GROUPS = []string{
 	"HtmlRule1",
@@ -183,8 +180,7 @@ func TestAdvanced(c *gin.Context) {
 // TestPerformance handles the POST /test/performance endpoint
 func TestPerformance(c *gin.Context) {
 	start := time.Now()
-	assemblerWebDirPath, projectDir := common.GetAssemblerWebDirPath()
-	rootDirPath := assemblerWebDirPath
+	rootDirPath := WwwrootPath
 
 	// Disable logging during performance tests
 	originalLogLevel := common.GetLogLevel()
@@ -198,9 +194,9 @@ func TestPerformance(c *gin.Context) {
 		return
 	}
 
-	results := performance.RunPerformanceComparison(rootDirPath, projectDir, scenarios, true, true)
+	results := performance.RunPerformanceComparison(rootDirPath, ProjectDirectory, scenarios, true, true)
 	if len(results) > 0 {
-		performance.PrintPerfSummaryTable(rootDirPath, projectDir, results)
+		performance.PrintPerfSummaryTable(rootDirPath, ProjectDirectory, results)
 	}
 
 	// Restore original log level
