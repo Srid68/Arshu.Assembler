@@ -58,9 +58,10 @@ impl IdleTracking {
             assembler::common::logger::Logger::info(&format!("[SHUTDOWN] Unreleased hold: {}", hold_id), Some("IdleTracking"));
         }
         drop(holds);
-        
+
         println!("[SHUTDOWN] IdleTrackingMiddleware stopped");
         assembler::common::logger::Logger::info("[SHUTDOWN] IdleTrackingMiddleware stopped", Some("IdleTracking"));
+        assembler::common::logger::Logger::flush();
     }
 
     pub fn start_monitor(&self) {

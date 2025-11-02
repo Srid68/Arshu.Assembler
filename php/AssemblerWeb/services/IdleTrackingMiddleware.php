@@ -71,6 +71,10 @@ class IdleTrackingMiddleware {
     }
 
     public function __invoke(ServerRequestInterface $request, $handler) {
+        // Debug: Log middleware invocation
+        error_log("[DEBUG] IdleTrackingMiddleware invoked, holdDir: " . (self::$holdDir ?? 'NULL'));
+        Logger::info("[DEBUG] IdleTrackingMiddleware invoked, holdDir: " . (self::$holdDir ?? 'NULL'), 'IdleTracking');
+
         // Generate unique hold file for this request to handle concurrent requests
         $holdId = uniqid('hold_', true);
         $holdFile = self::$holdDir . DIRECTORY_SEPARATOR . $holdId . '.txt';
@@ -153,6 +157,7 @@ class IdleTrackingMiddleware {
         }
 
         Logger::info('[SHUTDOWN] IdleTrackingMiddleware stopped', 'IdleTracking');
+        Logger::flush();
     }
 
 }

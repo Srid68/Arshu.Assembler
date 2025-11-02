@@ -153,4 +153,5 @@ func Shutdown() {
 
 	fmt.Println("[SHUTDOWN] IdleTrackingMiddleware stopped")
 	common.Info("[SHUTDOWN] IdleTrackingMiddleware stopped", "IdleTracking")
+	common.Flush()
 }

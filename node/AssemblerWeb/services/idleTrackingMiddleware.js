@@ -137,9 +137,8 @@ export function shutdown() {
     console.log(`[SHUTDOWN] Unreleased hold: ${holdId}`);
     Logger.info(`[SHUTDOWN] Unreleased hold: ${holdId}`, 'IdleTracking');
   }
-  
+
   console.log('[SHUTDOWN] IdleTrackingMiddleware stopped');
   Logger.info('[SHUTDOWN] IdleTrackingMiddleware stopped', 'IdleTracking');
-  Logger.flush();
 }
 
