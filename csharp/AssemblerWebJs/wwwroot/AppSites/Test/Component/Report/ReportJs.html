@@ -1,0 +1,54 @@
+<script>
+    // Global event delegation for report view switching
+    // This handles switching between table, chart, and grouped views in performance reports
+    if (!window.reportViewSwitcherAdded) {
+        document.addEventListener('click', function(e) {
+            // Check if clicked element is a view button
+            if (e.target && e.target.classList.contains('view-btn')) {
+                var viewType = e.target.getAttribute('data-view');
+                if (!viewType) return;
+
+                // Find the closest report container to scope our queries
+                var reportContainer = e.target.closest('body') || document;
+
+                // Find the view-toggle container that contains this button
+                var viewToggle = e.target.closest('.view-toggle');
+                if (!viewToggle) return;
+
+                // Get the parent container of the view-toggle
+                var container = viewToggle.parentElement;
+                if (!container) return;
+
+                // Update button states (only within this container)
+                var buttons = container.querySelectorAll('.view-btn');
+                buttons.forEach(function(btn) {
+                    btn.classList.remove('active');
+                });
+                e.target.classList.add('active');
+
+                // Get all view elements (only within this container)
+                var combinedChart = container.querySelector('#combined-chart');
+                var combinedGrouped = container.querySelector('#combined-grouped');
+                var normalTable = container.querySelector('#normal-table');
+                var preprocessTable = container.querySelector('#preprocess-table');
+
+                // Hide all views first
+                var allViews = container.querySelectorAll('.view-content');
+                allViews.forEach(function(view) {
+                    view.classList.remove('active');
+                });
+
+                // Show the selected view
+                if (viewType === 'chart') {
+                    if (combinedChart) combinedChart.classList.add('active');
+                } else if (viewType === 'grouped') {
+                    if (combinedGrouped) combinedGrouped.classList.add('active');
+                } else if (viewType === 'table') {
+                    if (normalTable) normalTable.classList.add('active');
+                    if (preprocessTable) preprocessTable.classList.add('active');
+                }
+            }
+        });
+        window.reportViewSwitcherAdded = true;
+    }
+</script>
