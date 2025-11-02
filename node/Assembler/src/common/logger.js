@@ -318,6 +318,16 @@ class LoggerClass {
             delete this.contextLogFiles[context];
         }
     }
+
+    /**
+     * Flush any pending logs
+     * Note: Node.js file writes are typically immediate unless using write streams
+     * This is a no-op for compatibility with other language implementations
+     */
+    flush() {
+        // Node.js fs.appendFileSync and fs.writeFileSync write immediately to disk
+        // So this is a no-op, but provided for API compatibility
+    }
 }
 
 // Export singleton instance
@@ -338,3 +348,4 @@ export const disableConsoleOutput = () => Logger.disableConsoleOutput();
 export const configureContextLogFiles = (...args) => Logger.configureContextLogFiles(...args);
 export const addContextLogFiles = (...args) => Logger.addContextLogFiles(...args);
 export const removeContextLogFiles = (...args) => Logger.removeContextLogFiles(...args);
+export const flush = () => Logger.flush();

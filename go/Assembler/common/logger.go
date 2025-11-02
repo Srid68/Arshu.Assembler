@@ -334,3 +334,11 @@ func RemoveContextLogFiles(contexts ...string) {
 		delete(globalLogger.contextLogFiles, context)
 	}
 }
+
+// Flush any pending logs
+// Note: Go file writes are typically immediate with os.WriteFile and file.WriteString
+// This is a no-op for compatibility with other language implementations
+func Flush() {
+	// Go's os.WriteFile and file.WriteString write immediately to disk
+	// So this is a no-op, but provided for API compatibility
+}

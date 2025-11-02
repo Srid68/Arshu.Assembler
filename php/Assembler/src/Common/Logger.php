@@ -328,4 +328,15 @@ class Logger
             unset(self::$contextLogFiles[$context]);
         }
     }
+
+    /**
+     * Flush any pending logs
+     * Note: PHP file writes are typically immediate with file_put_contents
+     * This is a no-op for compatibility with other language implementations
+     */
+    public static function flush(): void
+    {
+        // PHP's file_put_contents writes immediately to disk
+        // So this is a no-op, but provided for API compatibility
+    }
 }

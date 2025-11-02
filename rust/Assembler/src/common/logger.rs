@@ -290,4 +290,12 @@ impl Logger {
         let mut config = LOGGER_CONFIG.lock().unwrap();
         config.console_output = false;
     }
+
+    /// Flush any pending logs
+    /// Note: Rust file writes are typically immediate with writeln! macro
+    /// This is a no-op for compatibility with other language implementations
+    pub fn flush() {
+        // Rust's writeln! macro flushes immediately to the file handle
+        // So this is a no-op, but provided for API compatibility
+    }
 }
