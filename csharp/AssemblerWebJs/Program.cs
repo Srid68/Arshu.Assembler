@@ -1,6 +1,6 @@
 using Assembler.Common;
 using Assembler.Config;
-using AssemblerWebJs.Services;
+using AssemblerWeb.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
