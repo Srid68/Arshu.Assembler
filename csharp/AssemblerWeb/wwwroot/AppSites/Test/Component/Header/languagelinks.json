@@ -1,6 +1,6 @@
 {
-  "Language": "JavaScript",
-  "LanguageId": "javascript",
+  "Language": "C#",
+  "LanguageId": "csharp",
   "Title": "Web Assembler",
   "HighlightText": "recreating abstractions from Mustache, React, and HTMX",
   "Label": "Try different implementations:",
