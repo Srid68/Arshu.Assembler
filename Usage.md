@@ -4,6 +4,7 @@ This guide explains how to use the Arshu Assembler packages in your own local pr
 
 ## Table of Contents
 
+- [Prerequisites](#prerequisites)
 - [Overview](#overview)
 - [Node.js Package Usage](#nodejs-package-usage)
 - [PHP Package Usage](#php-package-usage)
@@ -11,6 +12,18 @@ This guide explains how to use the Arshu Assembler packages in your own local pr
 - [Go Package Usage](#go-package-usage)
 - [Rust Package Usage](#rust-package-usage)
 - [API Reference](#api-reference)
+
+## Prerequisites
+
+Before using Arshu Assembler in your projects, you need to have the source code available locally:
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/Srid68/Arshu.Assembler.git C:/Polyglot/Arshu.Assembler
+```
+
+Or download and extract to your preferred location. All package installation methods reference this local source directory.
 
 ## Overview
 
@@ -53,13 +66,20 @@ npm link @arshu/assembler
 #### Option 3: Tarball Package (Distribution)
 
 ```bash
-# Create package in Assembler directory
+# Create package in Assembler directory and move to LocalPackages
 cd C:/Polyglot/Arshu.Assembler/node/Assembler
 npm pack
-# This creates arshu-assembler-1.0.0.tgz
+mv arshu-assembler-1.0.0.tgz ../../LocalPackages/
 
-# Install in your project
-npm install C:/Polyglot/Arshu.Assembler/node/Assembler/arshu-assembler-1.0.0.tgz
+# In your project's package.json
+{
+  "dependencies": {
+    "@arshu/assembler": "file:../../Arshu.Assembler/LocalPackages/arshu-assembler-1.0.0.tgz"
+  }
+}
+
+# Install
+npm install
 ```
 
 ### Basic Usage
@@ -128,7 +148,7 @@ composer install
   "repositories": [
     {
       "type": "artifact",
-      "url": "C:/Polyglot/packages"
+      "url": "C:/Polyglot/Arshu.Assembler/LocalPackages"
     }
   ],
   "require": {
@@ -138,7 +158,7 @@ composer install
 
 # Create package archive
 cd C:/Polyglot/Arshu.Assembler/php/Assembler
-composer archive --format=zip --dir=C:/Polyglot/packages
+composer archive --format=zip --dir=C:/Polyglot/Arshu.Assembler/LocalPackages
 
 # Install
 composer install
@@ -190,10 +210,10 @@ $result = $engine->assemble($loader, 'AppSite', 'Component');
 ```bash
 # Create local NuGet packages
 cd C:/Polyglot/Arshu.Assembler/csharp/Assembler
-dotnet pack -o C:/LocalNuGetPackages
+dotnet pack -o C:/Polyglot/Arshu.Assembler/LocalPackages
 
 # Add local source (one time)
-dotnet nuget add source C:/LocalNuGetPackages --name LocalPackages
+dotnet nuget add source C:/Polyglot/Arshu.Assembler/LocalPackages --name LocalPackages
 
 # In your project
 dotnet add package Arshu.Assembler --version 1.0.0
