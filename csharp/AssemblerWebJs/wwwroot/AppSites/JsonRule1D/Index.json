@@ -15,6 +15,3 @@
     }
   ]
 }
-
-
-i want to create a modern blog for the Polyglot framework. can you create a New AppSite called Pages in AssemblerWeb and use all the Rules for component assembler to create a Blog Main Page AppSite. Each Blog entry is a AppView Context. Create two sample blog entries template. Ensure the Blog Main Page can cater for paging of multiple blog entries when the blog entires are more than 5. Do this in C# AssemblerWeb project
