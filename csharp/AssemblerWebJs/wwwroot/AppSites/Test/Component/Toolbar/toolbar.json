@@ -1,4 +1,4 @@
 ﻿{
-    "DefaultMergeMode":  "Client",
+    "DefaultMergeMode":  "Server",
     "MergeModeDisplay":  "block"
 }
