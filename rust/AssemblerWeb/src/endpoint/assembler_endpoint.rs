@@ -213,12 +213,11 @@ pub async fn get_scenarios() -> impl Responder {
 #[actix_web::post("/merge")]
 pub async fn merge_templates(
     req: web::Json<MergeRequest>,
-    http_req: HttpRequest,
-    project_dir: web::Data<std::path::PathBuf>
+    http_req: HttpRequest
 ) -> impl Responder {
     // Enable logging for merge operations
     let original_log_level = Logger::get_log_level();
-    let project_directory = project_dir.as_ref().clone();
+    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
     let template_analysis_dir = project_directory.join("template_analysis");
     let logs_dir = template_analysis_dir.join("logs");
@@ -436,10 +435,9 @@ pub async fn merge_templates(
 )]
 pub async fn get_templates(
     body: web::Bytes,
-    req: HttpRequest,
-    project_dir: web::Data<std::path::PathBuf>
+    req: HttpRequest
 ) -> impl Responder {
-    let project_directory = project_dir.as_ref();
+    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let root_dir_path = project_directory.join("wwwroot");
     let root_dir_path_str = root_dir_path.to_str().unwrap_or("");
 
