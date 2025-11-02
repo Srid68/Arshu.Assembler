@@ -556,7 +556,6 @@ class EngineNormal {
                     // Replace placeholders with item values AFTER conditional processing
                     for (const [key, value] of Object.entries(item)) {
                         const placeholder = `{{$${key}}}`;
-                        // Properly handle boolean false - don't convert to empty string
                         let replacement = (value !== null && value !== undefined) ? String(value) : '';
                         itemBlock = itemBlock.replace(new RegExp(this.escapeRegExp(placeholder), 'gi'), replacement);
                     }
