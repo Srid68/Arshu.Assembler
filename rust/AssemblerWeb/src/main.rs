@@ -1,47 +1,14 @@
 use std::thread;
-use utoipa::OpenApi;
 use std::time::Duration;
-use actix_web::{web, App, HttpServer, Responder, HttpResponse};
+use actix_web::{web, App, HttpServer};
 use actix_files as fs;
 
 mod endpoint;
 mod services;
 
-use endpoint::{MergeRequest, ScenarioDto, index, get_scenarios, get_templates, merge_templates};
+use endpoint::{index, get_scenarios, get_templates, merge_templates, openapi_handler};
 use endpoint::{save_test_results, save_performance_results, save_log, save_output, test_standard, test_advanced, test_performance, test_consolidate_performance, get_report};
 use services::IdleTracking;
-
-
-async fn openapi_handler() -> impl Responder {
-    println!("[DEBUG] /openapi.json endpoint called");
-    let openapi = ApiDoc::openapi();
-    println!("[DEBUG] OpenAPI generated: {} bytes", serde_json::to_string(&openapi).map(|s| s.len()).unwrap_or(0));
-    HttpResponse::Ok()
-        .content_type("application/json")
-        .json(openapi)
-}
-
-#[derive(OpenApi)]
-#[openapi(
-    paths(
-        endpoint::assembler_endpoint::index,
-        endpoint::assembler_endpoint::get_scenarios,
-        endpoint::assembler_endpoint::get_templates,
-        endpoint::assembler_endpoint::merge_templates,
-        endpoint::assembler_test_endpoint::save_test_results,
-        endpoint::assembler_test_endpoint::save_performance_results,
-        endpoint::assembler_test_endpoint::save_log,
-        endpoint::assembler_test_endpoint::save_output,
-        endpoint::assembler_test_endpoint::test_standard,
-        endpoint::assembler_test_endpoint::test_advanced,
-        endpoint::assembler_test_endpoint::test_performance,
-        endpoint::assembler_test_endpoint::test_consolidate_performance,
-        endpoint::assembler_test_endpoint::get_report
-    ),
-    components(schemas(MergeRequest, ScenarioDto, endpoint::assembler_test_endpoint::ReportRequest, endpoint::assembler_test_endpoint::TestResponse, endpoint::assembler_test_endpoint::TestSummaryRowDto, endpoint::assembler_test_endpoint::PerfSummaryRowDto)),
-    tags((name = "Assembler", description = "Assembler API endpoints"))
-)]
-struct ApiDoc;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
