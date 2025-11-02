@@ -1,14 +1,8 @@
 
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
-import fsSync from 'fs';
-
-// Import Assembler modules dynamically to avoid circular dependencies
-const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? '../Assembler/src' : '../../Assembler/src';
-
-const { EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess } = await import(`${assemblerBasePath}/index.js`);
-const { ApiResponse, TemplateData, PreProcessTemplateMetadata } = await import(`${assemblerBasePath}/api/index.js`);
-const { ConfigUtil } = await import(`${assemblerBasePath}/config/index.js`);
+import { EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil } from '@arshu/assembler';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -94,11 +88,8 @@ function isValidAppSite(appSite, validAppSites) {
   return validAppSites.has(appSite.toLowerCase());
 }
 
-// Conditional import for Logger based on environment
-console.log('[DEBUG] assemblerEndpoint.js - Assembler base path:', assemblerBasePath);
-console.log('[DEBUG] assemblerEndpoint.js - __dirname:', __dirname);
-const loggerModule = await import(`${assemblerBasePath}/common/logger.js`);
-const { Logger } = loggerModule;
+// Import Logger from the assembler package
+import { Logger } from '@arshu/assembler';
 
 /**
  * GET / - Index endpoint (root page)
@@ -202,7 +193,7 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
 
   const templateAnalysisDir = path.join(projectDirectory, 'template_analysis');
   const logsDir = path.join(templateAnalysisDir, 'logs');
-  await fsSync.promises.mkdir(logsDir, { recursive: true }).catch(() => {});
+  await fs.promises.mkdir(logsDir, { recursive: true }).catch(() => {});
 
   const contextLogFiles = {
     'LoaderNormal': path.join(logsDir, 'nodejs_loadernormal.log'),
@@ -343,12 +334,12 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
     const saveParam = req.query.save;
     if (saveParam && saveParam.toLowerCase() === 'true') {
       const outputDir = path.join(projectDirectory, 'template_analysis', 'output');
-      await fsSync.promises.mkdir(outputDir, { recursive: true }).catch(() => {});
+      await fs.promises.mkdir(outputDir, { recursive: true }).catch(() => {});
 
       const appViewSuffix = appView && appView !== '' ? `_${appView}` : '';
       const engineSuffix = engineType.toLowerCase();
       const outputFile = path.join(outputDir, `${appSite}${appViewSuffix}_${engineSuffix}.html`);
-      await fsSync.promises.writeFile(outputFile, mergedHtml, 'utf8').catch(err => {
+      await fs.promises.writeFile(outputFile, mergedHtml, 'utf8').catch(err => {
         console.error('Error saving output file:', err);
       });
     }
@@ -452,10 +443,10 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
         const saveParam = req.query.save
         if (saveParam && saveParam.toLowerCase() === 'true') {
             const templatesDir = path.join(projectDirectory, 'template_analysis', 'templates')
-            await fsSync.promises.mkdir(templatesDir, { recursive: true }).catch(() => { })
+            await fs.promises.mkdir(templatesDir, { recursive: true }).catch(() => { })
 
             const saveFile = path.join(templatesDir, `nodejs_${appSite}_templates.json`)
-            await fsSync.promises.writeFile(saveFile, jsonResult, 'utf8').catch(err => {
+            await fs.promises.writeFile(saveFile, jsonResult, 'utf8').catch(err => {
                 console.error('Error saving templates file:', err)
             })
         }
