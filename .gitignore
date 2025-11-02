@@ -66,6 +66,7 @@ node_modules/
 
 # Ignore all template analysis files
 **/template_analysis/
+**/tmp/
 
 # Ignore all Fly deploy batch scripts
 fly_deploy*.bat
@@ -80,6 +81,7 @@ csharp/fly_run_js_web.bat
 # Ignore local Claude settings
 .claude/settings.local.json
 /test/
+/deploy/
 
 # Ignore temporary local package directories (but keep LocalPackages/)
 **/LocalNuGetPackages/
