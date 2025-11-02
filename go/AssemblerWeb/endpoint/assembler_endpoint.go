@@ -492,3 +492,17 @@ func safeString(s *string) string {
 	}
 	return *s
 }
+
+// MapAssemblerEndpoints maps all assembler endpoints to the router
+// Usage: endpoint.MapAssemblerEndpoints(router, wwwrootPath)
+func MapAssemblerEndpoints(router *gin.Engine, wwwrootPath string) {
+	// Set package-level variables
+	WwwrootPath = wwwrootPath
+	ProjectDirectory = filepath.Dir(wwwrootPath)
+
+	// Map assembler endpoints
+	router.GET("/", Index)
+	router.GET("/api/scenarios", Scenarios)
+	router.POST("/merge", MergeTemplates)
+	router.POST("/api/templates", GetTemplates)
+}

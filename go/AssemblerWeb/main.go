@@ -251,27 +251,11 @@ func main() {
 	// Serve Scalar UI static files
 	r.Static("/scalar", "./wwwroot/scalar")
 
-	// API routes
-	r.GET("/", endpoint.Index)
-	r.GET("/api/scenarios", endpoint.Scenarios)
-	r.POST("/merge", endpoint.MergeTemplates)
+	// Map assembler endpoints using the centralized function
+	endpoint.MapAssemblerEndpoints(r, wwwrootPath)
+	endpoint.MapAssemblerTestEndpoints(r)
+
 	r.GET("/openapi.json", openapi)
-
-	// Test endpoints
-	r.POST("/test/standard", endpoint.TestStandard)
-	r.POST("/test/advanced", endpoint.TestAdvanced)
-	r.POST("/test/performance", endpoint.TestPerformance)
-	r.POST("/test/consolidate-performance", endpoint.TestConsolidatePerformance)
-
-	// Report endpoint
-	r.POST("/api/report", endpoint.GetReport)
-
-	// Add missing endpoints for parity
-	r.POST("/api/save-log", endpoint.SaveLog)
-	r.POST("/api/save-output", endpoint.SaveOutput)
-	r.POST("/api/templates", endpoint.GetTemplates)
-	r.POST("/api/test-results", endpoint.SaveTestResults)
-	r.POST("/api/performance-results", endpoint.SavePerformanceResults)
 
 	// Serve static files from wwwroot (HTML, JSON, etc.) - use NoRoute to avoid conflicts
 	r.NoRoute(func(c *gin.Context) {

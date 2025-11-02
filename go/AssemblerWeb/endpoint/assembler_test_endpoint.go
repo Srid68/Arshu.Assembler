@@ -1537,3 +1537,16 @@ func isNearValue(a, b float64, epsilon float64) bool {
 	diff := a - b
 	return diff < epsilon && diff > -epsilon
 }
+
+// MapAssemblerTestEndpoints maps all assembler test endpoints to the router
+func MapAssemblerTestEndpoints(r *gin.Engine) {
+	r.POST("/test/standard", TestStandard)
+	r.POST("/test/advanced", TestAdvanced)
+	r.POST("/test/performance", TestPerformance)
+	r.POST("/test/consolidate-performance", TestConsolidatePerformance)
+	r.POST("/api/report", GetReport)
+	r.POST("/api/save-log", SaveLog)
+	r.POST("/api/save-output", SaveOutput)
+	r.POST("/api/test-results", SaveTestResults)
+	r.POST("/api/performance-results", SavePerformanceResults)
+}
