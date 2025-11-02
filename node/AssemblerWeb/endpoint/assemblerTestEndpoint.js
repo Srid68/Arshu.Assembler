@@ -1,25 +1,30 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fsSync from 'fs';
+import { Logger, ConfigUtil } from '@arshu/assembler';
 import { getValidAppSites, isValidEngineType, isValidAppSite, isValidPathComponent, isValidLogContent, isValidOutputSizeWithBuffer, getTemplateTotalSize, OUTPUT_SIZE_BUFFER } from './securityValidator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Conditional import for Logger based on environment
-const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? '../Assembler/src' : '../../Assembler/src';
-const loggerModule = await import(`${assemblerBasePath}/common/logger.js`);
-const { Logger } = loggerModule;
+// Import test and performance utilities from the assembler package
+import { runStandardTests, runAdvancedTests, dumpPreprocessedTemplateStructures, printTestSummaryTable, PerformanceUtils, CommonUtil } from '@arshu/assembler';
 
-// Import test and performance utilities
-const testingUtilsModule = await import(`${assemblerBasePath}/test/testingUtils.js`);
-const { runStandardTests, runAdvancedTests, dumpPreprocessedTemplateStructures, printTestSummaryTable } = testingUtilsModule;
+/**
+ * Get project directory
+ * @returns {string} Project directory path
+ */
+function getProjectDirectory() {
+    return process.cwd();
+}
 
-const performanceUtilsModule = await import(`${assemblerBasePath}/performance/performanceUtils.js`);
-const { PerformanceUtils } = performanceUtilsModule;
-
-const commonUtilModule = await import(`${assemblerBasePath}/common/commonUtil.js`);
-const { CommonUtil } = commonUtilModule;
+/**
+ * Get wwwroot path
+ * @returns {string} Wwwroot directory path
+ */
+function getWwwrootPath() {
+    return path.join(getProjectDirectory(), 'wwwroot');
+}
 
 // Configurable rule groups for consolidated report grouping
 const RULE_GROUPS = [
@@ -34,9 +39,10 @@ const RULE_GROUPS = [
 /**
  * GET /test/standard - Run standard tests
  */
-export async function testStandardEndpoint(req, res, projectDirectory, ConfigUtil) {
+export async function testStandardEndpoint(req, res) {
     const start = Date.now()
-    const assemblerWebDirPath = path.join(projectDirectory, 'wwwroot')
+    const projectDirectory = getProjectDirectory()
+    const assemblerWebDirPath = getWwwrootPath()
 
     // Enable logging temporarily for tests
     const originalLogLevel = Logger.getLogLevel()
@@ -96,9 +102,10 @@ export async function testStandardEndpoint(req, res, projectDirectory, ConfigUti
 /**
  * GET /test/advanced - Run advanced tests
  */
-export async function testAdvancedEndpoint(req, res, projectDirectory, ConfigUtil) {
+export async function testAdvancedEndpoint(req, res) {
     const start = Date.now()
-    const assemblerWebDirPath = path.join(projectDirectory, 'wwwroot')
+    const projectDirectory = getProjectDirectory()
+    const assemblerWebDirPath = getWwwrootPath()
 
     // Enable logging temporarily for tests
     const originalLogLevel = Logger.getLogLevel()
@@ -161,9 +168,10 @@ export async function testAdvancedEndpoint(req, res, projectDirectory, ConfigUti
 /**
  * GET /test/performance - Run performance tests
  */
-export async function testPerformanceEndpoint(req, res, projectDirectory, ConfigUtil) {
+export async function testPerformanceEndpoint(req, res) {
     const start = Date.now()
-    const assemblerWebDirPath = path.join(projectDirectory, 'wwwroot')
+    const projectDirectory = getProjectDirectory()
+    const assemblerWebDirPath = getWwwrootPath()
 
     try {
         // Disable logging during performance tests
@@ -204,9 +212,10 @@ export async function testPerformanceEndpoint(req, res, projectDirectory, Config
 /**
  * GET /test/consolidate-performance - Consolidate performance data from all servers
  */
-export async function testConsolidatePerformanceEndpoint(req, res, projectDirectory) {
+export async function testConsolidatePerformanceEndpoint(req, res) {
     const start = Date.now()
-    const assemblerWebDirPath = path.join(projectDirectory, 'wwwroot')
+    const projectDirectory = getProjectDirectory()
+    const assemblerWebDirPath = getWwwrootPath()
 
     // Configure logging for consolidate endpoint
     const templateAnalysisDir = path.join(projectDirectory, 'template_analysis')
@@ -955,7 +964,8 @@ export async function testConsolidatePerformanceEndpoint(req, res, projectDirect
 /**
  * POST /api/report - Get report file
  */
-export async function getReportEndpoint(req, res, projectDirectory) {
+export async function getReportEndpoint(req, res) {
+    const projectDirectory = getProjectDirectory();
     try {
         const { fileName, useLangPrefix, langPrefix } = req.body
 
@@ -1010,7 +1020,8 @@ export async function getReportEndpoint(req, res, projectDirectory) {
  * POST /api/save-log - Save a log file (browser-callable)
  * Expects JSON: { context, content }
  */
-export async function saveLogEndpoint(req, res, projectDirectory) {
+export async function saveLogEndpoint(req, res) {
+    const projectDirectory = getProjectDirectory();
     try {
         let { context, content } = req.body || {}
 
@@ -1054,7 +1065,8 @@ export async function saveLogEndpoint(req, res, projectDirectory) {
  * POST /api/save-output - Save an output file (browser-callable)
  * Expects JSON: { appSite, appView, engineType, html }
  */
-export async function saveOutputEndpoint(req, res, projectDirectory) {
+export async function saveOutputEndpoint(req, res) {
+    const projectDirectory = getProjectDirectory();
     try {
         console.log('[/api/save-output] Endpoint called')
 
@@ -1128,7 +1140,8 @@ export async function saveOutputEndpoint(req, res, projectDirectory) {
 /**
  * POST /api/test-results - Save test results and generate HTML/JSON reports
  */
-export async function saveTestResultsEndpoint(req, res, projectDirectory) {
+export async function saveTestResultsEndpoint(req, res) {
+    const projectDirectory = getProjectDirectory();
   try {
     const summaryRows = req.body;
     if (!Array.isArray(summaryRows)) {
@@ -1240,7 +1253,8 @@ export async function saveTestResultsEndpoint(req, res, projectDirectory) {
 /**
  * POST /api/performance-results - Save performance results and generate HTML/JSON reports
  */
-export async function savePerformanceResultsEndpoint(req, res, projectDirectory) {
+export async function savePerformanceResultsEndpoint(req, res) {
+    const projectDirectory = getProjectDirectory();
   try {
     const summaryRows = req.body;
     if (!Array.isArray(summaryRows)) {
@@ -1380,17 +1394,15 @@ function getFirstOutputSize(langData) {
 /**
  * Maps all assembler test endpoints to the Express app
  * @param {Express} app - Express application instance
- * @param {string} projectDirectory - Project directory path
- * @param {ConfigUtil} ConfigUtil - ConfigUtil instance
  */
-export function mapAssemblerTestEndpoints(app, projectDirectory, ConfigUtil) {
-    app.post('/api/test-results', (req, res) => saveTestResultsEndpoint(req, res, projectDirectory));
-    app.post('/api/performance-results', (req, res) => savePerformanceResultsEndpoint(req, res, projectDirectory));
-    app.post('/api/save-log', (req, res) => saveLogEndpoint(req, res, projectDirectory));
-    app.post('/api/save-output', (req, res) => saveOutputEndpoint(req, res, projectDirectory));
-    app.post('/test/standard', (req, res) => testStandardEndpoint(req, res, projectDirectory, ConfigUtil));
-    app.post('/test/advanced', (req, res) => testAdvancedEndpoint(req, res, projectDirectory, ConfigUtil));
-    app.post('/test/performance', (req, res) => testPerformanceEndpoint(req, res, projectDirectory, ConfigUtil));
-    app.post('/test/consolidate-performance', (req, res) => testConsolidatePerformanceEndpoint(req, res, projectDirectory));
-    app.post('/api/report', (req, res) => getReportEndpoint(req, res, projectDirectory));
+export function mapAssemblerTestEndpoints(app) {
+    app.post('/api/test-results', (req, res) => saveTestResultsEndpoint(req, res));
+    app.post('/api/performance-results', (req, res) => savePerformanceResultsEndpoint(req, res));
+    app.post('/api/save-log', (req, res) => saveLogEndpoint(req, res));
+    app.post('/api/save-output', (req, res) => saveOutputEndpoint(req, res));
+    app.post('/test/standard', (req, res) => testStandardEndpoint(req, res));
+    app.post('/test/advanced', (req, res) => testAdvancedEndpoint(req, res));
+    app.post('/test/performance', (req, res) => testPerformanceEndpoint(req, res));
+    app.post('/test/consolidate-performance', (req, res) => testConsolidatePerformanceEndpoint(req, res));
+    app.post('/api/report', (req, res) => getReportEndpoint(req, res));
 }
