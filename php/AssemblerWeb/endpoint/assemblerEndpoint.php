@@ -510,4 +510,27 @@ class AssemblerEndpoint
         }
     }
 
+    /**
+     * Maps all assembler endpoints to the Slim app
+     * Usage: AssemblerEndpoint::mapAssemblerEndpoints($app, $projectDirectory)
+     */
+    public static function mapAssemblerEndpoints($app, string $projectDirectory)
+    {
+        $app->get('/', function (ServerRequest $request, Response $response) use ($projectDirectory) {
+            return AssemblerEndpoint::indexEndpoint($request, $response, $projectDirectory);
+        });
+
+        $app->get('/api/scenarios', function (ServerRequest $request, Response $response) {
+            return AssemblerEndpoint::scenariosEndpoint($request, $response);
+        });
+
+        $app->post('/merge', function (ServerRequest $request, Response $response) use ($projectDirectory) {
+            return AssemblerEndpoint::mergeEndpoint($request, $response, $projectDirectory);
+        });
+
+        $app->post('/api/templates', function (ServerRequest $request, Response $response) use ($projectDirectory) {
+            return AssemblerEndpoint::getTemplatesEndpoint($request, $response, $projectDirectory);
+        });
+    }
+
 }

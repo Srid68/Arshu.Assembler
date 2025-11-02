@@ -178,70 +178,9 @@ if ($idleTrackingEnabled) {
 
 Logger::info('Setting up routes...', 'Index');
 
-// GET / - Root endpoint
-$app->get('/', function (ServerRequest $request, Response $response) use ($projectDirectory) {
-    return AssemblerEndpoint::indexEndpoint($request, $response, $projectDirectory);
-})->setName('GetRootUrl');
-
-// GET /api/scenarios - Get all scenarios
-$app->get('/api/scenarios', function (ServerRequest $request, Response $response) {
-    return AssemblerEndpoint::scenariosEndpoint($request, $response);
-})->setName('GetScenarios');
-
-// POST /merge - Merge templates
-$app->post('/merge', function (ServerRequest $request, Response $response) use ($projectDirectory) {
-    return AssemblerEndpoint::mergeEndpoint($request, $response, $projectDirectory);
-})->setName('PostMergeTemplate');
-
-// POST /api/templates - Get templates for an AppSite
-$app->post('/api/templates', function (ServerRequest $request, Response $response) use ($projectDirectory) {
-    return AssemblerEndpoint::getTemplatesEndpoint($request, $response, $projectDirectory);
-})->setName('GetTemplates');
-
-
-// Test endpoints
-$app->post('/test/standard', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
-    return AssemblerTestEndpoint::testStandardEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
-})->setName('RunStandardTests');
-
-$app->post('/test/advanced', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
-    return AssemblerTestEndpoint::testAdvancedEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
-})->setName('RunAdvancedTests');
-
-$app->post('/test/performance', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
-    return AssemblerTestEndpoint::testPerformanceEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
-})->setName('RunPerformanceTests');
-
-$app->post('/test/consolidate-performance', function (ServerRequest $request, Response $response) use ($assemblerWebDirPath, $projectDirectory) {
-    return AssemblerTestEndpoint::testConsolidatePerformanceEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
-})->setName('ConsolidatePerformanceTests');
-
-// Report endpoint
-$app->post('/api/report', function (ServerRequest $request, Response $response) use ($projectDirectory) {
-    return AssemblerTestEndpoint::getReportEndpoint($request, $response, $projectDirectory);
-})->setName('GetReport');
-
-// Register /api/test-results and /api/performance-results endpoints
-
-$app->post('/api/test-results', function (ServerRequest $request, Response $response) use ($projectDirectory) {
-    return AssemblerTestEndpoint::saveTestResultsEndpoint($request, $response, $projectDirectory);
-})->setName('SaveTestResults');
-
-
-$app->post('/api/performance-results', function (ServerRequest $request, Response $response) use ($projectDirectory) {
-    return AssemblerTestEndpoint::savePerformanceResultsEndpoint($request, $response, $projectDirectory);
-})->setName('SavePerformanceResults');
-
-// Register /api/save-log and /api/save-output endpoints
-
-$app->post('/api/save-log', function (ServerRequest $request, Response $response) use ($projectDirectory) {
-    return AssemblerTestEndpoint::saveLogEndpoint($request, $response, $projectDirectory);
-})->setName('SaveLog');
-
-
-$app->post('/api/save-output', function (ServerRequest $request, Response $response) use ($projectDirectory) {
-    return AssemblerTestEndpoint::saveOutputEndpoint($request, $response, $projectDirectory);
-})->setName('SaveOutput');
+// Map assembler endpoints using the centralized functions
+AssemblerEndpoint::mapAssemblerEndpoints($app, $projectDirectory);
+AssemblerTestEndpoint::mapAssemblerTestEndpoints($app, $projectDirectory, $assemblerWebDirPath);
 
 // Serve Scalar UI index.html at /scalar
 // Redirect /scalar to /scalar/index.html for proper UI loading
