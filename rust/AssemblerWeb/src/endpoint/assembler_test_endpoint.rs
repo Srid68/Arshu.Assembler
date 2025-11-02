@@ -66,8 +66,9 @@ pub struct PerfSummaryRowDto {
         (status = 200, description = "Test results", body = String)
     )
 )]
-pub async fn test_standard(project_dir: web::Data<std::path::PathBuf>) -> impl Responder {
+pub async fn test_standard() -> impl Responder {
     let start = Instant::now();
+    let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
     let root_dir_str = std::path::Path::new(project_dir_str).join("wwwroot").to_str().unwrap_or("").to_string();
 
@@ -138,8 +139,9 @@ pub async fn test_standard(project_dir: web::Data<std::path::PathBuf>) -> impl R
         (status = 200, description = "Test results", body = String)
     )
 )]
-pub async fn test_advanced(project_dir: web::Data<std::path::PathBuf>) -> impl Responder {
+pub async fn test_advanced() -> impl Responder {
     let start = Instant::now();
+    let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
     let root_dir_str = std::path::Path::new(project_dir_str).join("wwwroot").to_str().unwrap_or("").to_string();
 
@@ -215,8 +217,9 @@ pub async fn test_advanced(project_dir: web::Data<std::path::PathBuf>) -> impl R
         (status = 200, description = "Performance test results", body = String)
     )
 )]
-pub async fn test_performance(project_dir: web::Data<std::path::PathBuf>) -> impl Responder {
+pub async fn test_performance() -> impl Responder {
     let start = Instant::now();
+    let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
     let root_dir_str = std::path::Path::new(project_dir_str).join("wwwroot").to_str().unwrap_or("").to_string();
 
@@ -273,8 +276,9 @@ pub async fn test_performance(project_dir: web::Data<std::path::PathBuf>) -> imp
         (status = 200, description = "Consolidated performance results", body = String)
     )
 )]
-pub async fn test_consolidate_performance(project_dir: web::Data<std::path::PathBuf>) -> impl Responder {
+pub async fn test_consolidate_performance() -> impl Responder {
     let start = Instant::now();
+    let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
     let root_dir_str = std::path::Path::new(project_dir_str).join("wwwroot").to_str().unwrap_or("").to_string();
 
@@ -664,9 +668,183 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
     html.push_str("        </div>\n");
     html.push_str("    </div>\n");
 
-    // Bar Chart View (placeholder for now - can be enhanced later)
+    // Bar Chart View - Individual AppSites with performance bars for each language
     html.push_str("    <div id=\"combined-chart\" class=\"view-content\">\n");
-    html.push_str("        <p>Bar Chart View - Coming Soon</p>\n");
+    html.push_str("        <div class=\"chart-container\">\n");
+
+    // Generate combined chart data showing both engines (filter by rule groups)
+    let filtered_apps: Vec<&String> = app_perf.keys()
+        .filter(|app| RULE_GROUPS.iter().any(|rule| app.starts_with(rule)))
+        .collect();
+
+    for app in filtered_apps.iter() {
+        html.push_str("            <div class=\"chart-row\">\n");
+        html.push_str(&format!("                <div class=\"chart-label\">{}</div>\n", app));
+        html.push_str("                <div class=\"chart-bars-container\">\n");
+
+        let langs = app_perf.get(*app).unwrap();
+
+        // Calculate max time across BOTH engines for consistent scaling
+        let mut all_times = Vec::new();
+        for lang in &languages {
+            if let Some(times) = langs.get(lang.as_str()) {
+                if let Some(normal_time) = times.0 {
+                    if normal_time > 0.0 {
+                        all_times.push(normal_time);
+                    }
+                }
+                if let Some(preprocess_time) = times.1 {
+                    if preprocess_time > 0.0 {
+                        all_times.push(preprocess_time);
+                    }
+                }
+            }
+        }
+        let max_time_for_scale = if !all_times.is_empty() {
+            all_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+        } else {
+            1.0
+        };
+
+        // Calculate highlighting for Normal Engine
+        let normal_valid_times: Vec<f64> = languages.iter()
+            .filter_map(|lang| langs.get(lang.as_str()).and_then(|t| t.0))
+            .filter(|&v| v > 0.0)
+            .collect();
+        let normal_min_time = if !normal_valid_times.is_empty() {
+            Some(normal_valid_times.iter().cloned().fold(f64::INFINITY, f64::min))
+        } else {
+            None
+        };
+        let normal_max_time = if !normal_valid_times.is_empty() {
+            Some(normal_valid_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
+        } else {
+            None
+        };
+        let normal_avg_time = if !normal_valid_times.is_empty() {
+            Some(normal_valid_times.iter().sum::<f64>() / normal_valid_times.len() as f64)
+        } else {
+            None
+        };
+
+        // Calculate highlighting for PreProcess Engine
+        let preprocess_valid_times: Vec<f64> = languages.iter()
+            .filter_map(|lang| langs.get(lang.as_str()).and_then(|t| t.1))
+            .filter(|&v| v > 0.0)
+            .collect();
+        let preprocess_min_time = if !preprocess_valid_times.is_empty() {
+            Some(preprocess_valid_times.iter().cloned().fold(f64::INFINITY, f64::min))
+        } else {
+            None
+        };
+        let preprocess_max_time = if !preprocess_valid_times.is_empty() {
+            Some(preprocess_valid_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
+        } else {
+            None
+        };
+        let preprocess_avg_time = if !preprocess_valid_times.is_empty() {
+            Some(preprocess_valid_times.iter().sum::<f64>() / preprocess_valid_times.len() as f64)
+        } else {
+            None
+        };
+
+        for lang in &languages {
+            if let Some(times) = langs.get(lang.as_str()) {
+                let normal_time = times.0;
+                let preprocess_time = times.1;
+
+                if (normal_time.is_some() && normal_time.unwrap() > 0.0) || (preprocess_time.is_some() && preprocess_time.unwrap() > 0.0) {
+                    html.push_str("                    <div class=\"chart-bar-wrapper\">\n");
+                    html.push_str(&format!("                        <div class=\"chart-bar-label\">{}</div>\n", lang));
+                    html.push_str("                        <div style=\"position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;\">\n");
+
+                    // Normal Engine Bar (bottom layer) with label at the end
+                    if let Some(normal_time_value) = normal_time {
+                        if normal_time_value > 0.0 {
+                            let width_percent = (normal_time_value / max_time_for_scale) * 100.0;
+
+                            // Determine highlight color
+                            let mut normal_bg_color = "#4CAF50"; // default green
+                            if let Some(min_time) = normal_min_time {
+                                if (normal_time_value - min_time).abs() < 0.01 {
+                                    normal_bg_color = "#90EE90"; // best (light green)
+                                }
+                            }
+                            if let Some(max_time) = normal_max_time {
+                                if (normal_time_value - max_time).abs() < 0.01 {
+                                    normal_bg_color = "#FFB6C6"; // worst (light red)
+                                }
+                            }
+                            if let Some(avg_time) = normal_avg_time {
+                                if normal_valid_times.len() > 2 {
+                                    let nearest_to_avg = normal_valid_times.iter().cloned()
+                                        .min_by(|a, b| (a - avg_time).abs().partial_cmp(&(b - avg_time).abs()).unwrap()).unwrap();
+                                    if (normal_time_value - nearest_to_avg).abs() < 0.01 {
+                                        normal_bg_color = "#FFD700"; // avg (gold)
+                                    }
+                                }
+                            }
+
+                            // Position label: inside bar if very wide (>85%), otherwise outside at end
+                            let normal_label_style = if width_percent > 85.0 {
+                                format!("position: absolute; right: calc(100% - {:.2}% + 5px); top: 0; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;", width_percent)
+                            } else {
+                                format!("position: absolute; left: calc({:.2}% + 5px); top: 0; font-size: 11px; color: {}; font-weight: 600; white-space: nowrap;", width_percent, normal_bg_color)
+                            };
+                            html.push_str(&format!("                            <div style=\"position: absolute; left: 0; top: 0; width: {:.2}%; height: 15px; background-color: {}; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{} Normal: {:.2}ms\"></div>\n", width_percent, normal_bg_color, lang, normal_time_value));
+                            html.push_str(&format!("                            <span style=\"{}\">N: {:.2}ms</span>\n", normal_label_style, normal_time_value));
+                        }
+                    }
+
+                    // PreProcess Engine Bar (top layer, slightly offset) with label at the end
+                    if let Some(preprocess_time_value) = preprocess_time {
+                        if preprocess_time_value > 0.0 {
+                            let width_percent = (preprocess_time_value / max_time_for_scale) * 100.0;
+
+                            // Determine highlight color
+                            let mut preprocess_bg_color = "#2196F3"; // default blue
+                            if let Some(min_time) = preprocess_min_time {
+                                if (preprocess_time_value - min_time).abs() < 0.01 {
+                                    preprocess_bg_color = "#90EE90"; // best (light green)
+                                }
+                            }
+                            if let Some(max_time) = preprocess_max_time {
+                                if (preprocess_time_value - max_time).abs() < 0.01 {
+                                    preprocess_bg_color = "#FFB6C6"; // worst (light red)
+                                }
+                            }
+                            if let Some(avg_time) = preprocess_avg_time {
+                                if preprocess_valid_times.len() > 2 {
+                                    let nearest_to_avg = preprocess_valid_times.iter().cloned()
+                                        .min_by(|a, b| (a - avg_time).abs().partial_cmp(&(b - avg_time).abs()).unwrap()).unwrap();
+                                    if (preprocess_time_value - nearest_to_avg).abs() < 0.01 {
+                                        preprocess_bg_color = "#FFD700"; // avg (gold)
+                                    }
+                                }
+                            }
+
+                            // Position label: inside bar if very wide (>85%), otherwise outside at end
+                            let preprocess_label_style = if width_percent > 85.0 {
+                                format!("position: absolute; right: calc(100% - {:.2}% + 5px); top: 15px; font-size: 11px; color: #333; font-weight: 600; white-space: nowrap;", width_percent)
+                            } else {
+                                format!("position: absolute; left: calc({:.2}% + 5px); top: 15px; font-size: 11px; color: {}; font-weight: 600; white-space: nowrap;", width_percent, preprocess_bg_color)
+                            };
+                            html.push_str(&format!("                            <div style=\"position: absolute; left: 0; top: 15px; width: {:.2}%; height: 15px; background-color: {}; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\" title=\"{} PreProcess: {:.2}ms\"></div>\n", width_percent, preprocess_bg_color, lang, preprocess_time_value));
+                            html.push_str(&format!("                            <span style=\"{}\">P: {:.2}ms</span>\n", preprocess_label_style, preprocess_time_value));
+                        }
+                    }
+
+                    html.push_str("                        </div>\n");
+                    html.push_str("                    </div>\n");
+                }
+            }
+        }
+
+        html.push_str("                </div>\n");
+        html.push_str("            </div>\n");
+    }
+
+    html.push_str("        </div>\n");
     html.push_str("    </div>\n");
 
     // Table View (Normal and PreProcess Engine Tables)
@@ -855,7 +1033,7 @@ pub async fn test_consolidate_performance(project_dir: web::Data<std::path::Path
         (status = 404, description = "Report not found")
     )
 )]
-pub async fn get_report(req: web::Json<ReportRequest>, project_dir: web::Data<std::path::PathBuf>) -> impl Responder {
+pub async fn get_report(req: web::Json<ReportRequest>) -> impl Responder {
     // Validate required fields
     let file_name = match &req.file_name {
         Some(f) if !f.is_empty() => f,
@@ -887,7 +1065,8 @@ pub async fn get_report(req: web::Json<ReportRequest>, project_dir: web::Data<st
     };
 
     // Construct file path in template_analysis/Reports
-    let reports_dir = project_dir.as_ref().join("template_analysis").join("Reports");
+    let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let reports_dir = project_dir.join("template_analysis").join("Reports");
     let file_path = reports_dir.join(&final_file_name);
 
     // Read and return file
@@ -925,9 +1104,9 @@ pub async fn get_report(req: web::Json<ReportRequest>, project_dir: web::Data<st
     )
 )]
 pub async fn save_log(
-    body: web::Bytes,
-    project_dir: web::Data<std::path::PathBuf>
+    body: web::Bytes
 ) -> impl Responder {
+    let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
 
     // Parse JSON
@@ -993,9 +1172,9 @@ pub async fn save_log(
     )
 )]
 pub async fn save_output(
-    body: web::Bytes,
-    project_dir: web::Data<std::path::PathBuf>
+    body: web::Bytes
 ) -> impl Responder {
+    let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
 
     println!("[/api/save-output] Endpoint called");
@@ -1118,9 +1297,9 @@ pub async fn save_output(
 )]
 pub async fn save_test_results(
     summary_rows: web::Json<Vec<TestSummaryRowDto>>,
-    project_dir: web::Data<std::path::PathBuf>,
     req: HttpRequest
 ) -> impl Responder {
+    let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
 
     println!("POST /api/test-results called with {} rows", summary_rows.len());
@@ -1250,9 +1429,9 @@ pub async fn save_test_results(
     )
 )]
 pub async fn save_performance_results(
-    summary_rows: web::Json<Vec<PerfSummaryRowDto>>,
-    project_dir: web::Data<std::path::PathBuf>
+    summary_rows: web::Json<Vec<PerfSummaryRowDto>>
 ) -> impl Responder {
+    let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
 
     println!("POST /api/performance-results called with {} rows", summary_rows.len());
