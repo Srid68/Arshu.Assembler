@@ -1401,14 +1401,6 @@ func SavePerformanceResults(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Performance results saved successfully"})
 }
 
-// Helper function
-func safeString(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
-
 // Helper functions for consolidate performance
 func getStringField(m map[string]interface{}, keys ...string) string {
 	for _, key := range keys {

@@ -3,7 +3,6 @@ using Assembler.Common;
 using Assembler.Config;
 using Assembler.Engine;
 using Assembler.Loader;
-using Assembler.Test;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -337,11 +336,6 @@ namespace AssemblerWebJs
                         var engineSuffix = input.EngineType.ToLower();
                         var outputFile = Path.Combine(outputDir, $"{input.AppSite}{appViewSuffix}_{engineSuffix}.html");
                         File.WriteAllText(outputFile, mergedHtml);
-
-                        // Also generate the structure dump file, filtered by AppSite
-                        var allScenarios = ConfigUtil.GetScenarios();
-                        var filteredScenarios = ConfigUtil.FilterByAppSite(allScenarios, input.AppSite);
-                        TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, contentRoot, filteredScenarios, true);
                     }
 
                     var responseObj = new ApiResponse

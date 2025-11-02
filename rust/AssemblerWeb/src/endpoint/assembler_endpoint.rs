@@ -543,21 +543,6 @@ pub async fn get_templates(
 
         let save_file = templates_dir.join(format!("rust_{}_templates.json", app_site));
         let _ = std::fs::write(&save_file, &json_result);
-
-        // Also generate the structure dump file (matches C# logic)
-        use assembler::config::config_util::ConfigUtil;
-        use assembler::test::testing_utils::TestingUtils;
-        let scenarios = match ConfigUtil::get_scenarios() {
-            Ok(s) => s,
-            Err(e) => {
-                return HttpResponse::InternalServerError().body(format!("Failed to load scenarios: {}", e));
-            }
-        };
-        let filtered_scenarios = ConfigUtil::filter_by_app_site(&scenarios, &app_site);
-        let wwwroot_path = project_directory.join("wwwroot");
-        let root_dir_str = wwwroot_path.to_str().unwrap_or("");
-        let project_dir_str = project_directory.to_str().unwrap_or("");
-        TestingUtils::dump_preprocessed_template_structures(root_dir_str, project_dir_str, &filtered_scenarios, true);
     }
 
     HttpResponse::Ok()
@@ -565,5 +550,27 @@ pub async fn get_templates(
         .body(json_result)
 }
 
+// OpenAPI documentation
+use utoipa::OpenApi;
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        index,
+        get_scenarios,
+        get_templates,
+        merge_templates
+    ),
+    components(schemas(MergeRequest, ScenarioDto)),
+    tags((name = "Assembler", description = "Assembler API endpoints"))
+)]
+pub struct ApiDoc;
+
+pub async fn openapi_handler() -> impl Responder {
+    let openapi = ApiDoc::openapi();
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .json(openapi)
+}
 
 

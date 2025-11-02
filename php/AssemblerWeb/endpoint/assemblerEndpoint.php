@@ -10,7 +10,6 @@ use Assembler\Api\ApiResponse;
 use Assembler\Api\TemplateData;
 use Assembler\Api\PreProcessTemplateMetadata;
 use Assembler\Common\Logger;
-use Assembler\Test\TestingUtils;
 use Assembler\Config\ConfigUtil;
 
 class AssemblerEndpoint
@@ -500,11 +499,6 @@ class AssemblerEndpoint
 
                 $saveFile = $templatesDir . DIRECTORY_SEPARATOR . "php_{$appSite}_templates.json";
                 file_put_contents($saveFile, $jsonResult);
-
-                // Save structure dump using TestingUtils logic
-                // Build a scenario list for the requested appSite
-                $scenarios = [(object)['appSite' => $appSite, 'appFile' => '', 'appView' => '']];
-                TestingUtils::dumpPreprocessedTemplateStructures($rootDirPath, $projectDirectory, $scenarios, true);
             }
 
             $response->getBody()->write($jsonResult);

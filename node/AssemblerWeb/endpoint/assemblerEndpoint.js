@@ -94,9 +94,6 @@ console.log('[DEBUG] assemblerEndpoint.js - __dirname:', __dirname);
 const loggerModule = await import(`${assemblerBasePath}/common/logger.js`);
 const { Logger } = loggerModule;
 
-const testingUtilsModule = await import(`${assemblerBasePath}/test/testingUtils.js`);
-const { dumpPreprocessedTemplateStructures } = testingUtilsModule;
-
 /**
  * GET / - Index endpoint (root page)
  */
@@ -455,11 +452,6 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
             await fsSync.promises.writeFile(saveFile, jsonResult, 'utf8').catch(err => {
                 console.error('Error saving templates file:', err)
             })
-
-            // Save structure dump using TestingUtils logic
-            // Build a scenario list for the requested appSite
-            const scenarios = [{ appSite: appSite, appFile: '', appView: '' }]
-            await dumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true)
         }
 
         res.setHeader('Content-Type', 'application/json')

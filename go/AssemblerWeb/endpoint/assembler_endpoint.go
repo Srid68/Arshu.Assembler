@@ -15,7 +15,6 @@ import (
 	"assembler/config"
 	"assembler/engine"
 	"assembler/loader"
-	"assembler/test"
 )
 
 const DefaultAppSite = "Test"
@@ -480,15 +479,16 @@ func GetTemplates(c *gin.Context) {
 
 		saveFile := filepath.Join(templatesDir, fmt.Sprintf("go_%s_templates.json", req.AppSite))
 		os.WriteFile(saveFile, []byte(jsonResult), 0644)
-
-		// Save structure dump using TestingUtils logic
-		// Build a scenario list for the requested appSite
-		scenarios := []config.Scenario{
-			{AppSite: req.AppSite, AppFile: "", AppView: ""},
-		}
-		test.DumpPreprocessedTemplateStructures(rootDirPath, ProjectDirectory, scenarios, true)
 	}
 
 	c.Header("Content-Type", "application/json")
 	c.String(http.StatusOK, jsonResult)
+}
+
+// Helper function to safely dereference string pointers
+func safeString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

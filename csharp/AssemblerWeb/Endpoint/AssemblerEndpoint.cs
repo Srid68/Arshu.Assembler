@@ -3,7 +3,6 @@ using Assembler.Common;
 using Assembler.Config;
 using Assembler.Engine;
 using Assembler.Loader;
-using Assembler.Test;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -338,11 +337,6 @@ namespace AssemblerWeb
                         var engineSuffix = input.EngineType.ToLower();
                         var outputFile = Path.Combine(outputDir, $"{input.AppSite}{appViewSuffix}_{engineSuffix}.html");
                         File.WriteAllText(outputFile, mergedHtml);
-
-                        // Also generate the structure dump file, filtered by AppSite
-                        var allScenarios = ConfigUtil.GetScenarios();
-                        var filteredScenarios = ConfigUtil.FilterByAppSite(allScenarios, input.AppSite);
-                        TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, contentRoot, filteredScenarios, true);
                     }
 
                     var responseObj = new ApiResponse
@@ -489,13 +483,6 @@ namespace AssemblerWeb
 
                         var saveFile = Path.Combine(templatesDir, $"csharp_{appSite}_templates.json");
                         await File.WriteAllTextAsync(saveFile, jsonResult);
-
-                        // Save structure dump using TestingUtils logic
-                        // Build a scenario list for the requested appSite
-                        var scenarios = new List<Assembler.Config.Scenario> {
-                            new Assembler.Config.Scenario(appSite, "", "")
-                        };
-                        Assembler.Test.TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true);
                     }
 
                     return Results.Content(jsonResult, "application/json");
