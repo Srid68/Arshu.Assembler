@@ -1376,3 +1376,21 @@ function getFirstOutputSize(langData) {
     }
     return null
 }
+
+/**
+ * Maps all assembler test endpoints to the Express app
+ * @param {Express} app - Express application instance
+ * @param {string} projectDirectory - Project directory path
+ * @param {ConfigUtil} ConfigUtil - ConfigUtil instance
+ */
+export function mapAssemblerTestEndpoints(app, projectDirectory, ConfigUtil) {
+    app.post('/api/test-results', (req, res) => saveTestResultsEndpoint(req, res, projectDirectory));
+    app.post('/api/performance-results', (req, res) => savePerformanceResultsEndpoint(req, res, projectDirectory));
+    app.post('/api/save-log', (req, res) => saveLogEndpoint(req, res, projectDirectory));
+    app.post('/api/save-output', (req, res) => saveOutputEndpoint(req, res, projectDirectory));
+    app.post('/test/standard', (req, res) => testStandardEndpoint(req, res, projectDirectory, ConfigUtil));
+    app.post('/test/advanced', (req, res) => testAdvancedEndpoint(req, res, projectDirectory, ConfigUtil));
+    app.post('/test/performance', (req, res) => testPerformanceEndpoint(req, res, projectDirectory, ConfigUtil));
+    app.post('/test/consolidate-performance', (req, res) => testConsolidatePerformanceEndpoint(req, res, projectDirectory));
+    app.post('/api/report', (req, res) => getReportEndpoint(req, res, projectDirectory));
+}

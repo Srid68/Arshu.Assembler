@@ -43,9 +43,11 @@ console.log('[DEBUG] Config module loaded');
 
 // Import endpoint handlers
 console.log('[DEBUG] Importing endpoint handlers...');
-import { indexEndpoint, mergeEndpoint, getTemplatesEndpoint, scenariosEndpoint } from './endpoint/assemblerEndpoint.js';
-import { saveTestResultsEndpoint, savePerformanceResultsEndpoint, saveLogEndpoint, saveOutputEndpoint, testStandardEndpoint, testAdvancedEndpoint, testPerformanceEndpoint, testConsolidatePerformanceEndpoint, getReportEndpoint } from './endpoint/assemblerTestEndpoint.js';
+import { mapAssemblerEndpoints } from './endpoint/assemblerEndpoint.js';
+import { mapAssemblerTestEndpoints } from './endpoint/assemblerTestEndpoint.js';
 console.log('[DEBUG] Endpoint handlers loaded');
+
+// Note: Assembler dependencies are now imported inside assemblerEndpoint.js
 
 // Import services
 console.log('[DEBUG] Importing services...');
@@ -325,30 +327,9 @@ app.get('/openapi.json', (req, res) => {
   res.json(openApiSpec);
 });
 
-// Routes
-app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ConfigUtil, projectDirectory));
-
-app.get('/api/scenarios', (req, res) => scenariosEndpoint(req, res, ConfigUtil));
-
-app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil, projectDirectory));
-
-app.post('/api/templates', (req, res) => getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil, projectDirectory));
-
-// API endpoints
-
-app.post('/api/test-results', (req, res) => saveTestResultsEndpoint(req, res, projectDirectory));
-app.post('/api/performance-results', (req, res) => savePerformanceResultsEndpoint(req, res, projectDirectory));
-app.post('/api/save-log', (req, res) => saveLogEndpoint(req, res, projectDirectory));
-app.post('/api/save-output', (req, res) => saveOutputEndpoint(req, res, projectDirectory));
-
-// Test endpoints - pass projectDirectory to endpoints
-app.post('/test/standard', (req, res) => testStandardEndpoint(req, res, projectDirectory, ConfigUtil));
-app.post('/test/advanced', (req, res) => testAdvancedEndpoint(req, res, projectDirectory, ConfigUtil));
-app.post('/test/performance', (req, res) => testPerformanceEndpoint(req, res, projectDirectory, ConfigUtil));
-app.post('/test/consolidate-performance', (req, res) => testConsolidatePerformanceEndpoint(req, res, projectDirectory));
-
-// Report endpoint
-app.post('/api/report', (req, res) => getReportEndpoint(req, res, projectDirectory));
+// Map assembler endpoints using the centralized functions
+mapAssemblerEndpoints(app, projectDirectory);
+mapAssemblerTestEndpoints(app, projectDirectory, ConfigUtil);
 
 app.listen(port, () => {
   // OS environment detection

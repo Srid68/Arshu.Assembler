@@ -3,6 +3,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fsSync from 'fs';
 
+// Import Assembler modules dynamically to avoid circular dependencies
+const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? '../Assembler/src' : '../../Assembler/src';
+
+const { EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess } = await import(`${assemblerBasePath}/index.js`);
+const { ApiResponse, TemplateData, PreProcessTemplateMetadata } = await import(`${assemblerBasePath}/api/index.js`);
+const { ConfigUtil } = await import(`${assemblerBasePath}/config/index.js`);
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -88,7 +95,6 @@ function isValidAppSite(appSite, validAppSites) {
 }
 
 // Conditional import for Logger based on environment
-const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? '../Assembler/src' : '../../Assembler/src';
 console.log('[DEBUG] assemblerEndpoint.js - Assembler base path:', assemblerBasePath);
 console.log('[DEBUG] assemblerEndpoint.js - __dirname:', __dirname);
 const loggerModule = await import(`${assemblerBasePath}/common/logger.js`);
@@ -461,4 +467,15 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
         console.error('Error stack:', error.stack)
         res.status(500).send(`Error: ${error.message}`)
     }
+}
+
+/**
+ * Maps all assembler endpoints to the Express app
+ * Usage: mapAssemblerEndpoints(app, projectDirectory)
+ */
+export function mapAssemblerEndpoints(app, projectDirectory) {
+    app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ConfigUtil, projectDirectory));
+    app.get('/api/scenarios', (req, res) => scenariosEndpoint(req, res, ConfigUtil));
+    app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil, projectDirectory));
+    app.post('/api/templates', (req, res) => getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil, projectDirectory));
 }
