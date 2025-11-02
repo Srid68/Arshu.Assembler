@@ -6,8 +6,7 @@ use actix_files as fs;
 mod endpoint;
 mod services;
 
-use endpoint::{index, get_scenarios, get_templates, merge_templates, openapi_handler};
-use endpoint::{save_test_results, save_performance_results, save_log, save_output, test_standard, test_advanced, test_performance, test_consolidate_performance, get_report};
+use endpoint::{map_assembler_endpoints, map_assembler_test_endpoints, openapi_handler};
 use services::IdleTracking;
 
 #[actix_web::main]
@@ -125,19 +124,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(project_dir_data.clone())
             .wrap(idle_tracking.clone())
-            .service(web::resource("/").route(web::get().to(index)))
-            .route("/api/scenarios", web::get().to(get_scenarios))
-            .route("/api/templates", web::post().to(get_templates))
-            .service(merge_templates)
-            .route("/api/test-results", web::post().to(save_test_results))
-            .route("/api/performance-results", web::post().to(save_performance_results))
-            .route("/api/save-log", web::post().to(save_log))
-            .route("/api/save-output", web::post().to(save_output))
-            .route("/test/standard", web::post().to(test_standard))
-            .route("/test/advanced", web::post().to(test_advanced))
-            .route("/test/performance", web::post().to(test_performance))
-            .route("/test/consolidate-performance", web::post().to(test_consolidate_performance))
-            .route("/api/report", web::post().to(get_report))
+            .configure(map_assembler_endpoints)
+            .configure(map_assembler_test_endpoints)
             .route("/openapi.json", web::get().to(openapi_handler))
             .service(fs::Files::new("/scalar", scalar_path).index_file("index.html"))
             .service(fs::Files::new("/", wwwroot_serve_path).index_file("index.html"))
@@ -148,23 +136,31 @@ async fn main() -> std::io::Result<()> {
     let server = server.run();
     let server_handle = server.handle();
     
+    // Demonstrate hold functionality for external processes
+    // Example: Acquire a hold to prevent idle shutdown during long-running operations
+    let example_hold_id = idle_tracking_for_shutdown.acquire_hold();
+    assembler::common::logger::Logger::info(&format!("Example hold acquired: {}", example_hold_id), Some("Main"));
+    // Release the hold when the operation completes
+    idle_tracking_for_shutdown.release_hold(&example_hold_id);
+    assembler::common::logger::Logger::info(&format!("Example hold released: {}", example_hold_id), Some("Main"));
+
     // Register shutdown handler using actix-web's runtime
     actix_web::rt::spawn(async move {
         actix_web::rt::signal::ctrl_c().await.ok();
         println!("Received shutdown signal");
-        
+
         if idle_tracking_enabled {
             idle_tracking_for_shutdown.shutdown();
         }
-        
+
         assembler::common::logger::Logger::info("AssemblerWeb shutting down...", Some("Main"));
         println!("AssemblerWeb shutting down...");
-        
+
         server_handle.stop(true).await;
-        
+
         assembler::common::logger::Logger::info("AssemblerWeb stopped", Some("Main"));
         println!("AssemblerWeb stopped");
-        
+
         // Give time for logs to flush
         std::thread::sleep(std::time::Duration::from_millis(100));
     });

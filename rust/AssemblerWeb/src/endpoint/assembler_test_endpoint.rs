@@ -1326,3 +1326,17 @@ pub async fn save_performance_results(
     };
     HttpResponse::Ok().json(response)
 }
+
+/// Maps all assembler test endpoints to the service config
+/// Usage: map_assembler_test_endpoints(&mut cfg)
+pub fn map_assembler_test_endpoints(cfg: &mut web::ServiceConfig) {
+    cfg.route("/api/test-results", web::post().to(save_test_results))
+        .route("/api/performance-results", web::post().to(save_performance_results))
+        .route("/api/save-log", web::post().to(save_log))
+        .route("/api/save-output", web::post().to(save_output))
+        .route("/test/standard", web::post().to(test_standard))
+        .route("/test/advanced", web::post().to(test_advanced))
+        .route("/test/performance", web::post().to(test_performance))
+        .route("/test/consolidate-performance", web::post().to(test_consolidate_performance))
+        .route("/api/report", web::post().to(get_report));
+}

@@ -573,4 +573,12 @@ pub async fn openapi_handler() -> impl Responder {
         .json(openapi)
 }
 
+/// Maps all assembler endpoints to the service config
+/// Usage: map_assembler_endpoints(&mut cfg)
+pub fn map_assembler_endpoints(cfg: &mut web::ServiceConfig) {
+    cfg.service(web::resource("/").route(web::get().to(index)))
+        .route("/api/scenarios", web::get().to(get_scenarios))
+        .route("/api/templates", web::post().to(get_templates))
+        .service(merge_templates);
+}
 
