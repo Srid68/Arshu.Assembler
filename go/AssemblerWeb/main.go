@@ -111,10 +111,6 @@ func main() {
 	projectDirectory, _ = os.Getwd()
 	wwwrootPath := filepath.Join(projectDirectory, "wwwroot")
 
-	// Set endpoint package variables
-	endpoint.ProjectDirectory = projectDirectory
-	endpoint.WwwrootPath = wwwrootPath
-
 	// Configure Logger
 	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
@@ -162,7 +158,7 @@ func main() {
 
 	// Parse command line args
 	skipIdleTracking := false
-	port := "8080" // Default port
+	port := "8040" // Default port
 
 	// Check PORT environment variable first
 	if envPort := os.Getenv("PORT"); envPort != "" {
@@ -252,7 +248,7 @@ func main() {
 	r.Static("/scalar", "./wwwroot/scalar")
 
 	// Map assembler endpoints using the centralized function
-	endpoint.MapAssemblerEndpoints(r, wwwrootPath)
+	endpoint.MapAssemblerEndpoints(r)
 	endpoint.MapAssemblerTestEndpoints(r)
 
 	r.GET("/openapi.json", openapi)

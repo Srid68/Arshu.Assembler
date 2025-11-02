@@ -108,7 +108,7 @@ const USE_PREPROCESS_ENGINE = true;
 const skipIdleTracking = process.argv.includes('--skipIdleTracking');
 
 // Parse port from --port argument
-let port = process.env.PORT || 8095;
+let port = process.env.PORT || 8050;
 const portIndex = process.argv.indexOf('--port');
 if (portIndex !== -1 && portIndex + 1 < process.argv.length) {
   port = parseInt(process.argv[portIndex + 1], 10) || port;
@@ -329,7 +329,7 @@ app.get('/openapi.json', (req, res) => {
 
 // Map assembler endpoints using the centralized functions
 mapAssemblerEndpoints(app, projectDirectory);
-mapAssemblerTestEndpoints(app, projectDirectory, ConfigUtil);
+mapAssemblerTestEndpoints(app);
 
 app.listen(port, () => {
   // OS environment detection

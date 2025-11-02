@@ -15,13 +15,13 @@ async fn main() -> std::io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let skip_idle_tracking = args.iter().any(|arg| arg == "--skipIdleTracking");
 
-    // Parse port from --port argument or PORT environment variable, default to 8090
+    // Parse port from --port argument or PORT environment variable, default to 8030
     let port: u16 = args.iter()
         .position(|arg| arg == "--port")
         .and_then(|i| args.get(i + 1))
         .and_then(|p| p.parse().ok())
         .or_else(|| std::env::var("PORT").ok().and_then(|p| p.parse().ok()))
-        .unwrap_or(8090);
+        .unwrap_or(8030);
 
     // Get project directory (current working directory for web projects)
     let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
@@ -115,14 +115,12 @@ async fn main() -> std::io::Result<()> {
     let idle_tracking = IdleTracking::new(idle_seconds, idle_tracking_enabled);
     let idle_tracking_for_shutdown = idle_tracking.clone();
 
-    let project_dir_data = web::Data::new(project_directory.clone());
     let wwwroot_path = project_directory.join("wwwroot");
     let server = HttpServer::new(move || {
         let scalar_path = wwwroot_path.join("scalar");
         let wwwroot_serve_path = wwwroot_path.clone();
 
         App::new()
-            .app_data(project_dir_data.clone())
             .wrap(idle_tracking.clone())
             .configure(map_assembler_endpoints)
             .configure(map_assembler_test_endpoints)

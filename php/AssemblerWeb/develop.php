@@ -3,7 +3,7 @@
 // This script starts the PHP built-in server and optionally launches idle tracking monitor
 
 // Parse command line arguments for port
-$port = 8085;
+$port = 8060;
 $host = 'localhost';
 $skipIdleTracking = false;
 
