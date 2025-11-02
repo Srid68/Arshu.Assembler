@@ -21,9 +21,25 @@ class AssemblerTestEndpoint
 		'Rule1'
 	];
 
-	 public static function testStandardEndpoint(ServerRequest $request, Response $response, string $wwwrootPath, string $projectRootPath): Response
+	/**
+	 * Get project directory
+	 */
+	private static function getProjectDirectory(): string {
+		return getcwd();
+	}
+
+	/**
+	 * Get wwwroot path
+	 */
+	private static function getWwwrootPath(): string {
+		return self::getProjectDirectory() . DIRECTORY_SEPARATOR . 'wwwroot';
+	}
+
+	 public static function testStandardEndpoint(ServerRequest $request, Response $response): Response
     {
         $start = microtime(true);
+        $projectRootPath = self::getProjectDirectory();
+        $wwwrootPath = self::getWwwrootPath();
 
         // Enable logging temporarily for tests
         $originalLogLevel = Logger::getLogLevel();
@@ -99,9 +115,11 @@ class AssemblerTestEndpoint
         }
     }
 
-    public static function testAdvancedEndpoint(ServerRequest $request, Response $response, string $wwwrootPath, string $projectRootPath): Response
+    public static function testAdvancedEndpoint(ServerRequest $request, Response $response): Response
     {
         $start = microtime(true);
+        $projectRootPath = self::getProjectDirectory();
+        $wwwrootPath = self::getWwwrootPath();
 
         // Enable logging temporarily for tests
         $originalLogLevel = Logger::getLogLevel();
@@ -180,9 +198,11 @@ class AssemblerTestEndpoint
         }
     }
 
-    public static function testPerformanceEndpoint(ServerRequest $request, Response $response, string $wwwrootPath, string $projectRootPath): Response
+    public static function testPerformanceEndpoint(ServerRequest $request, Response $response): Response
     {
         $start = microtime(true);
+        $projectRootPath = self::getProjectDirectory();
+        $wwwrootPath = self::getWwwrootPath();
 
         try {
             // Log start before disabling logging
@@ -241,9 +261,11 @@ class AssemblerTestEndpoint
         }
     }
 
-	public static function testConsolidatePerformanceEndpoint(ServerRequest $request, Response $response, string $wwwrootPath, string $projectRootPath): Response
+	public static function testConsolidatePerformanceEndpoint(ServerRequest $request, Response $response): Response
     {
         $start = microtime(true);
+        $projectRootPath = self::getProjectDirectory();
+        $wwwrootPath = self::getWwwrootPath();
 
         // Configure logging for consolidate endpoint
         $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis';
@@ -1005,8 +1027,9 @@ class AssemblerTestEndpoint
         }
     }
 
-    public static function getReportEndpoint(ServerRequest $request, Response $response, string $projectRootPath): Response
+    public static function getReportEndpoint(ServerRequest $request, Response $response): Response
     {
+        $projectRootPath = self::getProjectDirectory();
         try {
             $body = $request->getBody()->getContents();
             $data = json_decode($body, true);
@@ -1080,8 +1103,9 @@ class AssemblerTestEndpoint
      * POST /api/save-log - Save a log file (browser-callable)
      * Mirrors C# behavior: expects JSON { context, content }, validates and writes to template_analysis/logs/javascript_{context}.log
      */
-    public static function saveLogEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
+    public static function saveLogEndpoint(ServerRequest $request, Response $response): Response
     {
+        $projectDirectory = self::getProjectDirectory();
         try {
             error_log("[/api/save-log] Endpoint called");
             $body = json_decode((string)$request->getBody(), true);
@@ -1135,8 +1159,9 @@ class AssemblerTestEndpoint
      * POST /api/save-output - Save an output file (browser-callable)
      * Mirrors C# behavior: expects JSON { appSite, appView?, engineType, html }
      */
-    public static function saveOutputEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
+    public static function saveOutputEndpoint(ServerRequest $request, Response $response): Response
     {
+        $projectDirectory = self::getProjectDirectory();
         try {
             error_log("[/api/save-output] Endpoint called");
             $requestBody = (string)$request->getBody();
@@ -1228,8 +1253,9 @@ class AssemblerTestEndpoint
     /**
      * POST /api/test-results - Save test results and generate HTML/JSON reports
      */
-    public static function saveTestResultsEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
+    public static function saveTestResultsEndpoint(ServerRequest $request, Response $response): Response
     {
+        $projectDirectory = self::getProjectDirectory();
         try {
             $summaryRows = json_decode((string)$request->getBody(), true);
             if (!is_array($summaryRows)) {
@@ -1332,8 +1358,9 @@ class AssemblerTestEndpoint
     /**
      * POST /api/performance-results - Save performance results and generate HTML/JSON reports
      */
-    public static function savePerformanceResultsEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
+    public static function savePerformanceResultsEndpoint(ServerRequest $request, Response $response): Response
     {
+        $projectDirectory = self::getProjectDirectory();
         try {
             $summaryRows = json_decode((string)$request->getBody(), true);
             if (!is_array($summaryRows)) {
@@ -1431,44 +1458,42 @@ class AssemblerTestEndpoint
     /**
      * Maps all assembler test endpoints to the Slim app
      * @param \Slim\App $app - Slim application instance
-     * @param string $projectDirectory - Project directory path
-     * @param string $assemblerWebDirPath - wwwroot directory path
      */
-    public static function mapAssemblerTestEndpoints($app, $projectDirectory, $assemblerWebDirPath) {
-        $app->post('/test/standard', function ($request, $response) use ($assemblerWebDirPath, $projectDirectory) {
-            return AssemblerTestEndpoint::testStandardEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
+    public static function mapAssemblerTestEndpoints($app) {
+        $app->post('/test/standard', function ($request, $response) {
+            return AssemblerTestEndpoint::testStandardEndpoint($request, $response);
         })->setName('RunStandardTests');
 
-        $app->post('/test/advanced', function ($request, $response) use ($assemblerWebDirPath, $projectDirectory) {
-            return AssemblerTestEndpoint::testAdvancedEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
+        $app->post('/test/advanced', function ($request, $response) {
+            return AssemblerTestEndpoint::testAdvancedEndpoint($request, $response);
         })->setName('RunAdvancedTests');
 
-        $app->post('/test/performance', function ($request, $response) use ($assemblerWebDirPath, $projectDirectory) {
-            return AssemblerTestEndpoint::testPerformanceEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
+        $app->post('/test/performance', function ($request, $response) {
+            return AssemblerTestEndpoint::testPerformanceEndpoint($request, $response);
         })->setName('RunPerformanceTests');
 
-        $app->post('/test/consolidate-performance', function ($request, $response) use ($assemblerWebDirPath, $projectDirectory) {
-            return AssemblerTestEndpoint::testConsolidatePerformanceEndpoint($request, $response, $assemblerWebDirPath, $projectDirectory);
+        $app->post('/test/consolidate-performance', function ($request, $response) {
+            return AssemblerTestEndpoint::testConsolidatePerformanceEndpoint($request, $response);
         })->setName('ConsolidatePerformanceTests');
 
-        $app->post('/api/report', function ($request, $response) use ($projectDirectory) {
-            return AssemblerTestEndpoint::getReportEndpoint($request, $response, $projectDirectory);
+        $app->post('/api/report', function ($request, $response) {
+            return AssemblerTestEndpoint::getReportEndpoint($request, $response);
         })->setName('GetReport');
 
-        $app->post('/api/test-results', function ($request, $response) use ($projectDirectory) {
-            return AssemblerTestEndpoint::saveTestResultsEndpoint($request, $response, $projectDirectory);
+        $app->post('/api/test-results', function ($request, $response) {
+            return AssemblerTestEndpoint::saveTestResultsEndpoint($request, $response);
         })->setName('SaveTestResults');
 
-        $app->post('/api/performance-results', function ($request, $response) use ($projectDirectory) {
-            return AssemblerTestEndpoint::savePerformanceResultsEndpoint($request, $response, $projectDirectory);
+        $app->post('/api/performance-results', function ($request, $response) {
+            return AssemblerTestEndpoint::savePerformanceResultsEndpoint($request, $response);
         })->setName('SavePerformanceResults');
 
-        $app->post('/api/save-log', function ($request, $response) use ($projectDirectory) {
-            return AssemblerTestEndpoint::saveLogEndpoint($request, $response, $projectDirectory);
+        $app->post('/api/save-log', function ($request, $response) {
+            return AssemblerTestEndpoint::saveLogEndpoint($request, $response);
         })->setName('SaveLog');
 
-        $app->post('/api/save-output', function ($request, $response) use ($projectDirectory) {
-            return AssemblerTestEndpoint::saveOutputEndpoint($request, $response, $projectDirectory);
+        $app->post('/api/save-output', function ($request, $response) {
+            return AssemblerTestEndpoint::saveOutputEndpoint($request, $response);
         })->setName('SaveOutput');
     }
 

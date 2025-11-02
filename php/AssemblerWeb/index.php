@@ -180,7 +180,7 @@ Logger::info('Setting up routes...', 'Index');
 
 // Map assembler endpoints using the centralized functions
 AssemblerEndpoint::mapAssemblerEndpoints($app, $projectDirectory);
-AssemblerTestEndpoint::mapAssemblerTestEndpoints($app, $projectDirectory, $assemblerWebDirPath);
+AssemblerTestEndpoint::mapAssemblerTestEndpoints($app);
 
 // Serve Scalar UI index.html at /scalar
 // Redirect /scalar to /scalar/index.html for proper UI loading
