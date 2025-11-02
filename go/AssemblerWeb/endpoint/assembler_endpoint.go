@@ -28,11 +28,19 @@ var validEngineTypes = map[string]bool{
 	"PreProcess": true,
 }
 
-// WwwrootPath stores the wwwroot directory path (set from main)
-var WwwrootPath string
+// GetProjectDirectory returns the current project directory
+func getProjectDirectory() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	return dir
+}
 
-// ProjectDirectory stores the project directory path (set from main)
-var ProjectDirectory string
+// GetWwwrootPath returns the wwwroot path
+func getWwwrootPath() string {
+	return filepath.Join(getProjectDirectory(), "wwwroot")
+}
 
 // GetValidAppSites gets the valid AppSites from ConfigUtil
 func getValidAppSites() (map[string]bool, error) {
@@ -107,7 +115,7 @@ type MergeRequest struct {
 // Index handles the GET / endpoint
 func Index(c *gin.Context) {
 	// Get appsite from query parameter or use default
-	rootDirPath := WwwrootPath
+	rootDirPath := getWwwrootPath()
 
 	appSite := DefaultAppSite
 	appFile := "index"
@@ -228,7 +236,8 @@ func MergeTemplates(c *gin.Context) {
 	// Enable logging for merge operations
 	originalLogLevel := common.GetLogLevel()
 
-	templateAnalysisDir := filepath.Join(ProjectDirectory, "template_analysis")
+	projectDirectory := getProjectDirectory()
+	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 
@@ -299,7 +308,7 @@ func MergeTemplates(c *gin.Context) {
 	common.Info(logMsg, "MergeEndpoint")
 
 	// Get wwwroot directory
-	rootDirPath := WwwrootPath
+	rootDirPath := getWwwrootPath()
 
 	// Validate EngineType against allowlist
 	if !isValidEngineType(*req.EngineType) {
@@ -360,7 +369,7 @@ func MergeTemplates(c *gin.Context) {
 	// Save HTML output only if save query parameter is present
 	saveParam := c.Query("save")
 	if strings.EqualFold(saveParam, "true") {
-		outputDir := filepath.Join(ProjectDirectory, "template_analysis", "output")
+		outputDir := filepath.Join(projectDirectory, "template_analysis", "output")
 		os.MkdirAll(outputDir, 0755)
 
 		appViewSuffix := ""
@@ -389,6 +398,8 @@ func MergeTemplates(c *gin.Context) {
 
 // GetTemplates handles the POST /api/templates endpoint
 func GetTemplates(c *gin.Context) {
+	projectDirectory := getProjectDirectory()
+
 	var req struct {
 		AppSite string `json:"appSite"`
 	}
@@ -416,7 +427,7 @@ func GetTemplates(c *gin.Context) {
 
 	serverStart := time.Now()
 
-	rootDirPath := WwwrootPath
+	rootDirPath := getWwwrootPath()
 
 	// Load Normal templates
 	normalTemplates := loader.LoadGetTemplateFiles(rootDirPath, req.AppSite)
@@ -474,7 +485,7 @@ func GetTemplates(c *gin.Context) {
 	// Check if save query parameter is present
 	saveParam := c.Query("save")
 	if strings.EqualFold(saveParam, "true") {
-		templatesDir := filepath.Join(ProjectDirectory, "template_analysis", "templates")
+		templatesDir := filepath.Join(projectDirectory, "template_analysis", "templates")
 		os.MkdirAll(templatesDir, 0755)
 
 		saveFile := filepath.Join(templatesDir, fmt.Sprintf("go_%s_templates.json", req.AppSite))
@@ -494,12 +505,8 @@ func safeString(s *string) string {
 }
 
 // MapAssemblerEndpoints maps all assembler endpoints to the router
-// Usage: endpoint.MapAssemblerEndpoints(router, wwwrootPath)
-func MapAssemblerEndpoints(router *gin.Engine, wwwrootPath string) {
-	// Set package-level variables
-	WwwrootPath = wwwrootPath
-	ProjectDirectory = filepath.Dir(wwwrootPath)
-
+// Usage: endpoint.MapAssemblerEndpoints(router)
+func MapAssemblerEndpoints(router *gin.Engine) {
 	// Map assembler endpoints
 	router.GET("/", Index)
 	router.GET("/api/scenarios", Scenarios)

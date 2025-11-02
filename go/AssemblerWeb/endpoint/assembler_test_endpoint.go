@@ -49,13 +49,14 @@ type TestResponse struct {
 // TestStandard handles the POST /test/standard endpoint
 func TestStandard(c *gin.Context) {
 	start := time.Now()
-	rootDirPath := filepath.Join(ProjectDirectory, "wwwroot")
+	projectDirectory := getProjectDirectory()
+	rootDirPath := filepath.Join(projectDirectory, "wwwroot")
 
 	// Enable logging temporarily for tests
 	originalLogLevel := common.GetLogLevel()
 
 	// Configure logger with context-specific log files for StandardTests
-	templateAnalysisDir := filepath.Join(ProjectDirectory, "template_analysis")
+	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 
@@ -75,9 +76,9 @@ func TestStandard(c *gin.Context) {
 		return
 	}
 
-	results := test.RunStandardTests(rootDirPath, ProjectDirectory, scenarios, false, true, true)
+	results := test.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true)
 	if len(results) > 0 {
-		test.PrintTestSummaryTable(rootDirPath, ProjectDirectory, results, "STANDARD TEST")
+		test.PrintTestSummaryTable(rootDirPath, projectDirectory, results, "STANDARD TEST")
 	}
 
 	// Restore original log level
@@ -112,13 +113,14 @@ func TestStandard(c *gin.Context) {
 // TestAdvanced handles the POST /test/advanced endpoint
 func TestAdvanced(c *gin.Context) {
 	start := time.Now()
-	rootDirPath := filepath.Join(ProjectDirectory, "wwwroot")
+	projectDirectory := getProjectDirectory()
+	rootDirPath := filepath.Join(projectDirectory, "wwwroot")
 
 	// Enable logging temporarily for tests
 	originalLogLevel := common.GetLogLevel()
 
 	// Configure logger with context-specific log files for AdvancedTests
-	templateAnalysisDir := filepath.Join(ProjectDirectory, "template_analysis")
+	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 
@@ -141,11 +143,11 @@ func TestAdvanced(c *gin.Context) {
 	}
 
 	// Dump preprocessed template structures before running advanced tests
-	test.DumpPreprocessedTemplateStructures(rootDirPath, ProjectDirectory, scenarios, true)
+	test.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true)
 
-	results := test.RunAdvancedTests(rootDirPath, ProjectDirectory, scenarios, false, true, true)
+	results := test.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, false, true, true)
 	if len(results) > 0 {
-		test.PrintTestSummaryTable(rootDirPath, ProjectDirectory, results, "ADVANCED TEST")
+		test.PrintTestSummaryTable(rootDirPath, projectDirectory, results, "ADVANCED TEST")
 	}
 
 	// Restore original log level
@@ -180,7 +182,8 @@ func TestAdvanced(c *gin.Context) {
 // TestPerformance handles the POST /test/performance endpoint
 func TestPerformance(c *gin.Context) {
 	start := time.Now()
-	rootDirPath := WwwrootPath
+	projectDirectory := getProjectDirectory()
+	rootDirPath := getWwwrootPath()
 
 	// Disable logging during performance tests
 	originalLogLevel := common.GetLogLevel()
@@ -194,9 +197,9 @@ func TestPerformance(c *gin.Context) {
 		return
 	}
 
-	results := performance.RunPerformanceComparison(rootDirPath, ProjectDirectory, scenarios, true, true)
+	results := performance.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, true, true)
 	if len(results) > 0 {
-		performance.PrintPerfSummaryTable(rootDirPath, ProjectDirectory, results)
+		performance.PrintPerfSummaryTable(rootDirPath, projectDirectory, results)
 	}
 
 	// Restore original log level
@@ -230,10 +233,11 @@ func TestPerformance(c *gin.Context) {
 // TestConsolidatePerformance handles the POST /test/consolidate-performance endpoint
 func TestConsolidatePerformance(c *gin.Context) {
 	start := time.Now()
-	rootDirPath := filepath.Join(ProjectDirectory, "wwwroot")
+	projectDirectory := getProjectDirectory()
+	rootDirPath := filepath.Join(projectDirectory, "wwwroot")
 
 	// Configure logging for consolidate endpoint
-	templateAnalysisDir := filepath.Join(ProjectDirectory, "template_analysis")
+	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 	consolidateLogFile := filepath.Join(logsDir, "go_consolidate_perf.log")
@@ -1003,7 +1007,7 @@ func TestConsolidatePerformance(c *gin.Context) {
 	htmlBuilder.WriteString("</body>\n</html>\n")
 
 	// Write HTML to template_analysis/Reports directory
-	reportsDir := filepath.Join(ProjectDirectory, "template_analysis", "Reports")
+	reportsDir := filepath.Join(getProjectDirectory(), "template_analysis", "Reports")
 	if err := os.MkdirAll(reportsDir, 0755); err != nil {
 		log.Printf("Error creating Reports directory: %v", err)
 	}
@@ -1081,7 +1085,7 @@ func GetReport(c *gin.Context) {
 		prefix = *req.LangPrefix + "_"
 	}
 	fileName := prefix + *req.FileName
-	reportsDir := filepath.Join(ProjectDirectory, "template_analysis", "Reports")
+	reportsDir := filepath.Join(getProjectDirectory(), "template_analysis", "Reports")
 	filePath := filepath.Join(reportsDir, fileName)
 
 	// Check if file exists
@@ -1148,7 +1152,7 @@ func SaveLog(c *gin.Context) {
 		return
 	}
 
-	logsDir := filepath.Join(ProjectDirectory, "template_analysis", "logs")
+	logsDir := filepath.Join(getProjectDirectory(), "template_analysis", "logs")
 	os.MkdirAll(logsDir, 0755)
 	logFile := filepath.Join(logsDir, fmt.Sprintf("javascript_%s.log", strings.ToLower(req.Context)))
 	if err := os.WriteFile(logFile, []byte(req.Content), 0644); err != nil {
@@ -1240,7 +1244,7 @@ func SaveOutput(c *gin.Context) {
 		return
 	}
 
-	outputDir := filepath.Join(ProjectDirectory, "template_analysis", "output")
+	outputDir := filepath.Join(getProjectDirectory(), "template_analysis", "output")
 	os.MkdirAll(outputDir, 0755)
 	appViewSuffix := ""
 	if req.AppView != "" {
@@ -1264,7 +1268,7 @@ func SaveTestResults(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid test results format"})
 		return
 	}
-	outputDir := filepath.Join(ProjectDirectory, "template_analysis", "Reports")
+	outputDir := filepath.Join(getProjectDirectory(), "template_analysis", "Reports")
 	os.MkdirAll(outputDir, 0755)
 
 	// Get test type from query parameter
@@ -1355,7 +1359,7 @@ func SavePerformanceResults(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid performance results format"})
 		return
 	}
-	outputDir := filepath.Join(ProjectDirectory, "template_analysis", "Reports")
+	outputDir := filepath.Join(getProjectDirectory(), "template_analysis", "Reports")
 	os.MkdirAll(outputDir, 0755)
 
 	// Generate HTML table for performance results
