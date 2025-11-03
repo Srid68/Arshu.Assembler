@@ -8,7 +8,7 @@ flush();
 
 echo "[STARTUP] Loading autoload.php...\n";
 flush();
-require_once __DIR__ . '/../Assembler/vendor/autoload.php';
+require_once __DIR__ . '/../../Assembler/vendor/autoload.php';
 echo "[STARTUP] Autoload complete\n";
 flush();
 
@@ -32,7 +32,7 @@ echo "[STARTUP] Logger configured\n";
 flush();
 
 // Use consistent temp directory
-$tempDir = __DIR__ . '/../tmp';
+$tempDir = __DIR__ . '/../../tmp';
 if (!is_dir($tempDir)) {
     mkdir($tempDir, 0777, true);
 }

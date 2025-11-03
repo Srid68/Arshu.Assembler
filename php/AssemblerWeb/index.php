@@ -8,10 +8,10 @@ require_once __DIR__ . '/../Assembler/vendor/autoload.php';
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/../Assembler/src/Model/ModelPreProcess.php';
 require_once __DIR__ . '/../Assembler/src/Api/ApiResponse.php';
-require_once __DIR__ . '/model/MergeRequest.php';
-require_once __DIR__ . '/services/IdleTrackingMiddleware.php';
-require_once __DIR__ . '/endpoint/assemblerEndpoint.php';
-require_once __DIR__ . '/endpoint/assemblerTestEndpoint.php';
+require_once __DIR__ . '/src/model/MergeRequest.php';
+require_once __DIR__ . '/src/services/IdleTrackingMiddleware.php';
+require_once __DIR__ . '/src/endpoint/assemblerEndpoint.php';
+require_once __DIR__ . '/src/endpoint/assemblerTestEndpoint.php';
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as ServerRequest;

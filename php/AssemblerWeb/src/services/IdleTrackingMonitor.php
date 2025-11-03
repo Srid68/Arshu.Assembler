@@ -3,7 +3,7 @@
 // IdleTrackingMonitor.php
 // This script is launched as a background process by IdleTrackingMiddleware
 
-require_once __DIR__ . '/../../Assembler/vendor/autoload.php';
+require_once __DIR__ . '/../../../Assembler/vendor/autoload.php';
 
 use Assembler\Common\Logger;
 

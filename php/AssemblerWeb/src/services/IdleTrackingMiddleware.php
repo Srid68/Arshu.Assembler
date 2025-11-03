@@ -22,7 +22,7 @@ class IdleTrackingMiddleware {
         }
 
         self::$idleSeconds = $idleSeconds;
-        $tempDir = __DIR__ . '/../tmp';
+        $tempDir = __DIR__ . '/../../tmp';
         self::$lastRequestFile = $tempDir . DIRECTORY_SEPARATOR . 'php_assembler_last_request.txt';
         self::$pidFile = $tempDir . DIRECTORY_SEPARATOR . 'php_assembler_server_pid.txt';
         self::$holdDir = $tempDir . DIRECTORY_SEPARATOR . 'holds';

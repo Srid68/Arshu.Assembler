@@ -1,7 +1,7 @@
 import fsSync from 'fs';
 
 // Import ConfigUtil dynamically based on environment
-const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? '../Assembler/src' : '../../Assembler/src';
+const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? '../Assembler/src' : '../../../Assembler/src';
 const configModule = await import(`${assemblerBasePath}/config/index.js`);
 const { ConfigUtil } = configModule;
 

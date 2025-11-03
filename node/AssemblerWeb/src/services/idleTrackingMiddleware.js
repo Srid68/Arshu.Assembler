@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import fsSync from 'fs';
 
 // Determine the correct path for Logger
-const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? '../Assembler/src' : '../../Assembler/src';
+const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? '../Assembler/src' : '../../../Assembler/src';
 const loggerModule = await import(`${assemblerBasePath}/common/logger.js`);
 const { Logger } = loggerModule;
 

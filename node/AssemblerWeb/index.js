@@ -43,15 +43,15 @@ console.log('[DEBUG] Config module loaded');
 
 // Import endpoint handlers
 console.log('[DEBUG] Importing endpoint handlers...');
-import { mapAssemblerEndpoints } from './endpoint/assemblerEndpoint.js';
-import { mapAssemblerTestEndpoints } from './endpoint/assemblerTestEndpoint.js';
+import { mapAssemblerEndpoints } from './src/endpoint/assemblerEndpoint.js';
+import { mapAssemblerTestEndpoints } from './src/endpoint/assemblerTestEndpoint.js';
 console.log('[DEBUG] Endpoint handlers loaded');
 
 // Note: Assembler dependencies are now imported inside assemblerEndpoint.js
 
 // Import services
 console.log('[DEBUG] Importing services...');
-import { idleTrackingMiddleware } from './services/idleTrackingMiddleware.js';
+import { idleTrackingMiddleware } from './src/services/idleTrackingMiddleware.js';
 console.log('[DEBUG] Services loaded');
 
 // Configure logger with context-specific log files
