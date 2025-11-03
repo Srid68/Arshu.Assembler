@@ -328,7 +328,7 @@ app.get('/openapi.json', (req, res) => {
 });
 
 // Map assembler endpoints using the centralized functions
-mapAssemblerEndpoints(app, projectDirectory);
+mapAssemblerEndpoints(app);
 mapAssemblerTestEndpoints(app);
 
 app.listen(port, () => {

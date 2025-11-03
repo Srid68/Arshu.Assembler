@@ -1,10 +1,5 @@
 import { randomUUID } from 'crypto';
-import fsSync from 'fs';
-
-// Determine the correct path for Logger
-const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? '../Assembler/src' : '../../../Assembler/src';
-const loggerModule = await import(`${assemblerBasePath}/common/logger.js`);
-const { Logger } = loggerModule;
+import { Logger } from '@arshu/assembler/common';
 
 // Store activeHolds globally for shutdown access
 const activeHoldsGlobal = new Map();
@@ -112,15 +107,21 @@ export function idleTrackingMiddleware(idleSeconds = 10) {
   };
 }
 
-// AcquireHold: creates a hold and returns its ID
-export function acquireHold() {
-  const holdId = `hold_${randomUUID().replace(/-/g, '')}`;
+/**
+ * Acquire a hold with the specified ID to prevent shutdown during critical operations
+ * Matches C# method signature at AssemblerWeb/Services/IdleTrackingMiddleware.cs:28
+ * @param {string} holdId - The ID for this hold
+ */
+export function acquireHold(holdId) {
   activeHoldsGlobal.set(holdId, Date.now());
   Logger.info(`[AcquireHold] Hold set: ${holdId}`, 'IdleTracking');
-  return holdId;
 }
 
-// ReleaseHold: removes a hold by its ID
+/**
+ * Release a previously acquired hold
+ * Matches C# method signature at AssemblerWeb/Services/IdleTrackingMiddleware.cs:38
+ * @param {string} holdId - The ID of the hold to release
+ */
 export function releaseHold(holdId) {
   if (activeHoldsGlobal.has(holdId)) {
     activeHoldsGlobal.delete(holdId);

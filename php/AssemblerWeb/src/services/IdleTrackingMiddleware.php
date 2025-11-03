@@ -114,18 +114,24 @@ class IdleTrackingMiddleware {
         }
     }
 
-    public static function AcquireHold(): string {
+    /**
+     * Acquire a hold with the specified ID to prevent shutdown during critical operations
+     * Matches C# method signature at AssemblerWeb/Services/IdleTrackingMiddleware.cs:28
+     */
+    public static function AcquireHold(string $holdId): void {
         if (self::$holdDir === null) {
-            return '';
+            return;
         }
-        $holdId = uniqid('hold_', true);
         $holdFile = self::$holdDir . DIRECTORY_SEPARATOR . $holdId . '.txt';
         $timestamp = time();
         file_put_contents($holdFile, (string)$timestamp);
         Logger::info("[AcquireHold] Hold set: $holdId", 'IdleTracking');
-        return $holdId;
     }
 
+    /**
+     * Release a previously acquired hold
+     * Matches C# method signature at AssemblerWeb/Services/IdleTrackingMiddleware.cs:38
+     */
     public static function ReleaseHold(string $holdId): void {
         if (self::$holdDir === null || $holdId === '') {
             return;

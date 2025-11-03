@@ -2,7 +2,6 @@ use std::sync::{Arc, Mutex, Once};
 use std::time::{Duration, Instant};
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::Error;
-use actix_web::rt::System;
 use futures_util::future::{self, LocalBoxFuture};
 
 static INIT: Once = Once::new();
@@ -30,16 +29,16 @@ impl IdleTracking {
         }
     }
 
-    /// AcquireHold: creates a hold and returns its ID
-    pub fn acquire_hold(&self) -> String {
-        let hold_id = format!("hold_{}", uuid::Uuid::new_v4().to_string().replace("-", ""));
+    /// Acquire a hold with the specified ID to prevent shutdown during critical operations
+    /// Matches C# method signature at AssemblerWeb/Services/IdleTrackingMiddleware.cs:28
+    pub fn acquire_hold(&self, hold_id: &str) {
         let mut holds = self.active_holds.lock().unwrap();
-        holds.insert(hold_id.clone(), Instant::now());
+        holds.insert(hold_id.to_string(), Instant::now());
         assembler::common::logger::Logger::info(&format!("[AcquireHold] Hold set: {}", hold_id), Some("IdleTracking"));
-        hold_id
     }
 
-    /// ReleaseHold: removes a hold by its ID
+    /// Release a previously acquired hold
+    /// Matches C# method signature at AssemblerWeb/Services/IdleTrackingMiddleware.cs:38
     pub fn release_hold(&self, hold_id: &str) {
         let mut holds = self.active_holds.lock().unwrap();
         if holds.remove(hold_id).is_some() {
@@ -117,27 +116,18 @@ impl IdleTracking {
                     
                     println!("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown");
                     assembler::common::logger::Logger::info("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown", Some("IdleTracking"));
-                    
+
                     // Call shutdown method to log everything
                     self_clone.shutdown();
-                    
+
                     assembler::common::logger::Logger::info("AssemblerWeb shutting down due to idle timeout...", Some("Main"));
                     println!("AssemblerWeb shutting down due to idle timeout...");
-                    
-                    // Call shutdown to log and cleanup
-                    self_clone.shutdown();
-                    
+
                     // Give time for logs to flush
                     std::thread::sleep(Duration::from_millis(200));
-                    
-                    // Stop the actix system gracefully
-                    System::current().stop();
-                    
-                    // Give time for graceful shutdown
-                    std::thread::sleep(Duration::from_millis(300));
-                    
-                    // Exit the process - this is necessary for the process to actually terminate
-                    // VS Code debugger should handle this gracefully since we've stopped the system first
+
+                    // Exit the process directly - System::current() cannot be called from std::thread
+                    // process::exit will terminate the entire process including the actix runtime
                     std::process::exit(0);
                 }
             }

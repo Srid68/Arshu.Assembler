@@ -118,17 +118,17 @@ func IdleTrackingMiddleware(idleSeconds int) gin.HandlerFunc {
 	}
 }
 
-// AcquireHold creates a hold and returns its ID
-func AcquireHold() string {
+// AcquireHold acquires a hold with the specified ID to prevent shutdown during critical operations
+// Matches C# method signature at AssemblerWeb/Services/IdleTrackingMiddleware.cs:28
+func AcquireHold(holdID string) {
 	muGlobal.Lock()
 	defer muGlobal.Unlock()
-	holdID := fmt.Sprintf("hold_%s", strings.ReplaceAll(uuid.New().String(), "-", ""))
 	activeHoldsGlobal[holdID] = time.Now()
 	common.Info(fmt.Sprintf("[AcquireHold] Hold set: %s", holdID), "IdleTracking")
-	return holdID
 }
 
 // ReleaseHold removes a hold by its ID
+// Matches C# method signature at AssemblerWeb/Services/IdleTrackingMiddleware.cs:38
 func ReleaseHold(holdID string) {
 	muGlobal.Lock()
 	defer muGlobal.Unlock()

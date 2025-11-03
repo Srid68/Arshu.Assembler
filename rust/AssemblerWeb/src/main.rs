@@ -132,36 +132,19 @@ async fn main() -> std::io::Result<()> {
     println!("Server listening on http://localhost:{}", port);
     
     let server = server.run();
-    let server_handle = server.handle();
-    
+    let _server_handle = server.handle();
+
     // Demonstrate hold functionality for external processes
     // Example: Acquire a hold to prevent idle shutdown during long-running operations
-    let example_hold_id = idle_tracking_for_shutdown.acquire_hold();
+    let example_hold_id = "example_operation";
+    idle_tracking_for_shutdown.acquire_hold(example_hold_id);
     assembler::common::logger::Logger::info(&format!("Example hold acquired: {}", example_hold_id), Some("Main"));
     // Release the hold when the operation completes
-    idle_tracking_for_shutdown.release_hold(&example_hold_id);
+    idle_tracking_for_shutdown.release_hold(example_hold_id);
     assembler::common::logger::Logger::info(&format!("Example hold released: {}", example_hold_id), Some("Main"));
 
-    // Register shutdown handler using actix-web's runtime
-    actix_web::rt::spawn(async move {
-        actix_web::rt::signal::ctrl_c().await.ok();
-        println!("Received shutdown signal");
+    // Note: Shutdown handler removed - IdleTracking middleware handles shutdown via process::exit
+    // Manual Ctrl+C will be caught by the OS and terminate the process
 
-        if idle_tracking_enabled {
-            idle_tracking_for_shutdown.shutdown();
-        }
-
-        assembler::common::logger::Logger::info("AssemblerWeb shutting down...", Some("Main"));
-        println!("AssemblerWeb shutting down...");
-
-        server_handle.stop(true).await;
-
-        assembler::common::logger::Logger::info("AssemblerWeb stopped", Some("Main"));
-        println!("AssemblerWeb stopped");
-
-        // Give time for logs to flush
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    });
-    
     server.await
 }

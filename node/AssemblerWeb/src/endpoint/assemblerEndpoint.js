@@ -94,9 +94,10 @@ import { Logger } from '@arshu/assembler';
 /**
  * GET / - Index endpoint (root page)
  */
-export async function indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ConfigUtil, projectDirectory) {
+export async function indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ConfigUtil) {
   try {
     // Get appsite from query parameter or use default
+    const projectDirectory = process.cwd();
     const rootDirPath = path.join(projectDirectory, 'wwwroot');
 
     let appSite = DEFAULT_APP_SITE;
@@ -185,12 +186,13 @@ export async function scenariosEndpoint(req, res, ConfigUtil) {
 /**
  * POST /merge - Merge templates endpoint
  */
-export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil, projectDirectory) {
+export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil) {
   const serverStart = Date.now();
 
   // Enable logging for merge operations
   const originalLogLevel = Logger.getLogLevel();
 
+  const projectDirectory = process.cwd();
   const templateAnalysisDir = path.join(projectDirectory, 'template_analysis');
   const logsDir = path.join(templateAnalysisDir, 'logs');
   await fs.promises.mkdir(logsDir, { recursive: true }).catch(() => {});
@@ -359,9 +361,10 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
 /**
  * POST /api/templates - Get templates for an AppSite
  */
-export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil, projectDirectory) {
+export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil) {
     console.log('[DEBUG] getTemplatesEndpoint called');
     console.log('[DEBUG] req.body:', req.body);
+    const projectDirectory = process.cwd();
     console.log('[DEBUG] projectDirectory:', projectDirectory);
     try {
         const rootDirPath = path.join(projectDirectory, 'wwwroot')
@@ -462,11 +465,11 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
 
 /**
  * Maps all assembler endpoints to the Express app
- * Usage: mapAssemblerEndpoints(app, projectDirectory)
+ * Usage: mapAssemblerEndpoints(app)
  */
-export function mapAssemblerEndpoints(app, projectDirectory) {
-    app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ConfigUtil, projectDirectory));
+export function mapAssemblerEndpoints(app) {
+    app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ConfigUtil));
     app.get('/api/scenarios', (req, res) => scenariosEndpoint(req, res, ConfigUtil));
-    app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil, projectDirectory));
-    app.post('/api/templates', (req, res) => getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil, projectDirectory));
+    app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil));
+    app.post('/api/templates', (req, res) => getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil));
 }
