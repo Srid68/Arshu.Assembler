@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	Logger "github.com/srid68/arshu/common"
+	Logger "arshu/common"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
