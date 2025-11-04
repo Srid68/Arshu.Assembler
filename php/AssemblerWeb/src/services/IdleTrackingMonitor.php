@@ -5,11 +5,11 @@
 
 require_once __DIR__ . '/../../../Assembler/vendor/autoload.php';
 
-use Assembler\Common\Logger;
+use Arshu\Common\Logger;
 
 // Configure logger for this monitor process
 $logRotation = Logger::ROTATION_NONE;
-$projectDirectory = dirname(__DIR__); // Go up one level to AssemblerWeb directory
+$projectDirectory = dirname(dirname(__DIR__)); // Go up two levels to AssemblerWeb directory (from src/services)
 $templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
 $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
 
@@ -31,18 +31,14 @@ $holdTimeoutSeconds = 300; // Safety timeout for stuck holds
 $tempDir = dirname($lastRequestFile);
 $holdDir = $tempDir . DIRECTORY_SEPARATOR . 'holds';
 
+error_log("[MONITOR] Monitor script started (holdTimeout={$holdTimeoutSeconds}s)");
 Logger::info("Monitor script started. Args: " . json_encode($argv), 'IdleTracking');
-echo "[MONITOR] Monitor script started (holdTimeout={$holdTimeoutSeconds}s)\n";
-flush();
 
 while (true) {
     sleep(10);
-    echo "[MONITOR] Checking idle time...\n";
-    flush();
     if (!file_exists($lastRequestFile) || !file_exists($pidFile)) {
+        error_log("[MONITOR] Missing tracking files, exiting");
         Logger::info("Missing lastRequestFile or pidFile, exiting.", 'IdleTracking');
-        echo "[MONITOR] Missing tracking files, exiting\n";
-        flush();
         break;
     }
 
@@ -62,8 +58,7 @@ while (true) {
                     $expiredHolds++;
                     // Clean up expired hold file
                     @unlink($holdFile);
-                    echo "[MONITOR] Removed expired hold file (age: {$holdAge}s)\n";
-                    flush();
+                    error_log("[MONITOR] Removed expired hold file (age: {$holdAge}s)");
                     Logger::warn("[MONITOR] Removed expired hold file (age: {$holdAge}s)", 'IdleTracking');
                 }
             }
@@ -73,35 +68,30 @@ while (true) {
     $lastRequest = (int)file_get_contents($lastRequestFile);
     $idleTime = time() - $lastRequest;
     $idleTimeFormatted = number_format($idleTime, 1);
-    echo "[MONITOR] PID: " . file_get_contents($pidFile) . ", IdleTime: {$idleTimeFormatted}s, Threshold: {$idleSeconds}s, ActiveHolds: {$activeHolds}\n";
-    flush();
+    $pid = file_get_contents($pidFile);
+    error_log("[MONITOR] PID: {$pid}, IdleTime: {$idleTimeFormatted}s, Threshold: {$idleSeconds}s, ActiveHolds: {$activeHolds}");
     Logger::info("[MONITOR] IdleTime: {$idleTimeFormatted}s, Threshold: {$idleSeconds}s, ActiveHolds: {$activeHolds}", 'IdleTracking');
 
     // Only trigger shutdown if idle time exceeded AND no active holds
     if ($idleTime > $idleSeconds && $activeHolds == 0) {
-        echo "[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown\n";
-        flush();
+        error_log("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown");
         Logger::info("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown", 'IdleTracking');
-        
+
         // Log shutdown messages
-        echo "AssemblerWeb shutting down due to idle timeout...\n";
-        flush();
+        error_log("AssemblerWeb shutting down due to idle timeout...");
         Logger::info("AssemblerWeb shutting down due to idle timeout...", 'Main');
-        
+
         // Log active holds (should be 0 at this point)
-        echo "[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: {$activeHolds}\n";
-        flush();
+        error_log("[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: {$activeHolds}");
         Logger::info("[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: {$activeHolds}", 'IdleTracking');
-        
-        echo "[SHUTDOWN] IdleTrackingMiddleware stopped\n";
-        flush();
+
+        error_log("[SHUTDOWN] IdleTrackingMiddleware stopped");
         Logger::info("[SHUTDOWN] IdleTrackingMiddleware stopped", 'IdleTracking');
-        
+
         // Flush logs before killing process
         usleep(200000); // 200ms
-        
-        echo "AssemblerWeb stopped\n";
-        flush();
+
+        error_log("AssemblerWeb stopped");
         Logger::info("AssemblerWeb stopped", 'Main');
         
         // Give time for final logs to flush

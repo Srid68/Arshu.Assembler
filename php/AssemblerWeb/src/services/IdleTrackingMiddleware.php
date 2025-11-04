@@ -1,7 +1,7 @@
 <?php
 
 use Psr\Http\Message\ServerRequestInterface;
-use Assembler\Common\Logger;
+use Arshu\Common\Logger;
 
 class IdleTrackingMiddleware {
     private static $lastRequestFile;
@@ -32,8 +32,9 @@ class IdleTrackingMiddleware {
             mkdir(self::$holdDir, 0777, true);
         }
 
-    Logger::info("[STARTUP] Configured idleSeconds = " . self::$idleSeconds, 'IdleTracking');
-    self::$configured = true;
+        error_log("[STARTUP] Configured idleSeconds = " . self::$idleSeconds);
+        Logger::info("[STARTUP] Configured idleSeconds = " . self::$idleSeconds, 'IdleTracking');
+        self::$configured = true;
 
         // Don't write PID or start monitor - that's done by IdleTrackingStartup.php
         // The middleware updates timestamps and manages per-request hold mechanism
@@ -43,37 +44,84 @@ class IdleTrackingMiddleware {
         if (self::$monitorStarted) {
             return;
         }
-        self::$monitorStarted = true;
-        $monitorScriptPath = __DIR__ . DIRECTORY_SEPARATOR . 'IdleTrackingMonitor.php';
-        $lastRequestFile = escapeshellarg(self::$lastRequestFile);
-        $pidFile = escapeshellarg(self::$pidFile);
-        $idleSeconds = escapeshellarg(self::$idleSeconds);
-        $osFamily = escapeshellarg(PHP_OS_FAMILY);
-        $cmd = "php $monitorScriptPath $lastRequestFile $pidFile $idleSeconds $osFamily";
-        Logger::info("Launching monitor: $cmd", 'IdleTracking');
-        if (PHP_OS_FAMILY === 'Windows') {
-            $proc = @popen('start /B ' . $cmd, 'r');
-            if ($proc === false) {
-                Logger::error("Failed to launch monitor process (Windows)", 'IdleTracking');
+
+        // Use file-based marker since static variables don't persist across requests in PHP built-in server
+        $tempDir = dirname(self::$lastRequestFile);
+        $monitorMarker = $tempDir . DIRECTORY_SEPARATOR . '.monitor_started';
+
+        // Check if monitor was already started (marker file exists and is recent)
+        if (file_exists($monitorMarker)) {
+            $markerAge = time() - filemtime($monitorMarker);
+            if ($markerAge < 60) {
+                // Monitor was started recently, don't start again
+                self::$monitorStarted = true;
+                return;
             } else {
-                Logger::info("Monitor process started (Windows)", 'IdleTracking');
+                // Stale marker (>60s old), remove it and start fresh
+                @unlink($monitorMarker);
+            }
+        }
+
+        self::$monitorStarted = true;
+
+        // Write PID file and initialize last request timestamp before starting monitor
+        if (self::$pidFile !== null && self::$lastRequestFile !== null) {
+            file_put_contents(self::$pidFile, (string)getmypid());
+            file_put_contents(self::$lastRequestFile, (string)time());
+            // Create monitor marker to prevent duplicate starts
+            file_put_contents($monitorMarker, time());
+            error_log("[STARTUP] Initialized tracking files, PID: " . getmypid());
+            Logger::info("[STARTUP] Initialized tracking files, PID: " . getmypid(), 'IdleTracking');
+        }
+
+        $monitorScriptPath = __DIR__ . DIRECTORY_SEPARATOR . 'IdleTrackingMonitor.php';
+
+        error_log("[STARTUP] Launching monitor...");
+        error_log("[STARTUP] Note: MONITOR logs will appear in log file only (background process limitation)");
+        Logger::info("[STARTUP] Launching monitor", 'IdleTracking');
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            // On Windows, spawn background process
+            // Note: Background processes can't easily share stderr with parent on Windows
+            $cmd = "php " . escapeshellarg($monitorScriptPath)
+                . " " . escapeshellarg(self::$lastRequestFile)
+                . " " . escapeshellarg(self::$pidFile)
+                . " " . escapeshellarg((string)self::$idleSeconds)
+                . " " . escapeshellarg(PHP_OS_FAMILY);
+
+            $proc = @popen('start /B ' . $cmd . ' 2>&1', 'r');
+            if ($proc === false) {
+                error_log("[STARTUP] Failed to launch monitor process (Windows)");
+                Logger::error("[STARTUP] Failed to launch monitor process (Windows)", 'IdleTracking');
+            } else {
+                error_log("[STARTUP] Monitor process started (Windows)");
+                Logger::info("[STARTUP] Monitor process started (Windows)", 'IdleTracking');
                 pclose($proc);
             }
         } else {
-            $proc = @popen($cmd . ' > /dev/null 2>&1 &', 'r');
+            $cmd = "php " . escapeshellarg($monitorScriptPath)
+                . " " . escapeshellarg(self::$lastRequestFile)
+                . " " . escapeshellarg(self::$pidFile)
+                . " " . escapeshellarg((string)self::$idleSeconds)
+                . " " . escapeshellarg(PHP_OS_FAMILY)
+                . " > /dev/null 2>&1 &";
+            $proc = @popen($cmd, 'r');
             if ($proc === false) {
-                Logger::error("Failed to launch monitor process (Unix)", 'IdleTracking');
+                error_log("[STARTUP] Failed to launch monitor process (Unix)");
+                Logger::error("[STARTUP] Failed to launch monitor process (Unix)", 'IdleTracking');
             } else {
-                Logger::info("Monitor process started (Unix)", 'IdleTracking');
+                error_log("[STARTUP] Monitor process started (Unix)");
+                Logger::info("[STARTUP] Monitor process started (Unix)", 'IdleTracking');
                 pclose($proc);
             }
         }
     }
 
     public function __invoke(ServerRequestInterface $request, $handler) {
-        // Debug: Log middleware invocation
-        error_log("[DEBUG] IdleTrackingMiddleware invoked, holdDir: " . (self::$holdDir ?? 'NULL'));
-        Logger::info("[DEBUG] IdleTrackingMiddleware invoked, holdDir: " . (self::$holdDir ?? 'NULL'), 'IdleTracking');
+        // Start monitor on first request if not already started (development mode)
+        if (!self::$monitorStarted) {
+            self::startMonitor();
+        }
 
         // Generate unique hold file for this request to handle concurrent requests
         $holdId = uniqid('hold_', true);
@@ -83,6 +131,7 @@ class IdleTrackingMiddleware {
         if (self::$holdDir !== null) {
             $timestamp = time();
             file_put_contents($holdFile, (string)$timestamp);
+            error_log("[REQUEST] Request started, hold set: $holdId");
             Logger::info("[REQUEST] Request started, hold set: $holdId", 'IdleTracking');
         }
 
@@ -102,13 +151,15 @@ class IdleTrackingMiddleware {
                 file_put_contents(self::$lastRequestFile, (string)$timestamp);
             }
 
+            error_log("[REQUEST] Request completed");
             Logger::info("[REQUEST] Request completed", 'IdleTracking');
-            
+
             return $response;
         } finally {
             // Always remove this request's hold after processing (even if exception occurs)
             if (file_exists($holdFile)) {
                 @unlink($holdFile);
+                error_log("[REQUEST] Hold removed: $holdId");
                 Logger::info("[REQUEST] Hold removed: $holdId", 'IdleTracking');
             }
         }
@@ -125,7 +176,8 @@ class IdleTrackingMiddleware {
         $holdFile = self::$holdDir . DIRECTORY_SEPARATOR . $holdId . '.txt';
         $timestamp = time();
         file_put_contents($holdFile, (string)$timestamp);
-        Logger::info("[AcquireHold] Hold set: $holdId", 'IdleTracking');
+        error_log("[HOLD] Hold acquired: $holdId");
+        Logger::info("[HOLD] Hold acquired: $holdId", 'IdleTracking');
     }
 
     /**
@@ -139,12 +191,14 @@ class IdleTrackingMiddleware {
         $holdFile = self::$holdDir . DIRECTORY_SEPARATOR . $holdId . '.txt';
         if (file_exists($holdFile)) {
             @unlink($holdFile);
-            Logger::info("[ReleaseHold] Hold removed: $holdId", 'IdleTracking');
+            error_log("[HOLD] Hold released: $holdId");
+            Logger::info("[HOLD] Hold released: $holdId", 'IdleTracking');
         }
     }
 
     public static function shutdown(): void {
         if (self::$holdDir === null || !is_dir(self::$holdDir)) {
+            error_log('[SHUTDOWN] IdleTrackingMiddleware shutting down, hold directory not initialized');
             Logger::info('[SHUTDOWN] IdleTrackingMiddleware shutting down, hold directory not initialized', 'IdleTracking');
             return;
         }
@@ -152,16 +206,19 @@ class IdleTrackingMiddleware {
         $holdFiles = glob(self::$holdDir . DIRECTORY_SEPARATOR . 'hold_*.txt');
         $activeHoldsCount = is_array($holdFiles) ? count($holdFiles) : 0;
 
+        error_log("[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: $activeHoldsCount");
         Logger::info("[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: $activeHoldsCount", 'IdleTracking');
 
         // Log any remaining holds
         if (is_array($holdFiles)) {
             foreach ($holdFiles as $holdFile) {
                 $holdId = basename($holdFile, '.txt');
+                error_log("[SHUTDOWN] Unreleased hold: $holdId");
                 Logger::info("[SHUTDOWN] Unreleased hold: $holdId", 'IdleTracking');
             }
         }
 
+        error_log('[SHUTDOWN] IdleTrackingMiddleware stopped');
         Logger::info('[SHUTDOWN] IdleTrackingMiddleware stopped', 'IdleTracking');
         Logger::flush();
     }
