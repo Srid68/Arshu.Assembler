@@ -7,6 +7,7 @@ Todo Demo of the original Assembler Framework is deployed in [MicroVM (fly.io)](
 This repository represents Phase 2 of a larger project to build a polyglot web framework.
 
 - **Phase 1:** [Arshu Proxy](https://github.com/Arshu/Arshu.Proxy/) (Multi-language Proxy)
+This was just to validate if LLM can be used to generate web related code in multiple languages
 - **Phase 2:** **Arshu Static Assembler** ([This repository](https://github.com/Srid68/Arshu.Assembler) - Static Assembly)
 - **Phase 3:** **Arshu Data Assembler** ([This repository](https://github.com/Srid68/Arshu.Assembler) - Data Assembly) (In Development)
 - **Phase 4:** Dynamic Server-Side Assembly (Planned)
