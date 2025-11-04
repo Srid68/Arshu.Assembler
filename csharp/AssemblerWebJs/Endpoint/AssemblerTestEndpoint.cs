@@ -108,7 +108,7 @@ namespace AssemblerWebJs
                 var originalLogLevel = Logger.GetLogLevel();
 
                 // Configure logger with context-specific log files for StandardTests
-                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                var templateAnalysisDir = Path.Combine(projectDirectory, "Analysis");
                 var logsDir = Path.Combine(templateAnalysisDir, "logs");
                 Directory.CreateDirectory(logsDir);
 
@@ -187,7 +187,7 @@ namespace AssemblerWebJs
                 var originalLogLevel = Logger.GetLogLevel();
 
                 // Configure logger with context-specific log files for AdvancedTests
-                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                var templateAnalysisDir = Path.Combine(projectDirectory, "Analysis");
                 var logsDir = Path.Combine(templateAnalysisDir, "logs");
                 Directory.CreateDirectory(logsDir);
 
@@ -333,7 +333,7 @@ namespace AssemblerWebJs
                     string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
 
                     // Configure logging for consolidate endpoint
-                    var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                    var templateAnalysisDir = Path.Combine(projectDirectory, "Analysis");
                     var logsDir = Path.Combine(templateAnalysisDir, "logs");
                     Directory.CreateDirectory(logsDir);
                     var consolidateLogFile = Path.Combine(logsDir, "csharp_consolidate_perf.log");
@@ -973,7 +973,7 @@ namespace AssemblerWebJs
                     var htmlContent = htmlSb.ToString();
 
                     // Write HTML to Reports directory
-                    var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
+                    var reportsDir = Path.Combine(projectDirectory, "Analysis", "Reports");
                     Directory.CreateDirectory(reportsDir);
                     var htmlPath = Path.Combine(reportsDir, "all_perf_tests.html");
                     await File.WriteAllTextAsync(htmlPath, htmlContent);
@@ -1068,7 +1068,7 @@ namespace AssemblerWebJs
                     string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
                     var prefix = useLangPrefix && !string.IsNullOrEmpty(langPrefix) ? langPrefix + "_" : "";
                     var fullFileName = prefix + fileName;
-                    var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
+                    var reportsDir = Path.Combine(projectDirectory, "Analysis", "Reports");
                     var filePath = Path.Combine(reportsDir, fullFileName);
 
                     // Check if file exists
@@ -1141,7 +1141,7 @@ namespace AssemblerWebJs
                         return Results.Text(logErrorMessage ?? "Invalid log content", statusCode: 400);
 
                     string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                    var logsDir = Path.Combine(projectDirectory, "template_analysis", "logs");
+                    var logsDir = Path.Combine(projectDirectory, "Analysis", "logs");
                     Directory.CreateDirectory(logsDir);
 
                     var logFile = Path.Combine(logsDir, $"javascript_{contextName.ToLower()}.log");
@@ -1255,7 +1255,7 @@ namespace AssemblerWebJs
                     }
 
                     string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                    var outputDir = Path.Combine(projectDirectory, "template_analysis", "output");
+                    var outputDir = Path.Combine(projectDirectory, "Analysis", "output");
                     Directory.CreateDirectory(outputDir);
 
                     var appViewSuffix = string.IsNullOrEmpty(appView) ? "" : $"_{appView}";
@@ -1304,7 +1304,7 @@ namespace AssemblerWebJs
                     }
 
                     string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                    string reportsPath = Path.Combine(projectDirectory, "template_analysis", "Reports");
+                    string reportsPath = Path.Combine(projectDirectory, "Analysis", "Reports");
 
                     // Create Reports directory if it doesn't exist
                     Directory.CreateDirectory(reportsPath);
@@ -1428,7 +1428,7 @@ namespace AssemblerWebJs
                     }
 
                     string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                    string reportsPath = Path.Combine(projectDirectory, "template_analysis", "Reports");
+                    string reportsPath = Path.Combine(projectDirectory, "Analysis", "Reports");
 
                     // Create Reports directory if it doesn't exist
                     Directory.CreateDirectory(reportsPath);

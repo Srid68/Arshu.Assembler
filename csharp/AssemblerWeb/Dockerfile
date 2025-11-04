@@ -20,7 +20,7 @@ COPY --from=build usr/local/bin/overmind usr/local/bin/overmind
 
 WORKDIR /app
 COPY --from=build /app/publish .
-COPY ./AssemblerWeb/template_analysis ./template_analysis
+COPY ./AssemblerWeb/Analysis ./Analysis
 COPY ./AssemblerWeb/wwwroot ./wwwroot
 
 EXPOSE 8080

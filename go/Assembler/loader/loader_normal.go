@@ -2,7 +2,7 @@ package loader
 
 import (
 	"assembler/common"
-	Logger "github.com/srid68/arshu/common"
+	Logger "arshu/common"
 	"fmt"
 	"io"
 	"os"

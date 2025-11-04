@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"assembler/config"
-	Logger "github.com/srid68/arshu/common"
+	Logger "arshu/common"
 
 	"github.com/gin-gonic/gin"
 	"github.com/skratchdot/open-golang/open"
@@ -112,7 +112,7 @@ func main() {
 	wwwrootPath := filepath.Join(projectDirectory, "wwwroot")
 
 	// Configure Logger
-	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
+	templateAnalysisDir := filepath.Join(projectDirectory, "Analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 

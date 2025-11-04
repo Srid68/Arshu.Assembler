@@ -4,7 +4,7 @@ import (
 	"assembler/app"
 	"assembler/app/json"
 	"assembler/common"
-	Logger "github.com/srid68/arshu/common"
+	Logger "arshu/common"
 	"fmt"
 	"strings"
 )

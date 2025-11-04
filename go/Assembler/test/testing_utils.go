@@ -70,7 +70,7 @@ func RunStandardTests(assemblerWebDirPath, projectDirectory string, scenarios []
 	}
 
 	// Create output directory for HTML files
-	outputDir := filepath.Join(projectDirectory, "template_analysis", "output")
+	outputDir := filepath.Join(projectDirectory, "Analysis", "output")
 	os.MkdirAll(outputDir, 0755)
 
 	var globalTestSummaryRows []TestSummaryRow
@@ -107,7 +107,7 @@ func RunStandardTests(assemblerWebDirPath, projectDirectory string, scenarios []
 			resultNormal := normalEngine.MergeTemplates(testSite, appFileName, appView, templates, enableJsonProcessing)
 			scenarioOutputs = append(scenarioOutputs, resultNormal)
 
-			// Save HTML output to template_analysis/output folder
+			// Save HTML output to Analysis/output folder
 			appViewSuffix := ""
 			if appView != "" {
 				appViewSuffix = "_" + appView
@@ -255,7 +255,7 @@ func RunAdvancedTests(assemblerWebDirPath, projectDirectory string, scenarios []
 	var globalTestSummaryRows []TestSummaryRow
 
 	// Create output directory for HTML files
-	outputDir := filepath.Join(projectDirectory, "template_analysis", "output")
+	outputDir := filepath.Join(projectDirectory, "Analysis", "output")
 	os.MkdirAll(outputDir, 0755)
 
 	// Sort keys to ensure consistent order
@@ -343,7 +343,7 @@ func RunAdvancedTests(assemblerWebDirPath, projectDirectory string, scenarios []
 				fmt.Println()
 			}
 
-			// Save HTML outputs to template_analysis/output folder
+			// Save HTML outputs to Analysis/output folder
 			appViewSuffix := ""
 			if appView != "" {
 				appViewSuffix = "_" + appView
@@ -672,7 +672,7 @@ func DumpPreprocessedTemplateStructures(assemblerWebDirPath, projectDirectory st
 		preprocessed := loader.LoadProcessGetTemplateFiles(assemblerWebDirPath, site)
 
 		// Save to file for easier analysis
-		outputDir := filepath.Join(projectDirectory, "template_analysis")
+		outputDir := filepath.Join(projectDirectory, "Analysis")
 		if _, err := os.Stat(outputDir); os.IsNotExist(err) {
 			if err := os.MkdirAll(outputDir, 0755); err != nil {
 				if !skipDetails {
@@ -787,7 +787,7 @@ func PrintTestSummaryTable(assemblerWebDirPath, projectDirectory string, summary
 	fmt.Println("|")
 
 	// Save summary to file with go prefix and test type in Reports directory
-	reportsDir := filepath.Join(projectDirectory, "template_analysis", "Reports")
+	reportsDir := filepath.Join(projectDirectory, "Analysis", "Reports")
 	if err := os.MkdirAll(reportsDir, 0755); err != nil {
 		fmt.Printf("❌ Error creating Reports directory: %v\n", err)
 		return

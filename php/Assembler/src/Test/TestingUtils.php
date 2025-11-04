@@ -46,7 +46,7 @@ class TestingUtils
         }
 
         // Create output directory for saving HTML outputs
-        $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'output';
+        $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'output';
         if (!is_dir($outputDir)) {
             mkdir($outputDir, 0755, true);
         }
@@ -82,7 +82,7 @@ class TestingUtils
                     $output = $engine->mergeTemplates($testSite, $appFileName, $appView, $templates, $enableJsonProcessing);
                     $scenarioOutputs[] = $output ?? '';
 
-                    // Save HTML output to template_analysis/output folder
+                    // Save HTML output to Analysis/output folder
                     $appViewSuffix = empty($appView) ? "" : "_{$appView}";
                     $outputFile = $outputDir . DIRECTORY_SEPARATOR . "{$testSite}{$appViewSuffix}_normal.html";
                     file_put_contents($outputFile, $output ?? '');
@@ -192,7 +192,7 @@ class TestingUtils
         }
 
         // Create output directory for saving HTML outputs
-        $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'output';
+        $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'output';
         if (!is_dir($outputDir)) {
             mkdir($outputDir, 0755, true);
         }
@@ -240,7 +240,7 @@ class TestingUtils
 
                     $scenarioResults[] = [$appView, $resultNormal ?? "", $resultPreProcess ?? "", $matchStatus];
 
-                    // Save HTML outputs to template_analysis/output folder
+                    // Save HTML outputs to Analysis/output folder
                     $appViewSuffix = empty($appView) ? "" : "_{$appView}";
                     $normalOutputFile = $outputDir . DIRECTORY_SEPARATOR . "{$testSite}{$appViewSuffix}_normal.html";
                     $preprocessOutputFile = $outputDir . DIRECTORY_SEPARATOR . "{$testSite}{$appViewSuffix}_preprocess.html";
@@ -353,7 +353,7 @@ class TestingUtils
                 $fullJson = ApiResponse::serializePreprocessedSiteTemplates($preprocessedSiteTemplates, true);
 
                 // Save to file for easier analysis
-                $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
+                $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis';
                 if (!is_dir($outputDir)) {
                     mkdir($outputDir, 0755, true);
                 }
@@ -448,7 +448,7 @@ class TestingUtils
 
         // Save HTML file
         try {
-            $reportsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
+            $reportsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsDir)) {
                 mkdir($reportsDir, 0755, true);
             }

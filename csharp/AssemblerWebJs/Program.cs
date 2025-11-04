@@ -324,7 +324,7 @@ public class Program
         }
 
         // Configure logger with context-specific log files
-        var templateAnalysisDir = System.IO.Path.Combine(contentRootPath, "template_analysis");
+        var templateAnalysisDir = System.IO.Path.Combine(contentRootPath, "Analysis");
         var logsDir = System.IO.Path.Combine(templateAnalysisDir, "logs");
         Directory.CreateDirectory(logsDir);
 

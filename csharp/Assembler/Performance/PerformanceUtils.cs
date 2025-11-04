@@ -309,7 +309,7 @@ public static class PerformanceUtils
             html.AppendLine("</body>");
             html.AppendLine("</html>");
 
-            var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
+            var reportsDir = Path.Combine(projectDirectory, "Analysis", "Reports");
             Directory.CreateDirectory(reportsDir);
             var outFile = Path.Combine(reportsDir, "csharp_perfsummary.html");
             File.WriteAllText(outFile, html.ToString());
@@ -323,7 +323,7 @@ public static class PerformanceUtils
         // Save JSON file
         try
         {
-            var reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
+            var reportsDir = Path.Combine(projectDirectory, "Analysis", "Reports");
             Directory.CreateDirectory(reportsDir);
             var jsonFile = Path.Combine(reportsDir, "csharp_perfsummary.json");
 

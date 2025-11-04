@@ -27,15 +27,15 @@ COPY --from=build /src/Assembler /app/Assembler
 # Copy Procfile separately to ensure latest version
 COPY AssemblerWeb/Procfile /app/AssemblerWeb/Procfile
 
-# Create template_analysis directories and set permissions
-RUN mkdir -p /app/AssemblerWeb/template_analysis/logs
-RUN mkdir -p /app/AssemblerWeb/template_analysis/Reports
-RUN mkdir -p /app/AssemblerWeb/template_analysis/output
+# Create Analysis directories and set permissions
+RUN mkdir -p /app/AssemblerWeb/Analysis/logs
+RUN mkdir -p /app/AssemblerWeb/Analysis/Reports
+RUN mkdir -p /app/AssemblerWeb/Analysis/output
 # Create tmp directory for idle tracking and holds subdirectory
 RUN mkdir -p /app/tmp/holds
 # Set ownership first, then permissions
 RUN chown -R www-data:www-data /app
-RUN chmod -R 777 /app/AssemblerWeb/template_analysis
+RUN chmod -R 777 /app/AssemblerWeb/Analysis
 RUN chmod -R 777 /app/tmp
 RUN chmod +x /app/AssemblerWeb/IdleTrackingMonitor.php
 

@@ -32,7 +32,7 @@ export async function runStandardTests(assemblerWebDirPath, projectDirectory, sc
         groupedScenarios[key].push(scenario);
     }
 
-    const outputDir = path.join(projectDirectory, 'template_analysis', 'output');
+    const outputDir = path.join(projectDirectory, 'Analysis', 'output');
     await fs.mkdir(outputDir, { recursive: true });
 
     for (const [key, group] of Object.entries(groupedScenarios)) {
@@ -55,7 +55,7 @@ export async function runStandardTests(assemblerWebDirPath, projectDirectory, sc
                 const resultNormal = normalEngine.mergeTemplates(testSite, appFileName, appView, templates, enableJsonProcessing);
                 scenarioOutputs.push(resultNormal || "");
 
-                // Save HTML output to template_analysis folder
+                // Save HTML output to Analysis folder
                 const appViewSuffix = appView ? `_${appView}` : "";
                 const outputFile = path.join(outputDir, `${testSite}${appViewSuffix}_normal.html`);
                 await fs.writeFile(outputFile, resultNormal || "");
@@ -175,7 +175,7 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
         groupedScenarios[key].push(scenario);
     }
 
-    const outputDir = path.join(projectDirectory, 'template_analysis', 'output');
+    const outputDir = path.join(projectDirectory, 'Analysis', 'output');
     await fs.mkdir(outputDir, { recursive: true });
 
     for (const [key, group] of Object.entries(groupedScenarios)) {
@@ -216,7 +216,7 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
                     matchStatus: matchStatus
                 });
 
-                // Save HTML outputs to template_analysis folder
+                // Save HTML outputs to Analysis folder
                 const appViewSuffix = appView ? `_${appView}` : "";
                 const normalOutputFile = path.join(outputDir, `${testSite}${appViewSuffix}_normal.html`);
                 const preprocessOutputFile = path.join(outputDir, `${testSite}${appViewSuffix}_preprocess.html`);
@@ -353,7 +353,7 @@ export function printTestSummaryTable(assemblerWebDirPath, projectDirectory, sum
 
     // Save HTML and JSON files
     try {
-        const reportsDir = path.join(projectDirectory, 'template_analysis', 'Reports');
+        const reportsDir = path.join(projectDirectory, 'Analysis', 'Reports');
         fs.mkdir(reportsDir, { recursive: true }).then(() => {
             const testTypeFile = testType.replace(/\s/g, "").replace(/-/g, "").toLowerCase();
             const outFile = path.join(reportsDir, `nodejs_${testTypeFile}_Summary.html`);
@@ -482,7 +482,7 @@ export async function dumpPreprocessedTemplateStructures(assemblerWebDirPath, pr
             const fullJson = Assembler.ApiResponse.serializePreprocessedSiteTemplates(preprocessedSiteTemplates, true);
 
             // Save to file for easier analysis
-            const outputDir = path.join(projectDirectory, 'template_analysis');
+            const outputDir = path.join(projectDirectory, 'Analysis');
             await fs.mkdir(outputDir, { recursive: true });
 
             const summaryFile = path.join(outputDir, `${site}_summary.json`);

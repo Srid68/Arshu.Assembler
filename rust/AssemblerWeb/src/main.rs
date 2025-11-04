@@ -27,7 +27,7 @@ async fn main() -> std::io::Result<()> {
     // Get project directory (current working directory for web projects)
     let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
-    let template_analysis_dir = project_directory.join("template_analysis");
+    let template_analysis_dir = project_directory.join("Analysis");
     let logs_dir = template_analysis_dir.join("logs");
     if let Err(e) = std::fs::create_dir_all(&logs_dir) {
         eprintln!("Failed to create logs directory: {}", e);

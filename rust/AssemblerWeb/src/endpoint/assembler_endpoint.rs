@@ -219,7 +219,7 @@ pub async fn merge_templates(
     let original_log_level = Logger::get_log_level();
     let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
-    let template_analysis_dir = project_directory.join("template_analysis");
+    let template_analysis_dir = project_directory.join("Analysis");
     let logs_dir = template_analysis_dir.join("logs");
     let _ = std::fs::create_dir_all(&logs_dir);
 
@@ -387,7 +387,7 @@ pub async fn merge_templates(
         .unwrap_or("");
 
     if save_param.eq_ignore_ascii_case("true") {
-        let output_dir = project_directory.join("template_analysis").join("output");
+        let output_dir = project_directory.join("Analysis").join("output");
         let _ = std::fs::create_dir_all(&output_dir);
 
         let app_view_suffix = if let Some(ref view) = req.app_view {
@@ -536,7 +536,7 @@ pub async fn get_templates(
         .unwrap_or("");
 
     if save_param.eq_ignore_ascii_case("true") {
-        let templates_dir = project_directory.join("template_analysis").join("templates");
+        let templates_dir = project_directory.join("Analysis").join("templates");
         let _ = std::fs::create_dir_all(&templates_dir);
 
         let save_file = templates_dir.join(format!("rust_{}_templates.json", app_site));

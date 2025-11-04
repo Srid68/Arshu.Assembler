@@ -22,7 +22,7 @@ COPY --from=build /usr/local/bin/overmind /usr/local/bin/overmind
 
 WORKDIR /app
 COPY --from=build /src/AssemblerWeb/target/release/assembler_web .
-COPY --from=build /src/AssemblerWeb/template_analysis ./template_analysis
+COPY --from=build /src/AssemblerWeb/Analysis ./Analysis
 COPY --from=build /src/AssemblerWeb/wwwroot ./wwwroot
 
 EXPOSE 8080

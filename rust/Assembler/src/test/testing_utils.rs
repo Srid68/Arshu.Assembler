@@ -72,7 +72,7 @@ pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scen
     }
 
     // Create output directory for HTML files
-    let output_dir = std::path::Path::new(project_directory).join("template_analysis").join("output");
+    let output_dir = std::path::Path::new(project_directory).join("Analysis").join("output");
     let _ = std::fs::create_dir_all(&output_dir);
 
     let mut global_test_summary_rows: Vec<TestSummaryRow> = Vec::new();
@@ -99,7 +99,7 @@ pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scen
                 let result_normal = normal_engine.merge_templates(&test_site, &app_file_name, Some(app_view), &mut templates.clone(), enable_json_processing);
                 scenario_outputs.push(result_normal.clone());
 
-                // Save HTML output to template_analysis/output folder
+                // Save HTML output to Analysis/output folder
                 let app_view_suffix = if app_view.is_empty() { String::new() } else { format!("_{}", app_view) };
                 let output_file = output_dir.join(format!("{}{}_normal.html", test_site, app_view_suffix));
                 let _ = std::fs::write(&output_file, &result_normal);
@@ -277,8 +277,8 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
             // Store for cross-AppView comparison
             scenario_results.push((app_view.clone(), result_normal.clone(), result_preprocess.clone()));
 
-            // Save HTML outputs to template_analysis/output folder
-            let output_dir = std::path::Path::new(project_directory).join("template_analysis").join("output");
+            // Save HTML outputs to Analysis/output folder
+            let output_dir = std::path::Path::new(project_directory).join("Analysis").join("output");
             let _ = std::fs::create_dir_all(&output_dir);
 
             let app_view_suffix = if app_view.is_empty() { String::new() } else { format!("_{}", app_view) };
@@ -589,7 +589,7 @@ fn save_test_summary_html(_assembler_web_dir_path: &str, project_directory: &str
 
     // Sanitize testType for filename
     let test_type_file = test_type.replace(" ", "").replace("-", "").to_lowercase();
-    let reports_dir = format!("{}/template_analysis/Reports", project_directory);
+    let reports_dir = format!("{}/Analysis/Reports", project_directory);
     std::fs::create_dir_all(&reports_dir)?;
     let out_file = format!("{}/rust_{}_Summary.html", reports_dir, test_type_file);
     std::fs::write(&out_file, html)?;
@@ -598,7 +598,7 @@ fn save_test_summary_html(_assembler_web_dir_path: &str, project_directory: &str
 
 fn save_test_summary_json(_assembler_web_dir_path: &str, project_directory: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str) -> Result<String, Box<dyn std::error::Error>> {
     let test_type_file = test_type.replace(" ", "").replace("-", "").to_lowercase();
-    let reports_dir = format!("{}/template_analysis/Reports", project_directory);
+    let reports_dir = format!("{}/Analysis/Reports", project_directory);
     std::fs::create_dir_all(&reports_dir)?;
     let json_file = format!("{}/rust_{}_Summary.json", reports_dir, test_type_file);
     let json = serde_json::to_string_pretty(summary_rows)?;
@@ -763,7 +763,7 @@ pub fn dump_preprocessed_template_structures(assembler_web_dir_path: &str, proje
         let full_json = ApiResponse::serialize_preprocessed_site_templates(&preprocessed_site_templates, true);
 
         // Save to file for easier analysis
-        let output_dir = Path::new(project_directory).join("template_analysis");
+        let output_dir = Path::new(project_directory).join("Analysis");
         if let Err(e) = fs::create_dir_all(&output_dir) {
             if !skip_details {
                 println!("❌ Error creating output directory: {}", e);

@@ -260,7 +260,7 @@ func PrintPerfSummaryTable(assemblerWebDir, projectDirectory string, perfSummary
 	}
 	fmt.Println("|")
 	// Save performance summary to file
-	reportsDir := filepath.Join(projectDirectory, "template_analysis", "Reports")
+	reportsDir := filepath.Join(projectDirectory, "Analysis", "Reports")
 	if err := os.MkdirAll(reportsDir, 0755); err != nil {
 		fmt.Printf("❌ Error creating Reports directory: %v\n", err)
 		return

@@ -295,7 +295,7 @@ impl PerformanceUtils
         println!("|");
         
         // Save performance summary to file
-        let reports_dir = format!("{}/template_analysis/Reports", project_directory);
+        let reports_dir = format!("{}/Analysis/Reports", project_directory);
         if let Err(e) = std::fs::create_dir_all(&reports_dir) {
             println!("❌ Error creating Reports directory: {}", e);
             return;

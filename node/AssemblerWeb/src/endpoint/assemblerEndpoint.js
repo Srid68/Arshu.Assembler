@@ -193,7 +193,7 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
   const originalLogLevel = Logger.getLogLevel();
 
   const projectDirectory = process.cwd();
-  const templateAnalysisDir = path.join(projectDirectory, 'template_analysis');
+  const templateAnalysisDir = path.join(projectDirectory, 'Analysis');
   const logsDir = path.join(templateAnalysisDir, 'logs');
   await fs.promises.mkdir(logsDir, { recursive: true }).catch(() => {});
 
@@ -335,7 +335,7 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
     // Save HTML output only if save query parameter is present
     const saveParam = req.query.save;
     if (saveParam && saveParam.toLowerCase() === 'true') {
-      const outputDir = path.join(projectDirectory, 'template_analysis', 'output');
+      const outputDir = path.join(projectDirectory, 'Analysis', 'output');
       await fs.promises.mkdir(outputDir, { recursive: true }).catch(() => {});
 
       const appViewSuffix = appView && appView !== '' ? `_${appView}` : '';
@@ -445,7 +445,7 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
         // Check if save query parameter is present
         const saveParam = req.query.save
         if (saveParam && saveParam.toLowerCase() === 'true') {
-            const templatesDir = path.join(projectDirectory, 'template_analysis', 'templates')
+            const templatesDir = path.join(projectDirectory, 'Analysis', 'templates')
             await fs.promises.mkdir(templatesDir, { recursive: true }).catch(() => { })
 
             const saveFile = path.join(templatesDir, `nodejs_${appSite}_templates.json`)

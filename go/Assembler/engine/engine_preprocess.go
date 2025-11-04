@@ -3,7 +3,7 @@ package engine
 import (
 	"assembler/common"
 	"assembler/model"
-	Logger "github.com/srid68/arshu/common"
+	Logger "arshu/common"
 	"fmt"
 	"strings"
 )

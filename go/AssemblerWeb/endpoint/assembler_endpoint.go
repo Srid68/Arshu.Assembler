@@ -15,7 +15,7 @@ import (
 	"assembler/engine"
 	"assembler/loader"
 
-	Logger "github.com/srid68/arshu/common"
+	Logger "arshu/common"
 )
 
 const DefaultAppSite = "Test"
@@ -238,7 +238,7 @@ func MergeTemplates(c *gin.Context) {
 	originalLogLevel := Logger.GetLogLevel()
 
 	projectDirectory := getProjectDirectory()
-	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
+	templateAnalysisDir := filepath.Join(projectDirectory, "Analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 
@@ -370,7 +370,7 @@ func MergeTemplates(c *gin.Context) {
 	// Save HTML output only if save query parameter is present
 	saveParam := c.Query("save")
 	if strings.EqualFold(saveParam, "true") {
-		outputDir := filepath.Join(projectDirectory, "template_analysis", "output")
+		outputDir := filepath.Join(projectDirectory, "Analysis", "output")
 		os.MkdirAll(outputDir, 0755)
 
 		appViewSuffix := ""
@@ -486,7 +486,7 @@ func GetTemplates(c *gin.Context) {
 	// Check if save query parameter is present
 	saveParam := c.Query("save")
 	if strings.EqualFold(saveParam, "true") {
-		templatesDir := filepath.Join(projectDirectory, "template_analysis", "templates")
+		templatesDir := filepath.Join(projectDirectory, "Analysis", "templates")
 		os.MkdirAll(templatesDir, 0755)
 
 		saveFile := filepath.Join(templatesDir, fmt.Sprintf("go_%s_templates.json", req.AppSite))

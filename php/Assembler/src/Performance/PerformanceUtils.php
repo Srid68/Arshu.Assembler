@@ -249,7 +249,7 @@ class PerformanceUtils
 
         // Save HTML file
         try {
-            $reportsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
+            $reportsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsDir)) {
                 mkdir($reportsDir, 0755, true);
             }
@@ -307,7 +307,7 @@ class PerformanceUtils
 
         // Save JSON file
         try {
-            $reportsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
+            $reportsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsDir)) {
                 mkdir($reportsDir, 0755, true);
             }

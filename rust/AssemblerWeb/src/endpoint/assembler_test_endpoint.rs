@@ -76,7 +76,7 @@ pub async fn test_standard() -> impl Responder {
     let original_log_level = Logger::get_log_level();
 
     // Configure logger with context-specific log files for StandardTests
-    let template_analysis_dir = std::path::Path::new(project_dir_str).join("template_analysis");
+    let template_analysis_dir = std::path::Path::new(project_dir_str).join("Analysis");
     let logs_dir = template_analysis_dir.join("logs");
     let _ = std::fs::create_dir_all(&logs_dir);
 
@@ -149,7 +149,7 @@ pub async fn test_advanced() -> impl Responder {
     let original_log_level = Logger::get_log_level();
 
     // Configure logger with context-specific log files for AdvancedTests
-    let template_analysis_dir = std::path::Path::new(project_dir_str).join("template_analysis");
+    let template_analysis_dir = std::path::Path::new(project_dir_str).join("Analysis");
     let logs_dir = template_analysis_dir.join("logs");
     let _ = std::fs::create_dir_all(&logs_dir);
 
@@ -283,7 +283,7 @@ pub async fn test_consolidate_performance() -> impl Responder {
     let root_dir_str = std::path::Path::new(project_dir_str).join("wwwroot").to_str().unwrap_or("").to_string();
 
     // Configure logging for consolidate endpoint
-    let template_analysis_dir = std::path::Path::new(project_dir_str).join("template_analysis");
+    let template_analysis_dir = std::path::Path::new(project_dir_str).join("Analysis");
     let logs_dir = template_analysis_dir.join("logs");
     let _ = std::fs::create_dir_all(&logs_dir);
     let consolidate_log_file = logs_dir.join("rust_consolidate_perf.log");
@@ -985,7 +985,7 @@ pub async fn test_consolidate_performance() -> impl Responder {
     html.push_str("</body>\n</html>");
 
     // Write HTML to Reports directory
-    let reports_dir = std::path::Path::new(project_dir_str).join("template_analysis").join("Reports");
+    let reports_dir = std::path::Path::new(project_dir_str).join("Analysis").join("Reports");
     let _ = std::fs::create_dir_all(&reports_dir);
     let html_path = reports_dir.join("all_perf_tests.html");
     let _ = std::fs::write(&html_path, html);
@@ -1064,9 +1064,9 @@ pub async fn get_report(req: web::Json<ReportRequest>) -> impl Responder {
         file_name.clone()
     };
 
-    // Construct file path in template_analysis/Reports
+    // Construct file path in Analysis/Reports
     let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-    let reports_dir = project_dir.join("template_analysis").join("Reports");
+    let reports_dir = project_dir.join("Analysis").join("Reports");
     let file_path = reports_dir.join(&final_file_name);
 
     // Read and return file
@@ -1149,7 +1149,7 @@ pub async fn save_log(
         return HttpResponse::BadRequest().body(error_message.unwrap_or_else(|| "Invalid log content".to_string()));
     }
 
-    let logs_dir = std::path::Path::new(project_dir_str).join("template_analysis").join("logs");
+    let logs_dir = std::path::Path::new(project_dir_str).join("Analysis").join("logs");
     let _ = std::fs::create_dir_all(&logs_dir);
 
     let log_file = logs_dir.join(format!("javascript_{}.log", context_name.to_lowercase()));
@@ -1265,7 +1265,7 @@ pub async fn save_output(
         return HttpResponse::BadRequest().body(error_msg);
     }
 
-    let output_dir = std::path::Path::new(project_dir_str).join("template_analysis").join("output");
+    let output_dir = std::path::Path::new(project_dir_str).join("Analysis").join("output");
     let _ = std::fs::create_dir_all(&output_dir);
 
     let app_view_suffix = if !app_view.is_empty() {
@@ -1328,7 +1328,7 @@ pub async fn save_test_results(
         }
     }
 
-    let reports_path = std::path::Path::new(project_dir_str).join("template_analysis").join("Reports");
+    let reports_path = std::path::Path::new(project_dir_str).join("Analysis").join("Reports");
     let _ = std::fs::create_dir_all(&reports_path);
 
     // Get test type from query parameter
@@ -1460,7 +1460,7 @@ pub async fn save_performance_results(
         }
     }
 
-    let reports_path = std::path::Path::new(project_dir_str).join("template_analysis").join("Reports");
+    let reports_path = std::path::Path::new(project_dir_str).join("Analysis").join("Reports");
     let _ = std::fs::create_dir_all(&reports_path);
 
     // Generate HTML table

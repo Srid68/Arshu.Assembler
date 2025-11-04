@@ -196,7 +196,7 @@ class AssemblerEndpoint
     {
         // Enable logging for merge operations
         $originalLogLevel = Logger::getLogLevel();
-        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis';
+        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'Analysis';
         $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
         if (!is_dir($logsDir)) {
             mkdir($logsDir, 0755, true);
@@ -370,7 +370,7 @@ class AssemblerEndpoint
             $queryParams = $request->getQueryParams();
             $saveParam = $queryParams['save'] ?? '';
             if (strcasecmp($saveParam, 'true') === 0) {
-                $outputDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'output';
+                $outputDir = $projectRootPath . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'output';
                 if (!is_dir($outputDir)) {
                     mkdir($outputDir, 0755, true);
                 }
@@ -492,7 +492,7 @@ class AssemblerEndpoint
             $queryParams = $request->getQueryParams();
             $saveParam = $queryParams['save'] ?? '';
             if (strcasecmp($saveParam, 'true') === 0) {
-                $templatesDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'templates';
+                $templatesDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'templates';
                 if (!is_dir($templatesDir)) {
                     mkdir($templatesDir, 0755, true);
                 }

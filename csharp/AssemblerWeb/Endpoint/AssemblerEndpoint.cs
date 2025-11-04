@@ -1,5 +1,5 @@
-using Assembler.Api;
 using Arshu.Common;
+using Assembler.Api;
 using Assembler.Config;
 using Assembler.Engine;
 using Assembler.Loader;
@@ -221,7 +221,7 @@ namespace AssemblerWeb
                 var originalLogLevel = Logger.GetLogLevel();
                 string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
 
-                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                var templateAnalysisDir = Path.Combine(projectDirectory, "Analysis");
                 var logsDir = Path.Combine(templateAnalysisDir, "logs");
                 Directory.CreateDirectory(logsDir);
 
@@ -330,7 +330,7 @@ namespace AssemblerWeb
                     if (!string.IsNullOrEmpty(saveParam) && saveParam.Equals("true", StringComparison.OrdinalIgnoreCase))
                     {
                         var contentRoot = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
-                        var outputDir = Path.Combine(contentRoot, "template_analysis", "output");
+                        var outputDir = Path.Combine(contentRoot, "Analysis", "output");
                         Directory.CreateDirectory(outputDir);
 
                         var appViewSuffix = string.IsNullOrEmpty(input.AppView) ? "" : $"_{input.AppView}";
@@ -378,7 +378,7 @@ namespace AssemblerWeb
                 var originalLogLevel = Logger.GetLogLevel();
                 string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
 
-                var templateAnalysisDir = Path.Combine(projectDirectory, "template_analysis");
+                var templateAnalysisDir = Path.Combine(projectDirectory, "Analysis");
                 var logsDir = Path.Combine(templateAnalysisDir, "logs");
                 Directory.CreateDirectory(logsDir);
 
@@ -478,7 +478,7 @@ namespace AssemblerWeb
                     var saveParam = context.Request.Query["save"].ToString();
                     if (!string.IsNullOrEmpty(saveParam) && saveParam.Equals("true", StringComparison.OrdinalIgnoreCase))
                     {
-                        var templatesDir = Path.Combine(projectDirectory, "template_analysis", "templates");
+                        var templatesDir = Path.Combine(projectDirectory, "Analysis", "templates");
                         Directory.CreateDirectory(templatesDir);
 
                         var saveFile = Path.Combine(templatesDir, $"csharp_{appSite}_templates.json");

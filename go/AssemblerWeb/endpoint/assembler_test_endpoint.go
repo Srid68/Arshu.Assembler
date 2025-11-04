@@ -17,7 +17,7 @@ import (
 	"assembler/config"
 	"assembler/performance"
 	"assembler/test"
-	Logger "github.com/srid68/arshu/common"
+	Logger "arshu/common"
 )
 
 // RULE_GROUPS defines the configurable rule groups for consolidated report grouping
@@ -56,7 +56,7 @@ func TestStandard(c *gin.Context) {
 	originalLogLevel := Logger.GetLogLevel()
 
 	// Configure logger with context-specific log files for StandardTests
-	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
+	templateAnalysisDir := filepath.Join(projectDirectory, "Analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 
@@ -120,7 +120,7 @@ func TestAdvanced(c *gin.Context) {
 	originalLogLevel := Logger.GetLogLevel()
 
 	// Configure logger with context-specific log files for AdvancedTests
-	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
+	templateAnalysisDir := filepath.Join(projectDirectory, "Analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 
@@ -237,7 +237,7 @@ func TestConsolidatePerformance(c *gin.Context) {
 	rootDirPath := filepath.Join(projectDirectory, "wwwroot")
 
 	// Configure logging for consolidate endpoint
-	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
+	templateAnalysisDir := filepath.Join(projectDirectory, "Analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 	consolidateLogFile := filepath.Join(logsDir, "go_consolidate_perf.log")
@@ -1006,8 +1006,8 @@ func TestConsolidatePerformance(c *gin.Context) {
 	htmlBuilder.WriteString("    </script>\n")
 	htmlBuilder.WriteString("</body>\n</html>\n")
 
-	// Write HTML to template_analysis/Reports directory
-	reportsDir := filepath.Join(getProjectDirectory(), "template_analysis", "Reports")
+	// Write HTML to Analysis/Reports directory
+	reportsDir := filepath.Join(getProjectDirectory(), "Analysis", "Reports")
 	if err := os.MkdirAll(reportsDir, 0755); err != nil {
 		log.Printf("Error creating Reports directory: %v", err)
 	}
@@ -1085,7 +1085,7 @@ func GetReport(c *gin.Context) {
 		prefix = *req.LangPrefix + "_"
 	}
 	fileName := prefix + *req.FileName
-	reportsDir := filepath.Join(getProjectDirectory(), "template_analysis", "Reports")
+	reportsDir := filepath.Join(getProjectDirectory(), "Analysis", "Reports")
 	filePath := filepath.Join(reportsDir, fileName)
 
 	// Check if file exists
@@ -1152,7 +1152,7 @@ func SaveLog(c *gin.Context) {
 		return
 	}
 
-	logsDir := filepath.Join(getProjectDirectory(), "template_analysis", "logs")
+	logsDir := filepath.Join(getProjectDirectory(), "Analysis", "logs")
 	os.MkdirAll(logsDir, 0755)
 	logFile := filepath.Join(logsDir, fmt.Sprintf("javascript_%s.log", strings.ToLower(req.Context)))
 	if err := os.WriteFile(logFile, []byte(req.Content), 0644); err != nil {
@@ -1244,7 +1244,7 @@ func SaveOutput(c *gin.Context) {
 		return
 	}
 
-	outputDir := filepath.Join(getProjectDirectory(), "template_analysis", "output")
+	outputDir := filepath.Join(getProjectDirectory(), "Analysis", "output")
 	os.MkdirAll(outputDir, 0755)
 	appViewSuffix := ""
 	if req.AppView != "" {
@@ -1268,7 +1268,7 @@ func SaveTestResults(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid test results format"})
 		return
 	}
-	outputDir := filepath.Join(getProjectDirectory(), "template_analysis", "Reports")
+	outputDir := filepath.Join(getProjectDirectory(), "Analysis", "Reports")
 	os.MkdirAll(outputDir, 0755)
 
 	// Get test type from query parameter
@@ -1359,7 +1359,7 @@ func SavePerformanceResults(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid performance results format"})
 		return
 	}
-	outputDir := filepath.Join(getProjectDirectory(), "template_analysis", "Reports")
+	outputDir := filepath.Join(getProjectDirectory(), "Analysis", "Reports")
 	os.MkdirAll(outputDir, 0755)
 
 	// Generate HTML table for performance results

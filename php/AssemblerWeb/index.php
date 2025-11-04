@@ -32,7 +32,7 @@ $logRotation = Logger::ROTATION_HOURLY;
 $projectDirectory = __DIR__;
 $assemblerWebDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
 
-$templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
+$templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis';
 $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
 if (!is_dir($logsDir)) {
     mkdir($logsDir, 0755, true);

@@ -45,7 +45,7 @@ class AssemblerTestEndpoint
         $originalLogLevel = Logger::getLogLevel();
 
         // Configure logger with context-specific log files for StandardTests
-        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis';
+        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'Analysis';
         $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
         if (!is_dir($logsDir)) {
             mkdir($logsDir, 0755, true);
@@ -125,7 +125,7 @@ class AssemblerTestEndpoint
         $originalLogLevel = Logger::getLogLevel();
 
         // Configure logger with context-specific log files for AdvancedTests
-        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis';
+        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'Analysis';
         $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
         if (!is_dir($logsDir)) {
             mkdir($logsDir, 0755, true);
@@ -268,7 +268,7 @@ class AssemblerTestEndpoint
         $wwwrootPath = self::getWwwrootPath();
 
         // Configure logging for consolidate endpoint
-        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis';
+        $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'Analysis';
         $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
         if (!is_dir($logsDir)) {
             mkdir($logsDir, 0755, true);
@@ -985,7 +985,7 @@ class AssemblerTestEndpoint
             $html[] = '</html>';
 
             // Write HTML file to Reports directory
-            $reportsDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
+            $reportsDir = $projectRootPath . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsDir)) {
                 mkdir($reportsDir, 0755, true);
             }
@@ -1063,7 +1063,7 @@ class AssemblerTestEndpoint
             // Construct file path
             $prefix = ($useLangPrefix && $langPrefix) ? $langPrefix . '_' : '';
             $fullFileName = $prefix . $fileName;
-            $reportsDir = $projectRootPath . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
+            $reportsDir = $projectRootPath . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'Reports';
             $filePath = $reportsDir . DIRECTORY_SEPARATOR . $fullFileName;
 
             // Check if file exists
@@ -1101,7 +1101,7 @@ class AssemblerTestEndpoint
 
     /**
      * POST /api/save-log - Save a log file (browser-callable)
-     * Mirrors C# behavior: expects JSON { context, content }, validates and writes to template_analysis/logs/javascript_{context}.log
+     * Mirrors C# behavior: expects JSON { context, content }, validates and writes to Analysis/logs/javascript_{context}.log
      */
     public static function saveLogEndpoint(ServerRequest $request, Response $response): Response
     {
@@ -1137,7 +1137,7 @@ class AssemblerTestEndpoint
                 return $response->withStatus(400);
             }
 
-            $logsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'logs';
+            $logsDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'logs';
             if (!is_dir($logsDir)) {
                 mkdir($logsDir, 0755, true);
             }
@@ -1229,7 +1229,7 @@ class AssemblerTestEndpoint
                 return $response->withStatus(400);
             }
 
-            $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'output';
+            $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'output';
             if (!is_dir($outputDir)) {
                 mkdir($outputDir, 0755, true);
             }
@@ -1263,7 +1263,7 @@ class AssemblerTestEndpoint
                 return $response->withStatus(400);
             }
             $rootDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
-            $reportsPath = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
+            $reportsPath = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsPath)) {
                 mkdir($reportsPath, 0755, true);
             }
@@ -1398,7 +1398,7 @@ class AssemblerTestEndpoint
                 }
             }
 
-            $reportsPath = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis' . DIRECTORY_SEPARATOR . 'Reports';
+            $reportsPath = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'Reports';
             if (!is_dir($reportsPath)) {
                 mkdir($reportsPath, 0755, true);
             }

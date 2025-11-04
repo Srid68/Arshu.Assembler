@@ -217,7 +217,7 @@ export class PerformanceUtils {
 
         // Save HTML file
         try {
-            const reportsDir = path.join(projectDirectory, 'template_analysis', 'Reports');
+            const reportsDir = path.join(projectDirectory, 'Analysis', 'Reports');
             if (!fsSync.existsSync(reportsDir)) {
                 fsSync.mkdirSync(reportsDir, { recursive: true });
             }
@@ -280,7 +280,7 @@ export class PerformanceUtils {
 
         // Save JSON file
         try {
-            const reportsDir = path.join(projectDirectory, 'template_analysis', 'Reports');
+            const reportsDir = path.join(projectDirectory, 'Analysis', 'Reports');
             if (!fsSync.existsSync(reportsDir)) {
                 fsSync.mkdirSync(reportsDir, { recursive: true });
             }

@@ -6,10 +6,10 @@ toolchain go1.24.1
 
 require (
 	assembler v0.0.0
+	arshu v0.0.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/google/uuid v1.6.0
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
-	github.com/srid68/arshu v1.0.0
 )
 
 require (
@@ -41,4 +41,4 @@ require (
 
 replace assembler => ../Assembler
 
-replace github.com/srid68/arshu => ../Arshu
+replace arshu => ../Arshu

@@ -49,7 +49,7 @@ export async function testStandardEndpoint(req, res) {
     const originalLogLevel = Logger.getLogLevel()
 
     // Configure logger with context-specific log files for StandardTests
-    const templateAnalysisDir = path.join(projectDirectory, 'template_analysis')
+    const templateAnalysisDir = path.join(projectDirectory, 'Analysis')
     const logsDir = path.join(templateAnalysisDir, 'logs')
     await fsSync.promises.mkdir(logsDir, { recursive: true }).catch(() => { })
 
@@ -112,7 +112,7 @@ export async function testAdvancedEndpoint(req, res) {
     const originalLogLevel = Logger.getLogLevel()
 
     // Configure logger with context-specific log files for AdvancedTests
-    const templateAnalysisDir = path.join(projectDirectory, 'template_analysis')
+    const templateAnalysisDir = path.join(projectDirectory, 'Analysis')
     const logsDir = path.join(templateAnalysisDir, 'logs')
     await fsSync.promises.mkdir(logsDir, { recursive: true }).catch(() => { })
 
@@ -219,7 +219,7 @@ export async function testConsolidatePerformanceEndpoint(req, res) {
     const assemblerWebDirPath = getWwwrootPath()
 
     // Configure logging for consolidate endpoint
-    const templateAnalysisDir = path.join(projectDirectory, 'template_analysis')
+    const templateAnalysisDir = path.join(projectDirectory, 'Analysis')
     const logsDir = path.join(templateAnalysisDir, 'logs')
     await fsSync.promises.mkdir(logsDir, { recursive: true }).catch(() => { })
     const consolidateLogFile = path.join(logsDir, 'nodejs_consolidate_perf.log')
@@ -930,7 +930,7 @@ export async function testConsolidatePerformanceEndpoint(req, res) {
         html.push('</html>')
 
         // Write HTML file to Reports directory
-        const reportsDir = path.join(projectDirectory, 'template_analysis', 'Reports')
+        const reportsDir = path.join(projectDirectory, 'Analysis', 'Reports')
         await fsSync.promises.mkdir(reportsDir, { recursive: true }).catch(() => { })
         const htmlPath = path.join(reportsDir, 'all_perf_tests.html')
         fsSync.writeFileSync(htmlPath, html.join('\n'), 'utf8')
@@ -987,7 +987,7 @@ export async function getReportEndpoint(req, res) {
         // Construct file path
         const prefix = useLangPrefix && langPrefix ? langPrefix + '_' : ''
         const fullFileName = prefix + fileName
-        const reportsDir = path.join(projectDirectory, 'template_analysis', 'Reports')
+        const reportsDir = path.join(projectDirectory, 'Analysis', 'Reports')
         const filePath = path.join(reportsDir, fullFileName)
 
         // Check if file exists
@@ -1047,7 +1047,7 @@ export async function saveLogEndpoint(req, res) {
             return res.status(400).json({ success: false, message: validation.errorMessage || 'invalid log content' })
         }
 
-        const logsDir = path.join(projectDirectory, 'template_analysis', 'logs')
+        const logsDir = path.join(projectDirectory, 'Analysis', 'logs')
         await fsSync.promises.mkdir(logsDir, { recursive: true }).catch(() => {})
 
         const logFileName = `javascript_${context}.log`
@@ -1119,7 +1119,7 @@ export async function saveOutputEndpoint(req, res) {
             return res.status(400).json({ success: false, message: errorMsg })
         }
 
-        const outputDir = path.join(projectDirectory, 'template_analysis', 'output')
+        const outputDir = path.join(projectDirectory, 'Analysis', 'output')
         await fsSync.promises.mkdir(outputDir, { recursive: true }).catch(() => {})
 
         const engineSuffix = engineType.toLowerCase()
@@ -1177,7 +1177,7 @@ export async function saveTestResultsEndpoint(req, res) {
         return res.status(400).send('Invalid AppView parameter');
       }
     }
-    const reportsPath = path.join(projectDirectory, 'template_analysis', 'Reports');
+    const reportsPath = path.join(projectDirectory, 'Analysis', 'Reports');
     await fsSync.promises.mkdir(reportsPath, { recursive: true }).catch(() => {});
 
     // Get test type from query parameter
@@ -1287,7 +1287,7 @@ export async function savePerformanceResultsEndpoint(req, res) {
       }
     }
 
-    const reportsPath = path.join(projectDirectory, 'template_analysis', 'Reports');
+    const reportsPath = path.join(projectDirectory, 'Analysis', 'Reports');
     await fsSync.promises.mkdir(reportsPath, { recursive: true }).catch(() => {});
 
     // Generate HTML table

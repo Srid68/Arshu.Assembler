@@ -10,7 +10,7 @@ use Arshu\Common\Logger;
 // Configure logger for this monitor process
 $logRotation = Logger::ROTATION_NONE;
 $projectDirectory = dirname(dirname(__DIR__)); // Go up two levels to AssemblerWeb directory (from src/services)
-$templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
+$templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis';
 $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
 
 $contextLogFiles = [

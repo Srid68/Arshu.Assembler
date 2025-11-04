@@ -56,7 +56,7 @@ after every test move to workspace directory cd /d ../../
 Procedure for Testing and Fixing Rule failer
 
 Compare with Html Output with other languages
-Compare Structure Dump in template_analysis with other languages
+Compare Structure Dump in Analysis with other languages
 Complare logic with implementation in other languages
 
 Procedure for Fixing Appsites like Index which are very large with many components

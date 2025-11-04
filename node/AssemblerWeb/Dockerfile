@@ -25,7 +25,7 @@ COPY --from=build /src/AssemblerWeb/securityValidator.js .
 COPY --from=build /src/Assembler/src ./Assembler/src
 COPY --from=build /src/AssemblerWeb/node_modules ./node_modules
 COPY --from=build /src/AssemblerWeb/wwwroot ./wwwroot
-COPY --from=build /src/AssemblerWeb/template_analysis ./template_analysis
+COPY --from=build /src/AssemblerWeb/Analysis ./Analysis
 
 EXPOSE 8080
 ENV PORT=8080

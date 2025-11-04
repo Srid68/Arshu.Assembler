@@ -92,7 +92,7 @@ namespace AssemblerWeb
             }
 
             // Configure logger with context-specific log files
-            var templateAnalysisDir = Path.Combine(contentRootPath, "template_analysis");
+            var templateAnalysisDir = Path.Combine(contentRootPath, "Analysis");
             var logsDir = Path.Combine(templateAnalysisDir, "logs");
             Directory.CreateDirectory(logsDir);
 

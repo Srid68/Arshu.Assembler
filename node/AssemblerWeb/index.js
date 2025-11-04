@@ -65,7 +65,7 @@ const assemblerWebDirPath = path.join(__dirname, 'wwwroot');
 
 // Load ConfigUtil with wwwroot path
 await ConfigUtil.load(assemblerWebDirPath);
-const templateAnalysisDir = path.join(projectDirectory, 'template_analysis');
+const templateAnalysisDir = path.join(projectDirectory, 'Analysis');
 const logsDir = path.join(templateAnalysisDir, 'logs');
 if (!fsSync.existsSync(logsDir)) {
   fsSync.mkdirSync(logsDir, { recursive: true });

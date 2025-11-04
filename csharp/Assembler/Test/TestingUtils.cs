@@ -51,7 +51,7 @@ public static class TestingUtils
             .GroupBy(s => new { s.AppSite, s.AppFile })
             .ToList();
 
-        var outputDir = Path.Combine(projectDirectory ?? "", "template_analysis", "output");
+        var outputDir = Path.Combine(projectDirectory ?? "", "Analysis", "output");
         Directory.CreateDirectory(outputDir);
 
         foreach (var group in groupedScenarios)
@@ -78,7 +78,7 @@ public static class TestingUtils
                     var resultNormal = normalEngine.MergeTemplates(testSite, appFileName, appView, templates, enableJsonProcessing);
                     scenarioOutputs.Add(resultNormal ?? "");
 
-                    // Save HTML output to template_analysis folder
+                    // Save HTML output to Analysis folder
                     var appViewSuffix = string.IsNullOrEmpty(appView) ? "" : $"_{appView}";
                     var outputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_normal.html");
                     File.WriteAllText(outputFile, resultNormal ?? "");
@@ -212,7 +212,7 @@ public static class TestingUtils
             .GroupBy(s => new { s.AppSite, s.AppFile })
             .ToList();
 
-        var outputDir = Path.Combine(projectDirectory ?? "", "template_analysis", "output");
+        var outputDir = Path.Combine(projectDirectory ?? "", "Analysis", "output");
         Directory.CreateDirectory(outputDir);
 
         foreach (var group in groupedScenarios)
@@ -251,7 +251,7 @@ public static class TestingUtils
 
                     scenarioResults.Add((appView, resultNormal ?? "", resultPreProcess ?? "", matchStatus));
 
-                    // Save HTML outputs to template_analysis folder
+                    // Save HTML outputs to Analysis folder
                     var appViewSuffix = string.IsNullOrEmpty(appView) ? "" : $"_{appView}";
                     var normalOutputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_normal.html");
                     var preprocessOutputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_preprocess.html");
@@ -349,7 +349,7 @@ public static class TestingUtils
         Console.WriteLine($"| {new string('-', 10)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 11)} | {new string('-', 11)} | {new string('-', 10)} |");
 
         string projectName = "csharp";
-        string reportsDir = Path.Combine(projectDirectory, "template_analysis", "Reports");
+        string reportsDir = Path.Combine(projectDirectory, "Analysis", "Reports");
         Directory.CreateDirectory(reportsDir);
         string summaryHtmlFile = Path.Combine(reportsDir, $"{projectName}_{testType.ToLower().Replace(" ", "")}_Summary.html");
         string summaryJsonFile = Path.Combine(reportsDir, $"{projectName}_{testType.ToLower().Replace(" ", "")}_Summary.json");
@@ -476,7 +476,7 @@ public static class TestingUtils
                 var fullJson = ApiResponse.SerializePreprocessedSiteTemplates(preprocessedSiteTemplates, true);
 
                 // Save to file for easier analysis
-                var outputDir = Path.Combine(projectDirectory, "template_analysis");
+                var outputDir = Path.Combine(projectDirectory, "Analysis");
                 Directory.CreateDirectory(outputDir);
 
                 var summaryFile = Path.Combine(outputDir, $"{site}_summary.json");

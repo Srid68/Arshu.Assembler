@@ -62,8 +62,8 @@ __pycache__/
 # Ignore node_modules if present
 node_modules/
 
-# Ignore all template analysis files
-**/template_analysis/
+# Ignore all Analysis files
+**/Analysis/
 **/tmp/
 
 # Ignore all Fly deploy batch scripts
