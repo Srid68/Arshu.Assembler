@@ -6,6 +6,14 @@ This article has been written by me with AI Assistance.
 
 Rust is widely known for its performance and safety, often being compared to C and C++. However, there are scenarios where Rust code may not perform as fast as anticipated. This article delves into the micro benchmark performance of various language implementations of the same abstraction and the surprising results they produce.
 
+> ⚠️ **Performance Results Not Reliable**
+>
+> This is a micro benchmark relevant to the abstractions i am building and is not suitable to be used for general decision making on performance.
+>
+> Since I have not reviewed any of the implementation, AI may have made mistakes which invalidate these performance testing results and their observations.
+>
+> I believe many more optimizations prompt request can improve the current implementations by AI, as well as re-implementing the assembler logic manually, which will invalidate the testing results and their current observations.
+
 ## Disclaimer
 
 Note: I am only familiar with C#. I am not familiar with idioms or conventions in other languages.
@@ -14,13 +22,7 @@ The implementation used to generate the performance data are not handwritten imp
 
 I have ensured the implementation output are correct by using AI-generated tests to verify the results across all engines and languages and also visually confirming the expected output which are published in fly.io.
 
-No optimizations have been done using AI for other languages, except for some initial minor work in Rust.
-
-> ⚠️ **Performance Results Not Reliable**
->
-> Since I have not reviewed any of the implementation, AI may have made mistakes which invalidate these performance testing results and their observations.
->
-> I believe many more optimizations prompt request can improve the current implementations by AI, as well as re-implementing the assembler logic manually, which will invalidate the testing results and their current observations.
+No optimizations have been done using AI till date
 
 ## Datasource
 
