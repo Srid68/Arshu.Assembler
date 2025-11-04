@@ -24,7 +24,7 @@ use Assembler\Loader\LoaderPreProcess;
 use Assembler\Api\ApiResponse;
 use Assembler\Api\TemplateData;
 use Assembler\Api\PreProcessTemplateMetadata;
-use Assembler\Common\Logger;
+use Arshu\Common\Logger;
 use Assembler\Config\ConfigUtil;
 
 // Configure logger with context-specific log files
@@ -38,16 +38,11 @@ if (!is_dir($logsDir)) {
     mkdir($logsDir, 0755, true);
 }
 
-// Configure separate log files for each context
+// Configure separate log files for global contexts only
+// Note: Endpoint-specific contexts are configured per-endpoint using addContextLogFiles
 $contextLogFiles = [
-    'LoaderNormal' => $logsDir . DIRECTORY_SEPARATOR . 'php_loadernormal.log',
-    'LoaderPreProcess' => $logsDir . DIRECTORY_SEPARATOR . 'php_loaderpreprocess.log',
-    'EngineNormal' => $logsDir . DIRECTORY_SEPARATOR . 'php_enginenormal.log',
-    'EnginePreProcess' => $logsDir . DIRECTORY_SEPARATOR . 'php_enginepreprocess.log',
-    'Index' => $logsDir . DIRECTORY_SEPARATOR . 'php_index.log',
-    'MergeEndpoint' => $logsDir . DIRECTORY_SEPARATOR . 'php_mergeendpoint.log',
+    'Main' => $logsDir . DIRECTORY_SEPARATOR . 'php_main.log',
     'IdleTracking' => $logsDir . DIRECTORY_SEPARATOR . 'php_idletracking.log',
-    'ConfigUtil' => $logsDir . DIRECTORY_SEPARATOR . 'php_configutil.log',
 ];
 
 Logger::configure(Logger::DEBUG, false, $logRotation);
@@ -101,7 +96,8 @@ Logger::configureContextLogFiles($contextLogFiles);
 
 // Load ConfigUtil with wwwroot path (after Logger is configured)
 ConfigUtil::load($assemblerWebDirPath);
-Logger::info('AssemblerWeb starting up', 'Index');
+error_log('AssemblerWeb starting up');
+Logger::info('AssemblerWeb starting up', 'Main');
 
 // Create App
 $app = AppFactory::create();
@@ -148,34 +144,34 @@ if ($skipIdleTrackingArg) {
     }
 }
 
+error_log('Debug mode: ' . ($isDebug ? 'enabled' : 'disabled'));
 Logger::info('Debug mode: ' . ($isDebug ? 'enabled' : 'disabled'), 'Index');
 
 if ($idleTrackingEnabled) {
-    $idleSeconds = getenv('IDLE_SHUTDOWN_SECONDS') ?: 10;
+    $idleSeconds = getenv('IDLE_SECONDS') ?: 10;
     $idleSeconds = is_numeric($idleSeconds) ? (int)$idleSeconds : 10;
-    
-    // Configure idle tracking only once per process (logging, PID file)
+
+    // Configure idle tracking only once per process
     static $idleTrackingConfigured = false;
     if (!$idleTrackingConfigured) {
         IdleTrackingMiddleware::configure($idleSeconds);
+        error_log("Idle tracking enabled with {$idleSeconds} seconds timeout");
         Logger::info("Idle tracking enabled with {$idleSeconds} seconds timeout", 'Index');
-        
-        // Write server PID file so monitor knows what process to track
-        $tmpDir = $projectDirectory . DIRECTORY_SEPARATOR . 'tmp';
-        $pidFile = $tmpDir . DIRECTORY_SEPARATOR . 'php_assembler_server_pid.txt';
-        file_put_contents($pidFile, getmypid());
-        
+
+        // Note: PID file and monitor startup handled by IdleTrackingMiddleware on first request
         $idleTrackingConfigured = true;
     }
     
     // Add middleware to app on every request (since $app is recreated)
     $app->add(new IdleTrackingMiddleware());
-    
+
     // Note: No shutdown handler needed - the IdleTrackingMonitor process handles shutdown
 } else {
+    error_log('Idle tracking disabled (debug mode or explicitly disabled)');
     Logger::info('Idle tracking disabled (debug mode or explicitly disabled)', 'Index');
 }
 
+error_log('Setting up routes...');
 Logger::info('Setting up routes...', 'Index');
 
 // Map assembler endpoints using the centralized functions

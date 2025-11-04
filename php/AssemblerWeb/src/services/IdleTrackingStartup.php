@@ -12,13 +12,13 @@ require_once __DIR__ . '/../../Assembler/vendor/autoload.php';
 echo "[STARTUP] Autoload complete\n";
 flush();
 
-use Assembler\Common\Logger;
+use Arshu\Common\Logger;
 
 // Configure logger
 echo "[STARTUP] Configuring logger...\n";
 flush();
 $logRotation = Logger::ROTATION_NONE;
-$projectDirectory = __DIR__;
+$projectDirectory = dirname(dirname(__DIR__)); // Go up two levels to AssemblerWeb directory (from src/services)
 $templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'template_analysis';
 $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
 
@@ -26,7 +26,7 @@ $contextLogFiles = [
     'IdleTracking' => $logsDir . DIRECTORY_SEPARATOR . 'php_idletracking.log',
 ];
 
-Logger::configure(Logger::DEBUG, null, false, $logRotation);
+Logger::configure(Logger::DEBUG, false, $logRotation);
 Logger::configureContextLogFiles($contextLogFiles);
 echo "[STARTUP] Logger configured\n";
 flush();
@@ -40,11 +40,12 @@ if (!is_dir($tempDir)) {
 $monitorScriptPath = __DIR__ . DIRECTORY_SEPARATOR . 'IdleTrackingMonitor.php';
 $lastRequestFile = $tempDir . DIRECTORY_SEPARATOR . 'php_assembler_last_request.txt';
 $pidFile = $tempDir . DIRECTORY_SEPARATOR . 'php_assembler_server_pid.txt';
-$idleSeconds = getenv('IDLE_SHUTDOWN_SECONDS') ?: 10;
+$idleSeconds = getenv('IDLE_SECONDS') ?: 10;
 $osFamily = PHP_OS_FAMILY;
 
 echo "[STARTUP] Waiting for Apache to start...\n";
 flush();
+error_log("[STARTUP] Waiting for Apache to start...");
 Logger::info("Waiting for Apache to start...", 'IdleTracking');
 
 // Wait for Apache to start and get its PID
@@ -57,6 +58,7 @@ for ($i = 0; $i < 30; $i++) {
         $apachePid = (int)trim($output);
         echo "[STARTUP] Found Apache PID: $apachePid\n";
         flush();
+        error_log("[STARTUP] Found Apache PID: $apachePid");
         Logger::info("Found Apache PID: $apachePid", 'IdleTracking');
         break;
     }
@@ -65,6 +67,7 @@ for ($i = 0; $i < 30; $i++) {
 if ($apachePid === null || $apachePid <= 0) {
     echo "[STARTUP] ERROR: Could not find Apache process after 30 seconds, exiting\n";
     flush();
+    error_log("[STARTUP] ERROR: Could not find Apache process after 30 seconds, exiting");
     Logger::error("Could not find Apache process, exiting", 'IdleTracking');
     exit(1);
 }
@@ -85,6 +88,7 @@ flush();
 // Run monitor in foreground (overmind manages the process)
 echo "[STARTUP] Starting idle monitor with idleSeconds=$idleSeconds, Apache PID=$apachePid\n";
 flush();
+error_log("[STARTUP] Starting idle monitor with idleSeconds=$idleSeconds, Apache PID=$apachePid");
 Logger::info("Starting idle monitor with idleSeconds=$idleSeconds, Apache PID=$apachePid", 'IdleTracking');
 echo "[STARTUP] Launching monitor: php $monitorScriptPath $lastRequestFile $pidFile $idleSeconds $osFamily\n";
 flush();
