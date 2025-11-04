@@ -4,6 +4,12 @@ use Psr\Http\Message\ServerRequestInterface;
 use Arshu\Common\Logger;
 
 class IdleTrackingMiddleware {
+    // Constants for file naming - ensures consistency across all idle tracking components
+    public const LAST_REQUEST_FILENAME = 'php_last_request.txt';
+    public const SERVER_PID_FILENAME = 'php_server_pid.txt';
+    public const HOLDS_DIR_NAME = 'holds';
+    public const MONITOR_MARKER_FILENAME = '.monitor_started';
+
     private static $lastRequestFile;
     private static $pidFile;
     private static $holdDir;
@@ -23,9 +29,9 @@ class IdleTrackingMiddleware {
 
         self::$idleSeconds = $idleSeconds;
         $tempDir = __DIR__ . '/../../tmp';
-        self::$lastRequestFile = $tempDir . DIRECTORY_SEPARATOR . 'php_assembler_last_request.txt';
-        self::$pidFile = $tempDir . DIRECTORY_SEPARATOR . 'php_assembler_server_pid.txt';
-        self::$holdDir = $tempDir . DIRECTORY_SEPARATOR . 'holds';
+        self::$lastRequestFile = $tempDir . DIRECTORY_SEPARATOR . self::LAST_REQUEST_FILENAME;
+        self::$pidFile = $tempDir . DIRECTORY_SEPARATOR . self::SERVER_PID_FILENAME;
+        self::$holdDir = $tempDir . DIRECTORY_SEPARATOR . self::HOLDS_DIR_NAME;
 
         // Create holds directory if it doesn't exist
         if (!is_dir(self::$holdDir)) {
@@ -47,7 +53,7 @@ class IdleTrackingMiddleware {
 
         // Use file-based marker since static variables don't persist across requests in PHP built-in server
         $tempDir = dirname(self::$lastRequestFile);
-        $monitorMarker = $tempDir . DIRECTORY_SEPARATOR . '.monitor_started';
+        $monitorMarker = $tempDir . DIRECTORY_SEPARATOR . self::MONITOR_MARKER_FILENAME;
 
         // Check if monitor was already started (marker file exists and is recent)
         if (file_exists($monitorMarker)) {

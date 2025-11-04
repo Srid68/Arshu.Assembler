@@ -14,6 +14,9 @@ flush();
 
 use Arshu\Common\Logger;
 
+// Import IdleTrackingMiddleware constants
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'IdleTrackingMiddleware.php';
+
 // Configure logger
 echo "[STARTUP] Configuring logger...\n";
 flush();
@@ -38,8 +41,8 @@ if (!is_dir($tempDir)) {
 }
 
 $monitorScriptPath = __DIR__ . DIRECTORY_SEPARATOR . 'IdleTrackingMonitor.php';
-$lastRequestFile = $tempDir . DIRECTORY_SEPARATOR . 'php_assembler_last_request.txt';
-$pidFile = $tempDir . DIRECTORY_SEPARATOR . 'php_assembler_server_pid.txt';
+$lastRequestFile = $tempDir . DIRECTORY_SEPARATOR . IdleTrackingMiddleware::LAST_REQUEST_FILENAME;
+$pidFile = $tempDir . DIRECTORY_SEPARATOR . IdleTrackingMiddleware::SERVER_PID_FILENAME;
 $idleSeconds = getenv('IDLE_SECONDS') ?: 10;
 $osFamily = PHP_OS_FAMILY;
 

@@ -71,12 +71,15 @@ if ($idleTrackingEnabled && !$runInForeground) {
         mkdir($holdsDir, 0755, true);
     }
     
+    // Import IdleTrackingMiddleware constants
+    require_once __DIR__ . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'services' . DIRECTORY_SEPARATOR . 'IdleTrackingMiddleware.php';
+
     // Create last request file - use same name as IdleTrackingMiddleware expects
-    $lastRequestFile = $tmpDir . DIRECTORY_SEPARATOR . 'php_assembler_last_request.txt';
+    $lastRequestFile = $tmpDir . DIRECTORY_SEPARATOR . IdleTrackingMiddleware::LAST_REQUEST_FILENAME;
     file_put_contents($lastRequestFile, time());
-    
+
     // Write PID file - use same name as IdleTrackingMiddleware expects
-    $pidFile = $tmpDir . DIRECTORY_SEPARATOR . 'php_assembler_server_pid.txt';
+    $pidFile = $tmpDir . DIRECTORY_SEPARATOR . IdleTrackingMiddleware::SERVER_PID_FILENAME;
     
     echo "Starting idle tracking monitor (idle timeout: {$idleSeconds} seconds)...\n";
     
@@ -223,7 +226,7 @@ if ($os === 'Windows') {
     // Write PID file if idle tracking is enabled
     if ($idleTrackingEnabled && $serverPid) {
         $tmpDir = __DIR__ . DIRECTORY_SEPARATOR . 'tmp';
-        $pidFile = $tmpDir . DIRECTORY_SEPARATOR . 'php_assembler_server_pid.txt';
+        $pidFile = $tmpDir . DIRECTORY_SEPARATOR . IdleTrackingMiddleware::SERVER_PID_FILENAME;
         file_put_contents($pidFile, $serverPid);
     }
 
