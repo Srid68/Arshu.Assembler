@@ -1,6 +1,22 @@
 # INSTRUCTIONS
 
+Follow the same naming conventions as the rust/csharp project strictly accross all other projects using idiomatic patterns in respective languages.
+
+STRUCTURAL CONSISTENCY ACROSS PROJECTS IS CRUCIAL. DO NOT CHANGE THE STRUCTURE BE DIFFERENT BETWEEN PROJECTS
+
+Important: Follow the same structure/logic as the rust/csharp project strictly accross all other projects
+
 There are two engines, the normal engine and preprocess engine. 
+
+After any refactor, change compile the program and get the output from the terminal and ensure the program can compile without errors.
+
+Do Not Use RegEx, Linq and prefer to do Manual Json Serialization
+
+Use Explicit Namespaces and Plain class names without Namespace Prefix
+
+All Servers has to be started with --skipIdleTracking option
+
+After every change build only and fix any compile errors, do not test unless specificaally instructured to test
 
 Normal Loader
 
@@ -16,18 +32,6 @@ PreProcess Loader role:
 PreProcess Engine's role:
 * PreProcess Engine: Use the parsed data to merge templates
 * All JSON merging should happen in the engine, not the loader
-
-After any refactor, change compile the program and get the output from the terminal and ensure the program can compile without errors.
-
-Important: Follow the same structure/logic as the rust/csharp project strictly accross all other projects
-
-Can you please be brief and no need to explain all the changes. Just fix the issues.
-
-Follow the same naming conventions as the rust/csharp project strictly accross all other projects using idiomatic patterns in respective languages.
-
-STRUCTURAL CONSISTENCY ACROSS PROJECTS IS CRUCIAL. DO NOT CHANGE THE STRUCTURE BE DIFFERENT BETWEEN PROJECTS
-
-Do Not Use RegEx
 
 Testing for single appsite with html output, use the following commands for respective langs
  
@@ -61,9 +65,3 @@ Create a Backup of the main component in another languages.
 Trunctate the main component to include only one component in another languages
 Test as above and if pass add components one by one to find the issue component
 Once issue component found include that alone and try to find the issue and fix it
-
-Use Explicit Namespaces and Plain class names without Namespace Prefix
-
-All Servers has to be started with --skipIdleTracking option
-
-After every change build only and fix any compile errors, do not test unless specificaally instructured to test

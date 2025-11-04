@@ -1,8 +1,6 @@
 # Ignore Rust build artifacts
 /target/
-rust/AssemblerWeb/target/
-rust/AssemblerTest/target/
-rust/Assembler/target/
+rust/**/target/
 
 # Ignore C# build artifacts
 **/bin/
