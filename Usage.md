@@ -203,30 +203,92 @@ $result = $engine->assemble($loader, 'AppSite', 'Component');
 
 ## C# Package Usage
 
-### Installation Options
+### Core Libraries Overview
 
-#### Option 1: Local NuGet Feed
+The Arshu ecosystem provides two main C# packages:
+
+1. **Arshu** - Core shared library providing Logger and common utilities
+2. **Arshu.Assembler** - Template assembly engine (depends on Arshu)
+
+### Arshu Core Library
+
+The Arshu package provides centralized logging and common utilities for all Arshu projects.
+
+#### Installation (Standard Approach)
+
+All Arshu projects use local NuGet packages for dependency management:
 
 ```bash
-# Create local NuGet packages
+# Add local source (one time only)
+dotnet nuget add source C:/Polyglot/LocalPackages --name LocalPackages
+
+# In your project, add package reference to .csproj
+```
+
+```xml
+<ItemGroup>
+  <PackageReference Include="Arshu" Version="1.0.0" />
+</ItemGroup>
+```
+
+Or via command line:
+```bash
+dotnet add package Arshu --version 1.0.0
+```
+
+#### Basic Usage
+
+```csharp
+using Arshu.Common;
+
+// Configure logger
+Logger.Configure(Logger.LogLevel.DEBUG, consoleOutput: false, Logger.LogRotation.HOURLY);
+Logger.SetLogsDirectory("/path/to/logs");
+
+// Set context-specific log files
+var contextLogFiles = new Dictionary<string, string>
+{
+    { "MyApp", "/path/to/logs/myapp.log" }
+};
+Logger.ConfigureContextLogFiles(contextLogFiles);
+
+// Log messages
+Logger.Info("Application started", "MyApp");
+Logger.Debug("Debug information", "MyApp");
+Logger.Warn("Warning message", "MyApp");
+Logger.Error("Error occurred", "MyApp");
+```
+
+### Arshu.Assembler Package
+
+#### Installation (Standard Approach)
+
+All Arshu projects use local NuGet packages for dependency management:
+
+```bash
+# Create local NuGet package (when updating Assembler)
 cd C:/Polyglot/Arshu.Assembler/csharp/Assembler
-dotnet pack -o C:/Polyglot/Arshu.Assembler/LocalPackages
+dotnet pack -o C:/Polyglot/LocalPackages
 
-# Add local source (one time)
-dotnet nuget add source C:/Polyglot/Arshu.Assembler/LocalPackages --name LocalPackages
+# Add local source (one time only)
+dotnet nuget add source C:/Polyglot/LocalPackages --name LocalPackages
 
-# In your project
+# In your project, add package reference to .csproj
+```
+
+```xml
+<ItemGroup>
+  <PackageReference Include="Arshu" Version="1.0.0" />
+  <PackageReference Include="Arshu.Assembler" Version="1.0.0" />
+</ItemGroup>
+```
+
+Or via command line:
+```bash
 dotnet add package Arshu.Assembler --version 1.0.0
 ```
 
-#### Option 2: Project Reference
-
-```xml
-<!-- In your .csproj file -->
-<ItemGroup>
-  <ProjectReference Include="C:\Polyglot\Arshu.Assembler\csharp\Assembler\Assembler.csproj" />
-</ItemGroup>
-```
+**Note:** Arshu.Assembler depends on Arshu, so both packages need to be referenced.
 
 ### Basic Usage
 
