@@ -1,0 +1,27 @@
+{
+    "name": "arshu/common",
+    "description": "Core shared library providing Logger and common utilities for all Arshu PHP projects",
+    "type": "library",
+    "version": "1.0.0",
+    "keywords": [
+        "logging",
+        "utilities",
+        "polyglot",
+        "common"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Sridharan Srinivasan",
+            "email": "srid68@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Arshu\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=8.1"
+    }
+}

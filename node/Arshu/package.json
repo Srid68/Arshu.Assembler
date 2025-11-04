@@ -1,0 +1,26 @@
+{
+  "name": "@arshu/common",
+  "version": "1.0.0",
+  "description": "Core shared library providing Logger and common utilities for all Arshu Node.js projects",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./logger": "./src/common/Logger.js"
+  },
+  "keywords": [
+    "logging",
+    "utilities",
+    "polyglot",
+    "common"
+  ],
+  "author": "Sridharan Srinivasan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Srid68/Arshu.Assembler.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

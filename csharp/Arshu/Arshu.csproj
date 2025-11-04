@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <Version>1.0.0</Version>
+    <PackageId>Arshu</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Title>Arshu Core Library</Title>
+    <Description>Core shared library providing Logger and common utilities for all Arshu polyglot projects.</Description>
+    <Authors>Sridharan Srinivasan</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Srid68/Arshu.Assembler</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Srid68/Arshu.Assembler</RepositoryUrl>
+    <PackageTags>logging;utilities;polyglot;common</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <IsTrimmable Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsTrimmable>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <IsTrimmable Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net9.0'))">true</IsTrimmable>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net9.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

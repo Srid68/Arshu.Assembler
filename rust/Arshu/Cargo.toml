@@ -1,0 +1,18 @@
+[package]
+name = "arshu-common"
+version = "1.0.0"
+edition = "2021"
+authors = ["Sridharan Srinivasan <srid68@gmail.com>"]
+description = "Core shared library providing Logger and common utilities for all Arshu Rust projects"
+license = "MIT"
+homepage = "https://github.com/Srid68/Arshu.Assembler"
+repository = "https://github.com/Srid68/Arshu.Assembler"
+keywords = ["logging", "utilities", "polyglot", "common"]
+
+[lib]
+name = "arshu_common"
+path = "src/lib.rs"
+
+[dependencies]
+chrono = "0.4"
+lazy_static = "1.4"
