@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Arshu.App.Json;
+using Arshu.Common;
 using Assembler.Common;
 
 namespace Assembler.Engine;
@@ -32,7 +33,7 @@ public class EngineNormal
     /// <returns>HTML with placeholders replaced</returns>
     public string MergeTemplates(string appSite, string appFile, string? appView, Dictionary<string, (string html, string? json)> templates, bool enableJsonProcessing = true)
     {
-        Logger.Info($"MergeTemplates called: appSite={appSite}, appFile={appFile}, appView={appView ?? "null"}, enableJson={enableJsonProcessing}", "EngineNormal");
+        Logger.Debug($"MergeTemplates called: appSite={appSite}, appFile={appFile}, appView={appView ?? "null"}, enableJson={enableJsonProcessing}", "EngineNormal");
 
         if (templates == null || templates.Count == 0)
         {
@@ -129,7 +130,7 @@ public class EngineNormal
             }
         }
 
-        Logger.Info($"MergeTemplates complete after {actualPasses} passes: output size={contentHtml.Length}", "EngineNormal");
+        Logger.Debug($"MergeTemplates complete after {actualPasses} passes: output size={contentHtml.Length}", "EngineNormal");
         return contentHtml;
 
     }

@@ -2,7 +2,7 @@
 
 import { JsonConverter } from '../app/jsonConverter.js';
 import { CommonUtil } from '../common/commonUtil.js';
-import { Logger } from '../common/logger.js';
+import { Logger } from '@arshu/common';
 
 export class EngineNormal {
     constructor(appViewPrefix = '') {
@@ -35,7 +35,7 @@ export class EngineNormal {
      * @returns {string} HTML with placeholders replaced
      */
     mergeTemplates(appSite, appFile, appView, templates, enableJsonProcessing = true) {
-        Logger.info(`MergeTemplates called: appSite=${appSite}, appFile=${appFile}, appView=${appView || 'null'}, enableJson=${enableJsonProcessing}`, 'EngineNormal');
+        Logger.debug(`MergeTemplates called: appSite=${appSite}, appFile=${appFile}, appView=${appView || 'null'}, enableJson=${enableJsonProcessing}`, 'EngineNormal');
 
         if (!templates || templates.size === 0) {
             Logger.warn('No templates available', 'EngineNormal');
@@ -135,7 +135,7 @@ export class EngineNormal {
             }
         }
 
-        Logger.info(`MergeTemplates complete after ${actualPasses} passes: output size=${contentHtml.length}`, 'EngineNormal');
+        Logger.debug(`MergeTemplates complete after ${actualPasses} passes: output size=${contentHtml.length}`, 'EngineNormal');
 
         return contentHtml;
     }

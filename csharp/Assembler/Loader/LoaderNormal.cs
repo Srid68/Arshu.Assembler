@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Arshu.Common;
 using Assembler.Common;
 
 namespace Assembler.Loader;
@@ -81,7 +82,7 @@ public static class LoaderNormal
             result[key] = (htmlContent, jsonContent);
         }
 
-        Logger.Info($"Loaded {result.Count} templates for {appSite}", "LoaderNormal");
+        Logger.Debug($"Loaded {result.Count} templates for {appSite}", "LoaderNormal");
 
         _htmlTemplatesCache.TryAdd(cacheKey, result);
         return result;

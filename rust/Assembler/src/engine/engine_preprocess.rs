@@ -43,7 +43,7 @@ impl EnginePreProcess {
         enable_json_processing: bool,
     ) -> String {
         let app_view_str = app_view.unwrap_or("null");
-        Logger::info(&format!("MergeTemplates called: appSite={}, appFile={}, appView={}, enableJson={}",
+        Logger::debug(&format!("MergeTemplates called: appSite={}, appFile={}, appView={}, enableJson={}",
             app_site, app_file, app_view_str, enable_json_processing), Some("EnginePreProcess"));
 
         if preprocessed_templates.is_empty() {
@@ -78,7 +78,7 @@ impl EnginePreProcess {
         // Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
         let result = self.apply_template_replacements(&content_html, preprocessed_templates, enable_json_processing, app_view, main_preprocessed);
 
-        Logger::info(&format!("MergeTemplates complete: output size={}", result.len()), Some("EnginePreProcess"));
+        Logger::debug(&format!("MergeTemplates complete: output size={}", result.len()), Some("EnginePreProcess"));
         result
     }
 
@@ -185,7 +185,7 @@ impl EnginePreProcess {
                         let replacement_text = self.apply_app_view_logic_to_replacement(&mapping.original_text, &mapping.replacement_text, preprocessed_templates, app_view);
                         let preview_len = std::cmp::min(200, replacement_text.len());
                         let preview = &replacement_text[..preview_len];
-                        Logger::info(&format!("Applying simple template: {} -> replacement text (first 200 chars): {}", mapping.original_text, preview), Some("EnginePreProcess"));
+                        Logger::debug(&format!("Applying simple template: {} -> replacement text (first 200 chars): {}", mapping.original_text, preview), Some("EnginePreProcess"));
                         result = result.replace(&mapping.original_text, &replacement_text);
                         simple_count += 1;
                     }
@@ -199,7 +199,7 @@ impl EnginePreProcess {
             }
         }
 
-        Logger::info(&format!("Replacement complete after {} passes, final size: {}", current_pass, result.len()), Some("EnginePreProcess"));
+        Logger::debug(&format!("Replacement complete after {} passes, final size: {}", current_pass, result.len()), Some("EnginePreProcess"));
         result
     }
 

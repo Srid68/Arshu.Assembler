@@ -2,7 +2,7 @@
 
 namespace Assembler\Engine;
 
-use Assembler\Common\Logger;
+use Arshu\Common\Logger;
 use Assembler\Common\CommonUtil;
 use Assembler\Model\PreprocessedTemplate;
 use Assembler\Model\ReplacementType;
@@ -42,7 +42,7 @@ class EnginePreProcess
      */
     public function mergeTemplates(string $appSite, string $appFile, ?string $appView, array $preprocessedTemplates, bool $enableJsonProcessing = true): string
     {
-        Logger::info("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? 'null') . ", enableJson=" . ($enableJsonProcessing ? 'true' : 'false'), 'EnginePreProcess');
+        Logger::debug("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? 'null') . ", enableJson=" . ($enableJsonProcessing ? 'true' : 'false'), 'EnginePreProcess');
 
         if (empty($preprocessedTemplates)) {
             Logger::warn('No preprocessed templates available', 'EnginePreProcess');
@@ -66,7 +66,7 @@ class EnginePreProcess
         // Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
         $contentHtml = $this->applyTemplateReplacements($contentHtml, $preprocessedTemplates, $enableJsonProcessing, $appView, $mainPreprocessed);
 
-        Logger::info('MergeTemplates complete: output size=' . strlen($contentHtml), 'EnginePreProcess');
+        Logger::debug('MergeTemplates complete: output size=' . strlen($contentHtml), 'EnginePreProcess');
 
         return $contentHtml;
     }
@@ -183,7 +183,7 @@ class EnginePreProcess
 
         // All JSON replacements are handled in LoaderPreProcess during replacement mapping creation
         // The engine only does simple string replacements using pre-prepared mappings
-        Logger::info("Replacement complete after $currentPass passes, final size: " . strlen($result), 'EnginePreProcess');
+        Logger::debug("Replacement complete after $currentPass passes, final size: " . strlen($result), 'EnginePreProcess');
 
         return $result;
     }

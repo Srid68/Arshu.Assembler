@@ -116,7 +116,7 @@ impl LoaderPreProcess {
             }
         }
 
-        Logger::info(&format!("Loaded {} templates for {}", result.templates.len(), app_site), Some("LoaderPreProcess"));
+        Logger::debug(&format!("Loaded {} templates for {}", result.templates.len(), app_site), Some("LoaderPreProcess"));
 
         Self::create_all_replacement_mappings_for_site(&mut result, app_site);
 
@@ -205,8 +205,8 @@ impl LoaderPreProcess {
         let total_mappings: usize = site_templates.templates.values()
             .map(|t| t.replacement_mappings.len())
             .sum();
-        Logger::info(&format!("Total replacement mappings created for {}: {}", app_site, total_mappings), Some("LoaderPreProcess"));
-        Logger::info(&format!("Created all replacement mappings for {}", app_site), Some("LoaderPreProcess"));
+        Logger::debug(&format!("Total replacement mappings created for {}: {}", app_site, total_mappings), Some("LoaderPreProcess"));
+        Logger::debug(&format!("Created all replacement mappings for {}", app_site), Some("LoaderPreProcess"));
     }
 
     fn create_placeholder_replacement_mappings(template: &mut PreprocessedTemplate, all_templates: &HashMap<String, PreprocessedTemplate>, app_site: &str) {

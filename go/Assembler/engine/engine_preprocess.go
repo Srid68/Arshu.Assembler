@@ -25,7 +25,7 @@ func (e *EnginePreProcess) GetAppViewPrefix() string {
 
 // MergeTemplates merges templates using preprocessed data structures
 func (e *EnginePreProcess) MergeTemplates(appSite, appFile, appView string, preprocessedTemplates map[string]model.PreprocessedTemplate, enableJsonProcessing bool) string {
-	common.Info(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EnginePreProcess")
+	common.Debug(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EnginePreProcess")
 
 	if len(preprocessedTemplates) == 0 {
 		common.Warn("No preprocessed templates available", "EnginePreProcess")
@@ -47,7 +47,7 @@ func (e *EnginePreProcess) MergeTemplates(appSite, appFile, appView string, prep
 	// Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
 	contentHtml = e.ApplyTemplateReplacements(contentHtml, preprocessedTemplates, enableJsonProcessing, appView, mainPreprocessed)
 
-	common.Info(fmt.Sprintf("MergeTemplates complete: output size=%d", len(contentHtml)), "EnginePreProcess")
+	common.Debug(fmt.Sprintf("MergeTemplates complete: output size=%d", len(contentHtml)), "EnginePreProcess")
 
 	return contentHtml
 }
@@ -146,7 +146,7 @@ func (e *EnginePreProcess) ApplyTemplateReplacements(content string, preprocesse
 
 	// All JSON replacements are handled in LoaderPreProcess during replacement mapping creation
 	// The engine only does simple string replacements using pre-prepared mappings
-	common.Info(fmt.Sprintf("Replacement complete after %d passes, final size: %d", currentPass, len(result)), "EnginePreProcess")
+	common.Debug(fmt.Sprintf("Replacement complete after %d passes, final size: %d", currentPass, len(result)), "EnginePreProcess")
 
 	return result
 }

@@ -34,6 +34,8 @@
   "bugs": {
     "url": "https://github.com/Srid68/Arshu.Assembler/issues"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@arshu/common": "file:../../../LocalPackages/arshu-common-1.0.0.tgz"
+  },
   "devDependencies": {}
 }

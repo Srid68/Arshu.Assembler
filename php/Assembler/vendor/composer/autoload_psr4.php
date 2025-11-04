@@ -7,4 +7,5 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'Assembler\\' => array($baseDir . '/src'),
+    'Arshu\\' => array($baseDir . '/../Arshu/src'),
 );

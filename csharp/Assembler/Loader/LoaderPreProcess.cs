@@ -1,4 +1,5 @@
 using Arshu.App.Json;
+using Arshu.Common;
 using Assembler.Common;
 using Assembler.Model;
 using System;
@@ -103,13 +104,13 @@ public static class LoaderPreProcess
             Logger.Debug($"Preprocessed {key}: {preprocessed.ReplacementMappings.Count} replacements, {preprocessed.SlottedTemplates.Count} slotted, {preprocessed.Placeholders.Count} placeholders", "LoaderPreProcess");
         }
 
-        Logger.Info($"Loaded {result.Templates.Count} templates for {appSite}", "LoaderPreProcess");
+        Logger.Debug($"Loaded {result.Templates.Count} templates for {appSite}", "LoaderPreProcess");
 
         // CRITICAL: Create ALL replacement mappings after all templates are loaded
         // This ensures PreProcess engine does ONLY merging, no processing logic
         CreateAllReplacementMappingsForSite(result, appSite);
 
-        Logger.Info($"Created all replacement mappings for {appSite}", "LoaderPreProcess");
+        Logger.Debug($"Created all replacement mappings for {appSite}", "LoaderPreProcess");
 
         _preprocessedTemplatesCache.TryAdd(cacheKey, result);
         return result;

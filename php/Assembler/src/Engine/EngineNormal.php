@@ -6,7 +6,7 @@ use Assembler\App\JsonConverter;
 use Assembler\App\Json\JsonObject;
 use Assembler\App\Json\JsonArray;
 use Assembler\Common\CommonUtil;
-use Assembler\Common\Logger;
+use Arshu\Common\Logger;
 use Assembler\Loader\TemplateResult;
 
 /**
@@ -44,7 +44,7 @@ class EngineNormal
      */
     public function mergeTemplates(string $appSite, string $appFile, ?string $appView, array $templates, bool $enableJsonProcessing = true): string
     {
-        Logger::info("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? 'null') . ", enableJson=" . ($enableJsonProcessing ? 'true' : 'false'), 'EngineNormal');
+        Logger::debug("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? 'null') . ", enableJson=" . ($enableJsonProcessing ? 'true' : 'false'), 'EngineNormal');
 
         if (empty($templates)) {
             Logger::warn('No templates available', 'EngineNormal');
@@ -137,7 +137,7 @@ class EngineNormal
             $contentHtml = $afterJson;
         }
 
-        Logger::info("MergeTemplates complete after $actualPasses passes: output size=" . strlen($contentHtml), 'EngineNormal');
+        Logger::debug("MergeTemplates complete after $actualPasses passes: output size=" . strlen($contentHtml), 'EngineNormal');
 
         return $contentHtml;
     }

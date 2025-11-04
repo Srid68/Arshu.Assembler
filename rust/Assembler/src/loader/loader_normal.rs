@@ -104,7 +104,7 @@ impl LoaderNormal {
             }
         }
 
-        Logger::info(&format!("Loaded {} templates for {}", result.len(), app_site), Some("LoaderNormal"));
+        Logger::debug(&format!("Loaded {} templates for {}", result.len(), app_site), Some("LoaderNormal"));
 
         let mut cache = HTML_TEMPLATES_CACHE.lock().unwrap();
         cache.insert(cache_key, result.clone());

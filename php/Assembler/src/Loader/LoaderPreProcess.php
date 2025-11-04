@@ -3,7 +3,7 @@
 namespace Assembler\Loader;
 
 use Assembler\App\JsonConverter;
-use Assembler\Common\Logger;
+use Arshu\Common\Logger;
 use Assembler\Common\CommonUtil;
 use Assembler\Model\PreprocessedSiteTemplates;
 use Assembler\Model\PreprocessedTemplate;
@@ -109,13 +109,13 @@ class LoaderPreProcess
             }
         }
 
-        Logger::info("Loaded " . count($result->templates) . " templates for $appSite", 'LoaderPreProcess');
+        Logger::debug("Loaded " . count($result->templates) . " templates for $appSite", 'LoaderPreProcess');
 
         // CRITICAL: Create ALL replacement mappings after all templates are loaded
         // This ensures PreProcess engine does ONLY merging, no processing logic
         self::createAllReplacementMappingsForSite($result, $appSite);
 
-        Logger::info("Created all replacement mappings for $appSite", 'LoaderPreProcess');
+        Logger::debug("Created all replacement mappings for $appSite", 'LoaderPreProcess');
 
         self::$preprocessedTemplatesCache[$cacheKey] = $result;
         return $result;
@@ -209,7 +209,7 @@ class LoaderPreProcess
         foreach ($siteTemplates->templates as $template) {
             $totalMappings += count($template->replacementMappings);
         }
-        Logger::info("Total replacement mappings created for $appSite: $totalMappings", 'LoaderPreProcess');
+        Logger::debug("Total replacement mappings created for $appSite: $totalMappings", 'LoaderPreProcess');
     }
 
     /**
@@ -526,13 +526,13 @@ class LoaderPreProcess
                 $jsonMappingCount = 0;
                 foreach ($targetTemplate->replacementMappings as $m) {
                     if ($m->type === ReplacementType::JSON_PLACEHOLDER && strpos($processedTemplate, $m->originalText) !== false) {
-                        Logger::info("  Replacing '{$m->originalText}' with '{$m->replacementText}' in {$targetTemplateKey}", 'LoaderPreProcess');
+                        Logger::debug("  Replacing '{$m->originalText}' with '{$m->replacementText}' in {$targetTemplateKey}", 'LoaderPreProcess');
                         $processedTemplate = str_replace($m->originalText, $m->replacementText, $processedTemplate);
                         $jsonMappingCount++;
                     }
                 }
                 if ($jsonMappingCount > 0) {
-                    Logger::info("Applied {$jsonMappingCount} JSON mappings to {$targetTemplateKey}", 'LoaderPreProcess');
+                    Logger::debug("Applied {$jsonMappingCount} JSON mappings to {$targetTemplateKey}", 'LoaderPreProcess');
                 }
 
                 // Create the replacement mapping
@@ -785,7 +785,7 @@ class LoaderPreProcess
                 $replacementText = self::processArrayBlockContentSafely($innerContent, $arrayValue);
             }
 
-            Logger::info("[LoaderPreProcess]   Creating JSON array mapping: '{$openTag}' -> " . strlen($replacementText) . " chars", 'LoaderPreProcess');
+            Logger::debug("[LoaderPreProcess]   Creating JSON array mapping: '{$openTag}' -> " . strlen($replacementText) . " chars", 'LoaderPreProcess');
 
             $mapping = new ReplacementMapping();
             $mapping->originalText = $fullMatch;
@@ -801,7 +801,7 @@ class LoaderPreProcess
         }
 
         if ($mappingCount > 0) {
-            Logger::info("[LoaderPreProcess] Applied {$mappingCount} JSON array mappings for '{$openTag}'", 'LoaderPreProcess');
+            Logger::debug("[LoaderPreProcess] Applied {$mappingCount} JSON array mappings for '{$openTag}'", 'LoaderPreProcess');
         }
     }
 

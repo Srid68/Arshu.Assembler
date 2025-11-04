@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { JsonConverter } from '../app/jsonConverter.js';
 import { CommonUtil } from '../common/commonUtil.js';
-import { Logger } from '../common/logger.js';
+import { Logger } from '@arshu/common';
 import {
     PreprocessedSiteTemplates,
     PreprocessedTemplate,
@@ -96,13 +96,13 @@ export class LoaderPreProcess {
             }
         });
 
-        Logger.info(`Loaded ${result.templates.size} templates for ${appSite}`, 'LoaderPreProcess');
+        Logger.debug(`Loaded ${result.templates.size} templates for ${appSite}`, 'LoaderPreProcess');
 
         // CRITICAL: Create ALL replacement mappings after all templates are loaded
         // This ensures PreProcess engine does ONLY merging, no processing logic
         this.#createAllReplacementMappingsForSite(result, appSite);
 
-        Logger.info(`Created all replacement mappings for ${appSite}`, 'LoaderPreProcess');
+        Logger.debug(`Created all replacement mappings for ${appSite}`, 'LoaderPreProcess');
 
         this.#preprocessedTemplatesCache.set(cacheKey, result);
         return result;
@@ -192,7 +192,7 @@ export class LoaderPreProcess {
         for (const template of siteTemplates.templates.values()) {
             totalMappings += template.replacementMappings.length;
         }
-        Logger.info(`Total replacement mappings created for ${appSite}: ${totalMappings}`, 'LoaderPreProcess');
+        Logger.debug(`Total replacement mappings created for ${appSite}: ${totalMappings}`, 'LoaderPreProcess');
     }
 
     /**
@@ -533,13 +533,13 @@ export class LoaderPreProcess {
                 let jsonMappingCount = 0;
                 for (const m of targetTemplate.replacementMappings) {
                     if (m.type === ReplacementType.JSON_PLACEHOLDER && processedTemplate.includes(m.originalText)) {
-                        Logger.info(`  Replacing '${m.originalText}' with '${m.replacementText}' in ${targetTemplateKey}`, 'LoaderPreProcess');
+                        Logger.debug(`  Replacing '${m.originalText}' with '${m.replacementText}' in ${targetTemplateKey}`, 'LoaderPreProcess');
                         processedTemplate = processedTemplate.replace(new RegExp(this.#escapeRegExp(m.originalText), 'g'), m.replacementText);
                         jsonMappingCount++;
                     }
                 }
                 if (jsonMappingCount > 0) {
-                    Logger.info(`Applied ${jsonMappingCount} JSON mappings to ${targetTemplateKey}`, 'LoaderPreProcess');
+                    Logger.debug(`Applied ${jsonMappingCount} JSON mappings to ${targetTemplateKey}`, 'LoaderPreProcess');
                 }
 
                 // Create the replacement mapping

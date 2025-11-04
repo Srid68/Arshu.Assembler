@@ -2,7 +2,7 @@
 
 namespace Assembler\Loader;
 
-use Assembler\Common\Logger;
+use Arshu\Common\Logger;
 use Assembler\Common\CommonUtil;
 
 /**
@@ -104,7 +104,7 @@ class LoaderNormal
             }
         }
 
-        Logger::info("Loaded " . count($result) . " templates for $appSite", 'LoaderNormal');
+        Logger::debug("Loaded " . count($result) . " templates for $appSite", 'LoaderNormal');
 
         self::$htmlTemplatesCache[$cacheKey] = $result;
         return $result;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Arshu.App.Json;
+using Arshu.Common;
 using Assembler.Common;
 using Assembler.Model;
 
@@ -33,7 +34,7 @@ public class EnginePreProcess
     /// <returns>HTML with placeholders replaced using preprocessed structures</returns>
     public string MergeTemplates(string appSite, string appFile, string? appView, Dictionary<string, PreprocessedTemplate> preprocessedTemplates, bool enableJsonProcessing = true)
     {
-        Logger.Info($"MergeTemplates called: appSite={appSite}, appFile={appFile}, appView={appView ?? "null"}, enableJson={enableJsonProcessing}", "EnginePreProcess");
+        Logger.Debug($"MergeTemplates called: appSite={appSite}, appFile={appFile}, appView={appView ?? "null"}, enableJson={enableJsonProcessing}", "EnginePreProcess");
 
         if (preprocessedTemplates == null || preprocessedTemplates.Count == 0)
         {
@@ -59,7 +60,7 @@ public class EnginePreProcess
         // Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
         contentHtml = ApplyTemplateReplacements(contentHtml, preprocessedTemplates, enableJsonProcessing, appView, mainPreprocessed);
 
-        Logger.Info($"MergeTemplates complete: output size={contentHtml.Length}", "EnginePreProcess");
+        Logger.Debug($"MergeTemplates complete: output size={contentHtml.Length}", "EnginePreProcess");
 
         return contentHtml;
     }
@@ -167,7 +168,7 @@ public class EnginePreProcess
                     {
                         // Apply AppView logic to handle runtime template selection with baked-in JSON values
                         var replacementText = ApplyAppViewLogicToReplacement(mapping.OriginalText, mapping.ReplacementText, preprocessedTemplates, appView);
-                        Logger.Info($"Applying simple template: {mapping.OriginalText} -> replacement text (first 200 chars): {replacementText.Substring(0, Math.Min(200, replacementText.Length))}", "EnginePreProcess");
+                        Logger.Debug($"Applying simple template: {mapping.OriginalText} -> replacement text (first 200 chars): {replacementText.Substring(0, Math.Min(200, replacementText.Length))}", "EnginePreProcess");
                         result = result.Replace(mapping.OriginalText, replacementText);
                         simpleCount++;
                     }
@@ -180,7 +181,7 @@ public class EnginePreProcess
 
         // All JSON replacements are handled in LoaderPreProcess during replacement mapping creation
         // The engine only does simple string replacements using pre-prepared mappings
-        Logger.Info($"Replacement complete after {currentPass} passes, final size: {result.Length}", "EnginePreProcess");
+        Logger.Debug($"Replacement complete after {currentPass} passes, final size: {result.Length}", "EnginePreProcess");
 
         return result;
     }

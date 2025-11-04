@@ -31,7 +31,7 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 	HTML string
 	JSON *string
 }, enableJsonProcessing bool) string {
-	common.Info(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EngineNormal")
+	common.Debug(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EngineNormal")
 
 	if len(templates) == 0 {
 		common.Warn("No templates available", "EngineNormal")
@@ -112,7 +112,7 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 		}
 	}
 
-	common.Info(fmt.Sprintf("MergeTemplates complete after %d passes: output size=%d", actualPasses, len(contentHtml)), "EngineNormal")
+	common.Debug(fmt.Sprintf("MergeTemplates complete after %d passes: output size=%d", actualPasses, len(contentHtml)), "EngineNormal")
 	return contentHtml
 }
 

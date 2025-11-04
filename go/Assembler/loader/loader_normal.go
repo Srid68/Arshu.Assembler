@@ -107,7 +107,7 @@ func LoadGetTemplateFiles(rootDirPath, appSite string) map[string]struct {
 		return nil
 	})
 
-	common.Info(fmt.Sprintf("Loaded %d templates for %s", len(result), appSite), "LoaderNormal")
+	common.Debug(fmt.Sprintf("Loaded %d templates for %s", len(result), appSite), "LoaderNormal")
 
 	htmlTemplatesCache.Lock()
 	htmlTemplatesCache.cache[cacheKey] = result

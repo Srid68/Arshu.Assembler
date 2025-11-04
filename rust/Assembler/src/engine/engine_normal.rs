@@ -44,7 +44,7 @@ impl EngineNormal {
         enable_json_processing: bool,
     ) -> String {
         let app_view_str = app_view.unwrap_or("null");
-        Logger::info(&format!("MergeTemplates called: appSite={}, appFile={}, appView={}, enableJson={}",
+        Logger::debug(&format!("MergeTemplates called: appSite={}, appFile={}, appView={}, enableJson={}",
             app_site, app_file, app_view_str, enable_json_processing), Some("EngineNormal"));
 
         if templates.is_empty() {
@@ -144,7 +144,7 @@ impl EngineNormal {
             }
         }
 
-        Logger::info(&format!("MergeTemplates complete after {} passes: output size={}", actual_passes, content_html.len()), Some("EngineNormal"));
+        Logger::debug(&format!("MergeTemplates complete after {} passes: output size={}", actual_passes, content_html.len()), Some("EngineNormal"));
         content_html
     }
 }

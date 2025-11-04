@@ -1,4 +1,4 @@
-import { Logger } from '../common/logger.js';
+import { Logger } from '@arshu/common';
 import { CommonUtil } from '../common/commonUtil.js';
 
 /**
@@ -21,7 +21,7 @@ export class EnginePreProcess {
      * @returns {string} HTML with placeholders replaced using preprocessed structures
      */
     mergeTemplates(appSite, appFile, appView, preprocessedTemplates, enableJsonProcessing = true) {
-        Logger.info(`MergeTemplates called: appSite=${appSite}, appFile=${appFile}, appView=${appView || 'null'}, enableJson=${enableJsonProcessing}`, 'EnginePreProcess');
+        Logger.debug(`MergeTemplates called: appSite=${appSite}, appFile=${appFile}, appView=${appView || 'null'}, enableJson=${enableJsonProcessing}`, 'EnginePreProcess');
 
         if (!preprocessedTemplates ||
             (preprocessedTemplates instanceof Map && preprocessedTemplates.size === 0) ||
@@ -48,7 +48,7 @@ export class EnginePreProcess {
         // Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
         contentHtml = this.applyTemplateReplacements(contentHtml, preprocessedTemplates, enableJsonProcessing, appView, mainPreprocessed);
 
-        Logger.info(`MergeTemplates complete: output size=${contentHtml.length}`, 'EnginePreProcess');
+        Logger.debug(`MergeTemplates complete: output size=${contentHtml.length}`, 'EnginePreProcess');
 
         return contentHtml;
     }
@@ -159,7 +159,7 @@ export class EnginePreProcess {
                     if ((mapping.type === 1 || mapping.type === "SimpleTemplate") && result.includes(mapping.originalText)) {
                         // Apply AppView logic before replacement
                         const replacementText = this.applyAppViewLogicToReplacement(mapping.originalText, mapping.replacementText, preprocessedTemplates, appView);
-                        Logger.info(`Applying simple template: ${mapping.originalText} -> replacement text (first 200 chars): ${replacementText.substring(0, Math.min(200, replacementText.length))}`, 'EnginePreProcess');
+                        Logger.debug(`Applying simple template: ${mapping.originalText} -> replacement text (first 200 chars): ${replacementText.substring(0, Math.min(200, replacementText.length))}`, 'EnginePreProcess');
                         result = result.replaceAll(mapping.originalText, replacementText);
                         simpleCount++;
                     }
@@ -176,7 +176,7 @@ export class EnginePreProcess {
 
         // All JSON replacements are handled in LoaderPreProcess during replacement mapping creation
         // The engine only does simple string replacements using pre-prepared mappings
-        Logger.info(`Replacement complete after ${currentPass} passes, final size: ${result.length}`, 'EnginePreProcess');
+        Logger.debug(`Replacement complete after ${currentPass} passes, final size: ${result.length}`, 'EnginePreProcess');
 
         return result;
     }

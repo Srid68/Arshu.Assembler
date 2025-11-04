@@ -1,2 +1,2 @@
 export { CommonUtil } from './commonUtil.js';
-export { Logger, LogLevel, LogRotation } from './logger.js';
+export { Logger, LogLevel, LogRotation } from '@arshu/common';

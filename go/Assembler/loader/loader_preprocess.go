@@ -99,12 +99,12 @@ func LoadProcessGetTemplateFiles(rootDirPath, appSite string) *model.Preprocesse
 		// handle error if needed
 	}
 
-	common.Info(fmt.Sprintf("Loaded %d templates for %s", len(result.Templates), appSite), "LoaderPreProcess")
+	common.Debug(fmt.Sprintf("Loaded %d templates for %s", len(result.Templates), appSite), "LoaderPreProcess")
 
 	// After loading all templates, create replacement mappings for simple template placeholders
 	createReplacementMappings(result)
 
-	common.Info(fmt.Sprintf("Created all replacement mappings for %s", appSite), "LoaderPreProcess")
+	common.Debug(fmt.Sprintf("Created all replacement mappings for %s", appSite), "LoaderPreProcess")
 
 	// Update convenience flags for all templates after processing
 	for _, template := range result.Templates {
@@ -171,7 +171,7 @@ func createAllReplacementMappingsForSite(siteTemplates *model.PreprocessedSiteTe
 	for _, template := range siteTemplates.Templates {
 		totalMappings += len(template.ReplacementMappings)
 	}
-	common.Info(fmt.Sprintf("Total replacement mappings created for %s: %d", siteTemplates.SiteName, totalMappings), "LoaderPreProcess")
+	common.Debug(fmt.Sprintf("Total replacement mappings created for %s: %d", siteTemplates.SiteName, totalMappings), "LoaderPreProcess")
 }
 
 // createPlaceholderReplacementMappings creates replacement mappings for simple template placeholders that reference other templates
@@ -229,13 +229,13 @@ func createPlaceholderReplacementMappings(template *model.PreprocessedTemplate, 
 				jsonMappingCount := 0
 				for _, m := range referencedTemplate.ReplacementMappings {
 					if m.Type == model.JsonPlaceholderType && strings.Contains(processedTemplate, m.OriginalText) {
-						common.Info(fmt.Sprintf("  Replacing '%s' with '%s' in %s", m.OriginalText, m.ReplacementText, foundKey), "LoaderPreProcess")
+						common.Debug(fmt.Sprintf("  Replacing '%s' with '%s' in %s", m.OriginalText, m.ReplacementText, foundKey), "LoaderPreProcess")
 						processedTemplate = strings.ReplaceAll(processedTemplate, m.OriginalText, m.ReplacementText)
 						jsonMappingCount++
 					}
 				}
 				if jsonMappingCount > 0 {
-					common.Info(fmt.Sprintf("Applied %d JSON mappings to %s", jsonMappingCount, foundKey), "LoaderPreProcess")
+					common.Debug(fmt.Sprintf("Applied %d JSON mappings to %s", jsonMappingCount, foundKey), "LoaderPreProcess")
 				}
 
 				// Create replacement mapping for direct replacement

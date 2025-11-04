@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { Logger } from '../common/logger.js';
+import { Logger } from '@arshu/common';
 import { CommonUtil } from '../common/commonUtil.js';
 
 export class TemplateResult {
@@ -82,7 +82,7 @@ export class LoaderNormal {
             }
         });
 
-        Logger.info(`Loaded ${result.size} templates for ${appSite}`, 'LoaderNormal');
+        Logger.debug(`Loaded ${result.size} templates for ${appSite}`, 'LoaderNormal');
 
         this.#htmlTemplatesCache.set(cacheKey, result);
         return result;
