@@ -386,17 +386,41 @@
     <div class="container">
         <section id="about">
             <h2>About</h2>
-            <p>Arshu Assembler is a polyglot declarative framework for app creation, inspired by abstractions from Mustache, React, and HTMX. This project is a multi-language implementation recreated using AI-assisted development.</p>
+            <p>Arshu Assembler is a polyglot declarative framework for app creation, inspired by abstractions from Mustache, React, and HTMX. This project is a multi-language implementation of the original <a href="https://github.com/Arshu/AssembleWebApps/" target="_blank">Arshu Assembler</a>, recreated using AI-assisted development in multiple languages ultimately to replace/enhance the original.</p>
+
+            <p style="margin-top: 1rem;">This repository represents current Phase 2 of a larger project vision (which may/may not be possible) to build a polyglot web framework.</p>
 
             <div class="info-box">
-                <strong>Project Phases</strong>
+                <strong>Project Roadmap - 7 Phases</strong>
                 <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
-                    <li><strong>Phase 1:</strong> <a href="https://github.com/Arshu/Arshu.Proxy/" target="_blank">Arshu Proxy</a> (Multi-language Proxy)</li>
-                    <li><strong>Phase 2:</strong> Arshu Static Assembler (This repository - Static Assembly)</li>
-                    <li><strong>Phase 3:</strong> Arshu Data Assembler (In Development)</li>
-                    <li><strong>Phase 4:</strong> Dynamic Server-Side Assembly (Planned)</li>
-                    <li><strong>Phase 5:</strong> Integrated Full-Stack Framework (Planned)</li>
-                    <li><strong>Phase 6:</strong> Integrated Multi-Connect Framework (Planned)</li>
+                    <li>
+                        <strong>Phase 1:</strong> <a href="https://github.com/Arshu/Arshu.Proxy/" target="_blank">Arshu Proxy</a> (Multi-language Proxy) - <em>Completed</em>
+                        <p style="margin: 0.5rem 0 0 1.5rem; font-size: 0.95em; color: #555;">Validated if LLM can be used to generate web related code in multiple languages.</p>
+                    </li>
+                    <li>
+                        <strong>Phase 2:</strong> <a href="https://github.com/Srid68/Arshu.Assembler" target="_blank">Arshu Static Assembler</a> (This repository - Static Assembly) - <em>Completed</em>
+                        <p style="margin: 0.5rem 0 0 1.5rem; font-size: 0.95em; color: #555;">The actual start of the project to use LLM to build a static assembler to assemble HTML in various languages with multiple implementations, complete with 5 initial rules.</p>
+                    </li>
+                    <li>
+                        <strong>Phase 3:</strong> Arshu Data Assembler (This repository - Data Assembly) - <em>In Development</em>
+                        <p style="margin: 0.5rem 0 0 1.5rem; font-size: 0.95em; color: #555;">Implement abstractions of static data inheritance (parent/global/context) across components as well as assembling components from different JSON for the same markup.</p>
+                    </li>
+                    <li>
+                        <strong>Phase 4:</strong> Dynamic Server-Side Assembly - <em>Planned</em>
+                        <p style="margin: 0.5rem 0 0 1.5rem; font-size: 0.95em; color: #555;">Make the data modifiable and implement dynamic server-side generation of HTML with ability to drill down and generate any leaf or child hierarchy of the component tree.</p>
+                    </li>
+                    <li>
+                        <strong>Phase 5:</strong> Integrated Full-Stack Framework - <em>Planned</em>
+                        <p style="margin: 0.5rem 0 0 1.5rem; font-size: 0.95em; color: #555;">Truly integrate client side and server side, making assembler components assemblable in client (JS) and/or server (C#/Rust/Go/PHP/Node) depending on requirements.</p>
+                    </li>
+                    <li>
+                        <strong>Phase 6:</strong> Integrated Multi-Connect Framework - <em>Planned</em>
+                        <p style="margin: 0.5rem 0 0 1.5rem; font-size: 0.95em; color: #555;">Provide common abstractions for communicating between components using Ajax/WebSocket/WebRTC/WebTransport.</p>
+                    </li>
+                    <li>
+                        <strong>Phase 7:</strong> Integrated Revenue Centric Deployment - <em>Planned</em>
+                        <p style="margin: 0.5rem 0 0 1.5rem; font-size: 0.95em; color: #555;">Provide common abstractions for deployment (Initial Multi Provider/Subsequent Zero Downtime/Clonable), Measurement (Usage/Performance) with integration to Authentication/Authorization/Payment Systems as a sample project to be deployed in Usage-based infrastructure in fly.io/unikraft.cloud/baremetal/virtual machine.</p>
+                    </li>
                 </ul>
             </div>
 
@@ -405,7 +429,24 @@
                 <p>This is a Sustainable Revenue Centric Instead of Cost Centric Open Source (MIT Licensed) project.</p>
                 <p style="margin-top: 0.5rem;"><strong>No pull requests will be accepted for this repository</strong>. If you want to collaborate, fork this repository and share your enhancement details via an issue.</p>
                 <p style="margin-top: 0.5rem;">All implementations are AI-generated with focus on architecture, testing, validation, and performance. Implementations may not be optimal but outputs are accurate and validated.</p>
+                <p style="margin-top: 0.5rem;"><strong>Note:</strong> I am only familiar with C#, which I used as the prompt for all other languages. I am not familiar with idioms or conventions in other languages.</p>
             </div>
+
+            <h3>Original Demos</h3>
+            <p>Demo of the original Assembler Framework is deployed in:</p>
+            <ul style="margin-left: 1.5rem;">
+                <li><a href="https://flyarshudata.arshucs.com/" target="_blank">MicroVM (fly.io)</a></li>
+                <li><a href="https://uniarshudata.arshucs.com/" target="_blank">Unikernel (Kraft.cloud)</a></li>
+                <li><a href="https://ovharshudata.roottns.com/" target="_blank">Baremetal (OVHCloud)</a></li>
+            </ul>
+            <p style="margin-top: 0.5rem;">UI Source available in <a href="https://github.com/Arshu/ArshuData/" target="_blank">Arshu Data GitHub</a></p>
+
+            <h3>Intermediate Goals</h3>
+            <p>The primary goal is to recreate the existing <a href="https://github.com/Arshu/AssembleWebApps/" target="_blank">Arshu Assembler</a> so that I can improve the abstraction for assembly since I have lots of ideas but lack the time to implement them.</p>
+            <p style="margin-top: 0.5rem;">The secondary goal is to recreate demo applications <a href="https://github.com/Arshu/ArshuData/" target="_blank">Arshu Data</a>, <a href="https://github.com/Arshu/ArshuHub/" target="_blank">Arshu Hub</a>, and the <a href="https://shopifyloyalty.arshucs.com/" target="_blank">Loyalty Management Application</a> and other apps which I am developing to be fully recreated in AI so that I can implement features faster using AI.</p>
+
+            <h3>Ultimate Goal</h3>
+            <p>Find abstractions which improve reusability in developing applications and can lead to implementing an independent supply chain in software development due to improved abstractions that clearly separate building from assembly.</p>
         </section>
 
         <section id="articles">
@@ -415,7 +456,7 @@
             <div class="articles-grid">
                 <div class="article-card">
                     <h3>Package Usage Guide</h3>
-                    <div class="meta">Published: January 2025 | Topic: Getting Started</div>
+                    <div class="meta">Published: November 2025 | Topic: Getting Started</div>
                     <div class="description">
                         Complete guide to using Arshu Assembler packages in your local projects. Learn how to install and integrate the assembler in Node.js, PHP, C#, Go, and Rust with detailed examples and best practices for each language.
                     </div>
@@ -608,20 +649,23 @@ dotnet run</code></pre>
 
         <section id="collaboration">
             <h2>Collaboration</h2>
-            <p>Interested in collaborating? Topics include:</p>
+            <p>I am interested in collaborating on the following topics:</p>
             <ul style="margin-left: 1.5rem; margin-top: 1rem; background: var(--white); padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <li>Software Assembler & Supply Chains</li>
+                <li>Software Assembler</li>
+                <li>Software Supply Chains</li>
                 <li>Usage-Based Infrastructure</li>
                 <li>Distributed Computing</li>
-                <li>AI-Assisted Development & Migration</li>
+                <li>AI-Assisted Development</li>
+                <li>AI-Assisted Migration</li>
                 <li>Subscription Freelancing</li>
                 <li>Sustainable Open Source</li>
-                <li>Building Revenue Centers Instead of Cost Centers</li>
+                <li>Sustainable Free</li>
+                <li>Building Revenue Centers Instead of Cost Centers for Customers</li>
                 <li>Financialization of Skills</li>
             </ul>
             <div style="margin-top: 1.5rem; background: var(--white); padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                 <p><strong>Contact:</strong> srid68 [at] gmail.com</p>
-                <p style="margin-top: 0.5rem;"><strong>Pair Programming with AI:</strong> $25 USD per hour session</p>
+                <p style="margin-top: 0.5rem;"><strong>Pair Programming with AI:</strong> $25 USD per hour session for recreating this project</p>
                 <p style="margin-top: 0.5rem;"><strong>Subscription Freelancing:</strong> $250 USD/Month for up to $10,000 USD worth of work</p>
             </div>
         </section>
