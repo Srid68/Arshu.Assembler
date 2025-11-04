@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"assembler/common"
+	common "github.com/srid68/arshu-common/common"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

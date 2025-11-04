@@ -1,4 +1,5 @@
 using Assembler.Common;
+using Arshu.Common;
 using Assembler.Config;
 using AssemblerWeb.Services;
 using Microsoft.AspNetCore.Builder;
@@ -327,12 +328,12 @@ public class Program
         var logsDir = System.IO.Path.Combine(templateAnalysisDir, "logs");
         Directory.CreateDirectory(logsDir);
 
-        // Configure separate log files for each class
+        // Configure separate log files for global contexts only
+        // Note: Endpoint-specific contexts are configured per-endpoint using AddContextLogFiles
         var contextLogFiles = new System.Collections.Generic.Dictionary<string, string>
         {
-            { "Program", System.IO.Path.Combine(logsDir, "csharp_webjs_program.log") },
-            { "AssemblerEndpoint", System.IO.Path.Combine(logsDir, "csharp_webjs_assemblerendpoint.log") },
-            { "IdleTrackingMiddleware", System.IO.Path.Combine(logsDir, "csharp_webjs_idletracking.log") }
+            { "Main", System.IO.Path.Combine(logsDir, "csharp_webjs_main.log") },
+            { "IdleTracking", System.IO.Path.Combine(logsDir, "csharp_webjs_idletracking.log") }
         };
 
         // Configure logger (no main log file - only context files)
@@ -350,7 +351,7 @@ public class Program
         // Configure context log files AFTER clearing (which disposes writers)
         Logger.ConfigureContextLogFiles(contextLogFiles);
 
-        Logger.Info("AssemblerWebJs starting up", "Program");
+        Logger.Info("AssemblerWebJs starting up", "Main");
 
         #endregion
 

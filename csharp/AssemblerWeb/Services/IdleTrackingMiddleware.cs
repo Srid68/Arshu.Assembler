@@ -1,4 +1,4 @@
-﻿using Assembler.Common;
+using Arshu.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using System;
@@ -19,7 +19,7 @@ namespace AssemblerWeb.Services
 
         private static void Log(string message)
         {
-            Logger.Info(message, "IdleTrackingMiddleware");
+            Logger.Info(message, "IdleTracking");
         }
 
         /// <summary>

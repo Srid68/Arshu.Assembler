@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@arshu/assembler": "file:../Assembler",
+    "@arshu/common": "file:../Arshu",
     "express": "^4.18.2",
     "open": "^10.2.0"
   }

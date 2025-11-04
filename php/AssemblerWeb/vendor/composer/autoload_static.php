@@ -93,6 +93,7 @@ class ComposerStaticInit2d3755f5a7efdd44e63947974588bfa3
         'A' => 
         array (
             'Assembler\\' => 10,
+            'Arshu\\' => 6,
         ),
     );
 
@@ -223,6 +224,10 @@ class ComposerStaticInit2d3755f5a7efdd44e63947974588bfa3
         'Assembler\\' => 
         array (
             0 => __DIR__ . '/../..' . '/../Assembler/src',
+        ),
+        'Arshu\\' => 
+        array (
+            0 => __DIR__ . '/../..' . '/../Arshu/src',
         ),
     );
 

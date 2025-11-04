@@ -11,10 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"assembler/api"
-	"assembler/common"
 	"assembler/config"
 	"assembler/engine"
 	"assembler/loader"
+
+	common "github.com/srid68/arshu-common/common"
 )
 
 const DefaultAppSite = "Test"

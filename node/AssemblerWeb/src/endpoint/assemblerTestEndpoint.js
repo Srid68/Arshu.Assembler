@@ -1,7 +1,8 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fsSync from 'fs';
-import { Logger, ConfigUtil } from '@arshu/assembler';
+import { Logger } from '@arshu/common';
+import { ConfigUtil } from '@arshu/assembler';
 import { getValidAppSites, isValidEngineType, isValidAppSite, isValidPathComponent, isValidLogContent, isValidOutputSizeWithBuffer, getTemplateTotalSize, OUTPUT_SIZE_BUFFER } from './securityValidator.js';
 
 const __filename = fileURLToPath(import.meta.url);

@@ -116,15 +116,11 @@ func main() {
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 
-	// Configure separate log files for each context
+	// Configure separate log files for global contexts only
+	// Note: Endpoint-specific contexts are configured per-endpoint using AddContextLogFiles
 	contextLogFiles := map[string]string{
-		"LoaderNormal":     filepath.Join(logsDir, "go_loadernormal.log"),
-		"LoaderPreProcess": filepath.Join(logsDir, "go_loaderpreprocess.log"),
-		"EngineNormal":     filepath.Join(logsDir, "go_enginenormal.log"),
-		"EnginePreProcess": filepath.Join(logsDir, "go_enginepreprocess.log"),
-		"Main":             filepath.Join(logsDir, "go_main.log"),
-		"MergeEndpoint":    filepath.Join(logsDir, "go_mergeendpoint.log"),
-		"IdleTracking":     filepath.Join(logsDir, "go_idletracking.log"),
+		"Main":         filepath.Join(logsDir, "go_main.log"),
+		"IdleTracking": filepath.Join(logsDir, "go_idletracking.log"),
 	}
 
 	// Configure logger (no main log file - only context files)

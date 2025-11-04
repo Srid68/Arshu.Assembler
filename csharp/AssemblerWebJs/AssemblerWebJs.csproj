@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Arshu\Arshu.csproj" />
     <ProjectReference Include="..\Assembler\Assembler.csproj" />
   </ItemGroup>
 

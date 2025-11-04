@@ -12,7 +12,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Assembler\\": "../Assembler/src/"
+            "Assembler\\": "../Assembler/src/",
+            "Arshu\\": "../Arshu/src/"
         }
     }
 }

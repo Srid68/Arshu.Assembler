@@ -37,4 +37,5 @@ return array(
     'FastRoute\\' => array($vendorDir . '/nikic/fast-route/src'),
     'DI\\' => array($vendorDir . '/php-di/php-di/src'),
     'Assembler\\' => array($baseDir . '/../Assembler/src'),
+    'Arshu\\' => array($baseDir . '/../Arshu/src'),
 );

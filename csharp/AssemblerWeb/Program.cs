@@ -1,4 +1,5 @@
 using Assembler.Common;
+using Arshu.Common;
 using Assembler.Config;
 using AssemblerWeb.Services;
 using Microsoft.AspNetCore.Builder;
@@ -95,12 +96,12 @@ namespace AssemblerWeb
             var logsDir = Path.Combine(templateAnalysisDir, "logs");
             Directory.CreateDirectory(logsDir);
 
-            // Configure separate log files for each class
+            // Configure separate log files for global contexts only
+            // Note: Endpoint-specific contexts are configured per-endpoint using AddContextLogFiles
             var contextLogFiles = new System.Collections.Generic.Dictionary<string, string>
             {
-                { "Program", Path.Combine(logsDir, "csharp_program.log") },
-                { "AssemblerEndpoint", Path.Combine(logsDir, "csharp_assemblerendpoint.log") },
-                { "IdleTrackingMiddleware", Path.Combine(logsDir, "csharp_idletracking.log") }
+                { "Main", Path.Combine(logsDir, "csharp_main.log") },
+                { "IdleTracking", Path.Combine(logsDir, "csharp_idletracking.log") }
             };
 
             // Configure logger (no main log file - only context files)
@@ -118,8 +119,8 @@ namespace AssemblerWeb
             
             // Configure context log files AFTER clearing (which disposes writers)
             Logger.ConfigureContextLogFiles(contextLogFiles);
-            
-            Logger.Info("AssemblerWeb starting up", "Program");
+
+            Logger.Info("AssemblerWeb starting up", "Main");
 
             #endregion
 

@@ -4,7 +4,7 @@ require_once __DIR__ . '/SecurityValidator.php';
 
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as ServerRequest;
-use Assembler\Common\Logger;
+use Arshu\Common\Logger;
 use Assembler\Test\TestingUtils;
 use Assembler\Performance\PerformanceUtils;
 use Assembler\Config\ConfigUtil;

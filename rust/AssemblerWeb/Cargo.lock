@@ -267,6 +267,7 @@ name = "arshu-assembler"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "arshu-common",
  "chrono",
  "indexmap",
  "lazy_static",
@@ -274,6 +275,14 @@ dependencies = [
  "serde",
  "serde_json",
  "walkdir",
+]
+
+[[package]]
+name = "arshu-common"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "lazy_static",
 ]
 
 [[package]]

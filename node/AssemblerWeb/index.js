@@ -33,7 +33,7 @@ const apiResponseModule = await import(`${assemblerBasePath}/api/index.js`);
 console.log('[DEBUG] API Response module loaded');
 ({ ApiResponse, TemplateData, PreProcessTemplateMetadata } = apiResponseModule);
 
-const loggerModule = await import(`${assemblerBasePath}/common/logger.js`);
+const loggerModule = await import('@arshu/common');
 console.log('[DEBUG] Logger module loaded');
 ({ Logger, LogRotation } = loggerModule);
 
@@ -71,14 +71,10 @@ if (!fsSync.existsSync(logsDir)) {
   fsSync.mkdirSync(logsDir, { recursive: true });
 }
 
-// Configure separate log files for each context
+// Configure separate log files for global contexts only
+// Note: Endpoint-specific contexts are configured per-endpoint using addContextLogFiles
 const contextLogFiles = {
-  'LoaderNormal': path.join(logsDir, 'nodejs_loadernormal.log'),
-  'LoaderPreProcess': path.join(logsDir, 'nodejs_loaderpreprocess.log'),
-  'EngineNormal': path.join(logsDir, 'nodejs_enginenormal.log'),
-  'EnginePreProcess': path.join(logsDir, 'nodejs_enginepreprocess.log'),
-  'Index': path.join(logsDir, 'nodejs_index.log'),
-  'MergeEndpoint': path.join(logsDir, 'nodejs_mergeendpoint.log'),
+  'Main': path.join(logsDir, 'nodejs_main.log'),
   'IdleTracking': path.join(logsDir, 'nodejs_idletracking.log'),
 };
 
@@ -98,7 +94,7 @@ if (process.env.DEBUG || process.env.VSCODE_INSPECTOR_OPTIONS) {
 // Configure context log files AFTER clearing (which would delete them)
 Logger.configureContextLogFiles(contextLogFiles);
 
-Logger.info('AssemblerWeb starting up', 'Index');
+Logger.info('AssemblerWeb starting up', 'Main');
 console.log('[DEBUG] Logger configured');
 
 // Global constant to select template engine

@@ -9,7 +9,7 @@ use Assembler\Loader\LoaderPreProcess;
 use Assembler\Api\ApiResponse;
 use Assembler\Api\TemplateData;
 use Assembler\Api\PreProcessTemplateMetadata;
-use Assembler\Common\Logger;
+use Arshu\Common\Logger;
 use Assembler\Config\ConfigUtil;
 
 class AssemblerEndpoint
