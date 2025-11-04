@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Arshu Assembler Package Usage Guide - Learn how to use Arshu Assembler in Node.js, PHP, C#, Go, and Rust">
+    <title>Package Usage Guide - Arshu Assembler</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #4CAF50;
+            --bg-color: #f5f7fa;
+            --white: #ffffff;
+            --gray-dark: #333;
+            --gray: #666;
+            --gray-light: #e0e0e0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-dark);
+            background: var(--bg-color);
+        }
+
+        .header {
+            background: var(--primary-gradient);
+            color: var(--white);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .nav {
+            background: var(--white);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .nav a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .nav a:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .article {
+            background: var(--white);
+            padding: 3rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: var(--primary-color);
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--gray-light);
+            font-size: 1.8em;
+        }
+
+        h2:first-of-type {
+            margin-top: 0;
+        }
+
+        h3 {
+            color: var(--secondary-color);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            font-size: 1.4em;
+        }
+
+        h4 {
+            color: var(--accent-color);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 1.1em;
+        }
+
+        p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+
+        ul, ol {
+            margin: 1rem 0 1rem 2rem;
+            line-height: 1.8;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Courier New', Consolas, Monaco, monospace;
+            font-size: 0.9em;
+            color: #c7254e;
+        }
+
+        pre {
+            background: #f4f4f4;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: var(--gray-dark);
+        }
+
+        a {
+            color: var(--accent-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray);
+            margin-top: 3rem;
+        }
+
+        .toc {
+            background: #f9f9f9;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-size: 1.2em;
+        }
+
+        .toc ul {
+            margin-top: 1rem;
+            margin-left: 1.5rem;
+        }
+
+        .toc a {
+            color: var(--primary-color);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .article {
+                padding: 1.5rem;
+            }
+
+            .container {
+                padding: 0 1rem;
+            }
+
+            h2 {
+                font-size: 1.5em;
+            }
+
+            h3 {
+                font-size: 1.2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Arshu Assembler - Package Usage Guide</h1>
+        <p class="subtitle">Learn how to integrate Arshu Assembler into your projects across different programming languages</p>
+    </div>
+
+    <div class="nav">
+        <a href="../../index.html">&larr; Back to Home</a> |
+        <a href="https://github.com/Srid68/Arshu.Assembler">GitHub Repository</a>
+    </div>
+
+    <div class="container">
+        <article class="article">
+            <div class="toc">
+                <h3>Table of Contents</h3>
+                <ul>
+                    <li><a href="#prerequisites">Prerequisites</a></li>
+                    <li><a href="#overview">Overview</a></li>
+                    <li><a href="#nodejs">Node.js Package Usage</a></li>
+                    <li><a href="#php">PHP Package Usage</a></li>
+                    <li><a href="#csharp">C# Package Usage</a></li>
+                    <li><a href="#go">Go Package Usage</a></li>
+                    <li><a href="#rust">Rust Package Usage</a></li>
+                    <li><a href="#api">API Reference</a></li>
+                </ul>
+            </div>
+
+            <h2 id="prerequisites">Prerequisites</h2>
+            <p>Before using Arshu Assembler in your projects, you need to have the source code available locally:</p>
+
+            <h3>Clone the Repository</h3>
+            <pre><code>git clone https://github.com/Srid68/Arshu.Assembler.git C:/Polyglot/Arshu.Assembler</code></pre>
+            <p>Or download and extract to your preferred location. All package installation methods reference this local source directory.</p>
+
+            <h2 id="overview">Overview</h2>
+            <p>The Arshu Assembler is a polyglot declarative framework for app creation with two core engines:</p>
+            <ul>
+                <li><strong>Normal Engine</strong>: Handles both parsing and merging of templates</li>
+                <li><strong>Preprocess Engine</strong>: Separates parsing (loader) from merging (engine) for better performance</li>
+            </ul>
+            <p>All language implementations follow the same structure and API patterns, making it easy to switch between languages or use multiple implementations.</p>
+
+            <h2 id="nodejs">Node.js Package Usage</h2>
+
+            <h3>Installation Options</h3>
+
+            <h4>Option 1: Local Path (Development)</h4>
+            <pre><code># In your project's package.json
+{
+  "dependencies": {
+    "@arshu/assembler": "file:C:/Polyglot/Arshu.Assembler/node/Assembler"
+  }
+}
+
+# Install
+npm install</code></pre>
+
+            <h4>Option 2: NPM Link (Development)</h4>
+            <pre><code># In the Assembler directory
+cd C:/Polyglot/Arshu.Assembler/node/Assembler
+npm link
+
+# In your project directory
+npm link @arshu/assembler</code></pre>
+
+            <h4>Option 3: Tarball Package (Distribution)</h4>
+            <pre><code># Create package in Assembler directory and move to LocalPackages
+cd C:/Polyglot/Arshu.Assembler/node/Assembler
+npm pack
+mv arshu-assembler-1.0.0.tgz ../../LocalPackages/
+
+# In your project's package.json
+{
+  "dependencies": {
+    "@arshu/assembler": "file:../../Arshu.Assembler/LocalPackages/arshu-assembler-1.0.0.tgz"
+  }
+}
+
+# Install
+npm install</code></pre>
+
+            <h3>Basic Usage</h3>
+            <pre><code>import { AssemblerApi } from '@arshu/assembler';
+
+// Initialize the assembler with wwwroot path
+const api = new AssemblerApi('/path/to/wwwroot');
+
+// Normal mode assembly
+const normalResult = api.assembleNormal('AppSiteName', 'ComponentName');
+console.log(normalResult);
+
+// Preprocess mode assembly (better performance)
+const preprocessResult = api.assemblePreprocess('AppSiteName', 'ComponentName');
+console.log(preprocessResult);</code></pre>
+
+            <h3>Advanced Usage with Exports</h3>
+            <pre><code>// Import specific modules
+import { NormalEngine } from '@arshu/assembler/engine';
+import { NormalLoader } from '@arshu/assembler/loader';
+import { AssemblerConfig } from '@arshu/assembler/config';
+
+// Custom configuration
+const config = new AssemblerConfig('/custom/wwwroot/path');
+const loader = new NormalLoader(config);
+const engine = new NormalEngine();
+
+// Manual assembly
+const result = engine.assemble(loader, 'AppSite', 'Component');</code></pre>
+
+            <h2 id="php">PHP Package Usage</h2>
+
+            <h3>Installation Options</h3>
+
+            <h4>Option 1: Composer Path Repository (Development)</h4>
+            <pre><code>{
+  "repositories": [
+    {
+      "type": "path",
+      "url": "C:/Polyglot/Arshu.Assembler/php/Assembler"
+    }
+  ],
+  "require": {
+    "arshu/assembler": "*"
+  }
+}</code></pre>
+            <pre><code>composer install</code></pre>
+
+            <h4>Option 2: Local Package Archive</h4>
+            <pre><code># In your project's composer.json
+{
+  "repositories": [
+    {
+      "type": "artifact",
+      "url": "C:/Polyglot/Arshu.Assembler/LocalPackages"
+    }
+  ],
+  "require": {
+    "arshu/assembler": "^1.0"
+  }
+}
+
+# Create package archive
+cd C:/Polyglot/Arshu.Assembler/php/Assembler
+composer archive --format=zip --dir=C:/Polyglot/Arshu.Assembler/LocalPackages
+
+# Install
+composer install</code></pre>
+
+            <h3>Basic Usage</h3>
+            <pre><code>&lt;?php
+require_once __DIR__ . '/vendor/autoload.php';
+
+use Assembler\Api\AssemblerApi;
+
+// Initialize the assembler
+$api = new AssemblerApi('/path/to/wwwroot');
+
+// Normal mode assembly
+$normalResult = $api-&gt;assembleNormal('AppSiteName', 'ComponentName');
+echo $normalResult;
+
+// Preprocess mode assembly
+$preprocessResult = $api-&gt;assemblePreprocess('AppSiteName', 'ComponentName');
+echo $preprocessResult;</code></pre>
+
+            <h3>Advanced Usage</h3>
+            <pre><code>&lt;?php
+use Assembler\Engine\NormalEngine;
+use Assembler\Loader\NormalLoader;
+use Assembler\Config\AssemblerConfig;
+
+// Custom configuration
+$config = new AssemblerConfig('/custom/wwwroot/path');
+$loader = new NormalLoader($config);
+$engine = new NormalEngine();
+
+// Manual assembly
+$result = $engine-&gt;assemble($loader, 'AppSite', 'Component');</code></pre>
+
+            <h2 id="csharp">C# Package Usage</h2>
+
+            <h3>Core Libraries Overview</h3>
+            <p>The Arshu ecosystem provides two main C# packages:</p>
+            <ol>
+                <li><strong>Arshu</strong> - Core shared library providing Logger and common utilities</li>
+                <li><strong>Arshu.Assembler</strong> - Template assembly engine (depends on Arshu)</li>
+            </ol>
+
+            <h3>Arshu Core Library</h3>
+            <p>The Arshu package provides centralized logging and common utilities for all Arshu projects.</p>
+
+            <h4>Installation (Standard Approach)</h4>
+            <p>All Arshu projects use local NuGet packages for dependency management:</p>
+            <pre><code># Add local source (one time only)
+dotnet nuget add source C:/Polyglot/LocalPackages --name LocalPackages
+
+# In your project, add package reference to .csproj</code></pre>
+            <pre><code>&lt;ItemGroup&gt;
+  &lt;PackageReference Include="Arshu" Version="1.0.0" /&gt;
+&lt;/ItemGroup&gt;</code></pre>
+            <p>Or via command line:</p>
+            <pre><code>dotnet add package Arshu --version 1.0.0</code></pre>
+
+            <h4>Basic Usage</h4>
+            <pre><code>using Arshu.Common;
+
+// Configure logger
+Logger.Configure(Logger.LogLevel.DEBUG, consoleOutput: false, Logger.LogRotation.HOURLY);
+Logger.SetLogsDirectory("/path/to/logs");
+
+// Set context-specific log files
+var contextLogFiles = new Dictionary&lt;string, string&gt;
+{
+    { "MyApp", "/path/to/logs/myapp.log" }
+};
+Logger.ConfigureContextLogFiles(contextLogFiles);
+
+// Log messages
+Logger.Info("Application started", "MyApp");
+Logger.Debug("Debug information", "MyApp");
+Logger.Warn("Warning message", "MyApp");
+Logger.Error("Error occurred", "MyApp");</code></pre>
+
+            <h3>Arshu.Assembler Package</h3>
+
+            <h4>Installation (Standard Approach)</h4>
+            <p>All Arshu projects use local NuGet packages for dependency management:</p>
+            <pre><code># Create local NuGet package (when updating Assembler)
+cd C:/Polyglot/Arshu.Assembler/csharp/Assembler
+dotnet pack -o C:/Polyglot/LocalPackages
+
+# Add local source (one time only)
+dotnet nuget add source C:/Polyglot/LocalPackages --name LocalPackages
+
+# In your project, add package reference to .csproj</code></pre>
+            <pre><code>&lt;ItemGroup&gt;
+  &lt;PackageReference Include="Arshu" Version="1.0.0" /&gt;
+  &lt;PackageReference Include="Arshu.Assembler" Version="1.0.0" /&gt;
+&lt;/ItemGroup&gt;</code></pre>
+            <p>Or via command line:</p>
+            <pre><code>dotnet add package Arshu.Assembler --version 1.0.0</code></pre>
+            <p><strong>Note:</strong> Arshu.Assembler depends on Arshu, so both packages need to be referenced.</p>
+
+            <h3>Basic Usage</h3>
+            <pre><code>using Assembler.Api;
+
+// Initialize the assembler
+var api = new AssemblerApi("/path/to/wwwroot");
+
+// Normal mode assembly
+var normalResult = api.AssembleNormal("AppSiteName", "ComponentName");
+Console.WriteLine(normalResult);
+
+// Preprocess mode assembly
+var preprocessResult = api.AssemblePreprocess("AppSiteName", "ComponentName");
+Console.WriteLine(preprocessResult);</code></pre>
+
+            <h3>Advanced Usage</h3>
+            <pre><code>using Assembler.Engine;
+using Assembler.Loader;
+using Assembler.Config;
+
+// Custom configuration
+var config = new AssemblerConfig("/custom/wwwroot/path");
+var loader = new NormalLoader(config);
+var engine = new NormalEngine();
+
+// Manual assembly
+var result = engine.Assemble(loader, "AppSite", "Component");</code></pre>
+
+            <h2 id="go">Go Package Usage</h2>
+
+            <h3>Installation Options</h3>
+
+            <h4>Option 1: Go Modules with Replace Directive</h4>
+            <pre><code>// go.mod
+module yourproject
+
+go 1.21
+
+require github.com/srid68/arshu-assembler v1.0.0
+
+replace github.com/srid68/arshu-assembler =&gt; C:/Polyglot/Arshu.Assembler/go/Assembler</code></pre>
+            <pre><code>go mod tidy</code></pre>
+
+            <h4>Option 2: Direct Local Import (for local development only)</h4>
+            <p>Create a go.mod in the Assembler directory if it doesn't exist, then use replace directive as above.</p>
+
+            <h3>Basic Usage</h3>
+            <pre><code>package main
+
+import (
+    "fmt"
+    assembler "github.com/srid68/arshu-assembler/api"
+)
+
+func main() {
+    // Initialize the assembler
+    api := assembler.NewAssemblerApi("/path/to/wwwroot")
+
+    // Normal mode assembly
+    normalResult := api.AssembleNormal("AppSiteName", "ComponentName")
+    fmt.Println(normalResult)
+
+    // Preprocess mode assembly
+    preprocessResult := api.AssemblePreprocess("AppSiteName", "ComponentName")
+    fmt.Println(preprocessResult)
+}</code></pre>
+
+            <h3>Advanced Usage</h3>
+            <pre><code>package main
+
+import (
+    "github.com/srid68/arshu-assembler/config"
+    "github.com/srid68/arshu-assembler/engine"
+    "github.com/srid68/arshu-assembler/loader"
+)
+
+func main() {
+    // Custom configuration
+    cfg := config.NewAssemblerConfig("/custom/wwwroot/path")
+    ldr := loader.NewNormalLoader(cfg)
+    eng := engine.NewNormalEngine()
+
+    // Manual assembly
+    result := eng.Assemble(ldr, "AppSite", "Component")
+}</code></pre>
+
+            <h2 id="rust">Rust Package Usage</h2>
+
+            <h3>Installation Options</h3>
+
+            <h4>Option 1: Path Dependency</h4>
+            <pre><code># Cargo.toml
+[dependencies]
+assembler = { path = "C:/Polyglot/Arshu.Assembler/rust/Assembler" }</code></pre>
+
+            <h4>Option 2: Local Registry (Advanced)</h4>
+            <p>You can set up a local cargo registry, but path dependencies are typically simpler for local development.</p>
+
+            <h3>Basic Usage</h3>
+            <pre><code>use assembler::api::AssemblerApi;
+
+fn main() {
+    // Initialize the assembler
+    let api = AssemblerApi::new("/path/to/wwwroot");
+
+    // Normal mode assembly
+    let normal_result = api.assemble_normal("AppSiteName", "ComponentName");
+    println!("{}", normal_result);
+
+    // Preprocess mode assembly
+    let preprocess_result = api.assemble_preprocess("AppSiteName", "ComponentName");
+    println!("{}", preprocess_result);
+}</code></pre>
+
+            <h3>Advanced Usage</h3>
+            <pre><code>use assembler::config::AssemblerConfig;
+use assembler::engine::NormalEngine;
+use assembler::loader::NormalLoader;
+
+fn main() {
+    // Custom configuration
+    let config = AssemblerConfig::new("/custom/wwwroot/path");
+    let loader = NormalLoader::new(config);
+    let engine = NormalEngine::new();
+
+    // Manual assembly
+    let result = engine.assemble(&loader, "AppSite", "Component");
+}</code></pre>
+
+            <h2 id="api">API Reference</h2>
+
+            <h3>Core Methods</h3>
+            <p>All implementations expose these core methods through the <code>AssemblerApi</code> class:</p>
+
+            <h4><code>assembleNormal(appSite: string, component: string): string</code></h4>
+            <p>Assembles a component using the normal engine (combined parsing and merging).</p>
+            <p><strong>Parameters:</strong></p>
+            <ul>
+                <li><code>appSite</code>: The name of the application site folder</li>
+                <li><code>component</code>: The name of the component to assemble</li>
+            </ul>
+            <p><strong>Returns:</strong> Assembled HTML string</p>
+
+            <h4><code>assemblePreprocess(appSite: string, component: string): string</code></h4>
+            <p>Assembles a component using the preprocess engine (optimized with separate parsing and merging).</p>
+            <p><strong>Parameters:</strong></p>
+            <ul>
+                <li><code>appSite</code>: The name of the application site folder</li>
+                <li><code>component</code>: The name of the component to assemble</li>
+            </ul>
+            <p><strong>Returns:</strong> Assembled HTML string</p>
+
+            <h3>Configuration</h3>
+            <p>All implementations support custom wwwroot paths through configuration:</p>
+            <ul>
+                <li><strong>Default Path</strong>: <code>./wwwroot</code> (relative to execution directory)</li>
+                <li><strong>Docker Path</strong>: <code>/app/wwwroot</code> (auto-detected in Docker environments)</li>
+                <li><strong>Custom Path</strong>: Specified via constructor or configuration object</li>
+            </ul>
+
+            <h3>Directory Structure</h3>
+            <p>Your wwwroot directory should follow this structure:</p>
+            <pre><code>wwwroot/
+└── AppSites/
+    ├── Components/
+    │   └── YourAppSite/
+    │       ├── ComponentName.html
+    │       └── ComponentName.json
+    └── Pages/
+        └── Views/
+            └── PageName.html</code></pre>
+
+            <h3>Engine Modes</h3>
+            <p><strong>Normal Mode:</strong></p>
+            <ul>
+                <li>Single-pass parsing and merging</li>
+                <li>Simpler implementation</li>
+                <li>Good for development and simple use cases</li>
+            </ul>
+            <p><strong>Preprocess Mode:</strong></p>
+            <ul>
+                <li>Two-pass: parse first, then merge</li>
+                <li>Better performance for complex templates</li>
+                <li>Recommended for production use</li>
+            </ul>
+
+            <h2>Examples</h2>
+
+            <h3>Example 1: Simple Web Application (Node.js)</h3>
+            <pre><code>import express from 'express';
+import { AssemblerApi } from '@arshu/assembler';
+
+const app = express();
+const assembler = new AssemblerApi('./wwwroot');
+
+app.get('/:appsite/:component', (req, res) =&gt; {
+    const result = assembler.assemblePreprocess(
+        req.params.appsite,
+        req.params.component
+    );
+    res.send(result);
+});
+
+app.listen(3000, () =&gt; console.log('Server running on port 3000'));</code></pre>
+
+            <h3>Example 2: CLI Tool (Go)</h3>
+            <pre><code>package main
+
+import (
+    "fmt"
+    "os"
+    assembler "github.com/srid68/arshu-assembler/api"
+)
+
+func main() {
+    if len(os.Args) &lt; 3 {
+        fmt.Println("Usage: tool &lt;appsite&gt; &lt;component&gt;")
+        return
+    }
+
+    api := assembler.NewAssemblerApi("./wwwroot")
+    result := api.AssemblePreprocess(os.Args[1], os.Args[2])
+    fmt.Println(result)
+}</code></pre>
+
+            <h3>Example 3: REST API (C#)</h3>
+            <pre><code>using Microsoft.AspNetCore.Builder;
+using Assembler.Api;
+
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+
+var assembler = new AssemblerApi("./wwwroot");
+
+app.MapGet("/{appsite}/{component}", (string appsite, string component) =&gt;
+{
+    return assembler.AssemblePreprocess(appsite, component);
+});
+
+app.Run();</code></pre>
+
+            <h2>Performance Considerations</h2>
+            <ul>
+                <li>Use <strong>Preprocess Mode</strong> for production applications</li>
+                <li>Cache assembled results when possible</li>
+                <li>Consider using wwwroot on a fast disk (SSD)</li>
+                <li>For high-traffic applications, consider pre-compiling templates</li>
+            </ul>
+
+            <h2>Troubleshooting</h2>
+
+            <h3>Common Issues</h3>
+            <p><strong>Package not found:</strong></p>
+            <ul>
+                <li>Verify the path to the Assembler directory is correct</li>
+                <li>Check that package.json/composer.json/go.mod exists in the Assembler directory</li>
+                <li>For Go, ensure the replace directive uses forward slashes even on Windows</li>
+            </ul>
+
+            <p><strong>Assembly fails:</strong></p>
+            <ul>
+                <li>Verify wwwroot path is correct</li>
+                <li>Check that AppSite and Component files exist</li>
+                <li>Ensure .html and .json files are properly formatted</li>
+            </ul>
+
+            <p><strong>Performance issues:</strong></p>
+            <ul>
+                <li>Switch from Normal to Preprocess mode</li>
+                <li>Verify you're not assembling on every request without caching</li>
+                <li>Check disk I/O performance for wwwroot location</li>
+            </ul>
+
+            <h2>Support</h2>
+            <p>For issues, questions, or contributions:</p>
+            <ul>
+                <li>GitHub: <a href="https://github.com/Srid68/Arshu.Assembler" target="_blank">https://github.com/Srid68/Arshu.Assembler</a></li>
+                <li>Email: srid68@gmail.com</li>
+            </ul>
+
+            <h2>License</h2>
+            <p>MIT License - See LICENSE file for details</p>
+        </article>
+
+        <div class="footer">
+            <p>&copy; 2025 Arshu Assembler Project | <a href="https://github.com/Srid68/Arshu.Assembler" target="_blank">GitHub Repository</a></p>
+        </div>
+    </div>
+</body>
+</html>
