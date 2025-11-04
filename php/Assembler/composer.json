@@ -18,11 +18,17 @@
     },
     "autoload": {
         "psr-4": {
-            "Assembler\\": "src/",
-            "Arshu\\": "../Arshu/src/"
+            "Assembler\\": "src/"
         }
     },
     "require": {
-        "php": ">=8.0"
-    }
+        "php": ">=8.0",
+        "arshu/arshu": "^1.0"
+    },
+    "repositories": [
+        {
+            "type": "artifact",
+            "url": "../../../LocalPackages"
+        }
+    ]
 }

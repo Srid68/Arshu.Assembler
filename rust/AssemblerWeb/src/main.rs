@@ -2,6 +2,7 @@ use std::thread;
 use std::time::Duration;
 use actix_web::{web, App, HttpServer};
 use actix_files as fs;
+use arshu::common::{Logger, LogLevel, LogRotation};
 
 mod endpoint;
 mod services;
@@ -39,32 +40,32 @@ async fn main() -> std::io::Result<()> {
     context_log_files.insert("IdleTracking".to_string(), logs_dir.join("rust_idletracking.log").to_string_lossy().to_string());
 
     // Configure logger (no main log file - only context files)
-    assembler::common::logger::Logger::configure(
-        assembler::common::logger::LogLevel::INFO,
+    Logger::configure(
+        LogLevel::INFO,
         false,
-        assembler::common::logger::LogRotation::HOURLY
+        LogRotation::HOURLY
     );
     
     // Set logs directory for clearing
-    assembler::common::logger::Logger::set_logs_directory(logs_dir.to_string_lossy().to_string());
+    Logger::set_logs_directory(logs_dir.to_string_lossy().to_string());
 
     // Clear logs based on build mode
     #[cfg(debug_assertions)]
-    assembler::common::logger::Logger::clear_logs();
+    Logger::clear_logs();
     
     #[cfg(not(debug_assertions))]
-    assembler::common::logger::Logger::clear_old_logs(7);
+    Logger::clear_old_logs(7);
 
     // Configure context log files AFTER clearing (which would delete them)
-    assembler::common::logger::Logger::configure_context_log_files(context_log_files);
-    assembler::common::logger::Logger::info("AssemblerWeb starting up", Some("Main"));
+    Logger::configure_context_log_files(context_log_files);
+    Logger::info("AssemblerWeb starting up", Some("Main"));
 
     // Load ConfigUtil (AppSites and Scenarios) at startup
     let wwwroot_path = project_directory.join("wwwroot");
     let wwwroot_path_str = wwwroot_path.to_str().unwrap_or("");
     if let Err(e) = assembler::config::config_util::ConfigUtil::load(wwwroot_path_str) {
         eprintln!("[WARNING] Failed to load ConfigUtil: {}", e);
-        assembler::common::logger::Logger::warn(&format!("Failed to load ConfigUtil: {}", e), Some("Main"));
+        Logger::warn(&format!("Failed to load ConfigUtil: {}", e), Some("Main"));
     }
 
     println!("Starting server on http://localhost:{}", port);
@@ -138,10 +139,10 @@ async fn main() -> std::io::Result<()> {
     // Example: Acquire a hold to prevent idle shutdown during long-running operations
     let example_hold_id = "example_operation";
     idle_tracking_for_shutdown.acquire_hold(example_hold_id);
-    assembler::common::logger::Logger::info(&format!("Example hold acquired: {}", example_hold_id), Some("Main"));
+    Logger::info(&format!("Example hold acquired: {}", example_hold_id), Some("Main"));
     // Release the hold when the operation completes
     idle_tracking_for_shutdown.release_hold(example_hold_id);
-    assembler::common::logger::Logger::info(&format!("Example hold released: {}", example_hold_id), Some("Main"));
+    Logger::info(&format!("Example hold released: {}", example_hold_id), Some("Main"));
 
     // Note: Shutdown handler removed - IdleTracking middleware handles shutdown via process::exit
     // Manual Ctrl+C will be caught by the OS and terminate the process

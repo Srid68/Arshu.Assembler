@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::app::json::JsonValue;
 use crate::app::json_convertor::JsonConverter;
 use crate::common::common_util::CommonUtil;
-use crate::common::logger::Logger;
+use arshu::common::Logger;
 
 /// <summary>
 /// IndexOf-based template engine implementation for improved performance

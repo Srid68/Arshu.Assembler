@@ -3,6 +3,7 @@ package loader
 import (
 	"assembler/common"
 	"assembler/model"
+	Logger "github.com/srid68/arshu/common"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -18,13 +19,13 @@ var preprocessedTemplatesCache = struct {
 }{cache: make(map[string]*model.PreprocessedSiteTemplates)}
 
 func LoadProcessGetTemplateFiles(rootDirPath, appSite string) *model.PreprocessedSiteTemplates {
-	common.Debug(fmt.Sprintf("LoadProcessGetTemplateFiles called for appSite: %s", appSite), "LoaderPreProcess")
+	Logger.Debug(fmt.Sprintf("LoadProcessGetTemplateFiles called for appSite: %s", appSite), "LoaderPreProcess")
 
 	cacheKey := filepath.Dir(rootDirPath) + "|" + appSite
 	preprocessedTemplatesCache.RLock()
 	if cached, ok := preprocessedTemplatesCache.cache[cacheKey]; ok {
 		preprocessedTemplatesCache.RUnlock()
-		common.Debug(fmt.Sprintf("Returning cached templates for %s (%d templates)", appSite, len(cached.Templates)), "LoaderPreProcess")
+		Logger.Debug(fmt.Sprintf("Returning cached templates for %s (%d templates)", appSite, len(cached.Templates)), "LoaderPreProcess")
 		return cached
 	}
 	preprocessedTemplatesCache.RUnlock()
@@ -38,14 +39,14 @@ func LoadProcessGetTemplateFiles(rootDirPath, appSite string) *model.Preprocesse
 
 	appSitesPath := filepath.Join(rootDirPath, "AppSites", appSite)
 	if _, err := os.Stat(appSitesPath); os.IsNotExist(err) {
-		common.Warn(fmt.Sprintf("AppSites directory not found: %s", appSitesPath), "LoaderPreProcess")
+		Logger.Warn(fmt.Sprintf("AppSites directory not found: %s", appSitesPath), "LoaderPreProcess")
 		preprocessedTemplatesCache.Lock()
 		preprocessedTemplatesCache.cache[cacheKey] = result
 		preprocessedTemplatesCache.Unlock()
 		return result
 	}
 
-	common.Debug(fmt.Sprintf("Loading templates from: %s", appSitesPath), "LoaderPreProcess")
+	Logger.Debug(fmt.Sprintf("Loading templates from: %s", appSitesPath), "LoaderPreProcess")
 
 	err := filepath.Walk(appSitesPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !strings.HasSuffix(info.Name(), ".html") {
@@ -58,7 +59,7 @@ func LoadProcessGetTemplateFiles(rootDirPath, appSite string) *model.Preprocesse
 		result.RawTemplates[key] = content
 		result.TemplateKeys[key] = struct{}{}
 
-		common.Debug(fmt.Sprintf("Loading template: %s (size: %d)", key, len(content)), "LoaderPreProcess")
+		Logger.Debug(fmt.Sprintf("Loading template: %s (size: %d)", key, len(content)), "LoaderPreProcess")
 
 		// Find JSON file case-insensitively
 		jsonPath := strings.TrimSuffix(path, ".html") + ".json"
@@ -66,7 +67,7 @@ func LoadProcessGetTemplateFiles(rootDirPath, appSite string) *model.Preprocesse
 		if jsonBytes, err := os.ReadFile(jsonPath); err == nil {
 			jsonStr := common.NormalizeFileContent(string(jsonBytes))
 			jsonContent = &jsonStr
-			common.Debug(fmt.Sprintf("Found JSON file for %s (size: %d)", key, len(jsonStr)), "LoaderPreProcess")
+			Logger.Debug(fmt.Sprintf("Found JSON file for %s (size: %d)", key, len(jsonStr)), "LoaderPreProcess")
 		} else {
 			// Try case-insensitive search in the same directory
 			dir := filepath.Dir(path)
@@ -81,7 +82,7 @@ func LoadProcessGetTemplateFiles(rootDirPath, appSite string) *model.Preprocesse
 							if jsonBytes, err := os.ReadFile(matchedJsonPath); err == nil {
 								jsonStr := common.NormalizeFileContent(string(jsonBytes))
 								jsonContent = &jsonStr
-								common.Debug(fmt.Sprintf("Found JSON file (case-insensitive) for %s (size: %d)", key, len(jsonStr)), "LoaderPreProcess")
+								Logger.Debug(fmt.Sprintf("Found JSON file (case-insensitive) for %s (size: %d)", key, len(jsonStr)), "LoaderPreProcess")
 								break
 							}
 						}
@@ -99,12 +100,12 @@ func LoadProcessGetTemplateFiles(rootDirPath, appSite string) *model.Preprocesse
 		// handle error if needed
 	}
 
-	common.Debug(fmt.Sprintf("Loaded %d templates for %s", len(result.Templates), appSite), "LoaderPreProcess")
+	Logger.Debug(fmt.Sprintf("Loaded %d templates for %s", len(result.Templates), appSite), "LoaderPreProcess")
 
 	// After loading all templates, create replacement mappings for simple template placeholders
 	createReplacementMappings(result)
 
-	common.Debug(fmt.Sprintf("Created all replacement mappings for %s", appSite), "LoaderPreProcess")
+	Logger.Debug(fmt.Sprintf("Created all replacement mappings for %s", appSite), "LoaderPreProcess")
 
 	// Update convenience flags for all templates after processing
 	for _, template := range result.Templates {
@@ -126,7 +127,7 @@ func createReplacementMappings(result *model.PreprocessedSiteTemplates) {
 
 // createAllReplacementMappingsForSite creates all replacement mappings for a site with AppView support
 func createAllReplacementMappingsForSite(siteTemplates *model.PreprocessedSiteTemplates) {
-	common.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 1: JSON arrays", siteTemplates.SiteName), "LoaderPreProcess")
+	Logger.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 1: JSON arrays", siteTemplates.SiteName), "LoaderPreProcess")
 
 	// Phase 1: Create JSON replacement mappings for all templates first (no dependencies)
 	templateKeys := make([]string, 0, len(siteTemplates.Templates))
@@ -142,7 +143,7 @@ func createAllReplacementMappingsForSite(siteTemplates *model.PreprocessedSiteTe
 		}
 	}
 
-	common.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 2: Simple placeholders", siteTemplates.SiteName), "LoaderPreProcess")
+	Logger.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 2: Simple placeholders", siteTemplates.SiteName), "LoaderPreProcess")
 
 	// Phase 2: Create simple template replacement mappings (may depend on JSON but not on slotted templates)
 	allTemplatesSnapshot := make(map[string]model.PreprocessedTemplate)
@@ -157,7 +158,7 @@ func createAllReplacementMappingsForSite(siteTemplates *model.PreprocessedSiteTe
 		}
 	}
 
-	common.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 3: Slotted templates", siteTemplates.SiteName), "LoaderPreProcess")
+	Logger.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 3: Slotted templates", siteTemplates.SiteName), "LoaderPreProcess")
 
 	// Phase 3: Create slotted template replacement mappings (may depend on simple templates)
 	for _, key := range templateKeys {
@@ -171,7 +172,7 @@ func createAllReplacementMappingsForSite(siteTemplates *model.PreprocessedSiteTe
 	for _, template := range siteTemplates.Templates {
 		totalMappings += len(template.ReplacementMappings)
 	}
-	common.Debug(fmt.Sprintf("Total replacement mappings created for %s: %d", siteTemplates.SiteName, totalMappings), "LoaderPreProcess")
+	Logger.Debug(fmt.Sprintf("Total replacement mappings created for %s: %d", siteTemplates.SiteName, totalMappings), "LoaderPreProcess")
 }
 
 // createPlaceholderReplacementMappings creates replacement mappings for simple template placeholders that reference other templates
@@ -229,13 +230,13 @@ func createPlaceholderReplacementMappings(template *model.PreprocessedTemplate, 
 				jsonMappingCount := 0
 				for _, m := range referencedTemplate.ReplacementMappings {
 					if m.Type == model.JsonPlaceholderType && strings.Contains(processedTemplate, m.OriginalText) {
-						common.Debug(fmt.Sprintf("  Replacing '%s' with '%s' in %s", m.OriginalText, m.ReplacementText, foundKey), "LoaderPreProcess")
+						Logger.Debug(fmt.Sprintf("  Replacing '%s' with '%s' in %s", m.OriginalText, m.ReplacementText, foundKey), "LoaderPreProcess")
 						processedTemplate = strings.ReplaceAll(processedTemplate, m.OriginalText, m.ReplacementText)
 						jsonMappingCount++
 					}
 				}
 				if jsonMappingCount > 0 {
-					common.Debug(fmt.Sprintf("Applied %d JSON mappings to %s", jsonMappingCount, foundKey), "LoaderPreProcess")
+					Logger.Debug(fmt.Sprintf("Applied %d JSON mappings to %s", jsonMappingCount, foundKey), "LoaderPreProcess")
 				}
 
 				// Create replacement mapping for direct replacement

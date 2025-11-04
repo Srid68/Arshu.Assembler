@@ -1,5 +1,5 @@
 [package]
-name = "arshu-common"
+name = "arshu"
 version = "1.0.0"
 edition = "2021"
 authors = ["Sridharan Srinivasan <srid68@gmail.com>"]
@@ -7,10 +7,10 @@ description = "Core shared library providing Logger and common utilities for all
 license = "MIT"
 homepage = "https://github.com/Srid68/Arshu.Assembler"
 repository = "https://github.com/Srid68/Arshu.Assembler"
-keywords = ["logging", "utilities", "polyglot", "common"]
+keywords = ["logging", "utilities", "polyglot", "arshu"]
 
 [lib]
-name = "arshu_common"
+name = "arshu"
 path = "src/lib.rs"
 
 [dependencies]

@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	"assembler/common"
 	"assembler/config"
+	Logger "github.com/srid68/arshu/common"
 
 	"github.com/gin-gonic/gin"
 	"github.com/skratchdot/open-golang/open"
@@ -124,10 +124,10 @@ func main() {
 	}
 
 	// Configure logger (no main log file - only context files)
-	common.Configure(common.DEBUG, false, common.ROTATION_HOURLY)
+	Logger.Configure(Logger.DEBUG, false, Logger.ROTATION_HOURLY)
 
 	// Set logs directory for clearing
-	common.SetLogsDirectory(logsDir)
+	Logger.SetLogsDirectory(logsDir)
 
 	// Check if running in VSCode debugger or explicitly in debug mode
 	isDebug := os.Getenv("DEBUG") == "true" ||
@@ -136,20 +136,20 @@ func main() {
 
 	// Clear logs based on build mode - always clear in debug/development
 	if isDebug {
-		common.ClearLogs()
+		Logger.ClearLogs()
 	} else {
-		common.ClearOldLogs(7)
+		Logger.ClearOldLogs(7)
 	}
 
 	// Configure context log files AFTER clearing (which would delete them)
-	common.ConfigureContextLogFiles(contextLogFiles)
+	Logger.ConfigureContextLogFiles(contextLogFiles)
 
-	common.Info("AssemblerWeb starting up", "Main")
+	Logger.Info("AssemblerWeb starting up", "Main")
 
 	// Load ConfigUtil (AppSites and Scenarios)
 	if err := config.Load(wwwrootPath); err != nil {
 		fmt.Printf("[WARNING] Failed to load ConfigUtil: %v\n", err)
-		common.Warn(fmt.Sprintf("Failed to load ConfigUtil: %v", err), "Main")
+		Logger.Warn(fmt.Sprintf("Failed to load ConfigUtil: %v", err), "Main")
 	}
 
 	// Parse command line args
@@ -286,6 +286,6 @@ func main() {
 	if idleTrackingEnabled {
 		services.Shutdown()
 	}
-	common.Info("AssemblerWeb shutting down...", "Main")
-	common.Info("AssemblerWeb stopped", "Main")
+	Logger.Info("AssemblerWeb shutting down...", "Main")
+	Logger.Info("AssemblerWeb stopped", "Main")
 }

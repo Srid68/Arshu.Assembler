@@ -9,7 +9,7 @@ use assembler::loader::loader_preprocess::LoaderPreProcess;
 use assembler::engine::engine_normal::EngineNormal;
 use assembler::engine::engine_preprocess::EnginePreProcess;
 use assembler::api::api_response::TemplateData;
-use assembler::common::logger::Logger;
+use arshu::common::Logger;
 use assembler::config::config_util;
 
 pub const DEFAULT_APP_SITE: &str = "Test";
@@ -229,8 +229,8 @@ pub async fn merge_templates(
     context_log_files.insert("EngineNormal".to_string(), logs_dir.join("rust_enginenormal.log").to_str().unwrap_or("").to_string());
     context_log_files.insert("EnginePreProcess".to_string(), logs_dir.join("rust_enginepreprocess.log").to_str().unwrap_or("").to_string());
 
-    use assembler::common::logger::LogLevel;
-    Logger::configure(LogLevel::DEBUG, false, assembler::common::logger::LogRotation::NONE);
+    use arshu::common::LogLevel;
+    Logger::configure(LogLevel::DEBUG, false, arshu::common::LogRotation::NONE);
     Logger::add_context_log_files(context_log_files);
 
     let log_msg = format!(

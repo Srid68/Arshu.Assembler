@@ -2,7 +2,7 @@ use serde_json::json;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
-use assembler::common::logger::Logger;
+use arshu::common::{Logger, LogLevel};
 use assembler::test::testing_utils::TestingUtils;
 use assembler::performance::performance_utils::PerformanceUtils;
 use crate::endpoint::security_validator;
@@ -84,8 +84,8 @@ pub async fn test_standard() -> impl Responder {
     context_log_files.insert("LoaderNormal".to_string(), logs_dir.join("rust_loadernormal.log").to_str().unwrap_or("").to_string());
     context_log_files.insert("EngineNormal".to_string(), logs_dir.join("rust_enginenormal.log").to_str().unwrap_or("").to_string());
 
-    use assembler::common::logger::LogLevel;
-    Logger::configure(LogLevel::DEBUG, false, assembler::common::logger::LogRotation::NONE);
+    // LogLevel already imported at top
+    Logger::configure(LogLevel::DEBUG, false, arshu::common::LogRotation::NONE);
     Logger::add_context_log_files(context_log_files);
 
     // Get scenarios from ConfigUtil
@@ -159,8 +159,8 @@ pub async fn test_advanced() -> impl Responder {
     context_log_files.insert("EngineNormal".to_string(), logs_dir.join("rust_enginenormal.log").to_str().unwrap_or("").to_string());
     context_log_files.insert("EnginePreProcess".to_string(), logs_dir.join("rust_enginepreprocess.log").to_str().unwrap_or("").to_string());
 
-    use assembler::common::logger::LogLevel;
-    Logger::configure(LogLevel::DEBUG, false, assembler::common::logger::LogRotation::NONE);
+    // LogLevel already imported at top
+    Logger::configure(LogLevel::DEBUG, false, arshu::common::LogRotation::NONE);
     Logger::add_context_log_files(context_log_files);
 
     // Get scenarios from ConfigUtil
@@ -232,7 +232,7 @@ pub async fn test_performance() -> impl Responder {
     };
 
     // Disable logging during performance tests
-    use assembler::common::logger::LogLevel;
+    // LogLevel already imported at top
     let original_log_level = Logger::get_log_level();
     Logger::set_log_level(LogLevel::NONE);
 

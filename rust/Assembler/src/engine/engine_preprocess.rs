@@ -1,6 +1,6 @@
 use crate::model::model_preprocess::{PreprocessedTemplate, ReplacementType};
 use crate::common::common_util::CommonUtil;
-use crate::common::logger::Logger;
+use arshu::common::Logger;
 use std::collections::HashMap;
 
 /// <summary>

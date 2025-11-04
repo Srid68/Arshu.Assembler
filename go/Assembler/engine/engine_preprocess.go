@@ -3,6 +3,7 @@ package engine
 import (
 	"assembler/common"
 	"assembler/model"
+	Logger "github.com/srid68/arshu/common"
 	"fmt"
 	"strings"
 )
@@ -25,29 +26,29 @@ func (e *EnginePreProcess) GetAppViewPrefix() string {
 
 // MergeTemplates merges templates using preprocessed data structures
 func (e *EnginePreProcess) MergeTemplates(appSite, appFile, appView string, preprocessedTemplates map[string]model.PreprocessedTemplate, enableJsonProcessing bool) string {
-	common.Debug(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EnginePreProcess")
+	Logger.Debug(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EnginePreProcess")
 
 	if len(preprocessedTemplates) == 0 {
-		common.Warn("No preprocessed templates available", "EnginePreProcess")
+		Logger.Warn("No preprocessed templates available", "EnginePreProcess")
 		return ""
 	}
 
-	common.Debug(fmt.Sprintf("Using %d preprocessed templates", len(preprocessedTemplates)), "EnginePreProcess")
+	Logger.Debug(fmt.Sprintf("Using %d preprocessed templates", len(preprocessedTemplates)), "EnginePreProcess")
 
 	mainPreprocessed := e.GetTemplate(appSite, appFile, preprocessedTemplates, appView, e.AppViewPrefix, true)
 	if mainPreprocessed == nil {
-		common.Warn(fmt.Sprintf("Main template not found for appSite=%s, appFile=%s", appSite, appFile), "EnginePreProcess")
+		Logger.Warn(fmt.Sprintf("Main template not found for appSite=%s, appFile=%s", appSite, appFile), "EnginePreProcess")
 		return ""
 	}
 
-	common.Debug(fmt.Sprintf("Main template found, original size: %d", len(mainPreprocessed.OriginalContent)), "EnginePreProcess")
+	Logger.Debug(fmt.Sprintf("Main template found, original size: %d", len(mainPreprocessed.OriginalContent)), "EnginePreProcess")
 
 	contentHtml := mainPreprocessed.OriginalContent
 
 	// Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
 	contentHtml = e.ApplyTemplateReplacements(contentHtml, preprocessedTemplates, enableJsonProcessing, appView, mainPreprocessed)
 
-	common.Debug(fmt.Sprintf("MergeTemplates complete: output size=%d", len(contentHtml)), "EnginePreProcess")
+	Logger.Debug(fmt.Sprintf("MergeTemplates complete: output size=%d", len(contentHtml)), "EnginePreProcess")
 
 	return contentHtml
 }
@@ -92,7 +93,7 @@ func (e *EnginePreProcess) GetTemplate(appSite, templateName string, preprocesse
 func (e *EnginePreProcess) ApplyTemplateReplacements(content string, preprocessedTemplates map[string]model.PreprocessedTemplate, enableJsonProcessing bool, appView string, mainTemplate *model.PreprocessedTemplate) string {
 	result := content
 
-	common.Debug(fmt.Sprintf("Starting ApplyTemplateReplacements, initial size: %d", len(content)), "EnginePreProcess")
+	Logger.Debug(fmt.Sprintf("Starting ApplyTemplateReplacements, initial size: %d", len(content)), "EnginePreProcess")
 
 	maxPasses := 10
 	currentPass := 0
@@ -101,7 +102,7 @@ func (e *EnginePreProcess) ApplyTemplateReplacements(content string, preprocesse
 		previous := result
 		currentPass++
 
-		common.Debug(fmt.Sprintf("Replacement pass %d, current size: %d", currentPass, len(result)), "EnginePreProcess")
+		Logger.Debug(fmt.Sprintf("Replacement pass %d, current size: %d", currentPass, len(result)), "EnginePreProcess")
 
 		slottedCount := 0
 		simpleCount := 0
@@ -111,7 +112,7 @@ func (e *EnginePreProcess) ApplyTemplateReplacements(content string, preprocesse
 		if mainTemplate != nil && currentPass == 1 && enableJsonProcessing {
 			for _, mapping := range mainTemplate.ReplacementMappings {
 				if mapping.Type == model.JsonPlaceholderType && strings.Contains(result, mapping.OriginalText) {
-					common.Debug(fmt.Sprintf("Applying main template JSON placeholder: %s -> %s", mapping.OriginalText, mapping.ReplacementText), "EnginePreProcess")
+					Logger.Debug(fmt.Sprintf("Applying main template JSON placeholder: %s -> %s", mapping.OriginalText, mapping.ReplacementText), "EnginePreProcess")
 					result = strings.ReplaceAll(result, mapping.OriginalText, mapping.ReplacementText)
 					jsonPlaceholderCount++
 				}
@@ -137,7 +138,7 @@ func (e *EnginePreProcess) ApplyTemplateReplacements(content string, preprocesse
 			}
 		}
 
-		common.Debug(fmt.Sprintf("Pass %d applied: %d main JSON placeholders, %d slotted, %d simple", currentPass, jsonPlaceholderCount, slottedCount, simpleCount), "EnginePreProcess")
+		Logger.Debug(fmt.Sprintf("Pass %d applied: %d main JSON placeholders, %d slotted, %d simple", currentPass, jsonPlaceholderCount, slottedCount, simpleCount), "EnginePreProcess")
 
 		if result == previous {
 			break
@@ -146,7 +147,7 @@ func (e *EnginePreProcess) ApplyTemplateReplacements(content string, preprocesse
 
 	// All JSON replacements are handled in LoaderPreProcess during replacement mapping creation
 	// The engine only does simple string replacements using pre-prepared mappings
-	common.Debug(fmt.Sprintf("Replacement complete after %d passes, final size: %d", currentPass, len(result)), "EnginePreProcess")
+	Logger.Debug(fmt.Sprintf("Replacement complete after %d passes, final size: %d", currentPass, len(result)), "EnginePreProcess")
 
 	return result
 }

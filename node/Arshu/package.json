@@ -1,5 +1,5 @@
 {
-  "name": "@arshu/common",
+  "name": "@arshu/arshu",
   "version": "1.0.0",
   "description": "Core shared library providing Logger and common utilities for all Arshu Node.js projects",
   "type": "module",

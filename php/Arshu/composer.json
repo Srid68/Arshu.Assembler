@@ -1,5 +1,5 @@
 {
-    "name": "arshu/common",
+    "name": "arshu/arshu",
     "description": "Core shared library providing Logger and common utilities for all Arshu PHP projects",
     "type": "library",
     "version": "1.0.0",
@@ -7,7 +7,7 @@
         "logging",
         "utilities",
         "polyglot",
-        "common"
+        "arshu"
     ],
     "license": "MIT",
     "authors": [

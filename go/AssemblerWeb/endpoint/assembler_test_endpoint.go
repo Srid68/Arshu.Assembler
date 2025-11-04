@@ -14,10 +14,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"assembler/common"
 	"assembler/config"
 	"assembler/performance"
 	"assembler/test"
+	Logger "github.com/srid68/arshu/common"
 )
 
 // RULE_GROUPS defines the configurable rule groups for consolidated report grouping
@@ -53,7 +53,7 @@ func TestStandard(c *gin.Context) {
 	rootDirPath := filepath.Join(projectDirectory, "wwwroot")
 
 	// Enable logging temporarily for tests
-	originalLogLevel := common.GetLogLevel()
+	originalLogLevel := Logger.GetLogLevel()
 
 	// Configure logger with context-specific log files for StandardTests
 	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
@@ -65,13 +65,13 @@ func TestStandard(c *gin.Context) {
 		"EngineNormal": filepath.Join(logsDir, "go_enginenormal.log"),
 	}
 
-	common.Configure(common.DEBUG, false, common.ROTATION_NONE)
-	common.AddContextLogFiles(contextLogFiles)
+	Logger.Configure(Logger.DEBUG, false, Logger.ROTATION_NONE)
+	Logger.AddContextLogFiles(contextLogFiles)
 
 	// Load scenarios from ConfigUtil
 	scenarios, err := config.GetScenarios()
 	if err != nil {
-		common.SetLogLevel(originalLogLevel)
+		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load scenarios: " + err.Error()})
 		return
 	}
@@ -82,7 +82,7 @@ func TestStandard(c *gin.Context) {
 	}
 
 	// Restore original log level
-	common.SetLogLevel(originalLogLevel)
+	Logger.SetLogLevel(originalLogLevel)
 
 	elapsed := time.Since(start).Seconds()
 	testCount := len(results)
@@ -117,7 +117,7 @@ func TestAdvanced(c *gin.Context) {
 	rootDirPath := filepath.Join(projectDirectory, "wwwroot")
 
 	// Enable logging temporarily for tests
-	originalLogLevel := common.GetLogLevel()
+	originalLogLevel := Logger.GetLogLevel()
 
 	// Configure logger with context-specific log files for AdvancedTests
 	templateAnalysisDir := filepath.Join(projectDirectory, "template_analysis")
@@ -131,13 +131,13 @@ func TestAdvanced(c *gin.Context) {
 		"EnginePreProcess": filepath.Join(logsDir, "go_enginepreprocess.log"),
 	}
 
-	common.Configure(common.DEBUG, false, common.ROTATION_NONE)
-	common.AddContextLogFiles(contextLogFiles)
+	Logger.Configure(Logger.DEBUG, false, Logger.ROTATION_NONE)
+	Logger.AddContextLogFiles(contextLogFiles)
 
 	// Load scenarios from ConfigUtil
 	scenarios, err := config.GetScenarios()
 	if err != nil {
-		common.SetLogLevel(originalLogLevel)
+		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load scenarios: " + err.Error()})
 		return
 	}
@@ -151,7 +151,7 @@ func TestAdvanced(c *gin.Context) {
 	}
 
 	// Restore original log level
-	common.SetLogLevel(originalLogLevel)
+	Logger.SetLogLevel(originalLogLevel)
 
 	elapsed := time.Since(start).Seconds()
 	testCount := len(results)
@@ -186,13 +186,13 @@ func TestPerformance(c *gin.Context) {
 	rootDirPath := getWwwrootPath()
 
 	// Disable logging during performance tests
-	originalLogLevel := common.GetLogLevel()
-	common.SetLogLevel(common.NONE)
+	originalLogLevel := Logger.GetLogLevel()
+	Logger.SetLogLevel(Logger.NONE)
 
 	// Load scenarios from ConfigUtil
 	scenarios, err := config.GetScenarios()
 	if err != nil {
-		common.SetLogLevel(originalLogLevel)
+		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load scenarios: " + err.Error()})
 		return
 	}
@@ -203,7 +203,7 @@ func TestPerformance(c *gin.Context) {
 	}
 
 	// Restore original log level
-	common.SetLogLevel(originalLogLevel)
+	Logger.SetLogLevel(originalLogLevel)
 	elapsed := time.Since(start).Seconds()
 	testCount := len(results)
 

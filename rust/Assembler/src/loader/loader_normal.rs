@@ -4,7 +4,7 @@ use std::path::Path;
 use walkdir;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-use crate::common::logger::Logger;
+use arshu::common::Logger;
 use crate::common::common_util::CommonUtil;
 
 /// <summary>

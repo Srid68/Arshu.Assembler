@@ -1,4 +1,4 @@
-module github.com/srid68/arshu-common
+module github.com/srid68/arshu
 
 go 1.21
 

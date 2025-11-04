@@ -4,6 +4,7 @@ import (
 	"assembler/app"
 	"assembler/app/json"
 	"assembler/common"
+	Logger "github.com/srid68/arshu/common"
 	"fmt"
 	"strings"
 )
@@ -31,18 +32,18 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 	HTML string
 	JSON *string
 }, enableJsonProcessing bool) string {
-	common.Debug(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EngineNormal")
+	Logger.Debug(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EngineNormal")
 
 	if len(templates) == 0 {
-		common.Warn("No templates available", "EngineNormal")
+		Logger.Warn("No templates available", "EngineNormal")
 		return ""
 	}
 
-	common.Debug(fmt.Sprintf("Using %d templates", len(templates)), "EngineNormal")
+	Logger.Debug(fmt.Sprintf("Using %d templates", len(templates)), "EngineNormal")
 
 	mainHtml, mainJson := e.GetTemplate(appSite, appFile, templates, appView, e.AppViewPrefix, true)
 	if mainHtml == "" {
-		common.Warn(fmt.Sprintf("Main template not found for appSite=%s, appFile=%s", appSite, appFile), "EngineNormal")
+		Logger.Warn(fmt.Sprintf("Main template not found for appSite=%s, appFile=%s", appSite, appFile), "EngineNormal")
 		return ""
 	}
 
@@ -50,13 +51,13 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 	if mainJson != nil {
 		jsonLen = len(*mainJson)
 	}
-	common.Debug(fmt.Sprintf("Main template found, html size: %d, json: %d", len(mainHtml), jsonLen), "EngineNormal")
+	Logger.Debug(fmt.Sprintf("Main template found, html size: %d, json: %d", len(mainHtml), jsonLen), "EngineNormal")
 
 	contentHtml := mainHtml
 	if enableJsonProcessing && mainJson != nil {
-		common.Debug(fmt.Sprintf("Merging main template with JSON (size: %d)", len(*mainJson)), "EngineNormal")
+		Logger.Debug(fmt.Sprintf("Merging main template with JSON (size: %d)", len(*mainJson)), "EngineNormal")
 		contentHtml = MergeTemplateWithJson(contentHtml, *mainJson)
-		common.Debug(fmt.Sprintf("After main JSON merge: %d chars", len(contentHtml)), "EngineNormal")
+		Logger.Debug(fmt.Sprintf("After main JSON merge: %d chars", len(contentHtml)), "EngineNormal")
 	}
 	mergedTemplates := make(map[string]string)
 	allJsonValues := make(map[string]string)
@@ -89,7 +90,7 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 		mergedTemplates[k] = htmlContent
 	}
 
-	common.Debug(fmt.Sprintf("Pre-merged %d templates with JSON, collected %d JSON values", jsonMergeCount, len(allJsonValues)), "EngineNormal")
+	Logger.Debug(fmt.Sprintf("Pre-merged %d templates with JSON, collected %d JSON values", jsonMergeCount, len(allJsonValues)), "EngineNormal")
 
 	previous := ""
 	actualPasses := 0
@@ -98,21 +99,21 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 		previous = contentHtml
 		actualPasses = pass + 1
 
-		common.Debug(fmt.Sprintf("Pass %d, current size: %d", actualPasses, len(contentHtml)), "EngineNormal")
+		Logger.Debug(fmt.Sprintf("Pass %d, current size: %d", actualPasses, len(contentHtml)), "EngineNormal")
 
 		contentHtml = e.MergeTemplateSlots(contentHtml, appSite, appView, mergedTemplates)
-		common.Debug(fmt.Sprintf("After slot merge: %d chars", len(contentHtml)), "EngineNormal")
+		Logger.Debug(fmt.Sprintf("After slot merge: %d chars", len(contentHtml)), "EngineNormal")
 
 		contentHtml = e.ReplaceTemplatePlaceholdersWithJson(contentHtml, appSite, mergedTemplates, allJsonValues, appView)
-		common.Debug(fmt.Sprintf("After placeholder replacement: %d chars", len(contentHtml)), "EngineNormal")
+		Logger.Debug(fmt.Sprintf("After placeholder replacement: %d chars", len(contentHtml)), "EngineNormal")
 
 		if contentHtml == previous {
-			common.Debug(fmt.Sprintf("No changes in pass %d, stopping", actualPasses), "EngineNormal")
+			Logger.Debug(fmt.Sprintf("No changes in pass %d, stopping", actualPasses), "EngineNormal")
 			break
 		}
 	}
 
-	common.Debug(fmt.Sprintf("MergeTemplates complete after %d passes: output size=%d", actualPasses, len(contentHtml)), "EngineNormal")
+	Logger.Debug(fmt.Sprintf("MergeTemplates complete after %d passes: output size=%d", actualPasses, len(contentHtml)), "EngineNormal")
 	return contentHtml
 }
 

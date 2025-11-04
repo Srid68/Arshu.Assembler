@@ -3,7 +3,7 @@ use crate::model::model_preprocess::{
     SlottedTemplate, JsonPlaceholder, ReplacementMapping, ReplacementType, SlotPlaceholder
 };
 use crate::common::common_util::CommonUtil;
-use crate::common::logger::Logger;
+use arshu::common::Logger;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;

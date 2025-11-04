@@ -2,7 +2,7 @@
 
 Follow the same naming conventions as the rust/csharp project strictly accross all other projects using idiomatic patterns in respective languages.
 
-STRUCTURAL CONSISTENCY ACROSS PROJECTS IS CRUCIAL. DO NOT CHANGE THE STRUCTURE BE DIFFERENT BETWEEN PROJECTS
+STRUCTURAL CONSISTENCY ACROSS PROJECTS IN DIFFERENT LANGS IS CRUCIAL. DO NOT CHANGE THE STRUCTURE BE DIFFERENT BETWEEN PROJECTS
 
 Important: Follow the same structure/logic as the rust/csharp project strictly accross all other projects
 
