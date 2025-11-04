@@ -2,6 +2,8 @@
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arshu", "Arshu\Arshu.csproj", "{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assembler", "Assembler\Assembler.csproj", "{B8F3D9A2-E4C1-4B5A-9F2E-8D7C6E1A4B3F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblerWeb", "AssemblerWeb\AssemblerWeb.csproj", "{4FB8CCA7-979D-1820-8F98-24A4089579AB}"
@@ -20,6 +22,18 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Debug|x64.Build.0 = Debug|Any CPU
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Debug|x86.Build.0 = Debug|Any CPU
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Release|x64.ActiveCfg = Release|Any CPU
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Release|x64.Build.0 = Release|Any CPU
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Release|x86.ActiveCfg = Release|Any CPU
+		{1A2B3C4D-5E6F-7890-ABCD-EF1234567890}.Release|x86.Build.0 = Release|Any CPU
 		{B8F3D9A2-E4C1-4B5A-9F2E-8D7C6E1A4B3F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B8F3D9A2-E4C1-4B5A-9F2E-8D7C6E1A4B3F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B8F3D9A2-E4C1-4B5A-9F2E-8D7C6E1A4B3F}.Debug|x64.ActiveCfg = Debug|Any CPU
