@@ -8,7 +8,7 @@ flush();
 
 echo "[STARTUP] Loading autoload.php...\n";
 flush();
-require_once __DIR__ . '/../../Assembler/vendor/autoload.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
 echo "[STARTUP] Autoload complete\n";
 flush();
 
