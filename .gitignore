@@ -65,6 +65,7 @@ node_modules/
 # Ignore all Analysis files
 **/Analysis/
 **/tmp/
+/develop/
 
 # Ignore all Fly deploy batch scripts
 fly_deploy*.bat
@@ -88,3 +89,6 @@ csharp/fly_run_js_web.bat
 # Exception: allow package files in LocalPackages directory
 !LocalPackages/*.tgz
 !LocalPackages/*.zip
+
+.keep
+ocaml
