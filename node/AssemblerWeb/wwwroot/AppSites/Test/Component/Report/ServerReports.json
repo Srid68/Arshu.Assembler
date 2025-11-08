@@ -1,6 +1,6 @@
 {
   "Implementation": "Node.js Server-Side",
-  "Lang": "nodejs",
+  "Lang": "node",
   "Title": "Test Reports",
   "TitleIcon": "📊",
   "Reports": [

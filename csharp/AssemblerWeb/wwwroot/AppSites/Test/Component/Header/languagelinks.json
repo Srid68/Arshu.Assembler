@@ -3,7 +3,7 @@
   "LanguageId": "csharp",
   "Title": "Web Assembler",
   "HighlightText": "recreating abstractions from Mustache, React, and HTMX",
-  "Label": "Try different implementations:",
+  "Label": "Try different implementations generated using AI Assistance:",
   "FeatureParityText": "Towards Feature parity with Arshu Data",
   "ArshuDataUrl": "https://ovharshudata.roottns.com/",
   "ArshuDataGitHubUrl": "https://github.com/Arshu/ArshuData",

@@ -1,6 +1,6 @@
 {
-  "Title": "C# Web Assembler",
-  "Implementation": "Server-side C#",
+  "Title": "PHP Web Assembler",
+  "Implementation": "Server-side PHP",
   "ColumnArray": [
     {
       "EngineTitle": "Normal Engine",

@@ -1,0 +1,45 @@
+{
+  "Language": "Node.js",
+  "LanguageId": "node",
+  "Title": "OCI Server",
+  "Label": "Try different implementations generated using AI Assistance:",
+  "HighlightText": "recreating abstractions from S3 and Docker Registry",
+  "UsingText": "Using",
+  "InText": "in",
+  "ArshuAssemblerText": "Arshu Assembler",
+  "ArshuAssemblerGitHubText": "Arshu Assembler GitHub",
+  "ArshuAssemblerUrl": "https://nodeassembler.fly.dev/",
+  "ArshuAssemblerGitHubUrl": "https://github.com/Srid68/Arshu.Assembler",
+  "Languages": [
+    {
+      "Name": "C#",
+      "Url": "https://csharpassembler.fly.dev",
+      "Id": "csharp"
+    },
+    {
+      "Name": "Go",
+      "Url": "https://goassembler.fly.dev",
+      "Id": "go"
+    },
+    {
+      "Name": "Rust",
+      "Url": "https://rustassembler.fly.dev",
+      "Id": "rust"
+    },
+    {
+      "Name": "Node.js",
+      "Url": "https://nodeassembler.fly.dev",
+      "Id": "nodejs"
+    },
+    {
+      "Name": "PHP",
+      "Url": "https://phpassembler.fly.dev",
+      "Id": "php"
+    },
+    {
+      "Name": "JavaScript",
+      "Url": "https://jsassembler.fly.dev",
+      "Id": "javascript"
+    }
+  ]
+}

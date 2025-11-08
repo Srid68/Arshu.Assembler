@@ -1,6 +1,6 @@
 {
-  "Title": "C# Web Assembler",
-  "Implementation": "Server-side C#",
+  "Title": "Node.js Web Assembler",
+  "Implementation": "Server-side Node.js",
   "ColumnArray": [
     {
       "EngineTitle": "Normal Engine",

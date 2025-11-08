@@ -1,6 +1,6 @@
 {
-  "Title": "C# Web Assembler",
-  "Implementation": "Server-side C#",
+  "Title": "Rust Web Assembler",
+  "Implementation": "Server-side Rust",
   "ColumnArray": [
     {
       "EngineTitle": "Normal Engine",

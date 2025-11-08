@@ -504,7 +504,7 @@ class EngineNormal {
             for (const [key, value] of Object.entries(jsonObject)) {
                 if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
                     const placeholder = `{{$${key}}}`;
-                    const replacement = String(value);
+                    let replacement = String(value);
                     result = result.replace(new RegExp(this.escapeRegExp(placeholder), 'gi'), replacement);
                 }
             }
@@ -556,8 +556,7 @@ class EngineNormal {
                     // Replace placeholders with item values AFTER conditional processing
                     for (const [key, value] of Object.entries(item)) {
                         const placeholder = `{{$${key}}}`;
-                        // Properly handle boolean false - don't convert to empty string
-                        const replacement = (value !== null && value !== undefined) ? String(value) : '';
+                        let replacement = (value !== null && value !== undefined) ? String(value) : '';
                         itemBlock = itemBlock.replace(new RegExp(this.escapeRegExp(placeholder), 'gi'), replacement);
                     }
                     
