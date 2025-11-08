@@ -1,4 +1,206 @@
-﻿{
+{
     "DefaultMergeMode":  "Server",
-    "MergeModeDisplay":  "block"
+    "MergeModeDisplay":  "block",
+    "Scenarios": [
+      {
+        "appSite": "Home",
+        "appFile": "Index",
+        "appView": "Main",
+        "displayName": "Home → Main",
+        "description": " (Main view)",
+        "totalSize": 17646
+      },
+      {
+        "appSite": "HtmlRule1A",
+        "appFile": "html1A",
+        "appView": "",
+        "displayName": "Rule 1A - Simple PlaceHolder (HTML)",
+        "description": "Simple placeholder replacement",
+        "totalSize": 1302
+      },
+      {
+        "appSite": "HtmlRule1B",
+        "appFile": "Html1B",
+        "appView": "",
+        "displayName": "Rule 1B - Multiple PlaceHolders (HTML)",
+        "description": "Nested placeholder replacement",
+        "totalSize": 2214
+      },
+      {
+        "appSite": "HtmlRule2A",
+        "appFile": "html2A",
+        "appView": "",
+        "displayName": "Rule 2A - Slotted Markup (HTML)",
+        "description": "Single Slotted markup patterns",
+        "totalSize": 2057
+      },
+      {
+        "appSite": "HtmlRule2B",
+        "appFile": "html2B",
+        "appView": "",
+        "displayName": "Rule 2B - Multiple Slots (HTML)",
+        "description": "Multiple Slotted markup patterns",
+        "totalSize": 2692
+      },
+      {
+        "appSite": "HtmlRule2C",
+        "appFile": "Html2C",
+        "appView": "",
+        "displayName": "Rule 2C - Nested Slotted Markup (HTML)",
+        "description": "Nested Slotted markup patterns",
+        "totalSize": 2198
+      },
+      {
+        "appSite": "HtmlRule2D",
+        "appFile": "HTML2D",
+        "appView": "",
+        "displayName": "Rule 2D - Hierarchy Slotted Markup (HTML)",
+        "description": "Hierarchy Slotted markup patterns",
+        "totalSize": 2243
+      },
+      {
+        "appSite": "HtmlRule2E",
+        "appFile": "HTML2E",
+        "appView": "",
+        "displayName": "Rule 2E - Multiple Slotted Markup (HTML)",
+        "description": "Multiple Slotted markup patterns",
+        "totalSize": 3177
+      },
+      {
+        "appSite": "HtmlRule2F",
+        "appFile": "Html2F",
+        "appView": "",
+        "displayName": "Rule 2F - Multi-Level Slots (HTML)",
+        "description": "Hierarchy/Nested Slotted markup patterns",
+        "totalSize": 3198
+      },
+      {
+        "appSite": "HtmlRule3A",
+        "appFile": "html3A",
+        "appView": "Html3A",
+        "displayName": "Rule3A (HTML) → Html3A",
+        "description": "Context-based placeholders (Html3A view)",
+        "totalSize": 1726
+      },
+      {
+        "appSite": "HtmlRule3A",
+        "appFile": "html3A",
+        "appView": "Html3B",
+        "displayName": "Rule3A (HTML) → Html3B",
+        "description": "Context-based placeholders (Html3B view)",
+        "totalSize": 1726
+      },
+      {
+        "appSite": "HtmlRule3B",
+        "appFile": "html3B",
+        "appView": "Html3A",
+        "displayName": "Rule3B (HTML) → Html3A",
+        "description": "Context-based placeholders (Html3A view)",
+        "totalSize": 1712
+      },
+      {
+        "appSite": "HtmlRule3B",
+        "appFile": "html3B",
+        "appView": "Html3B",
+        "displayName": "Rule3B (HTML) → Html3B",
+        "description": "Context-based placeholders (Html3B view)",
+        "totalSize": 1712
+      },
+      {
+        "appSite": "JsonRule1A",
+        "appFile": "json1A",
+        "appView": "",
+        "displayName": "Rule 1A - Simple Key Replacement (JSON)",
+        "description": "Simple placeholder replacement with JSON data",
+        "totalSize": 1478
+      },
+      {
+        "appSite": "JsonRule1B",
+        "appFile": "json1B",
+        "appView": "",
+        "displayName": "Rule 1B - Nested Key Replacement (JSON)",
+        "description": "Nested placeholder replacement with JSON data",
+        "totalSize": 2011
+      },
+      {
+        "appSite": "JsonRule1C",
+        "appFile": "Json1C",
+        "appView": "",
+        "displayName": "Rule 1C - Hierarchy Key Replacement (JSON)",
+        "description": "Hierarchy placeholder replacement with JSON data",
+        "totalSize": 3997
+      },
+      {
+        "appSite": "JsonRule1D",
+        "appFile": "index",
+        "appView": "",
+        "displayName": "Rule 1D - Duplicate Key Replacement (JSON)",
+        "description": "Duplicate placeholder replacement with JSON data",
+        "totalSize": 937
+      },
+      {
+        "appSite": "JsonRule2A",
+        "appFile": "json2A",
+        "appView": "",
+        "displayName": "Rule 2A - Array Markup (JSON)",
+        "description": "Single Array replacement with JSON data",
+        "totalSize": 2125
+      },
+      {
+        "appSite": "JsonRule2B",
+        "appFile": "json2B",
+        "appView": "",
+        "displayName": "Rule 2B - Multiple Array Markup (JSON)",
+        "description": "Multiple Array replacement with JSON data",
+        "totalSize": 3291
+      },
+      {
+        "appSite": "JsonRule2C",
+        "appFile": "json2C",
+        "appView": "",
+        "displayName": "Rule 2C - Hierarchy Array Markup (JSON)",
+        "description": "Hierarchy Array replacement with JSON data",
+        "totalSize": 2627
+      },
+      {
+        "appSite": "JsonRule2D",
+        "appFile": "json2D",
+        "appView": "",
+        "displayName": "Rule 2D - Hierarchy/Multiple Array Markup (JSON)",
+        "description": "Hierarchy Multiple Array replacement with JSON data",
+        "totalSize": 3634
+      },
+      {
+        "appSite": "Language",
+        "appFile": "Index",
+        "appView": "Main",
+        "displayName": "Language → Main",
+        "description": " (Main view)",
+        "totalSize": 10157
+      },
+      {
+        "appSite": "Rule1A",
+        "appFile": "Index",
+        "appView": "Main",
+        "displayName": "Rule 3A2A - Nested Placehoder (JSON)",
+        "description": "Nested placeholders with HTML and JSON",
+        "totalSize": 3744
+      },
+      {
+        "appSite": "Rule1B",
+        "appFile": "Index",
+        "appView": "Main",
+        "displayName": "Rule 3A2B - Multiple Nested Placehoder (JSON)",
+        "description": "Multiple Nested placeholders with HTML and JSON",
+        "totalSize": 4891
+      },
+      {
+        "appSite": "Test",
+        "appFile": "index",
+        "appView": "Main",
+        "displayName": "Test Page - Using 4 Assembly Rules",
+        "description": "Test Page using 4 Assembly Rules except AppView Context",
+        "totalSize": 109426
+      }
+    ]
 }

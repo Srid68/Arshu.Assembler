@@ -160,17 +160,16 @@ function updateTemplateVisibility() {
     }
 }
 
-// Load scenarios from API
-async function loadScenariosFromApi() {
+// Scenarios data embedded from toolbar.json
+const SCENARIOS_DATA = {{$Scenarios}};
+
+// Load scenarios from embedded JSON data
+function loadScenariosFromJson() {
     const testSelect = document.getElementById('test-select');
     if (!testSelect) return;
 
     try {
-        const response = await fetch('/api/scenarios');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const scenarios = await response.json();
+        const scenarios = SCENARIOS_DATA;
 
         // Clear existing options
         testSelect.innerHTML = '';
@@ -193,7 +192,7 @@ async function loadScenariosFromApi() {
             testSelect.appendChild(option);
         });
 
-        console.log(`[Scenarios] Loaded ${scenarios.length} scenarios from API`);
+        console.log(`[Scenarios] Loaded ${scenarios.length} scenarios from JSON data`);
     } catch (error) {
         console.error('[Scenarios] Error loading scenarios:', error);
         testSelect.innerHTML = '<option value="">Error loading scenarios</option>';
@@ -202,21 +201,22 @@ async function loadScenariosFromApi() {
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Load scenarios from API first
-    loadScenariosFromApi().then(() => {
-        // Restore selection after scenarios are loaded
-        const savedSelection = sessionStorage.getItem('selectedScenario');
-        const testSelect = document.getElementById('test-select');
-        if (savedSelection && testSelect) {
-            sessionStorage.removeItem('selectedScenario');
-            testSelect.value = savedSelection;
-            // Trigger change event to load the scenario
-            testSelect.dispatchEvent(new Event('change'));
-        }
-    });
+    // Load scenarios from embedded JSON data
+    loadScenariosFromJson();
 
-    // Scenario selector
+    // Get test select element
     const testSelect = document.getElementById('test-select');
+
+    // Restore selection after scenarios are loaded
+    const savedSelection = sessionStorage.getItem('selectedScenario');
+    if (savedSelection && testSelect) {
+        sessionStorage.removeItem('selectedScenario');
+        testSelect.value = savedSelection;
+        // Trigger change event to load the scenario
+        testSelect.dispatchEvent(new Event('change'));
+    }
+
+    // Scenario selector change event
     if (testSelect) {
         testSelect.addEventListener('change', handleScenarioChange);
     }

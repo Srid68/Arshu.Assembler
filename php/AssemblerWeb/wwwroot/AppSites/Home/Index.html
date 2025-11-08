@@ -180,76 +180,7 @@
     </style>
 </head>
 <body>
-    {{Header}}
+    {{MainHeader}}
 
-    <div class="home-container">
-        <div class="home-content">
-            <h1 class="home-title">🚀 Arshu Polyglot OCI Server</h1>
-            <p class="home-description">
-                A high-performance, multi-language OCI Registry implementation with real-time metrics tracking and monitoring.
-            </p>
-
-            <div class="options-container">
-                <div class="option-group">
-                    <span class="option-label">Engine Type:</span>
-                    <div class="radio-group">
-                        <div class="radio-option">
-                            <input type="radio" id="engineNormal" name="engineType" value="Normal" checked>
-                            <label for="engineNormal">Normal</label>
-                        </div>
-                        <div class="radio-option">
-                            <input type="radio" id="enginePreProcess" name="engineType" value="PreProcess">
-                            <label for="enginePreProcess">PreProcess</label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="option-group">
-                    <span class="option-label">Merge Mode:</span>
-                    <div class="radio-group">
-                        <div class="radio-option">
-                            <input type="radio" id="mergeServer" name="mergeMode" value="Server" checked>
-                            <label for="mergeServer">Server</label>
-                        </div>
-                        <div class="radio-option">
-                            <input type="radio" id="mergeClient" name="mergeMode" value="Client">
-                            <label for="mergeClient">Client</label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <button id="showMetricsBtn" class="show-metrics-btn" onclick="handleLoadAppSite()">
-                <span class="btn-text">Show Test</span>
-                <div class="loading-spinner"></div>
-            </button>
-        </div>
-    </div>
-
-    <script>
-        async function handleLoadAppSite() {
-            const btn = document.getElementById('showMetricsBtn');
-
-            // Get selected options
-            const engineType = document.querySelector('input[name="engineType"]:checked').value;
-            const mergeMode = document.querySelector('input[name="mergeMode"]:checked').value;
-
-            // Disable button and show loading state
-            btn.disabled = true;
-            btn.classList.add('loading');
-
-            try {
-                // Use assembler.js utility to load Test AppSite
-                await loadAppSite('Test', null, engineType, mergeMode);
-            } catch (error) {
-                console.error('Failed to load AppSite:', error);
-                alert('Failed to load AppSite. Please try again.\n\n' + error.message);
-
-                // Re-enable button
-                btn.disabled = false;
-                btn.classList.remove('loading');
-            }
-        }
-    </script>
 </body>
 </html>
