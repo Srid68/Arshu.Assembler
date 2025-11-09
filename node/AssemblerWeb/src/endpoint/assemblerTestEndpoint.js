@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import fsSync from 'fs';
 import { Logger } from '@arshu/common';
 import { ConfigUtil } from '@arshu/assembler';
-import { getValidAppSites, isValidEngineType, isValidAppSite, isValidPathComponent, isValidLogContent, isValidOutputSizeWithBuffer, getTemplateTotalSize, OUTPUT_SIZE_BUFFER } from './securityValidator.js';
+import { getValidAppSites, isValidEngineType, isValidAppSite, isValidPathComponent, isValidLogContent } from './securityValidator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1107,17 +1107,9 @@ export async function saveOutputEndpoint(req, res) {
             return res.status(400).json({ success: false, message: 'Invalid engineType parameter' })
         }
 
-        // Validate output size against template total size + buffer
-        const templateTotalSize = getTemplateTotalSize(appSite, appView || '')
+        // Log output size (size validation removed - TotalSize no longer tracked)
         const outputSize = Buffer.byteLength(html, 'utf8')
-        const maxAllowedSize = templateTotalSize + OUTPUT_SIZE_BUFFER
-        console.log(`[/api/save-output] Size validation: output=${outputSize}, template=${templateTotalSize}, buffer=${OUTPUT_SIZE_BUFFER}, max=${maxAllowedSize}`)
-
-        if (!isValidOutputSizeWithBuffer(html, templateTotalSize)) {
-            const errorMsg = `Save output failed: output size (${outputSize} bytes) exceeds max size allowed (${maxAllowedSize} bytes = template ${templateTotalSize} + buffer ${OUTPUT_SIZE_BUFFER})`
-            console.log(`[/api/save-output] ${errorMsg}`)
-            return res.status(400).json({ success: false, message: errorMsg })
-        }
+        console.log(`[/api/save-output] Output size: ${outputSize} bytes`)
 
         const outputDir = path.join(projectDirectory, 'Analysis', 'output')
         await fsSync.promises.mkdir(outputDir, { recursive: true }).catch(() => {})

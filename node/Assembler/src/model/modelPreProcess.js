@@ -2,40 +2,35 @@
 
 import { JsonConverter } from '../app/jsonConverter.js';
 
-/**
- * Types of template replacements (using numeric values to match C#)
- */
+// Types of template replacements (match C# names)
 export const ReplacementType = {
-    JSON_PLACEHOLDER: 0,
-    SIMPLE_TEMPLATE: 1,
-    SLOTTED_TEMPLATE: 2
+    JsonPlaceholder: 0,
+    SimpleTemplate: 1,
+    SlottedTemplate: 2,
 };
 
-/**
- * Contains preprocessed templates for a site with efficient lookup structures
- */
+// Contains preprocessed templates for a site with efficient lookup structures
 export class PreprocessedSiteTemplates {
-    constructor() {
-        this.siteName = '';
-        this.templates = new Map();
-        this.rawTemplates = new Map();
-        this.templateKeys = new Set();
+    constructor(siteName = '', templates = new Map(), rawTemplates = new Map(), templateKeys = new Set()) {
+        this.siteName = siteName;
+        this.templates = templates; // Map<string, PreprocessedTemplate>
+        this.rawTemplates = rawTemplates; // Map<string, string>
+        this.templateKeys = templateKeys; // Set<string>
     }
-
-
 }
 
-/**
- * Represents a preprocessed template with parsed structure for efficient merging
- */
+// Represents a preprocessed template with parsed structure for efficient merging
 export class PreprocessedTemplate {
-    constructor() {
-        this.originalContent = '';
+    constructor(originalContent = '', jsonData = null) {
+        this.originalContent = originalContent;
         this.placeholders = [];
         this.slottedTemplates = [];
-        this.jsonData = null;
+        this.jsonData = jsonData;
         this.jsonPlaceholders = [];
         this.replacementMappings = [];
+        this.parentTemplateKey = null;
+        this.childTemplateKeys = [];
+        this.inheritableJsonKeys = [];
     }
 
     // Helper properties to check template state
@@ -48,7 +43,7 @@ export class PreprocessedTemplate {
     }
 
     get hasJsonData() {
-        return this.jsonData !== null && this.jsonData.size > 0;
+        return this.jsonData !== null && Object.keys(this.jsonData).length > 0;
     }
 
     get hasJsonPlaceholders() {
@@ -60,14 +55,11 @@ export class PreprocessedTemplate {
     }
 
     get requiresProcessing() {
-        return this.hasPlaceholders || this.hasSlottedTemplates || 
+        return this.hasPlaceholders || this.hasSlottedTemplates ||
                this.hasJsonData || this.hasJsonPlaceholders || this.hasReplacementMappings;
     }
 
-    /**
-     * Convert to plain object for JSON serialization
-     * @returns {Object} Plain object representation
-     */
+    // Convert to plain object for JSON serialization
     toObject() {
         return {
             originalContent: this.originalContent,
@@ -81,14 +73,12 @@ export class PreprocessedTemplate {
             hasJsonData: this.hasJsonData,
             hasJsonPlaceholders: this.hasJsonPlaceholders,
             hasReplacementMappings: this.hasReplacementMappings,
-            requiresProcessing: this.requiresProcessing
+            requiresProcessing: this.requiresProcessing,
         };
     }
 }
 
-/**
- * Represents a JSON placeholder like {{$key}} with precomputed replacement value
- */
+// Represents a JSON placeholder like {{$key}} with precomputed replacement value
 export class JsonPlaceholder {
     constructor(key = '', placeholder = '', value = '') {
         this.key = key;
@@ -97,24 +87,19 @@ export class JsonPlaceholder {
     }
 
     toObject() {
-        return {
-            key: this.key,
-            placeholder: this.placeholder,
-            value: this.value
-        };
+        return { key: this.key, placeholder: this.placeholder, value: this.value };
     }
 }
 
-/**
- * Represents a pre-computed replacement for ultra-fast template merging
- */
+// Represents a pre-computed replacement for ultra-fast template merging
 export class ReplacementMapping {
-    constructor() {
-        this.startIndex = 0;
-        this.endIndex = 0;
-        this.originalText = '';
-        this.replacementText = '';
-        this.type = ReplacementType.SIMPLE_TEMPLATE;
+    constructor(originalText = '', replacementText = '', type = ReplacementType.SimpleTemplate, startIndex = 0, endIndex = 0, targetTemplateName = null) {
+        this.startIndex = startIndex;
+        this.endIndex = endIndex;
+        this.originalText = originalText;
+        this.replacementText = replacementText;
+        this.type = type;
+        this.targetTemplateName = targetTemplateName;
     }
 
     toObject() {
@@ -123,22 +108,21 @@ export class ReplacementMapping {
             endIndex: this.endIndex,
             originalText: this.originalText,
             replacementText: this.replacementText,
-            type: this.type
+            type: this.type,
+            targetTemplateName: this.targetTemplateName,
         };
     }
 }
 
-/**
- * Represents a simple placeholder like {{ComponentName}}
- */
+// Represents a simple placeholder like {{ComponentName}}
 export class TemplatePlaceholder {
-    constructor() {
-        this.name = '';
-        this.startIndex = 0;
-        this.endIndex = 0;
-        this.fullMatch = '';
-        this.templateKey = '';
-        this.jsonData = null;
+    constructor(name = '', startIndex = 0, endIndex = 0, fullMatch = '', templateKey = '', jsonData = null) {
+        this.name = name;
+        this.startIndex = startIndex;
+        this.endIndex = endIndex;
+        this.fullMatch = fullMatch;
+        this.templateKey = templateKey;
+        this.jsonData = jsonData;
         this.nestedPlaceholders = [];
         this.nestedSlots = [];
     }
@@ -151,24 +135,22 @@ export class TemplatePlaceholder {
             fullMatch: this.fullMatch,
             templateKey: this.templateKey,
             nestedPlaceholders: this.nestedPlaceholders.map(np => np.toObject()),
-            nestedSlots: this.nestedSlots.map(ns => ns.toObject())
+            nestedSlots: this.nestedSlots.map(ns => ns.toObject()),
         };
     }
 }
 
-/**
- * Represents a slotted template like {{#TemplateName}} ... {{/TemplateName}}
- */
+// Represents a slotted template like {{#TemplateName}} ... {{/TemplateName}}
 export class SlottedTemplate {
-    constructor() {
-        this.name = '';
-        this.startIndex = 0;
-        this.endIndex = 0;
-        this.fullMatch = '';
-        this.innerContent = '';
+    constructor(name = '', startIndex = 0, endIndex = 0, fullMatch = '', innerContent = '', templateKey = '', jsonData = null) {
+        this.name = name;
+        this.startIndex = startIndex;
+        this.endIndex = endIndex;
+        this.fullMatch = fullMatch;
+        this.innerContent = innerContent;
         this.slots = [];
-        this.templateKey = '';
-        this.jsonData = null;
+        this.templateKey = templateKey;
+        this.jsonData = jsonData;
     }
 
     toObject() {
@@ -180,40 +162,30 @@ export class SlottedTemplate {
             innerContent: this.innerContent,
             slots: this.slots.map(s => s.toObject()),
             templateKey: this.templateKey,
-            jsonData: this.jsonData ? this.jsonData.toObject() : null
+            jsonData: this.jsonData ? JsonConverter.toPlainObject(this.jsonData) : null,
         };
     }
 }
 
-/**
- * Represents a slot within a slotted template like {{@HTMLPLACEHOLDER[N]}} ... {{/HTMLPLACEHOLDER[N]}}
- */
+// Represents a slot within a slotted template like {{@HTMLPLACEHOLDER[N]}} ... {{/HTMLPLACEHOLDER[N]}}
 export class SlotPlaceholder {
-    constructor() {
+    constructor(number = '', startIndex = 0, endIndex = 0, content = '', slotKey = '', openTag = '', closeTag = '') {
         this.nestedSlots = [];
-        this.number = '';
-        this.startIndex = 0;
-        this.endIndex = 0;
-        this.content = '';
-        this.slotKey = '';
-        this.openTag = '';
-        this.closeTag = '';
+        this.number = number;
+        this.startIndex = startIndex;
+        this.endIndex = endIndex;
+        this.content = content;
+        this.slotKey = slotKey;
+        this.openTag = openTag;
+        this.closeTag = closeTag;
         this.nestedPlaceholders = [];
         this.nestedSlottedTemplates = [];
     }
 
     // Helper properties
-    get hasNestedPlaceholders() {
-        return this.nestedPlaceholders.length > 0;
-    }
-
-    get hasNestedSlottedTemplates() {
-        return this.nestedSlottedTemplates.length > 0;
-    }
-
-    get requiresNestedProcessing() {
-        return this.hasNestedPlaceholders || this.hasNestedSlottedTemplates;
-    }
+    get hasNestedPlaceholders() { return this.nestedPlaceholders.length > 0; }
+    get hasNestedSlottedTemplates() { return this.nestedSlottedTemplates.length > 0; }
+    get requiresNestedProcessing() { return this.hasNestedPlaceholders || this.hasNestedSlottedTemplates; }
 
     toObject() {
         return {
@@ -229,7 +201,7 @@ export class SlotPlaceholder {
             nestedSlottedTemplates: this.nestedSlottedTemplates.map(nst => nst.toObject()),
             hasNestedPlaceholders: this.hasNestedPlaceholders,
             hasNestedSlottedTemplates: this.hasNestedSlottedTemplates,
-            requiresNestedProcessing: this.requiresNestedProcessing
+            requiresNestedProcessing: this.requiresNestedProcessing,
         };
     }
 }

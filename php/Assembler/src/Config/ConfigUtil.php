@@ -7,166 +7,54 @@ class Scenario
     public string $appSite;
     public string $appFile;
     public string $appView;
-    public int $totalSize;
-    public string $displayName;
-    public string $description;
 
-    public function __construct(
-        string $appSite,
-        string $appFile,
-        string $appView,
-        int $totalSize = 0,
-        string $displayName = '',
-        string $description = ''
-    ) {
+    public function __construct(string $appSite, string $appFile, string $appView)
+    {
         $this->appSite = $appSite;
         $this->appFile = $appFile;
         $this->appView = $appView;
-        $this->totalSize = $totalSize;
-        $this->displayName = $displayName;
-        $this->description = $description;
     }
 
     public function __toString(): string
     {
-        return "{$this->appSite}:{$this->appFile}:{$this->appView}:{$this->totalSize}";
-    }
-
-    public function toCsvLine(): string
-    {
-        return sprintf(
-            '%s,%s,%s,%d,"%s","%s"',
-            $this->appSite,
-            $this->appFile,
-            $this->appView,
-            $this->totalSize,
-            $this->displayName,
-            $this->description
-        );
+        return "{$this->appSite}:{$this->appFile}:{$this->appView}";
     }
 }
 
 class ConfigUtil
 {
+    public static string $defaultAppFile = 'Index';
+
     private static ?array $cachedAppSites = null;
     private static ?array $cachedScenarios = null;
     private static ?string $wwwrootPath = null;
 
-
+    /**
+     * Extracts unique AppSites from scenarios
+     */
     private static function extractAppSitesFromScenarios(array $scenarios): array
     {
-        $appSites = [];
+        $appSitesSet = [];
         foreach ($scenarios as $scenario) {
             if (!empty($scenario->appSite)) {
-                $appSites[$scenario->appSite] = true;
+                $appSitesSet[strtolower($scenario->appSite)] = true;
             }
         }
 
-        \Arshu\Common\Logger::info(sprintf("Extracted %d AppSites from scenarios.csv", count($appSites)), "ConfigUtil");
+        echo sprintf("[ConfigUtil] Extracted %d AppSites from folder scan\n", count($appSitesSet));
 
-        return array_keys($appSites);
+        return array_keys($appSitesSet);
     }
 
-    private static function calculateTotalTemplateSize(string $appSitesPath, string $appSite): int
-    {
-        $totalSize = 0;
-        $appSiteDir = $appSitesPath . DIRECTORY_SEPARATOR . $appSite;
-
-        try {
-            $files = self::getAllFiles($appSiteDir);
-            foreach ($files as $file) {
-                if (str_ends_with($file, '.html') || str_ends_with($file, '.json')) {
-                    $totalSize += filesize($file);
-                }
-            }
-        } catch (\Exception $e) {
-            return 0;
-        }
-
-        return $totalSize;
-    }
-
-    private static function getAllFiles(string $dir, array &$results = []): array
-    {
-        if (!is_dir($dir)) {
-            return $results;
-        }
-
-        $files = scandir($dir);
-
-        foreach ($files as $file) {
-            if ($file === '.' || $file === '..') continue;
-
-            $path = $dir . DIRECTORY_SEPARATOR . $file;
-
-            if (is_dir($path)) {
-                self::getAllFiles($path, $results);
-            } else {
-                $results[] = $path;
-            }
-        }
-
-        return $results;
-    }
-
-    private static function generateDisplayName(string $appSite, string $appView): string
-    {
-        $rulePart = str_replace(['Html', 'Json'], '', $appSite);
-        $displayName = '';
-
-        if (str_starts_with($appSite, 'Html')) {
-            $displayName = $rulePart . ' (HTML)';
-        } elseif (str_starts_with($appSite, 'Json')) {
-            $displayName = $rulePart . ' (JSON)';
-        } else {
-            $displayName = $appSite;
-        }
-
-        if (!empty($appView)) {
-            $displayName .= " - AppView: $appView";
-        }
-
-        return $displayName;
-    }
-
-    private static function generateDescription(string $appSite, string $appView): string
-    {
-        $description = '';
-
-        if (str_contains($appSite, 'Rule1')) {
-            $description = 'Simple placeholder replacement';
-        } elseif (str_contains($appSite, 'Rule2')) {
-            $description = 'Slotted markup patterns';
-        } elseif (str_contains($appSite, 'Rule3')) {
-            $description = 'Context-based placeholders';
-        }
-
-        if (str_contains($appSite, 'Html') && str_contains($appSite, 'Json')) {
-            $description .= ' with HTML and JSON';
-        } elseif (str_contains($appSite, 'Json')) {
-            $description .= ' with JSON data';
-        }
-
-        if (!empty($appView)) {
-            $description .= " ($appView view)";
-        }
-
-        return $description;
-    }
-
-    private static function generateScenariosCsv(string $wwwrootPath): void
+    /**
+     * Discovers scenarios by scanning AppSites folder structure
+     */
+    private static function loadScenariosInternal(string $wwwrootPath): array
     {
         $appSitesPath = $wwwrootPath . DIRECTORY_SEPARATOR . 'AppSites';
-        $appDataPath = $wwwrootPath . DIRECTORY_SEPARATOR . 'App_Data';
-        $csvFilePath = $appDataPath . DIRECTORY_SEPARATOR . 'scenarios.csv';
 
         if (!is_dir($appSitesPath)) {
             throw new \Exception("AppSites directory not found: $appSitesPath");
-        }
-
-        // Ensure App_Data directory exists
-        if (!is_dir($appDataPath)) {
-            mkdir($appDataPath, 0755, true);
         }
 
         $scenarios = [];
@@ -176,7 +64,9 @@ class ConfigUtil
         $appSiteDirs = [];
 
         foreach ($entries as $entry) {
-            if ($entry === '.' || $entry === '..') continue;
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
             $fullPath = $appSitesPath . DIRECTORY_SEPARATOR . $entry;
             if (is_dir($fullPath)) {
                 $appSiteDirs[] = $entry;
@@ -186,140 +76,68 @@ class ConfigUtil
         sort($appSiteDirs);
 
         foreach ($appSiteDirs as $appSite) {
+            // Get all HTML files in the appSite directory (top level only)
             $appSiteDir = $appSitesPath . DIRECTORY_SEPARATOR . $appSite;
             $files = scandir($appSiteDir);
 
+            $htmlFiles = [];
             foreach ($files as $file) {
-                if (!str_ends_with($file, '.html')) continue;
-                if ($file === '.' || $file === '..') continue;
+                $filePath = $appSiteDir . DIRECTORY_SEPARATOR . $file;
+                if (is_file($filePath) && str_ends_with($file, '.html')) {
+                    $htmlFiles[] = $file;
+                }
+            }
 
-                $appFile = pathinfo($file, PATHINFO_FILENAME);
+            // If no HTML files found, use DEFAULT_APP_FILE
+            if (empty($htmlFiles)) {
+                $htmlFiles = [self::$defaultAppFile];
+            }
 
-                // Calculate total size
-                $totalSize = self::calculateTotalTemplateSize($appSitesPath, $appSite);
-
-                // Generate display name and description
-                $displayName = self::generateDisplayName($appSite, '');
-                $description = self::generateDescription($appSite, '');
-
-                // Add default scenario (no AppView)
-                $scenarios[] = new Scenario($appSite, $appFile, '', $totalSize, $displayName, $description);
+            foreach ($htmlFiles as $htmlFile) {
+                $appFile = $htmlFile === self::$defaultAppFile ? self::$defaultAppFile : pathinfo($htmlFile, PATHINFO_FILENAME);
 
                 // Check for Views folder
                 $viewsPath = $appSiteDir . DIRECTORY_SEPARATOR . 'Views';
+                $viewDirs = [];
+
                 if (is_dir($viewsPath)) {
-                    $viewFiles = scandir($viewsPath);
-
-                    foreach ($viewFiles as $viewFile) {
-                        if (!str_ends_with($viewFile, '.html')) continue;
-                        if ($viewFile === '.' || $viewFile === '..') continue;
-
-                        $viewName = pathinfo($viewFile, PATHINFO_FILENAME);
-                        $appView = '';
-
-                        // Extract AppView from view filename
-                        if (stripos($viewName, 'content') !== false) {
-                            $contentIndex = stripos($viewName, 'content');
-                            if ($contentIndex > 0) {
-                                $viewPart = substr($viewName, 0, $contentIndex);
-                                if (strlen($viewPart) > 0) {
-                                    $appView = ucfirst($viewPart);
-                                }
-                            }
+                    // Get all subdirectories in Views folder
+                    $viewEntries = scandir($viewsPath);
+                    foreach ($viewEntries as $viewEntry) {
+                        if ($viewEntry === '.' || $viewEntry === '..') {
+                            continue;
                         }
-
-                        if (!empty($appView)) {
-                            $viewDisplayName = self::generateDisplayName($appSite, $appView);
-                            $viewDescription = self::generateDescription($appSite, $appView);
-                            $scenarios[] = new Scenario($appSite, $appFile, $appView, $totalSize, $viewDisplayName, $viewDescription);
+                        $viewPath = $viewsPath . DIRECTORY_SEPARATOR . $viewEntry;
+                        if (is_dir($viewPath)) {
+                            $viewDirs[] = $viewEntry;
                         }
+                    }
+                }
+
+                // Only add empty AppView scenario if no specific Views exist
+                if (count($viewDirs) === 0) {
+                    $scenarios[] = new Scenario($appSite, $appFile, '');
+                } else {
+                    // Add specific view scenarios
+                    foreach ($viewDirs as $viewDir) {
+                        $scenarios[] = new Scenario($appSite, $appFile, $viewDir);
                     }
                 }
             }
         }
 
-        // Write as multi-line CSV with header
-        $csvLines = ["AppSite,AppFile,AppView,TotalSize,DisplayName,Description"];
-        foreach ($scenarios as $scenario) {
-            $csvLines[] = $scenario->toCsvLine();
+        if (count($scenarios) === 0) {
+            throw new \Exception('No scenarios found in AppSites folder');
         }
 
-        file_put_contents($csvFilePath, implode("\n", $csvLines));
-    }
-
-    private static function parseCsvLine(string $line): array
-    {
-        $result = [];
-        $current = '';
-        $inQuotes = false;
-
-        for ($i = 0; $i < strlen($line); $i++) {
-            $c = $line[$i];
-
-            if ($c === '"') {
-                $inQuotes = !$inQuotes;
-            } elseif ($c === ',' && !$inQuotes) {
-                $result[] = $current;
-                $current = '';
-            } else {
-                $current .= $c;
-            }
-        }
-
-        $result[] = $current;
-        return $result;
-    }
-
-    private static function loadScenariosInternal(string $wwwrootPath): array
-    {
-        $appDataPath = $wwwrootPath . DIRECTORY_SEPARATOR . 'App_Data';
-        $csvFilePath = $appDataPath . DIRECTORY_SEPARATOR . 'scenarios.csv';
-
-        // Generate if not exists
-        if (!file_exists($csvFilePath)) {
-            self::generateScenariosCsv($wwwrootPath);
-        }
-
-        // Read CSV lines
-        $csvContent = file_get_contents($csvFilePath);
-        $csvLines = array_map('trim', explode("\n", $csvContent));
-        $csvLines = array_filter($csvLines, fn($l) => !empty($l));
-
-        if (empty($csvLines)) {
-            throw new \Exception('scenarios.csv is empty');
-        }
-
-        $scenarios = [];
-
-        // Check if first line is a header
-        $hasHeader = str_contains($csvLines[0], 'AppSite') && str_contains($csvLines[0], 'AppFile');
-        $startLine = $hasHeader ? 1 : 0;
-
-        for ($i = $startLine; $i < count($csvLines); $i++) {
-            $line = trim($csvLines[$i]);
-            if (empty($line)) continue;
-
-            $parts = self::parseCsvLine($line);
-
-            if (count($parts) >= 2) {
-                $appSite = trim($parts[0]);
-                $appFile = trim($parts[1]);
-                $appView = count($parts) > 2 ? trim($parts[2]) : '';
-                $totalSize = count($parts) > 3 ? intval(trim($parts[3])) : 0;
-                $displayName = count($parts) > 4 ? trim($parts[4], '" ') : '';
-                $description = count($parts) > 5 ? trim($parts[5], '" ') : '';
-
-                $scenarios[] = new Scenario($appSite, $appFile, $appView, $totalSize, $displayName, $description);
-            }
-        }
-
-        if (empty($scenarios)) {
-            throw new \Exception('No scenarios found in scenarios.csv');
-        }
+        echo sprintf("[ConfigUtil] Loaded %d scenarios from AppSites folder\n", count($scenarios));
 
         return $scenarios;
     }
 
+    /**
+     * Loads AppSites from wwwroot path and caches them. Call this during startup.
+     */
     public static function load(string $wwwrootPath): void
     {
         self::$wwwrootPath = $wwwrootPath;
@@ -327,6 +145,9 @@ class ConfigUtil
         self::$cachedAppSites = self::extractAppSitesFromScenarios(self::$cachedScenarios);
     }
 
+    /**
+     * Reloads AppSites and Scenarios from the stored wwwroot path. Throws if not loaded.
+     */
     public static function reload(): void
     {
         if (self::$wwwrootPath === null) {
@@ -337,6 +158,9 @@ class ConfigUtil
         self::$cachedAppSites = self::extractAppSitesFromScenarios(self::$cachedScenarios);
     }
 
+    /**
+     * Gets the cached AppSites. Throws if not loaded.
+     */
     public static function getAppSites(): array
     {
         if (self::$cachedAppSites === null) {
@@ -346,6 +170,9 @@ class ConfigUtil
         return self::$cachedAppSites;
     }
 
+    /**
+     * Gets the cached Scenarios. Throws if not loaded.
+     */
     public static function getScenarios(): array
     {
         if (self::$cachedScenarios === null) {
@@ -355,6 +182,9 @@ class ConfigUtil
         return self::$cachedScenarios;
     }
 
+    /**
+     * Filters scenarios by appSite
+     */
     public static function filterByAppSite(array $scenarios, ?string $appSiteFilter): array
     {
         if (empty($appSiteFilter)) {

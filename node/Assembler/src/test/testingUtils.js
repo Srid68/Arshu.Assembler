@@ -2,9 +2,9 @@ import * as Assembler from '../index.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const { LoaderNormal, LoaderPreProcess, EngineNormal, EnginePreProcess } = Assembler;
+const { LoaderNormal, LoaderPreProcess, EngineNormal, EnginePreProcess, LoaderNormalJson, LoaderPreProcessJson, EngineNormalJson, EnginePreProcessJson } = Assembler;
 
-export async function runStandardTests(assemblerWebDirPath, projectDirectory, scenarios, printHtmlOutput = false, skipDetails = false, enableJsonProcessing = true) {
+export async function runStandardTests(assemblerWebDirPath, projectDirectory, scenarios, searchAppSites, printHtmlOutput = false, skipDetails = false, enableJsonProcessing = true) {
     const summaryRows = [];
 
     if (!assemblerWebDirPath) {
@@ -22,7 +22,6 @@ export async function runStandardTests(assemblerWebDirPath, projectDirectory, sc
         return summaryRows;
     }
 
-    // Group scenarios by AppSite and AppFile
     const groupedScenarios = {};
     for (const scenario of scenarios) {
         const key = `${scenario.appSite}|${scenario.appFile}`;
@@ -45,90 +44,61 @@ export async function runStandardTests(assemblerWebDirPath, projectDirectory, sc
         }
 
         try {
-            const scenarioOutputs = [];
-            const templates = LoaderNormal.loadGetTemplateFiles(assemblerWebDirPath, testSite);
+            const templates = LoaderNormal.loadGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites);
+            const preprocessedSiteTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites);
+            
+            const loaderNormalJson = new LoaderNormalJson(assemblerWebDirPath, testSite, searchAppSites);
+            await loaderNormalJson.load();
+            
+            const loaderPreProcessJson = new LoaderPreProcessJson(assemblerWebDirPath, testSite, searchAppSites);
+            await loaderPreProcessJson.load();
 
             for (const scenario of group) {
                 const appView = scenario.appView;
+
                 const normalEngine = new EngineNormal();
                 normalEngine.appViewPrefix = appFileName;
-                const resultNormal = normalEngine.mergeTemplates(testSite, appFileName, appView, templates, enableJsonProcessing);
-                scenarioOutputs.push(resultNormal || "");
+                const resultNormal = normalEngine.mergeTemplates(testSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
 
-                // Save HTML output to Analysis folder
+                const preProcessEngine = new EnginePreProcess();
+                preProcessEngine.appViewPrefix = appFileName;
+                const resultPreProcess = preProcessEngine.mergeTemplates(testSite, appFileName, appView, preprocessedSiteTemplates.templates, searchAppSites, enableJsonProcessing);
+
+                const normalJsonEngine = new EngineNormalJson();
+                normalJsonEngine.appViewPrefix = appFileName;
+                const resultNormalJson = normalJsonEngine.mergeTemplates(testSite, appFileName, appView, loaderNormalJson, enableJsonProcessing);
+
+                const preProcessJsonEngine = new EnginePreProcessJson();
+                preProcessJsonEngine.appViewPrefix = appFileName;
+                const resultPreProcessJson = preProcessJsonEngine.mergeTemplates(testSite, appFileName, appView, loaderPreProcessJson, enableJsonProcessing);
+
                 const appViewSuffix = appView ? `_${appView}` : "";
-                const outputFile = path.join(outputDir, `${testSite}${appViewSuffix}_normal.html`);
-                await fs.writeFile(outputFile, resultNormal || "");
+                await fs.writeFile(path.join(outputDir, `${testSite}${appViewSuffix}_normal.html`), resultNormal || "");
+                await fs.writeFile(path.join(outputDir, `${testSite}${appViewSuffix}_preprocess.html`), resultPreProcess || "");
+                await fs.writeFile(path.join(outputDir, `${testSite}${appViewSuffix}_normalJson.html`), resultNormalJson || "");
+                await fs.writeFile(path.join(outputDir, `${testSite}${appViewSuffix}_preProcessJson.html`), resultPreProcessJson || "");
+
+                const outputsMatch = resultNormal === resultPreProcess && resultNormal === resultNormalJson && resultNormal === resultPreProcessJson;
+                const matchStatus = outputsMatch ? "PASS" : "FAIL";
 
                 if (!skipDetails) {
-                    console.log(`${testSite}: 🧪 STANDARD TEST : scenario: AppView='${appView}'`);
-                    console.log(`Output length = ${resultNormal?.length || 0}`);
+                    console.log(`${testSite}: 🧪 STANDARD TEST : scenario: AppView='${appView}' - ${matchStatus}`);
+                    console.log(`  Normal: ${resultNormal?.length || 0}, PreProcess: ${resultPreProcess?.length || 0}, NormalJson: ${resultNormalJson?.length || 0}, PreProcessJson: ${resultPreProcessJson?.length || 0}`);
                 }
+
                 if (printHtmlOutput) {
                     console.log(`\nFULL HTML OUTPUT for AppView '${appView}':\n${resultNormal}\n`);
                 }
-            }
-
-            // Validate for unresolved placeholders
-            const scenarioUnresolved = [];
-            for (const output of scenarioOutputs) {
-                let hasUnresolved = false;
-                const isEmpty = !output || output.trim() === "";
-
-                // Scan for any {{...}} patterns which indicate unresolved placeholders
-                let startIndex = 0;
-                while (true) {
-                    startIndex = output.indexOf("{{", startIndex);
-                    if (startIndex === -1) break;
-
-                    const endIndex = output.indexOf("}}", startIndex);
-                    if (endIndex === -1) break;
-
-                    // Any {{...}} pattern in final output is unresolved
-                    hasUnresolved = true;
-                    if (!skipDetails) {
-                        const content = output.substring(startIndex, endIndex + 2);
-                        console.log(`${testSite}: ❌ Found unresolved placeholder: ${content}`);
-                    }
-                    break;
-                }
-                scenarioUnresolved.push(hasUnresolved || isEmpty);
-            }
-
-            // Compare outputs for cross-view
-            let matchResult = "";
-            if (group.length > 2) { // default + at least two AppViews
-                let allDiffer = true;
-                const firstAppViewOutput = scenarioOutputs[1];
-                for (let i = 2; i < scenarioOutputs.length; i++) {
-                    if (scenarioOutputs[i] === firstAppViewOutput) {
-                        allDiffer = false;
-                        break;
-                    }
-                }
-                matchResult = allDiffer ? "PASS" : "FAIL";
-                if (!skipDetails) {
-                    if (allDiffer) {
-                        console.log(`✅ SUCCESS: Outputs for different AppViews DO NOT MATCH in ${testSite} as expected.`);
-                    } else {
-                        console.log(`❌ FAILURE: Some outputs for AppViews MATCH in ${testSite}. Expected them to differ.`);
-                    }
-                }
-            }
-
-            // Add summary rows for each scenario (matching C# logic)
-            for (let i = 0; i < group.length; i++) {
-                const scenario = group[i];
-                const crossView = (i > 0 && group.length > 2) ? matchResult : "";
-                const hasUnresolved = scenarioUnresolved[i];
-                const normalPreProcess = (i === 0) ? (hasUnresolved ? "FAIL" : "PASS") : "";
 
                 summaryRows.push({
                     AppSite: testSite,
                     AppFile: appFileName,
                     AppView: scenario.appView,
-                    NormalPreProcess: normalPreProcess,
-                    CrossViewUnMatch: crossView,
+                    NormalSize: resultNormal?.length || 0,
+                    PreProcessSize: resultPreProcess?.length || 0,
+                    NormalJsonSize: resultNormalJson?.length || 0,
+                    PreProcessJsonSize: resultPreProcessJson?.length || 0,
+                    AllMatch: matchStatus,
                     Error: ""
                 });
             }
@@ -138,8 +108,7 @@ export async function runStandardTests(assemblerWebDirPath, projectDirectory, sc
                 AppSite: testSite,
                 AppFile: appFileName,
                 AppView: "",
-                NormalPreProcess: "",
-                CrossViewUnMatch: "",
+                AllMatch: "ERROR",
                 Error: error.message
             });
         }
@@ -147,7 +116,7 @@ export async function runStandardTests(assemblerWebDirPath, projectDirectory, sc
     return summaryRows;
 }
 
-export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, scenarios, printHtmlOutput = false, skipDetails = false, enableJsonProcessing = true) {
+export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, scenarios, searchAppSites, printHtmlOutput = false, skipDetails = false, enableJsonProcessing = true) {
     const summaryRows = [];
 
     if (!assemblerWebDirPath) {
@@ -165,7 +134,6 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
         return summaryRows;
     }
 
-    // Group scenarios by AppSite and AppFile
     const groupedScenarios = {};
     for (const scenario of scenarios) {
         const key = `${scenario.appSite}|${scenario.appFile}`;
@@ -189,9 +157,13 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
         try {
             LoaderNormal.clearCache();
             LoaderPreProcess.clearCache();
+            const loaderNormalJson = new LoaderNormalJson(assemblerWebDirPath, testSite, searchAppSites);
+            await loaderNormalJson.load();
+            const loaderPreProcessJson = new LoaderPreProcessJson(assemblerWebDirPath, testSite, searchAppSites);
+            await loaderPreProcessJson.load();
 
-            const templates = LoaderNormal.loadGetTemplateFiles(assemblerWebDirPath, testSite);
-            const preprocessedTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, testSite).templates;
+            const templates = LoaderNormal.loadGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites);
+            const preprocessedTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites).templates;
 
             const scenarioResults = [];
 
@@ -201,27 +173,34 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
                 normalEngine.appViewPrefix = appFileName;
                 const preProcessEngine = new EnginePreProcess();
                 preProcessEngine.appViewPrefix = appFileName;
+                const normalJsonEngine = new EngineNormalJson();
+                normalJsonEngine.appViewPrefix = appFileName;
+                const preProcessJsonEngine = new EnginePreProcessJson();
+                preProcessJsonEngine.appViewPrefix = appFileName;
 
-                const resultNormal = normalEngine.mergeTemplates(testSite, appFileName, appView, templates, enableJsonProcessing);
+                const resultNormal = normalEngine.mergeTemplates(testSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
                 const preprocessedTemplatesObj = Object.fromEntries(preprocessedTemplates);
-                const resultPreProcess = preProcessEngine.mergeTemplates(testSite, appFileName, appView, preprocessedTemplatesObj, enableJsonProcessing);
+                const resultPreProcess = preProcessEngine.mergeTemplates(testSite, appFileName, appView, preprocessedTemplatesObj, searchAppSites, enableJsonProcessing);
+                const resultNormalJson = normalJsonEngine.mergeTemplates(testSite, appFileName, appView, loaderNormalJson, enableJsonProcessing);
+                const resultPreProcessJson = preProcessJsonEngine.mergeTemplates(testSite, appFileName, appView, loaderPreProcessJson, enableJsonProcessing);
 
-                const outputsMatch = resultNormal === resultPreProcess;
+                const outputsMatch = resultNormal === resultPreProcess && resultNormal === resultNormalJson && resultNormal === resultPreProcessJson;
                 const matchStatus = outputsMatch ? "PASS" : "FAIL";
 
                 scenarioResults.push({
                     appView: appView,
                     normalOutput: resultNormal || "",
                     preProcessOutput: resultPreProcess || "",
+                    normalJsonOutput: resultNormalJson || "",
+                    preProcessJsonOutput: resultPreProcessJson || "",
                     matchStatus: matchStatus
                 });
 
-                // Save HTML outputs to Analysis folder
                 const appViewSuffix = appView ? `_${appView}` : "";
-                const normalOutputFile = path.join(outputDir, `${testSite}${appViewSuffix}_normal.html`);
-                const preprocessOutputFile = path.join(outputDir, `${testSite}${appViewSuffix}_preprocess.html`);
-                await fs.writeFile(normalOutputFile, resultNormal || "");
-                await fs.writeFile(preprocessOutputFile, resultPreProcess || "");
+                await fs.writeFile(path.join(outputDir, `${testSite}${appViewSuffix}_normal.html`), resultNormal || "");
+                await fs.writeFile(path.join(outputDir, `${testSite}${appViewSuffix}_preprocess.html`), resultPreProcess || "");
+                await fs.writeFile(path.join(outputDir, `${testSite}${appViewSuffix}_normalJson.html`), resultNormalJson || "");
+                await fs.writeFile(path.join(outputDir, `${testSite}${appViewSuffix}_preProcessJson.html`), resultPreProcessJson || "");
 
                 if (!skipDetails || !outputsMatch) {
                     console.log(`${testSite}: scenario: AppView='${appView}' - ${matchStatus}`);
@@ -230,21 +209,20 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
                 if (printHtmlOutput) {
                     console.log(`\nNORMAL OUTPUT for AppView '${appView}':\n${resultNormal}\n`);
                     console.log(`\nPREPROCESS OUTPUT for AppView '${appView}':\n${resultPreProcess}\n`);
+                    console.log(`\nNORMAL JSON OUTPUT for AppView '${appView}':\n${resultNormalJson}\n`);
+                    console.log(`\nPREPROCESS JSON OUTPUT for AppView '${appView}':\n${resultPreProcessJson}\n`);
                 }
             }
 
-            // Print detailed output analysis after processing all scenarios
-            if (scenarioResults.length > 0) {
+            if (!skipDetails && scenarioResults.length > 0) {
                 const firstResult = scenarioResults[0];
-                const normalLen = firstResult.normalOutput.length;
-                const preprocessLen = firstResult.preProcessOutput.length;
                 console.log(`\n${testSite}: 📊 DETAILED OUTPUT ANALYSIS:`);
-                console.log(`   Normal length: ${normalLen} chars`);
-                console.log(`   PreProcess length: ${preprocessLen} chars`);
-                console.log(`   Difference: ${Math.abs(normalLen - preprocessLen)} chars`);
+                console.log(`   Normal length: ${firstResult.normalOutput.length} chars`);
+                console.log(`   PreProcess length: ${firstResult.preProcessOutput.length} chars`);
+                console.log(`   NormalJson length: ${firstResult.normalJsonOutput.length} chars`);
+                console.log(`   PreProcessJson length: ${firstResult.preProcessJsonOutput.length} chars`);
             }
 
-            // Cross-view comparison
             let crossViewResult = "";
             if (scenarioResults.length > 1) {
                 let allDiffer = true;
@@ -261,7 +239,6 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
                 crossViewResult = allDiffer ? "PASS" : "FAIL";
             }
 
-            // Add summary rows
             for (let i = 0; i < scenarioResults.length; i++) {
                 const result = scenarioResults[i];
                 const crossView = (i > 0 && scenarioResults.length > 1) ? crossViewResult : "";
@@ -272,7 +249,11 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
                     AppView: result.appView,
                     NormalPreProcess: result.matchStatus,
                     CrossViewUnMatch: crossView,
-                    Error: ""
+                    Error: "",
+                    NormalSize: result.normalOutput.length,
+                    PreProcessSize: result.preProcessOutput.length,
+                    NormalJsonSize: result.normalJsonOutput.length,
+                    PreProcessJsonSize: result.preProcessJsonOutput.length,
                 });
             }
         } catch (error) {
@@ -296,62 +277,30 @@ export function printTestSummaryTable(assemblerWebDirPath, projectDirectory, sum
 
     console.log(`\n==================== Node.js ${testType.toUpperCase()} SUMMARY ====================\n`);
 
-    const headers = ["AppSite", "AppFile", "AppView", "NormalPreProcess", "CrossViewUnMatch", "Error"];
-    const colCount = headers.length;
-    const widths = new Array(colCount);
+    const isAdvancedTest = summaryRows[0].NormalSize !== undefined;
 
-    // Calculate column widths
-    for (let i = 0; i < colCount; i++) {
-        let maxLen = headers[i].length;
+    if (isAdvancedTest) {
+        console.log(`| ${"AppSite".padEnd(15)} | ${"AppFile".padEnd(10)} | ${"AppView".padEnd(10)} | ${"Normal".padEnd(8)} | ${"PreProc".padEnd(8)} | ${"NormJson".padEnd(8)} | ${"PreProcJson".padEnd(11)} | ${"Match All".padEnd(9)} | ${"ViewUnMatch".padEnd(11)} | ${"Error".padEnd(10)} |`);
+        console.log(`| ${"-".repeat(15)} | ${"-".repeat(10)} | ${"-".repeat(10)} | ${"-".repeat(8)} | ${"-".repeat(8)} | ${"-".repeat(8)} | ${"-".repeat(11)} | ${"-".repeat(9)} | ${"-".repeat(11)} | ${"-".repeat(10)} |`);
+
         for (const row of summaryRows) {
-            const value = getValue(row, i);
-            if (value.length > maxLen) maxLen = value.length;
+            const allMatch = row.NormalSize === row.PreProcessSize && row.NormalSize === row.NormalJsonSize && row.NormalSize === row.PreProcessJsonSize;
+            const matchIndicator = allMatch ? "✓" : "✗";
+            console.log(`| ${(row.AppSite || "").padEnd(15)} | ${(row.AppFile || "").padEnd(10)} | ${(row.AppView || "").padEnd(10)} | ${String(row.NormalSize || 0).padEnd(8)} | ${String(row.PreProcessSize || 0).padEnd(8)} | ${String(row.NormalJsonSize || 0).padEnd(8)} | ${String(row.PreProcessJsonSize || 0).padEnd(11)} | ${matchIndicator.padEnd(9)} | ${(row.CrossViewUnMatch || "").padEnd(11)} | ${(row.Error || "").padEnd(10)} |`);
         }
-        widths[i] = maxLen < 10 ? 10 : maxLen;
+
+        console.log(`| ${"-".repeat(15)} | ${"-".repeat(10)} | ${"-".repeat(10)} | ${"-".repeat(8)} | ${"-".repeat(8)} | ${"-".repeat(8)} | ${"-".repeat(11)} | ${"-".repeat(9)} | ${"-".repeat(11)} | ${"-".repeat(10)} |`);
+    } else {
+        console.log(`| ${"AppSite".padEnd(15)} | ${"AppFile".padEnd(10)} | ${"AppView".padEnd(10)} | ${"Normal".padEnd(8)} | ${"PreProc".padEnd(8)} | ${"NormJson".padEnd(8)} | ${"PreProcJson".padEnd(11)} | ${"All Match".padEnd(9)} | ${"Error".padEnd(10)} |`);
+        console.log(`| ${"-".repeat(15)} | ${"-".repeat(10)} | ${"-".repeat(10)} | ${"-".repeat(8)} | ${"-".repeat(8)} | ${"-".repeat(8)} | ${"-".repeat(11)} | ${"-".repeat(9)} | ${"-".repeat(10)} |`);
+
+        for (const row of summaryRows) {
+            console.log(`| ${(row.AppSite || "").padEnd(15)} | ${(row.AppFile || "").padEnd(10)} | ${(row.AppView || "").padEnd(10)} | ${String(row.NormalSize || 0).padEnd(8)} | ${String(row.PreProcessSize || 0).padEnd(8)} | ${String(row.NormalJsonSize || 0).padEnd(8)} | ${String(row.PreProcessJsonSize || 0).padEnd(11)} | ${(row.AllMatch || "").padEnd(9)} | ${(row.Error || "").padEnd(10)} |`);
+        }
+
+        console.log(`| ${"-".repeat(15)} | ${"-".repeat(10)} | ${"-".repeat(10)} | ${"-".repeat(8)} | ${"-".repeat(8)} | ${"-".repeat(8)} | ${"-".repeat(11)} | ${"-".repeat(9)} | ${"-".repeat(10)} |`);
     }
 
-    // Print header
-    process.stdout.write("| ");
-    for (let i = 0; i < colCount; i++) {
-        process.stdout.write(headers[i].padEnd(widths[i]));
-        if (i < colCount - 1) process.stdout.write(" | ");
-    }
-    console.log(" |");
-
-    // Print divider
-    process.stdout.write("|");
-    for (let i = 0; i < colCount; i++) {
-        process.stdout.write(" " + "-".repeat(widths[i]) + " ");
-        if (i < colCount - 1) process.stdout.write("|");
-    }
-    console.log("|");
-
-    // Print rows
-    for (const row of summaryRows) {
-        process.stdout.write("| ");
-        process.stdout.write((row.AppSite || "").padEnd(widths[0]));
-        process.stdout.write(" | ");
-        process.stdout.write((row.AppFile || "").padEnd(widths[1]));
-        process.stdout.write(" | ");
-        process.stdout.write((row.AppView || "").padEnd(widths[2]));
-        process.stdout.write(" | ");
-        process.stdout.write((row.NormalPreProcess || "").padEnd(widths[3]));
-        process.stdout.write(" | ");
-        process.stdout.write((row.CrossViewUnMatch || "").padEnd(widths[4]));
-        process.stdout.write(" | ");
-        process.stdout.write((row.Error || "").padEnd(widths[5]));
-        console.log(" |");
-    }
-
-    // Print bottom divider
-    process.stdout.write("|");
-    for (let i = 0; i < colCount; i++) {
-        process.stdout.write(" " + "-".repeat(widths[i]) + " ");
-        if (i < colCount - 1) process.stdout.write("|");
-    }
-    console.log("|");
-
-    // Save HTML and JSON files
     try {
         const reportsDir = path.join(projectDirectory, 'Analysis', 'Reports');
         fs.mkdir(reportsDir, { recursive: true }).then(() => {
@@ -359,7 +308,7 @@ export function printTestSummaryTable(assemblerWebDirPath, projectDirectory, sum
             const outFile = path.join(reportsDir, `nodejs_${testTypeFile}_Summary.html`);
             const jsonFile = path.join(reportsDir, `nodejs_${testTypeFile}_Summary.json`);
 
-            const htmlContent = generateSummaryHtml(summaryRows, testType);
+            const htmlContent = generateSummaryHtml(summaryRows, testType, isAdvancedTest);
             fs.writeFile(outFile, htmlContent).then(() => {
                 console.log(`Test summary HTML saved to: ${outFile}`);
             });
@@ -375,7 +324,7 @@ export function printTestSummaryTable(assemblerWebDirPath, projectDirectory, sum
     console.log("\n======================================================\n");
 }
 
-function generateSummaryHtml(summaryRows, testType) {
+function generateSummaryHtml(summaryRows, testType, isAdvancedTest = false) {
     let html = `<!DOCTYPE html>
 <html>
 <head>
@@ -403,29 +352,72 @@ function generateSummaryHtml(summaryRows, testType) {
     <h1>Node.js ${testType} Summary</h1>
     <div class="meta" style="color: #666; font-style: italic; margin-bottom: 10px;">Generated: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC</div>
     <div class="table-container">
-    <table>
+    <table>`;
+
+    if (isAdvancedTest) {
+        html += `
         <tr>
             <th>AppSite</th>
             <th>AppFile</th>
             <th>AppView</th>
-            <th>OutputMatch</th>
+            <th>Normal</th>
+            <th>PreProc</th>
+            <th>NormJson</th>
+            <th>PreProcJson</th>
+            <th>Match All</th>
             <th>ViewUnMatch</th>
             <th>Error</th>
         </tr>`;
 
-    for (const row of summaryRows) {
-        const outputMatchClass = row.NormalPreProcess === "PASS" ? "pass" : (row.NormalPreProcess === "FAIL" ? "fail" : "");
-        const viewUnMatchClass = row.CrossViewUnMatch === "PASS" ? "pass" : (row.CrossViewUnMatch === "FAIL" ? "fail" : "");
+        for (const row of summaryRows) {
+            const allMatch = row.NormalSize === row.PreProcessSize && row.NormalSize === row.NormalJsonSize && row.NormalSize === row.PreProcessJsonSize;
+            const matchIndicator = allMatch ? "✓" : "✗";
+            const matchClass = allMatch ? "pass" : "fail";
+            const viewUnMatchClass = row.CrossViewUnMatch === "PASS" ? "pass" : (row.CrossViewUnMatch === "FAIL" ? "fail" : "");
 
-        html += `
+            html += `
         <tr>
             <td>${row.AppSite}</td>
             <td>${row.AppFile}</td>
             <td>${row.AppView}</td>
-            <td class="${outputMatchClass}">${row.NormalPreProcess}</td>
+            <td>${row.NormalSize}</td>
+            <td>${row.PreProcessSize}</td>
+            <td>${row.NormalJsonSize}</td>
+            <td>${row.PreProcessJsonSize}</td>
+            <td class="${matchClass}">${matchIndicator}</td>
             <td class="${viewUnMatchClass}">${row.CrossViewUnMatch}</td>
             <td>${row.Error}</td>
         </tr>`;
+        }
+    } else {
+        html += `
+        <tr>
+            <th>AppSite</th>
+            <th>AppFile</th>
+            <th>AppView</th>
+            <th>Normal</th>
+            <th>PreProc</th>
+            <th>NormJson</th>
+            <th>PreProcJson</th>
+            <th>All Match</th>
+            <th>Error</th>
+        </tr>`;
+
+        for (const row of summaryRows) {
+            const allMatch = row.AllMatch === "PASS" ? "pass" : "fail";
+            html += `
+        <tr>
+            <td>${row.AppSite}</td>
+            <td>${row.AppFile}</td>
+            <td>${row.AppView}</td>
+            <td>${row.NormalSize}</td>
+            <td>${row.PreProcessSize}</td>
+            <td>${row.NormalJsonSize}</td>
+            <td>${row.PreProcessJsonSize}</td>
+            <td class="${allMatch}">${row.AllMatch}</td>
+            <td>${row.Error}</td>
+        </tr>`;
+        }
     }
 
     html += `
@@ -437,19 +429,7 @@ function generateSummaryHtml(summaryRows, testType) {
     return html;
 }
 
-function getValue(row, index) {
-    switch (index) {
-        case 0: return row.AppSite || "";
-        case 1: return row.AppFile || "";
-        case 2: return row.AppView || "";
-        case 3: return row.NormalPreProcess || "";
-        case 4: return row.CrossViewUnMatch || "";
-        case 5: return row.Error || "";
-        default: return "";
-    }
-}
-
-export async function dumpPreprocessedTemplateStructures(assemblerWebDirPath, projectDirectory, scenarios, skipDetails = false) {
+export async function dumpPreprocessedTemplateStructures(assemblerWebDirPath, projectDirectory, scenarios, searchAppSites, skipDetails = false) {
     if (!assemblerWebDirPath) {
         if (!skipDetails)
             console.log("❌ No assemblerWebDirPath passed for DumpPreprocessedTemplateStructures");
@@ -468,7 +448,6 @@ export async function dumpPreprocessedTemplateStructures(assemblerWebDirPath, pr
         return;
     }
 
-    // Get unique AppSites from scenarios
     const appSites = [...new Set(scenarios.map(s => s.appSite))];
 
     for (const site of appSites) {
@@ -476,25 +455,21 @@ export async function dumpPreprocessedTemplateStructures(assemblerWebDirPath, pr
             LoaderNormal.clearCache();
             LoaderPreProcess.clearCache();
 
-            const templates = LoaderNormal.loadGetTemplateFiles(assemblerWebDirPath, site);
-            const preprocessedSiteTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, site);
-
+            const preprocessedSiteTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, site, searchAppSites);
             const fullJson = Assembler.ApiResponse.serializePreprocessedSiteTemplates(preprocessedSiteTemplates, true);
 
-            // Save to file for easier analysis
-            const outputDir = path.join(projectDirectory, 'Analysis');
-            await fs.mkdir(outputDir, { recursive: true });
+			const outputDir = path.join(projectDirectory, 'Analysis', 'dump');
+			await fs.mkdir(outputDir, { recursive: true });
 
-            const summaryFile = path.join(outputDir, `${site}_summary.json`);
-            const fullFile = path.join(outputDir, `${site}_full.json`);
+			const summaryFile = path.join(outputDir, `${site}_summary.json`);
+			const fullFile = path.join(outputDir, `${site}_full.json`);
 
-            // Delete existing files
             try {
                 await fs.unlink(summaryFile);
-            } catch {}
+            } catch {} 
             try {
                 await fs.unlink(fullFile);
-            } catch {}
+            } catch {} 
 
             const summary = Assembler.ApiResponse.createPreprocessedSummary(preprocessedSiteTemplates);
             await fs.writeFile(summaryFile, Assembler.ApiResponse.serializePreprocessedSummary(summary, true));

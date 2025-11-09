@@ -1216,18 +1216,9 @@ class AssemblerTestEndpoint
                 return $response->withStatus(400);
             }
 
-            // Validate output size against template size + buffer
-            $templateTotalSize = SecurityValidator::getTemplateTotalSize($appSite, $appView ?? '');
+            // Log output size (size validation removed - TotalSize no longer tracked)
             $outputSize = strlen($htmlContent);
-            $maxAllowedSize = $templateTotalSize + SecurityValidator::OUTPUT_SIZE_BUFFER;
-            error_log(sprintf("[/api/save-output] Size validation: output=%d, template=%d, buffer=%d, max=%d", $outputSize, $templateTotalSize, SecurityValidator::OUTPUT_SIZE_BUFFER, $maxAllowedSize));
-
-            if (!SecurityValidator::isValidOutputSizeWithBuffer($htmlContent, $templateTotalSize)) {
-                $errorMsg = sprintf('Save output failed: output size (%d bytes) exceeds max size allowed (%d bytes = template %d + buffer %d)', $outputSize, $maxAllowedSize, $templateTotalSize, SecurityValidator::OUTPUT_SIZE_BUFFER);
-                error_log("[/api/save-output] {$errorMsg}");
-                $response->getBody()->write($errorMsg);
-                return $response->withStatus(400);
-            }
+            error_log(sprintf("[/api/save-output] Output size: %d bytes", $outputSize));
 
             $outputDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'output';
             if (!is_dir($outputDir)) {

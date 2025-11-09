@@ -39,12 +39,13 @@ class EngineNormal
      * @param string $appFile The application file name
      * @param string|null $appView The application view name (optional)
      * @param array<string, TemplateResult> $templates Array of available templates
+     * @param string $searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @param bool $enableJsonProcessing Whether to enable JSON data processing
      * @return string HTML with placeholders replaced
      */
-    public function mergeTemplates(string $appSite, string $appFile, ?string $appView, array $templates, bool $enableJsonProcessing = true): string
+    public function mergeTemplates(string $appSite, string $appFile, ?string $appView, array $templates, string $searchAppSites, bool $enableJsonProcessing = true): string
     {
-        Logger::debug("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? 'null') . ", enableJson=" . ($enableJsonProcessing ? 'true' : 'false'), 'EngineNormal');
+        Logger::debug("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? 'null') . ", searchAppSites=$searchAppSites, enableJson=" . ($enableJsonProcessing ? 'true' : 'false'), 'EngineNormal');
 
         if (empty($templates)) {
             Logger::warn('No templates available', 'EngineNormal');
@@ -64,12 +65,56 @@ class EngineNormal
                 $fallbackTemplateKey = strtolower($appSite) . '_' . strtolower($appKey);
                 $mainTemplate = $templates[$fallbackTemplateKey] ?? null;
                 if (!$mainTemplate) {
+                    // Try searchAppSites fallback
+                    $foundInSearchAppSites = false;
+                    if (!empty($searchAppSites)) {
+                        $searchAppSitesArray = explode(',', $searchAppSites);
+                        foreach ($searchAppSitesArray as $searchAppSite) {
+                            $searchAppSite = trim($searchAppSite);
+                            if (empty($searchAppSite)) {
+                                continue;
+                            }
+
+                            $searchKey = strtolower($searchAppSite) . '_' . strtolower($appFile);
+                            if (isset($templates[$searchKey])) {
+                                $mainTemplate = $templates[$searchKey];
+                                Logger::debug("Main template '$appFile' not found in '$appSite', using fallback from '$searchAppSite'", 'EngineNormal');
+                                $foundInSearchAppSites = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!$foundInSearchAppSites) {
+                        Logger::warn("Main template not found for appSite=$appSite, appFile=$appFile", 'EngineNormal');
+                        return '';
+                    }
+                }
+            } else {
+                // Try searchAppSites fallback
+                $foundInSearchAppSites = false;
+                if (!empty($searchAppSites)) {
+                    $searchAppSitesArray = explode(',', $searchAppSites);
+                    foreach ($searchAppSitesArray as $searchAppSite) {
+                        $searchAppSite = trim($searchAppSite);
+                        if (empty($searchAppSite)) {
+                            continue;
+                        }
+
+                        $searchKey = strtolower($searchAppSite) . '_' . strtolower($appFile);
+                        if (isset($templates[$searchKey])) {
+                            $mainTemplate = $templates[$searchKey];
+                            Logger::debug("Main template '$appFile' not found in '$appSite', using fallback from '$searchAppSite'", 'EngineNormal');
+                            $foundInSearchAppSites = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$foundInSearchAppSites) {
                     Logger::warn("Main template not found for appSite=$appSite, appFile=$appFile", 'EngineNormal');
                     return '';
                 }
-            } else {
-                Logger::warn("Main template not found for appSite=$appSite, appFile=$appFile", 'EngineNormal');
-                return '';
             }
         }
 
@@ -123,10 +168,10 @@ class EngineNormal
 
             Logger::debug("Pass $actualPasses, current size: " . strlen($contentHtml), 'EngineNormal');
 
-            $afterSlots = $this->mergeTemplateSlots($before, $appSite, $appView, $mergedTemplates);
+            $afterSlots = $this->mergeTemplateSlots($before, $appSite, $appView, $mergedTemplates, $searchAppSites);
             Logger::debug('After slot merge: ' . strlen($afterSlots) . ' chars', 'EngineNormal');
 
-            $afterJson = $this->replaceTemplatePlaceholdersWithJson($afterSlots, $appSite, $mergedTemplates, $allJsonValues, $appView);
+            $afterJson = $this->replaceTemplatePlaceholdersWithJson($afterSlots, $appSite, $mergedTemplates, $allJsonValues, $searchAppSites, $appView);
             Logger::debug('After placeholder replacement: ' . strlen($afterJson) . ' chars', 'EngineNormal');
 
             $changed = $afterJson !== $before;
@@ -147,12 +192,13 @@ class EngineNormal
      * @param string $appSite Application site
      * @param string $templateName Template name
      * @param array<string, TemplateResult> $templates Available templates
+     * @param string $searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @param string|null $appView Application view
      * @param string|null $appViewPrefix Application view prefix
      * @param bool $useAppViewFallback Whether to use AppView fallback
      * @return array Array with 'html' and 'json' keys
      */
-    public function getTemplate(string $appSite, string $templateName, array $templates, ?string $appView = null, ?string $appViewPrefix = null, bool $useAppViewFallback = true): array
+    public function getTemplate(string $appSite, string $templateName, array $templates, string $searchAppSites, ?string $appView = null, ?string $appViewPrefix = null, bool $useAppViewFallback = true): array
     {
         if (empty($templates)) {
             return ['html' => null, 'json' => null];
@@ -160,7 +206,7 @@ class EngineNormal
 
         $viewPrefix = $appViewPrefix ?? $this->appViewPrefix;
         $primaryTemplateKey = strtolower($appSite) . '_' . strtolower($templateName);
-        
+
         // FIRST: Check for AppView-specific template resolution when AppView context is provided
         if ($useAppViewFallback && $appView && $viewPrefix && stripos($templateName, $viewPrefix) !== false) {
             $appKey = str_ireplace($viewPrefix, $appView, $templateName);
@@ -177,6 +223,24 @@ class EngineNormal
             return ['html' => $primaryTemplate->html, 'json' => $primaryTemplate->json];
         }
 
+        // THIRD: Search in SearchAppSites as fallback
+        if (!empty($searchAppSites)) {
+            $searchAppSitesArray = explode(',', $searchAppSites);
+            foreach ($searchAppSitesArray as $searchAppSite) {
+                $searchAppSite = trim($searchAppSite);
+                if (empty($searchAppSite)) {
+                    continue;
+                }
+
+                $searchKey = strtolower($searchAppSite) . '_' . strtolower($templateName);
+                $searchTemplate = $templates[$searchKey] ?? null;
+                if ($searchTemplate) {
+                    Logger::debug("Component '$templateName' not found in '$appSite', using fallback from '$searchAppSite'", 'EngineNormal');
+                    return ['html' => $searchTemplate->html, 'json' => $searchTemplate->json];
+                }
+            }
+        }
+
         return ['html' => null, 'json' => null];
     }
 
@@ -186,10 +250,11 @@ class EngineNormal
      * @param string $appSite Application site
      * @param array<string, string> $htmlFiles HTML template files
      * @param array<string, string> $jsonValues JSON values
+     * @param string $searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @param string|null $appView Application view
      * @return string Processed HTML
      */
-    private function replaceTemplatePlaceholdersWithJson(string $html, string $appSite, array $htmlFiles, array $jsonValues, ?string $appView = null): string
+    private function replaceTemplatePlaceholdersWithJson(string $html, string $appSite, array $htmlFiles, array $jsonValues, string $searchAppSites, ?string $appView = null): string
     {
         $result = $html;
         $searchPos = 0;
@@ -225,11 +290,12 @@ class EngineNormal
 
             // Look up replacement in templates
             $templateData = $this->getTemplate(
-                $appSite, 
-                $placeholderName, 
-                $templatesForGetTemplate, 
-                $appView, 
-                $this->appViewPrefix, 
+                $appSite,
+                $placeholderName,
+                $templatesForGetTemplate,
+                $searchAppSites,
+                $appView,
+                $this->appViewPrefix,
                 true
             );
 
@@ -237,10 +303,11 @@ class EngineNormal
 
             if ($templateData['html']) {
                 $processedReplacement = $this->replaceTemplatePlaceholdersWithJson(
-                    $templateData['html'], 
-                    $appSite, 
-                    $htmlFiles, 
-                    $jsonValues ?: [], 
+                    $templateData['html'],
+                    $appSite,
+                    $htmlFiles,
+                    $jsonValues ?: [],
+                    $searchAppSites,
                     $appView
                 );
             } elseif (!empty($jsonValues) && isset($jsonValues[strtolower($placeholderName)])) {
@@ -266,9 +333,10 @@ class EngineNormal
      * @param string $appSite Application site
      * @param string|null $appView Application view
      * @param array<string, string> $templates Available templates
+     * @param string $searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @return string HTML with slots filled
      */
-    private function mergeTemplateSlots(string $contentHtml, string $appSite, ?string $appView, array $templates): string
+    private function mergeTemplateSlots(string $contentHtml, string $appSite, ?string $appView, array $templates, string $searchAppSites): string
     {
         if (empty($contentHtml) || empty($templates)) {
             return $contentHtml;
@@ -276,9 +344,9 @@ class EngineNormal
 
         do {
             $previous = $contentHtml;
-            $contentHtml = $this->processTemplateSlots($contentHtml, $appSite, $appView, $templates);
+            $contentHtml = $this->processTemplateSlots($contentHtml, $appSite, $appView, $templates, $searchAppSites);
         } while ($contentHtml !== $previous);
-        
+
         return $contentHtml;
     }
 
@@ -288,9 +356,10 @@ class EngineNormal
      * @param string $appSite Application site
      * @param string|null $appView Application view
      * @param array<string, string> $templates Available templates
+     * @param string $searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @return string Processed HTML
      */
-    private function processTemplateSlots(string $contentHtml, string $appSite, ?string $appView, array $templates): string
+    private function processTemplateSlots(string $contentHtml, string $appSite, ?string $appView, array $templates, string $searchAppSites): string
     {
         $result = $contentHtml;
         $searchPos = 0;
@@ -324,13 +393,13 @@ class EngineNormal
             $innerContent = substr($result, $innerStart, $closeStart - $innerStart);
 
             // Process the template replacement using the GetTemplate method
-            $templateData = $this->getTemplate($appSite, $templateName, 
-                array_map(function($html) { return (object)['html' => $html, 'json' => null]; }, $templates), 
-                $appView, $this->appViewPrefix, true);
+            $templateData = $this->getTemplate($appSite, $templateName,
+                array_map(function($html) { return (object)['html' => $html, 'json' => null]; }, $templates),
+                $searchAppSites, $appView, $this->appViewPrefix, true);
 
             if ($templateData['html']) {
                 // Extract slot contents
-                $slotContents = $this->extractSlotContents($innerContent, $appSite, $appView, $templates);
+                $slotContents = $this->extractSlotContents($innerContent, $appSite, $appView, $templates, $searchAppSites);
 
                 // Replace slots in template
                 $processedTemplate = $templateData['html'];
@@ -359,9 +428,10 @@ class EngineNormal
      * @param string $appSite Application site
      * @param string|null $appView Application view
      * @param array<string, string> $templates Available templates
+     * @param string $searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @return array<string, string> Slot contents
      */
-    private function extractSlotContents(string $innerContent, string $appSite, ?string $appView, array $templates): array
+    private function extractSlotContents(string $innerContent, string $appSite, ?string $appView, array $templates, string $searchAppSites): array
     {
         $slotContents = [];
         $searchPos = 0;
@@ -407,8 +477,8 @@ class EngineNormal
             $slotKey = empty($slotNum) ? '{{$HTMLPLACEHOLDER}}' : '{{$HTMLPLACEHOLDER' . $slotNum . '}}';
 
             // Process both slotted templates AND simple placeholders in slot content
-            $recursiveResult = $this->mergeTemplateSlots($slotContent, $appSite, $appView, $templates);
-            $recursiveResult = $this->replaceTemplatePlaceholders($recursiveResult, $appSite, $appView, $templates);
+            $recursiveResult = $this->mergeTemplateSlots($slotContent, $appSite, $appView, $templates, $searchAppSites);
+            $recursiveResult = $this->replaceTemplatePlaceholders($recursiveResult, $appSite, $appView, $templates, $searchAppSites);
             $slotContents[$slotKey] = $recursiveResult;
 
             $searchPos = $closeStart + strlen($closeTag);
@@ -423,9 +493,10 @@ class EngineNormal
      * @param string $appSite Application site
      * @param string|null $appView Application view
      * @param array<string, string> $htmlFiles Available templates
+     * @param string $searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @return string Processed HTML
      */
-    private function replaceTemplatePlaceholders(string $html, string $appSite, ?string $appView, array $htmlFiles): string
+    private function replaceTemplatePlaceholders(string $html, string $appSite, ?string $appView, array $htmlFiles, string $searchAppSites): string
     {
         $result = $html;
         $searchPos = 0;
@@ -469,14 +540,14 @@ class EngineNormal
             }
 
             // Look up replacement in templates - use getTemplate method for consistent AppView logic
-            $templateData = $this->getTemplate($appSite, $placeholderName, 
-                array_map(function($html) { return (object)['html' => $html, 'json' => null]; }, $htmlFiles), 
-                $appView, $this->appViewPrefix, true);
+            $templateData = $this->getTemplate($appSite, $placeholderName,
+                array_map(function($html) { return (object)['html' => $html, 'json' => null]; }, $htmlFiles),
+                $searchAppSites, $appView, $this->appViewPrefix, true);
 
             $processedReplacement = null;
 
             if ($templateData['html']) {
-                $processedReplacement = $this->replaceTemplatePlaceholdersWithJson($templateData['html'], $appSite, $htmlFiles, $jsonValues ?: [], $appView);
+                $processedReplacement = $this->replaceTemplatePlaceholdersWithJson($templateData['html'], $appSite, $htmlFiles, $jsonValues ?: [], $searchAppSites, $appView);
             } elseif ($jsonValues && isset($jsonValues[$placeholderName])) {
                 // If template not found, try JSON value
                 $processedReplacement = $jsonValues[$placeholderName];

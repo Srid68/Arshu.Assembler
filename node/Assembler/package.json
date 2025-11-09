@@ -35,7 +35,7 @@
     "url": "https://github.com/Srid68/Arshu.Assembler/issues"
   },
   "dependencies": {
-    "@arshu/arshu": "file:../../../LocalPackages/arshu-arshu-1.0.0.tgz"
+    "@arshu/arshu": "file:C:/Polyglot/Arshu.Assembler/LocalPackages/arshu-arshu-1.0.0.tgz"
   },
   "devDependencies": {}
 }

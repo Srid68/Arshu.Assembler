@@ -37,12 +37,13 @@ class EnginePreProcess
      * @param string $appFile The application file name
      * @param string|null $appView The application view name (optional)
      * @param array<string, PreprocessedTemplate> $preprocessedTemplates Dictionary of preprocessed templates for this specific appSite
+     * @param string $searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @param bool $enableJsonProcessing Whether to enable JSON data processing
      * @return string HTML with placeholders replaced using preprocessed structures
      */
-    public function mergeTemplates(string $appSite, string $appFile, ?string $appView, array $preprocessedTemplates, bool $enableJsonProcessing = true): string
+    public function mergeTemplates(string $appSite, string $appFile, ?string $appView, array $preprocessedTemplates, string $searchAppSites, bool $enableJsonProcessing = true): string
     {
-        Logger::debug("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? 'null') . ", enableJson=" . ($enableJsonProcessing ? 'true' : 'false'), 'EnginePreProcess');
+        Logger::debug("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? 'null') . ", searchAppSites=$searchAppSites, enableJson=" . ($enableJsonProcessing ? 'true' : 'false'), 'EnginePreProcess');
 
         if (empty($preprocessedTemplates)) {
             Logger::warn('No preprocessed templates available', 'EnginePreProcess');
@@ -52,7 +53,7 @@ class EnginePreProcess
         Logger::debug('Using ' . count($preprocessedTemplates) . ' preprocessed templates', 'EnginePreProcess');
 
         // Use the getTemplate method to retrieve the main template
-        $mainPreprocessed = $this->getTemplate($appSite, $appFile, $preprocessedTemplates, $appView, $this->appViewPrefix, true);
+        $mainPreprocessed = $this->getTemplate($appSite, $appFile, $preprocessedTemplates, $searchAppSites, $appView, $this->appViewPrefix, true);
         if ($mainPreprocessed === null) {
             Logger::warn("Main template not found for appSite=$appSite, appFile=$appFile", 'EnginePreProcess');
             return '';
@@ -64,7 +65,7 @@ class EnginePreProcess
         $contentHtml = $mainPreprocessed->originalContent;
 
         // Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
-        $contentHtml = $this->applyTemplateReplacements($contentHtml, $preprocessedTemplates, $enableJsonProcessing, $appView, $mainPreprocessed);
+        $contentHtml = $this->applyTemplateReplacements($contentHtml, $preprocessedTemplates, $enableJsonProcessing, $searchAppSites, $appView, $mainPreprocessed);
 
         Logger::debug('MergeTemplates complete: output size=' . strlen($contentHtml), 'EnginePreProcess');
 
@@ -76,12 +77,13 @@ class EnginePreProcess
      * @param string $appSite The application site name
      * @param string $templateName The template name (can be appFile or placeholderName)
      * @param array<string, PreprocessedTemplate> $preprocessedTemplates Dictionary of preprocessed templates
+     * @param string $searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @param string|null $appView The application view name (optional)
      * @param string|null $appViewPrefix The application view prefix (optional, uses instance property if not provided)
      * @param bool $useAppViewFallback Whether to apply AppView fallback logic
      * @return PreprocessedTemplate|null The template if found, null otherwise
      */
-    private function getTemplate(string $appSite, string $templateName, array $preprocessedTemplates, ?string $appView = null, ?string $appViewPrefix = null, bool $useAppViewFallback = true): ?PreprocessedTemplate 
+    private function getTemplate(string $appSite, string $templateName, array $preprocessedTemplates, string $searchAppSites, ?string $appView = null, ?string $appViewPrefix = null, bool $useAppViewFallback = true): ?PreprocessedTemplate 
     {
         if (empty($preprocessedTemplates)) {
             return null;
@@ -106,6 +108,23 @@ class EnginePreProcess
             return $preprocessedTemplates[$primaryTemplateKey];
         }
 
+        // THIRD: Search in SearchAppSites as fallback
+        if (!empty($searchAppSites)) {
+            $searchAppSitesArray = explode(',', $searchAppSites);
+            foreach ($searchAppSitesArray as $searchAppSite) {
+                $searchAppSite = trim($searchAppSite);
+                if (empty($searchAppSite)) {
+                    continue;
+                }
+
+                $searchKey = strtolower($searchAppSite) . '_' . strtolower($templateName);
+                if (isset($preprocessedTemplates[$searchKey])) {
+                    Logger::debug("Template '$templateName' not found in '$appSite', using fallback from '$searchAppSite'", 'EnginePreProcess');
+                    return $preprocessedTemplates[$searchKey];
+                }
+            }
+        }
+
         return null;
     }
 
@@ -114,11 +133,12 @@ class EnginePreProcess
      * @param string $content The content to apply replacements to
      * @param array<string, PreprocessedTemplate> $preprocessedTemplates Dictionary of preprocessed templates
      * @param bool $enableJsonProcessing Whether to enable JSON processing
+     * @param string $searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @param string|null $appView The application view name
      * @param PreprocessedTemplate|null $mainTemplate The main template (optional)
      * @return string Content with all replacements applied
      */
-    private function applyTemplateReplacements(string $content, array $preprocessedTemplates, bool $enableJsonProcessing, ?string $appView, ?PreprocessedTemplate $mainTemplate = null): string
+    private function applyTemplateReplacements(string $content, array $preprocessedTemplates, bool $enableJsonProcessing, string $searchAppSites, ?string $appView, ?PreprocessedTemplate $mainTemplate = null): string
     {
         $result = $content;
 
@@ -143,7 +163,7 @@ class EnginePreProcess
                 foreach ($mainTemplate->replacementMappings as $mapping) {
                     if ($mapping->type === ReplacementType::JSON_PLACEHOLDER) {
                         if (strpos($result, $mapping->originalText) !== false) {
-                            Logger::debug("Applying main template JSON placeholder: {$mapping->originalText} -> {$mapping->replacementText}", 'EnginePreProcess');
+                            Logger::debug("Applying main template JSON placeholder (original size: " . strlen($mapping->originalText) . ", replacement size: " . strlen($mapping->replacementText) . ")", 'EnginePreProcess');
                             $result = str_replace($mapping->originalText, $mapping->replacementText, $result);
                             $jsonPlaceholderCount++;
                         }
@@ -169,7 +189,7 @@ class EnginePreProcess
                     if ($mapping->type === ReplacementType::SIMPLE_TEMPLATE) {
                         if (strpos($result, $mapping->originalText) !== false) {
                             // Apply AppView logic before replacement
-                            $replacementText = $this->applyAppViewLogicToReplacement($mapping->originalText, $mapping->replacementText, $preprocessedTemplates, $appView);
+                            $replacementText = $this->applyAppViewLogicToReplacement($mapping->originalText, $mapping->replacementText, $preprocessedTemplates, $searchAppSites, $appView);
                             $result = str_replace($mapping->originalText, $replacementText, $result);
                             $simpleCount++;
                         }
@@ -193,13 +213,20 @@ class EnginePreProcess
      * @param string $originalText Original placeholder text
      * @param string $replacementText Current replacement text
      * @param array<string, PreprocessedTemplate> $preprocessedTemplates Dictionary of preprocessed templates
+     * @param string $searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @param string|null $appView The application view name
      * @return string Updated replacement text with AppView logic applied
      */
-    private function applyAppViewLogicToReplacement(string $originalText, string $replacementText, array $preprocessedTemplates, ?string $appView): string
+    private function applyAppViewLogicToReplacement(string $originalText, string $replacementText, array $preprocessedTemplates, string $searchAppSites, ?string $appView): string
     {
+        Logger::debug(
+            'ApplyAppViewLogicToReplacement: originalText=' . $originalText . ', hasReplacementText=' . (!empty($replacementText) ? 'true' : 'false') . ', appView=' . ($appView ?? 'null') . ', searchAppSites=' . $searchAppSites,
+            'EnginePreProcess'
+        );
+
         // If no appView context, use the default replacement text (which already has JSON values baked in)
         if (empty($appView)) {
+            Logger::debug('No appView context, returning replacementText', 'EnginePreProcess');
             return $replacementText;
         }
 
@@ -223,15 +250,22 @@ class EnginePreProcess
         $appSite = $parts[0]; // Extract appSite from the key pattern
 
         // Use GetTemplate to find the AppView-specific template variant
-        $appViewTemplate = $this->getTemplate($appSite, $placeholderName, $preprocessedTemplates, $appView, $this->appViewPrefix, true);
+        $appViewTemplate = $this->getTemplate($appSite, $placeholderName, $preprocessedTemplates, $searchAppSites, $appView, $this->appViewPrefix, true);
 
         // If no AppView-specific template found, use the default replacement text
         if ($appViewTemplate === null) {
             return $replacementText;
         }
 
-        // Return the AppView-specific template's original content (which already has JSON baked in by LoaderPreProcess)
-        return $appViewTemplate->originalContent;
+        // Apply JSON placeholder replacements before returning content
+        $processedContent = $appViewTemplate->originalContent;
+        foreach ($appViewTemplate->replacementMappings as $mapping) {
+            if ($mapping->type === ReplacementType::JSON_PLACEHOLDER && strpos($processedContent, $mapping->originalText) !== false) {
+                $processedContent = str_replace($mapping->originalText, $mapping->replacementText, $processedContent);
+            }
+        }
+
+        return $processedContent;
     }
 
     /**

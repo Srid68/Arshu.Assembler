@@ -3,8 +3,8 @@
 import fs from 'fs';
 import path from 'path';
 import { JsonConverter } from '../app/jsonConverter.js';
-import { CommonUtil } from '../common/commonUtil.js';
-import { Logger } from '@arshu/common';
+import { isAlphaNumeric, findMatchingCloseTag, removeRemainingSlotPlaceholders, normalizeFileContent } from '../common/commonUtil.js';
+import { Logger } from '@arshu/arshu/logger';
 import {
     PreprocessedSiteTemplates,
     PreprocessedTemplate,
@@ -22,13 +22,14 @@ export class LoaderPreProcess {
     /**
      * Loads and preprocesses HTML files from the specified application site directory into structured templates, caching the output per appSite and rootDirName
      * @param {string} rootDirPath - Root directory path
-     * @param {string} appSite - Application site name
+     * @param {string} appSite - Primary AppSite name to load
+     * @param {string} searchAppSites - Comma-delimited string of AppSite names to search for fallback templates (can be empty string)
      * @returns {PreprocessedSiteTemplates} PreprocessedSiteTemplates containing structured template data
      */
-    static loadProcessGetTemplateFiles(rootDirPath, appSite) {
-        Logger.debug(`LoadProcessGetTemplateFiles called for appSite: ${appSite}`, 'LoaderPreProcess');
+    static loadProcessGetTemplateFiles(rootDirPath, appSite, searchAppSites = '') {
+        Logger.debug(`LoadProcessGetTemplateFiles called for appSite: ${appSite}, searchAppSites: ${searchAppSites}`, 'LoaderPreProcess');
 
-        const cacheKey = `${path.dirname(rootDirPath)}|${appSite}`;
+        const cacheKey = `${path.dirname(rootDirPath)}|${appSite}|${searchAppSites}`;
 
         if (this.#preprocessedTemplatesCache.has(cacheKey)) {
             const cached = this.#preprocessedTemplatesCache.get(cacheKey);
@@ -36,6 +37,49 @@ export class LoaderPreProcess {
             return cached;
         }
 
+        // Load templates from primary appSite
+        const result = this.#loadTemplatesFromSingleAppSite(rootDirPath, appSite);
+
+        // Load templates from searchAppSites for fallback
+        if (searchAppSites) {
+            const searchAppSitesArray = searchAppSites.split(',');
+            for (const searchAppSite of searchAppSitesArray) {
+                const trimmedSearchAppSite = searchAppSite.trim();
+                if (!trimmedSearchAppSite) {
+                    continue;
+                }
+
+                const searchResult = this.#loadTemplatesFromSingleAppSite(rootDirPath, trimmedSearchAppSite);
+
+                // Merge templates (primary appSite takes precedence)
+                for (const [key, value] of searchResult.templates) {
+                    if (!result.templates.has(key)) {
+                        result.templates.set(key, value);
+                        result.rawTemplates.set(key, searchResult.rawTemplates.get(key));
+                        result.templateKeys.add(key);
+                        Logger.debug(`Added fallback template '${key}' from '${trimmedSearchAppSite}'`, 'LoaderPreProcess');
+                    }
+                }
+            }
+        }
+
+        // CRITICAL: Create ALL replacement mappings after all templates are loaded
+        // This ensures PreProcess engine does ONLY merging, no processing logic
+        this.#createAllReplacementMappingsForSite(result, appSite);
+
+        Logger.debug(`Created all replacement mappings for ${appSite}`, 'LoaderPreProcess');
+
+        this.#preprocessedTemplatesCache.set(cacheKey, result);
+        return result;
+    }
+
+    /**
+     * Loads templates from a single AppSite without caching or fallback logic
+     * @param {string} rootDirPath - Root directory path
+     * @param {string} appSite - Application site name
+     * @returns {PreprocessedSiteTemplates} PreprocessedSiteTemplates containing structured template data
+     */
+    static #loadTemplatesFromSingleAppSite(rootDirPath, appSite) {
         const result = new PreprocessedSiteTemplates();
         result.siteName = appSite;
 
@@ -43,7 +87,6 @@ export class LoaderPreProcess {
 
         if (!fs.existsSync(appSitesPath) || !fs.statSync(appSitesPath).isDirectory()) {
             Logger.warn(`AppSites directory not found: ${appSitesPath}`, 'LoaderPreProcess');
-            this.#preprocessedTemplatesCache.set(cacheKey, result);
             return result;
         }
 
@@ -55,7 +98,7 @@ export class LoaderPreProcess {
                 const fileName = path.basename(filePath, '.html');
                 const key = `${appSite.toLowerCase()}_${fileName.toLowerCase()}`;
 
-                const content = CommonUtil.normalizeFileContent(fs.readFileSync(filePath, 'utf8'));
+                const content = normalizeFileContent(fs.readFileSync(filePath, 'utf8'));
                 Logger.debug(`Loading template: ${key} (size: ${content.length})`, 'LoaderPreProcess');
 
                 // Find JSON file case-insensitively
@@ -63,7 +106,7 @@ export class LoaderPreProcess {
                 let jsonContent = null;
 
                 if (fs.existsSync(jsonFile)) {
-                    jsonContent = CommonUtil.normalizeFileContent(fs.readFileSync(jsonFile, 'utf8'));
+                    jsonContent = normalizeFileContent(fs.readFileSync(jsonFile, 'utf8'));
                     Logger.debug(`Found JSON file for ${key} (size: ${jsonContent.length})`, 'LoaderPreProcess');
                 } else {
                     // Try case-insensitive search in the same directory
@@ -76,7 +119,7 @@ export class LoaderPreProcess {
                         if (fs.statSync(entryPath).isFile() && path.extname(entry).toLowerCase() === '.json') {
                             const entryBase = path.basename(entry, path.extname(entry)).toLowerCase();
                             if (entryBase === baseName) {
-                                jsonContent = CommonUtil.normalizeFileContent(fs.readFileSync(entryPath, 'utf8'));
+                                jsonContent = normalizeFileContent(fs.readFileSync(entryPath, 'utf8'));
                                 Logger.debug(`Found JSON file (case-insensitive) for ${key} (size: ${jsonContent.length})`, 'LoaderPreProcess');
                                 break;
                             }
@@ -97,14 +140,6 @@ export class LoaderPreProcess {
         });
 
         Logger.debug(`Loaded ${result.templates.size} templates for ${appSite}`, 'LoaderPreProcess');
-
-        // CRITICAL: Create ALL replacement mappings after all templates are loaded
-        // This ensures PreProcess engine does ONLY merging, no processing logic
-        this.#createAllReplacementMappingsForSite(result, appSite);
-
-        Logger.debug(`Created all replacement mappings for ${appSite}`, 'LoaderPreProcess');
-
-        this.#preprocessedTemplatesCache.set(cacheKey, result);
         return result;
     }
 
@@ -215,14 +250,14 @@ export class LoaderPreProcess {
 
             // Extract template name
             const templateName = content.substring(openStart + 3, openEnd).trim();
-            if (!templateName || !CommonUtil.isAlphaNumeric(templateName)) {
+            if (!templateName || !isAlphaNumeric(templateName)) {
                 searchPos = openStart + 1;
                 continue;
             }
 
             // Look for corresponding closing tag
             const closeTag = `{{/${templateName}}}`;
-            const closeStart = CommonUtil.findMatchingCloseTag(
+            const closeStart = findMatchingCloseTag(
                 content, 
                 openEnd + 2, 
                 `{{#${templateName}}}`, 
@@ -282,7 +317,7 @@ export class LoaderPreProcess {
 
             // Extract placeholder name
             const placeholderName = content.substring(openStart + 2, closeStart).trim();
-            if (!placeholderName || !CommonUtil.isAlphaNumeric(placeholderName)) {
+            if (!placeholderName || !isAlphaNumeric(placeholderName)) {
                 searchPos = openStart + 2;
                 continue;
             }
@@ -333,7 +368,7 @@ export class LoaderPreProcess {
                 const closingTag = placeholderNumber ? `{{/HTMLPLACEHOLDER${placeholderNumber}}}` : `{{/HTMLPLACEHOLDER}}`;
                 const openTag = placeholder;
                 
-                const closingStart = CommonUtil.findMatchingCloseTag(
+                const closingStart = findMatchingCloseTag(
                     innerContent,
                     placeholderEnd,
                     openTag,
@@ -412,14 +447,14 @@ export class LoaderPreProcess {
 
             // Extract template name
             const templateName = slot.content.substring(openStart + 3, openEnd).trim();
-            if (!templateName || !CommonUtil.isAlphaNumeric(templateName)) {
+            if (!templateName || !isAlphaNumeric(templateName)) {
                 searchPos = openStart + 1;
                 continue;
             }
 
             // Look for corresponding closing tag
             const closeTag = `{{/${templateName}}}`;
-            const closeStart = CommonUtil.findMatchingCloseTag(
+            const closeStart = findMatchingCloseTag(
                 slot.content, 
                 openEnd + 2, 
                 `{{#${templateName}}}`, 
@@ -495,7 +530,7 @@ export class LoaderPreProcess {
                         mapping.endIndex = 0;
                         mapping.originalText = placeholder;
                         mapping.replacementText = value;
-                        mapping.type = ReplacementType.JSON_PLACEHOLDER;
+                        mapping.type = ReplacementType.JsonPlaceholder;
 
                         template.replacementMappings.push(mapping);
 
@@ -521,8 +556,21 @@ export class LoaderPreProcess {
         if (!template.hasPlaceholders) return;
 
         for (const placeholder of template.placeholders) {
+            // FIRST: Try current appSite
             const targetTemplateKey = `${appSite.toLowerCase()}_${placeholder.templateKey}`;
-            const targetTemplate = allTemplates.get(targetTemplateKey);
+            let targetTemplate = allTemplates.get(targetTemplateKey);
+
+            if (!targetTemplate) {
+                // SECOND: Search in all loaded templates (includes searchAppSites)
+                const searchKey = `_${placeholder.templateKey}`;
+                for (const [kvpKey, kvpValue] of allTemplates) {
+                    if (kvpKey.toLowerCase().endsWith(searchKey.toLowerCase())) {
+                        targetTemplate = kvpValue;
+                        Logger.debug(`Template '${placeholder.templateKey}' not found as '${targetTemplateKey}', using fallback from '${kvpKey}'`, 'LoaderPreProcess');
+                        break;
+                    }
+                }
+            }
 
             if (targetTemplate) {
                 // Start with the target template's original content
@@ -530,23 +578,24 @@ export class LoaderPreProcess {
 
                 // CRITICAL FIX: Apply the target template's JSON placeholder replacements
                 // This ensures nested components use their own JSON context (e.g., header.json for Header component)
-                let jsonMappingCount = 0;
-                for (const m of targetTemplate.replacementMappings) {
-                    if (m.type === ReplacementType.JSON_PLACEHOLDER && processedTemplate.includes(m.originalText)) {
-                        Logger.debug(`  Replacing '${m.originalText}' with '${m.replacementText}' in ${targetTemplateKey}`, 'LoaderPreProcess');
-                        processedTemplate = processedTemplate.replace(new RegExp(this.#escapeRegExp(m.originalText), 'g'), m.replacementText);
-                        jsonMappingCount++;
-                    }
+                const jsonMappings = targetTemplate.replacementMappings.filter(m => m.type === ReplacementType.JsonPlaceholder);
+                Logger.debug(`Applying ${jsonMappings.length} JSON mappings to ${targetTemplateKey}`, 'LoaderPreProcess');
+                Logger.debug(`Before replacements, template size: ${processedTemplate.length}`, 'LoaderPreProcess');
+                for (const jsonMapping of jsonMappings) {
+                    const before = processedTemplate.length;
+                    Logger.debug(`  Replacing placeholder (original size: ${jsonMapping.originalText.length}, replacement size: ${jsonMapping.replacementText.length})`, 'LoaderPreProcess');
+                    processedTemplate = processedTemplate.replace(new RegExp(this.#escapeRegExp(jsonMapping.originalText), 'g'), jsonMapping.replacementText);
+                    const after = processedTemplate.length;
+                    Logger.debug(`    Size changed from ${before} to ${after} (diff: ${after - before})`, 'LoaderPreProcess');
                 }
-                if (jsonMappingCount > 0) {
-                    Logger.debug(`Applied ${jsonMappingCount} JSON mappings to ${targetTemplateKey}`, 'LoaderPreProcess');
-                }
+                Logger.debug(`After replacements, template size: ${processedTemplate.length}`, 'LoaderPreProcess');
 
                 // Create the replacement mapping
+                Logger.debug(`Creating replacement mapping: ${placeholder.fullMatch} -> processed template (size: ${processedTemplate.length})`, 'LoaderPreProcess');
                 const mapping = new ReplacementMapping();
                 mapping.originalText = placeholder.fullMatch;
                 mapping.replacementText = processedTemplate;
-                mapping.type = ReplacementType.SIMPLE_TEMPLATE;
+                mapping.type = ReplacementType.SimpleTemplate;
 
                 template.replacementMappings.push(mapping);
             }
@@ -573,9 +622,22 @@ export class LoaderPreProcess {
         if (!template.hasSlottedTemplates) return;
 
         for (const slottedTemplate of template.slottedTemplates) {
+            // FIRST: Try current appSite
             const targetTemplateKey = `${appSite.toLowerCase()}_${slottedTemplate.templateKey}`;
-            const targetTemplate = allTemplates.get(targetTemplateKey);
-            
+            let targetTemplate = allTemplates.get(targetTemplateKey);
+
+            if (!targetTemplate) {
+                // SECOND: Search in all loaded templates (includes searchAppSites)
+                const searchKey = `_${slottedTemplate.templateKey}`;
+                for (const [kvpKey, kvpValue] of allTemplates) {
+                    if (kvpKey.toLowerCase().endsWith(searchKey.toLowerCase())) {
+                        targetTemplate = kvpValue;
+                        Logger.debug(`Slotted template '${slottedTemplate.templateKey}' not found as '${targetTemplateKey}', using fallback from '${kvpKey}'`, 'LoaderPreProcess');
+                        break;
+                    }
+                }
+            }
+
             if (targetTemplate) {
                 let processedTemplate = targetTemplate.originalContent;
 
@@ -585,14 +647,25 @@ export class LoaderPreProcess {
                     processedTemplate = processedTemplate.replace(slot.slotKey, processedSlotContent);
                 }
 
+                // Handle default slot content when no explicit slots are declared
+                if (slottedTemplate.slots.length === 0) {
+                    const actualInnerContent = slottedTemplate.innerContent;
+                    if (actualInnerContent && actualInnerContent.trim().length > 0) {
+                        const defaultSlotKey = '{{$HTMLPLACEHOLDER}}';
+                        if (processedTemplate.includes(defaultSlotKey)) {
+                            processedTemplate = processedTemplate.replaceAll(defaultSlotKey, actualInnerContent.trim());
+                        }
+                    }
+                }
+
                 // Remove remaining slot placeholders
-                processedTemplate = CommonUtil.removeRemainingSlotPlaceholders(processedTemplate);
+                processedTemplate = removeRemainingSlotPlaceholders(processedTemplate);
 
                 // Create the replacement mapping
                 const mapping = new ReplacementMapping();
                 mapping.originalText = slottedTemplate.fullMatch;
                 mapping.replacementText = processedTemplate;
-                mapping.type = ReplacementType.SLOTTED_TEMPLATE;
+                mapping.type = ReplacementType.SlottedTemplate;
                 
                 template.replacementMappings.push(mapping);
             }
@@ -612,8 +685,21 @@ export class LoaderPreProcess {
 
         // Process nested slotted templates recursively
         for (const nestedSlottedTemplate of slot.nestedSlottedTemplates) {
+            // FIRST: Try current appSite
             const targetTemplateKey = `${appSite.toLowerCase()}_${nestedSlottedTemplate.templateKey}`;
-            const targetTemplate = allTemplates.get(targetTemplateKey);
+            let targetTemplate = allTemplates.get(targetTemplateKey);
+
+            if (!targetTemplate) {
+                // SECOND: Search in all loaded templates (includes searchAppSites)
+                const searchKey = `_${nestedSlottedTemplate.templateKey}`;
+                for (const [kvpKey, kvpValue] of allTemplates) {
+                    if (kvpKey.toLowerCase().endsWith(searchKey.toLowerCase())) {
+                        targetTemplate = kvpValue;
+                        Logger.debug(`Nested slotted template '${nestedSlottedTemplate.templateKey}' not found as '${targetTemplateKey}', using fallback from '${kvpKey}'`, 'LoaderPreProcess');
+                        break;
+                    }
+                }
+            }
 
             if (targetTemplate) {
                 // Use the target template's original content without applying replacement mappings
@@ -627,7 +713,7 @@ export class LoaderPreProcess {
                 }
 
                 // Remove remaining slot placeholders
-                processedTemplate = CommonUtil.removeRemainingSlotPlaceholders(processedTemplate);
+                processedTemplate = removeRemainingSlotPlaceholders(processedTemplate);
 
                 // Replace in result
                 result = result.replace(nestedSlottedTemplate.fullMatch, processedTemplate);
@@ -636,8 +722,21 @@ export class LoaderPreProcess {
 
         // Process nested simple placeholders
         for (const nestedPlaceholder of slot.nestedPlaceholders) {
+            // FIRST: Try current appSite
             const targetTemplateKey = `${appSite.toLowerCase()}_${nestedPlaceholder.templateKey}`;
-            const targetTemplate = allTemplates.get(targetTemplateKey);
+            let targetTemplate = allTemplates.get(targetTemplateKey);
+
+            if (!targetTemplate) {
+                // SECOND: Search in all loaded templates (includes searchAppSites)
+                const searchKey = `_${nestedPlaceholder.templateKey}`;
+                for (const [kvpKey, kvpValue] of allTemplates) {
+                    if (kvpKey.toLowerCase().endsWith(searchKey.toLowerCase())) {
+                        targetTemplate = kvpValue;
+                        Logger.debug(`Nested placeholder '${nestedPlaceholder.templateKey}' not found as '${targetTemplateKey}', using fallback from '${kvpKey}'`, 'LoaderPreProcess');
+                        break;
+                    }
+                }
+            }
 
             if (targetTemplate) {
                 // Start with the target template's original content
@@ -646,7 +745,7 @@ export class LoaderPreProcess {
                 // CRITICAL FIX: Apply the target template's JSON placeholder replacements
                 // This ensures nested components use their own JSON context
                 for (const mapping of targetTemplate.replacementMappings) {
-                    if (mapping.type === ReplacementType.JSON_PLACEHOLDER) {
+                    if (mapping.type === ReplacementType.JsonPlaceholder) {
                         processedTemplate = processedTemplate.replace(new RegExp(this.#escapeRegExp(mapping.originalText), 'g'), mapping.replacementText);
                     }
                 }
@@ -703,7 +802,7 @@ export class LoaderPreProcess {
                             mapping.endIndex = endIdx + blockEndTag.length;
                             mapping.originalText = fullBlock;
                             mapping.replacementText = processedArrayContent;
-                            mapping.type = ReplacementType.JSON_PLACEHOLDER;
+                            mapping.type = ReplacementType.JsonPlaceholder;
                             
                             template.replacementMappings.push(mapping);
 
@@ -732,7 +831,7 @@ export class LoaderPreProcess {
                                         emptyMapping.endIndex = emptyEndIdx + emptyBlockEnd.length;
                                         emptyMapping.originalText = fullEmptyBlock;
                                         emptyMapping.replacementText = emptyReplacement;
-                                        emptyMapping.type = ReplacementType.JSON_PLACEHOLDER;
+                                        emptyMapping.type = ReplacementType.JsonPlaceholder;
                                         
                                         template.replacementMappings.push(emptyMapping);
                                     }

@@ -7,7 +7,8 @@ import { EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResp
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DEFAULT_APP_SITE = 'Test';
+const DEFAULT_APP_SITE = 'Main';
+const SEARCH_APP_SITE = 'Common, Language'
 
 // Maximum parameter length to prevent DoS attacks
 const PARAM_MAX_LENGTH = 256;
@@ -164,22 +165,77 @@ export async function indexEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
 }
 
 /**
- * GET /api/scenarios - Get all scenarios
+ * GET /:appSite/:appView? - Navigation endpoint
  */
-export async function scenariosEndpoint(req, res, ConfigUtil) {
+export async function navigationEndpoint(req, res, EngineNormal, EnginePreProcess, EngineNormalJson, EnginePreProcessJson, LoaderNormal, LoaderPreProcess, LoaderNormalJson, LoaderPreProcessJson, ConfigUtil) {
   try {
+    const appSite = req.params.appSite;
+    const appView = req.params.appView || '';
+
+    // Validate AppSite against allowlist
+    const validAppSites = ConfigUtil.getAppSites();
+    if (!validAppSites.some(s => s.toLowerCase() === appSite.toLowerCase())) {
+      return res.status(400).send('Invalid AppSite value');
+    }
+
+    // Validate path components for path traversal attacks
+    if (!isValidPathComponent(appSite)) {
+      return res.status(400).send('Invalid characters in AppSite');
+    }
+
+    if (appView && !isValidPathComponent(appView)) {
+      return res.status(400).send('Invalid characters in AppView');
+    }
+
+    // Get AppFile from scenarios
     const scenarios = ConfigUtil.getScenarios();
-    const scenarioDtos = scenarios.map(s => ({
-      appSite: s.appSite,
-      appFile: s.appFile,
-      appView: s.appView,
-      displayName: s.displayName,
-      description: s.description
-    }));
-    res.json(scenarioDtos);
+    const matchingScenario = scenarios.find(s =>
+      s.appSite.toLowerCase() === appSite.toLowerCase() &&
+      s.appView.toLowerCase() === appView.toLowerCase()
+    );
+
+    if (!matchingScenario) {
+      return res.status(400).send(`No matching scenario found for AppSite='${appSite}' and AppView='${appView}'`);
+    }
+
+    const appFile = matchingScenario.appFile;
+
+    // Get engine type from query parameter (default to Normal)
+    const engineType = req.query.engine || 'Normal';
+
+    // Validate EngineType against allowlist
+    if (!isValidEngineType(engineType)) {
+      return res.status(400).send("Invalid engine type. Use 'Normal', 'PreProcess', 'NormalJson', or 'PreProcessJson'");
+    }
+
+    // Get wwwroot path
+    const wwwrootPath = getWwwrootPath();
+
+    // Merge using selected engine
+    let mergedHtml;
+    if (engineType.toLowerCase() === 'preprocess') {
+      const templates = LoaderPreProcess.loadProcessGetTemplateFiles(wwwrootPath, appSite);
+      const engine = new EnginePreProcess();
+      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, templates.templates);
+    } else if (engineType.toLowerCase() === 'normaljson') {
+      const loader = new LoaderNormalJson(wwwrootPath, appSite);
+      const engine = new EngineNormalJson();
+      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, loader);
+    } else if (engineType.toLowerCase() === 'preprocessjson') {
+      const loader = new LoaderPreProcessJson(wwwrootPath, appSite);
+      const engine = new EnginePreProcessJson();
+      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, loader);
+    } else {
+      const templates = LoaderNormal.loadGetTemplateFiles(wwwrootPath, appSite);
+      const engine = new EngineNormal();
+      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, templates);
+    }
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(mergedHtml);
   } catch (error) {
-    console.error('Error getting scenarios:', error);
-    res.status(500).json({ error: `Error loading scenarios: ${error.message}` });
+    console.error('Error in navigation endpoint:', error);
+    res.status(500).send('Internal server error');
   }
 }
 
@@ -469,7 +525,8 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
  */
 export function mapAssemblerEndpoints(app) {
     app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ConfigUtil));
-    app.get('/api/scenarios', (req, res) => scenariosEndpoint(req, res, ConfigUtil));
+    app.get('/:appSite', (req, res) => navigationEndpoint(req, res, EngineNormal, EnginePreProcess, EngineNormalJson, EnginePreProcessJson, LoaderNormal, LoaderPreProcess, LoaderNormalJson, LoaderPreProcessJson, ConfigUtil));
+    app.get('/:appSite/:appView', (req, res) => navigationEndpoint(req, res, EngineNormal, EnginePreProcess, EngineNormalJson, EnginePreProcessJson, LoaderNormal, LoaderPreProcess, LoaderNormalJson, LoaderPreProcessJson, ConfigUtil));
     app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil));
     app.post('/api/templates', (req, res) => getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil));
 }

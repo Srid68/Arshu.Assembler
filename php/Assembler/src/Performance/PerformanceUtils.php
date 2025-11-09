@@ -46,12 +46,14 @@ class PerformanceUtils
 {
     /**
      * @param string $assemblerWebDirPath
+     * @param string $projectDirectory
      * @param array $scenarios
+     * @param string $searchAppSites
      * @param bool $skipDetails
      * @param bool $enableJsonProcessing
      * @return PerfSummaryRow[]
      */
-    public static function runPerformanceComparison(string $assemblerWebDirPath, array $scenarios, bool $skipDetails = false, bool $enableJsonProcessing = true): array
+    public static function runPerformanceComparison(string $assemblerWebDirPath, string $projectDirectory, array $scenarios, string $searchAppSites, bool $skipDetails = false, bool $enableJsonProcessing = true): array
     {
         $startTime = microtime(true);
 
@@ -83,8 +85,8 @@ class PerformanceUtils
 
             LoaderNormal::clearCache();
             LoaderPreProcess::clearCache();
-            $templates = LoaderNormal::loadGetTemplateFiles($assemblerWebDirPath, $testAppSite);
-            $siteTemplates = LoaderPreProcess::loadProcessGetTemplateFiles($assemblerWebDirPath, $testAppSite);
+            $templates = LoaderNormal::loadGetTemplateFiles($assemblerWebDirPath, $testAppSite, $searchAppSites);
+            $siteTemplates = LoaderPreProcess::loadProcessGetTemplateFiles($assemblerWebDirPath, $testAppSite, $searchAppSites);
 
             if ($templates === null || count($templates) === 0) {
                 continue;
@@ -100,13 +102,13 @@ class PerformanceUtils
 
             // Warmup - run a few iterations first to ensure consistent performance
             for ($warmup = 0; $warmup < 100; $warmup++) {
-                $normalEngine->mergeTemplates($testAppSite, $appFileName, $appView, $templates, $enableJsonProcessing);
+                $normalEngine->mergeTemplates($testAppSite, $appFileName, $appView, $templates, $searchAppSites, $enableJsonProcessing);
             }
 
             $start = hrtime(true);
             $resultNormal = '';
             for ($i = 0; $i < $iterations; $i++) {
-                $resultNormal = $normalEngine->mergeTemplates($testAppSite, $appFileName, $appView, $templates, $enableJsonProcessing);
+                $resultNormal = $normalEngine->mergeTemplates($testAppSite, $appFileName, $appView, $templates, $searchAppSites, $enableJsonProcessing);
             }
             $normalTimeNanos = hrtime(true) - $start;
             $normalTime = round($normalTimeNanos / 1_000_000, 2);
@@ -123,13 +125,13 @@ class PerformanceUtils
 
             // Warmup for PreProcess engine
             for ($warmup = 0; $warmup < 100; $warmup++) {
-                $preProcessEngine->mergeTemplates($testAppSite, $appFileName, $appView, $siteTemplates->templates, $enableJsonProcessing);
+                $preProcessEngine->mergeTemplates($testAppSite, $appFileName, $appView, $siteTemplates->templates, $searchAppSites, $enableJsonProcessing);
             }
 
             $start = hrtime(true);
             $resultPreProcess = '';
             for ($i = 0; $i < $iterations; $i++) {
-                $resultPreProcess = $preProcessEngine->mergeTemplates($testAppSite, $appFileName, $appView, $siteTemplates->templates, $enableJsonProcessing);
+                $resultPreProcess = $preProcessEngine->mergeTemplates($testAppSite, $appFileName, $appView, $siteTemplates->templates, $searchAppSites, $enableJsonProcessing);
             }
             $preProcessTimeNanos = hrtime(true) - $start;
             $preProcessTime = round($preProcessTimeNanos / 1_000_000, 2);

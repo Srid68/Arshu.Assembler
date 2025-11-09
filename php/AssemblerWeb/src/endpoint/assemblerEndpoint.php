@@ -14,7 +14,8 @@ use Assembler\Config\ConfigUtil;
 
 class AssemblerEndpoint
 {
-    const DEFAULT_APP_SITE = 'Test';
+    const DEFAULT_APP_SITE = 'Main';
+    const SEARCH_APP_SITES = "Common, Language";
 
     private const PARAM_MAX_LENGTH = 256;
     private static array $validEngineTypes = ['normal', 'preprocess'];
@@ -167,28 +168,87 @@ class AssemblerEndpoint
         }
     }
 
-	public static function scenariosEndpoint(ServerRequest $request, Response $response): Response
+	public static function navigationEndpoint(ServerRequest $request, Response $response, string $projectRootPath, string $appSite, ?string $appView = null): Response
     {
         try {
-            $scenarios = ConfigUtil::getScenarios();
-            $scenarioDtos = [];
+            $appView = $appView ?? '';
 
-            foreach ($scenarios as $s) {
-                $scenarioDtos[] = [
-                    'appSite' => $s->appSite,
-                    'appFile' => $s->appFile,
-                    'appView' => $s->appView,
-                    'displayName' => $s->displayName,
-                    'description' => $s->description
-                ];
+            // Validate AppSite against allowlist
+            $validAppSites = ConfigUtil::getAppSites();
+            if (!in_array(strtolower($appSite), array_map('strtolower', $validAppSites))) {
+                $response->getBody()->write('Invalid AppSite value');
+                return $response->withStatus(400);
             }
 
-            $response->getBody()->write(json_encode($scenarioDtos));
-            return $response->withHeader('Content-Type', 'application/json');
+            // Validate path components for path traversal attacks
+            if (!SecurityValidator::isValidPathComponent($appSite)) {
+                $response->getBody()->write('Invalid characters in AppSite');
+                return $response->withStatus(400);
+            }
+
+            if (!empty($appView) && !SecurityValidator::isValidPathComponent($appView)) {
+                $response->getBody()->write('Invalid characters in AppView');
+                return $response->withStatus(400);
+            }
+
+            // Get AppFile from scenarios
+            $scenarios = ConfigUtil::getScenarios();
+            $matchingScenario = null;
+            foreach ($scenarios as $s) {
+                if (strcasecmp($s->appSite, $appSite) === 0 && strcasecmp($s->appView, $appView) === 0) {
+                    $matchingScenario = $s;
+                    break;
+                }
+            }
+
+            if ($matchingScenario === null) {
+                $response->getBody()->write("No matching scenario found for AppSite='$appSite' and AppView='$appView'");
+                return $response->withStatus(400);
+            }
+
+            $appFile = $matchingScenario->appFile;
+
+            // Get engine type from query parameter (default to Normal)
+            $queryParams = $request->getQueryParams();
+            $engineType = $queryParams['engine'] ?? 'Normal';
+
+            // Validate EngineType against allowlist
+            if (!SecurityValidator::isValidEngineType($engineType)) {
+                $response->getBody()->write("Invalid engine type. Use 'Normal', 'PreProcess', 'NormalJson', or 'PreProcessJson'");
+                return $response->withStatus(400);
+            }
+
+            // Get wwwroot path
+            $wwwrootPath = $projectRootPath . DIRECTORY_SEPARATOR . 'wwwroot';
+
+            // Merge using selected engine
+            $mergedHtml = '';
+            if (strcasecmp($engineType, 'PreProcess') === 0) {
+                $loader = new \Assembler\Loader\LoaderPreProcess();
+                $templates = $loader->loadProcessGetTemplateFiles($wwwrootPath, $appSite);
+                $engine = new \Assembler\Engine\EnginePreProcess();
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, $appView, $templates->templates);
+            } elseif (strcasecmp($engineType, 'NormalJson') === 0) {
+                $loader = new \Assembler\Loader\LoaderNormalJson($wwwrootPath, $appSite);
+                $engine = new \Assembler\Engine\EngineNormalJson();
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, $appView, $loader);
+            } elseif (strcasecmp($engineType, 'PreProcessJson') === 0) {
+                $loader = new \Assembler\Loader\LoaderPreProcessJson($wwwrootPath, $appSite);
+                $engine = new \Assembler\Engine\EnginePreProcessJson();
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, $appView, $loader);
+            } else {
+                $loader = new \Assembler\Loader\LoaderNormal();
+                $templates = $loader->loadGetTemplateFiles($wwwrootPath, $appSite);
+                $engine = new \Assembler\Engine\EngineNormal();
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, $appView, $templates);
+            }
+
+            $response->getBody()->write($mergedHtml);
+            return $response->withHeader('Content-Type', 'text/html');
         } catch (Exception $error) {
-            error_log('Error getting scenarios: ' . $error->getMessage());
-            $response->getBody()->write(json_encode(['error' => 'Error loading scenarios: ' . $error->getMessage()]));
-            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+            error_log('Error in navigation endpoint: ' . $error->getMessage());
+            $response->getBody()->write('Internal server error');
+            return $response->withStatus(500);
         }
     }
 
@@ -520,8 +580,12 @@ class AssemblerEndpoint
             return AssemblerEndpoint::indexEndpoint($request, $response, $projectDirectory);
         });
 
-        $app->get('/api/scenarios', function (ServerRequest $request, Response $response) {
-            return AssemblerEndpoint::scenariosEndpoint($request, $response);
+        $app->get('/{appSite}', function (ServerRequest $request, Response $response, array $args) use ($projectDirectory) {
+            return AssemblerEndpoint::navigationEndpoint($request, $response, $projectDirectory, $args['appSite']);
+        });
+
+        $app->get('/{appSite}/{appView}', function (ServerRequest $request, Response $response, array $args) use ($projectDirectory) {
+            return AssemblerEndpoint::navigationEndpoint($request, $response, $projectDirectory, $args['appSite'], $args['appView']);
         });
 
         $app->post('/merge', function (ServerRequest $request, Response $response) use ($projectDirectory) {

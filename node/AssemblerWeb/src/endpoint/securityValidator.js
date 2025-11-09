@@ -141,18 +141,3 @@ export function isValidOutputSizeWithBuffer(htmlContent, templateTotalSize) {
   return false; // if template size unknown, reject
 }
 
-/**
- * Get template total size for an appSite and appView from ConfigUtil
- */
-export function getTemplateTotalSize(appSite, appView = '') {
-  try {
-    const scenarios = ConfigUtil.getScenarios();
-    const match = scenarios.find(s =>
-      s.appSite.toLowerCase() === appSite.toLowerCase() &&
-      (s.appView || '').toLowerCase() === (appView || '').toLowerCase()
-    );
-    return match ? (match.totalSize || 0) : 0;
-  } catch (e) {
-    return 0;
-  }
-}

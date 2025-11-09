@@ -135,23 +135,6 @@ class SecurityValidator
         return false;
     }
 
-    /**
-     * Gets the template total size for an AppSite from scenarios
-     */
-    public static function getTemplateTotalSize(string $appSite, ?string $appView): int
-    {
-        try {
-            $scenarios = \Assembler\Config\ConfigUtil::getScenarios();
-            foreach ($scenarios as $s) {
-                if (strcasecmp($s->appSite, $appSite) === 0 && strcasecmp($s->appView ?? '', $appView ?? '') === 0) {
-                    return $s->totalSize ?? 0;
-                }
-            }
-            return 0;
-        } catch (\Exception $e) {
-            return 0;
-        }
-    }
 
     public static function isValidAppSite(?string $appSite, array $validAppSites): bool
     {

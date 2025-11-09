@@ -2,6 +2,10 @@
 namespace Assembler\Model;
 use Assembler\App\Json\JsonObject;
 class TemplatePlaceholder {
+    // Getter for templateKey
+    public function getTemplateKey(): string {
+        return $this->templateKey;
+    }
     public string $name = '';
     public int $startIndex = 0;
     public int $endIndex = 0;

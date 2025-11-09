@@ -1,8 +1,8 @@
 // Normal template engine for Node.js - IndexOf-based implementation for improved performance
 
 import { JsonConverter } from '../app/jsonConverter.js';
-import { CommonUtil } from '../common/commonUtil.js';
-import { Logger } from '@arshu/common';
+import { isAlphaNumeric, findMatchingCloseTag, removeRemainingSlotPlaceholders } from '../common/commonUtil.js';
+import { Logger } from '@arshu/arshu/logger';
 
 export class EngineNormal {
     constructor(appViewPrefix = '') {
@@ -18,24 +18,19 @@ export class EngineNormal {
     }
 
     /**
-     * Merges templates by r                // Remove any remaining slot placeholders
-                processedTemplate = CommonUtil.removeRemainingSlotPlaceholders(processedTemplate);
-
-                // Recursively process any remaining template placeholders in the processed template
-                processedTemplate = this.processTemplateSlots(processedTemplate, appSite, appView, templates);
-
-                // Replace the entire slotted sectiong placeholders with corresponding HTML
+     * Merges templates by replacing placeholders with corresponding HTML
      * This is a hybrid method that processes both slotted templates and simple placeholders
      * JSON files with matching names are automatically merged with HTML templates before processing
      * @param {string} appSite - The application site name for template key generation
      * @param {string} appFile - The application file name
      * @param {string|null} appView - The application view name (optional)
      * @param {Map<string, TemplateResult>} templates - Dictionary of available templates
+     * @param {string} searchAppSites - Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @param {boolean} enableJsonProcessing - Whether to enable JSON data processing
      * @returns {string} HTML with placeholders replaced
      */
-    mergeTemplates(appSite, appFile, appView, templates, enableJsonProcessing = true) {
-        Logger.debug(`MergeTemplates called: appSite=${appSite}, appFile=${appFile}, appView=${appView || 'null'}, enableJson=${enableJsonProcessing}`, 'EngineNormal');
+    mergeTemplates(appSite, appFile, appView, templates, searchAppSites, enableJsonProcessing = true) {
+        Logger.debug(`MergeTemplates called: appSite=${appSite}, appFile=${appFile}, appView=${appView || 'null'}, searchAppSites=${searchAppSites}, enableJson=${enableJsonProcessing}`, 'EngineNormal');
 
         if (!templates || templates.size === 0) {
             Logger.warn('No templates available', 'EngineNormal');
@@ -49,6 +44,7 @@ export class EngineNormal {
             appSite,
             appFile,
             templates,
+            searchAppSites,
             appView,
             this.appViewPrefix,
             true
@@ -123,10 +119,10 @@ export class EngineNormal {
 
             Logger.debug(`Pass ${actualPasses}, current size: ${contentHtml.length}`, 'EngineNormal');
 
-            contentHtml = this.mergeTemplateSlots(contentHtml, appSite, appView, processedTemplates);
+            contentHtml = this.mergeTemplateSlots(contentHtml, appSite, appView, processedTemplates, searchAppSites);
             Logger.debug(`After slot merge: ${contentHtml.length} chars`, 'EngineNormal');
 
-            contentHtml = this.replaceTemplatePlaceholdersWithJson(contentHtml, appSite, processedTemplates, allJsonValues, appView);
+            contentHtml = this.replaceTemplatePlaceholdersWithJson(contentHtml, appSite, processedTemplates, allJsonValues, searchAppSites, appView);
             Logger.debug(`After placeholder replacement: ${contentHtml.length} chars`, 'EngineNormal');
 
             if (contentHtml === previous) {
@@ -145,19 +141,20 @@ export class EngineNormal {
      * @param {string} appSite - Application site
      * @param {string} templateName - Template name
      * @param {Map<string, TemplateResult>} templates - Available templates
+     * @param {string} searchAppSites - Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @param {string|null} appView - Application view
      * @param {string} appViewPrefix - Application view prefix
      * @param {boolean} useAppViewFallback - Whether to use AppView fallback
      * @returns {Object} Object with html and json properties
      */
-    getTemplate(appSite, templateName, templates, appView = null, appViewPrefix = null, useAppViewFallback = true) {
+    getTemplate(appSite, templateName, templates, searchAppSites, appView = null, appViewPrefix = null, useAppViewFallback = true) {
         if (!templates || templates.size === 0) {
             return { html: null, json: null };
         }
 
         const viewPrefix = appViewPrefix || this.appViewPrefix;
         const primaryTemplateKey = `${appSite.toLowerCase()}_${templateName.toLowerCase()}`;
-        
+
         // FIRST: Check for AppView-specific template resolution when AppView context is provided
         if (useAppViewFallback && appView && appView.trim() !== '' && viewPrefix && viewPrefix.trim() !== '' &&
             templateName.toLowerCase().includes(viewPrefix.toLowerCase())) {
@@ -177,6 +174,24 @@ export class EngineNormal {
             return { html: primaryTemplate.html, json: primaryTemplate.json };
         }
 
+        // THIRD: Search in SearchAppSites as fallback
+        if (searchAppSites && searchAppSites.trim() !== '') {
+            const searchAppSitesArray = searchAppSites.split(',');
+            for (const searchAppSite of searchAppSitesArray) {
+                const trimmedSearchAppSite = searchAppSite.trim();
+                if (!trimmedSearchAppSite) {
+                    continue;
+                }
+
+                const searchKey = `${trimmedSearchAppSite.toLowerCase()}_${templateName.toLowerCase()}`;
+                const searchTemplate = templates.get(searchKey);
+                if (searchTemplate) {
+                    Logger.debug(`Component '${templateName}' not found in '${appSite}', using fallback from '${trimmedSearchAppSite}'`, 'EngineNormal');
+                    return { html: searchTemplate.html, json: searchTemplate.json };
+                }
+            }
+        }
+
         return { html: null, json: null };
     }
 
@@ -186,10 +201,11 @@ export class EngineNormal {
      * @param {string} appSite - Application site
      * @param {Map<string, string>} htmlFiles - HTML template files
      * @param {Map<string, string>} jsonValues - JSON values
+     * @param {string} searchAppSites - Comma-separated fallback AppSites to search when template not found
      * @param {string|null} appView - Application view
      * @returns {string} Processed HTML
      */
-    replaceTemplatePlaceholdersWithJson(html, appSite, htmlFiles, jsonValues, appView = null) {
+    replaceTemplatePlaceholdersWithJson(html, appSite, htmlFiles, jsonValues, searchAppSites, appView = null) {
         let result = html;
         let searchPos = 0;
 
@@ -211,7 +227,7 @@ export class EngineNormal {
 
             // Extract placeholder name
             const placeholderName = result.substring(openStart + 2, closeStart).trim();
-            if (!placeholderName || !CommonUtil.isAlphaNumeric(placeholderName)) {
+            if (!placeholderName || !isAlphaNumeric(placeholderName)) {
                 searchPos = openStart + 2;
                 continue;
             }
@@ -224,11 +240,12 @@ export class EngineNormal {
 
             // Look up replacement in templates
             const { html: templateContent } = this.getTemplate(
-                appSite, 
-                placeholderName, 
-                templatesForGetTemplate, 
-                appView, 
-                this.appViewPrefix, 
+                appSite,
+                placeholderName,
+                templatesForGetTemplate,
+                searchAppSites,
+                appView,
+                this.appViewPrefix,
                 true
             );
 
@@ -236,10 +253,11 @@ export class EngineNormal {
 
             if (templateContent) {
                 processedReplacement = this.replaceTemplatePlaceholdersWithJson(
-                    templateContent, 
-                    appSite, 
-                    htmlFiles, 
-                    jsonValues || new Map(), 
+                    templateContent,
+                    appSite,
+                    htmlFiles,
+                    jsonValues || new Map(),
+                    searchAppSites,
                     appView
                 );
             } else if (jsonValues && jsonValues.has(placeholderName.toLowerCase())) {
@@ -508,9 +526,10 @@ export class EngineNormal {
      * @param {string} appSite - Application site name
      * @param {string|null} appView - Application view
      * @param {Map<string, string>} templates - Available templates
+     * @param {string} searchAppSites - Comma-separated fallback AppSites to search when template not found
      * @returns {string} Merged HTML with slots filled
      */
-    mergeTemplateSlots(contentHtml, appSite, appView, templates) {
+    mergeTemplateSlots(contentHtml, appSite, appView, templates, searchAppSites) {
         if (!contentHtml || !templates || templates.size === 0) {
             return contentHtml;
         }
@@ -518,7 +537,7 @@ export class EngineNormal {
         let previous;
         do {
             previous = contentHtml;
-            contentHtml = this.processTemplateSlots(contentHtml, appSite, appView, templates);
+            contentHtml = this.processTemplateSlots(contentHtml, appSite, appView, templates, searchAppSites);
         } while (contentHtml !== previous);
 
         return contentHtml;
@@ -530,9 +549,10 @@ export class EngineNormal {
      * @param {string} appSite - Application site
      * @param {string|null} appView - Application view
      * @param {Map<string, string>} templates - Available templates
+     * @param {string} searchAppSites - Comma-separated fallback AppSites to search when template not found
      * @returns {string} Processed HTML
      */
-    processTemplateSlots(contentHtml, appSite, appView, templates) {
+    processTemplateSlots(contentHtml, appSite, appView, templates, searchAppSites) {
         let result = contentHtml;
         let searchPos = 0;
 
@@ -547,14 +567,14 @@ export class EngineNormal {
 
             // Extract template name
             const templateName = result.substring(openStart + 3, openEnd).trim();
-            if (!templateName || !CommonUtil.isAlphaNumeric(templateName)) {
+            if (!templateName || !isAlphaNumeric(templateName)) {
                 searchPos = openStart + 1;
                 continue;
             }
 
             // Look for corresponding closing tag
             const closeTag = `{{/${templateName}}}`;
-            const closeStart = CommonUtil.findMatchingCloseTag(
+            const closeStart = findMatchingCloseTag(
                 result, 
                 openEnd + 2, 
                 `{{#${templateName}}}`, 
@@ -578,17 +598,18 @@ export class EngineNormal {
 
             // Process the template replacement
             const { html: templateHtml } = this.getTemplate(
-                appSite, 
-                templateName, 
-                templatesForGetTemplate, 
-                appView, 
-                this.appViewPrefix, 
+                appSite,
+                templateName,
+                templatesForGetTemplate,
+                searchAppSites,
+                appView,
+                this.appViewPrefix,
                 true
             );
 
             if (templateHtml) {
                 // Extract slot contents
-                const slotContents = this.extractSlotContents(innerContent, appSite, appView, templates);
+                const slotContents = this.extractSlotContents(innerContent, appSite, appView, templates, searchAppSites);
 
                 // Replace slots in template
                 let processedTemplate = templateHtml;
@@ -599,10 +620,10 @@ export class EngineNormal {
                 }
 
                 // Remove any remaining slot placeholders
-                processedTemplate = CommonUtil.removeRemainingSlotPlaceholders(processedTemplate);
+                processedTemplate = removeRemainingSlotPlaceholders(processedTemplate);
 
                 // Recursively process any remaining template placeholders in the processed template
-                processedTemplate = this.processTemplateSlots(processedTemplate, appSite, appView, templates);
+                processedTemplate = this.processTemplateSlots(processedTemplate, appSite, appView, templates, searchAppSites);
 
                 // Replace the entire slotted section
                 const fullMatch = result.substring(openStart, closeStart + closeTag.length);
@@ -622,9 +643,10 @@ export class EngineNormal {
      * @param {string} appSite - Application site
      * @param {string|null} appView - Application view
      * @param {Map<string, string>} templates - Available templates
+     * @param {string} searchAppSites - Comma-separated fallback AppSites to search when template not found
      * @returns {Map<string, string>} Slot contents map
      */
-    extractSlotContents(innerContent, appSite, appView, templates) {
+    extractSlotContents(innerContent, appSite, appView, templates, searchAppSites) {
         const slotContents = new Map();
         let searchPos = 0;
 
@@ -650,7 +672,7 @@ export class EngineNormal {
                 const closingTag = placeholderNumber ? `{{/HTMLPLACEHOLDER${placeholderNumber}}}` : `{{/HTMLPLACEHOLDER}}`;
                 const openTag = placeholderNumber ? `{{@HTMLPLACEHOLDER${placeholderNumber}}}` : `{{@HTMLPLACEHOLDER}}`;
                 
-                const closingStart = CommonUtil.findMatchingCloseTag(innerContent, placeholderEnd, openTag, closingTag);
+                const closingStart = findMatchingCloseTag(innerContent, placeholderEnd, openTag, closingTag);
                 
                 if (closingStart !== -1) {
                     const slotContent = innerContent.substring(placeholderEnd, closingStart);
@@ -660,8 +682,8 @@ export class EngineNormal {
                     
                     // FIXED: Process both slotted templates AND simple placeholders in slot content
                     // This enables proper nested template processing to match the preprocessing implementation
-                    let recursiveResult = this.mergeTemplateSlots(slotContent, appSite, appView, templates);
-                    recursiveResult = this.replaceTemplatePlaceholders(recursiveResult, appSite, appView, templates);
+                    let recursiveResult = this.mergeTemplateSlots(slotContent, appSite, appView, templates, searchAppSites);
+                    recursiveResult = this.replaceTemplatePlaceholders(recursiveResult, appSite, appView, templates, searchAppSites);
                     
                     slotContents.set(slotKey, recursiveResult);
                     searchPos = closingStart + closingTag.length;
@@ -682,9 +704,10 @@ export class EngineNormal {
      * @param {string} appSite - Application site
      * @param {string|null} appView - Application view
      * @param {Map<string, string>} htmlFiles - Available templates
+     * @param {string} searchAppSites - Comma-separated fallback AppSites to search when template not found
      * @returns {string} Processed HTML
      */
-    replaceTemplatePlaceholders(html, appSite, appView, htmlFiles) {
+    replaceTemplatePlaceholders(html, appSite, appView, htmlFiles, searchAppSites) {
         let result = html;
         let searchPos = 0;
 
@@ -723,7 +746,7 @@ export class EngineNormal {
 
             // Extract placeholder name
             const placeholderName = result.substring(openStart + 2, closeStart).trim();
-            if (!placeholderName || !CommonUtil.isAlphaNumeric(placeholderName)) {
+            if (!placeholderName || !isAlphaNumeric(placeholderName)) {
                 searchPos = closeStart + 2;
                 continue;
             }
@@ -736,11 +759,12 @@ export class EngineNormal {
 
             // Look up replacement in templates
             const { html: templateContent } = this.getTemplate(
-                appSite, 
-                placeholderName, 
-                templatesForGetTemplate, 
-                appView, 
-                this.appViewPrefix, 
+                appSite,
+                placeholderName,
+                templatesForGetTemplate,
+                searchAppSites,
+                appView,
+                this.appViewPrefix,
                 true
             );
 

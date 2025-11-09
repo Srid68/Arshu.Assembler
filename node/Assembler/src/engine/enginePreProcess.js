@@ -1,5 +1,5 @@
-import { Logger } from '@arshu/common';
-import { CommonUtil } from '../common/commonUtil.js';
+import { Logger } from '@arshu/arshu/logger';
+import { replaceCaseInsensitive } from '../common/commonUtil.js';
 
 /**
  * PreProcess template engine implementation that only does merging using preprocessed data structures
@@ -17,11 +17,12 @@ export class EnginePreProcess {
      * @param {string} appFile The application file name
      * @param {string|null} appView The application view name (optional)
      * @param {Object.<string, PreprocessedTemplate>} preprocessedTemplates Dictionary of preprocessed templates for this specific appSite
+     * @param {string} searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @param {boolean} enableJsonProcessing Whether to enable JSON data processing
      * @returns {string} HTML with placeholders replaced using preprocessed structures
      */
-    mergeTemplates(appSite, appFile, appView, preprocessedTemplates, enableJsonProcessing = true) {
-        Logger.debug(`MergeTemplates called: appSite=${appSite}, appFile=${appFile}, appView=${appView || 'null'}, enableJson=${enableJsonProcessing}`, 'EnginePreProcess');
+    mergeTemplates(appSite, appFile, appView, preprocessedTemplates, searchAppSites, enableJsonProcessing = true) {
+        Logger.debug(`MergeTemplates called: appSite=${appSite}, appFile=${appFile}, appView=${appView || 'null'}, searchAppSites=${searchAppSites}, enableJson=${enableJsonProcessing}`, 'EnginePreProcess');
 
         if (!preprocessedTemplates ||
             (preprocessedTemplates instanceof Map && preprocessedTemplates.size === 0) ||
@@ -34,7 +35,7 @@ export class EnginePreProcess {
         Logger.debug(`Using ${templateCount} preprocessed templates`, 'EnginePreProcess');
 
         // Use the getTemplate method to retrieve the main template
-        const mainPreprocessed = this.getTemplate(appSite, appFile, preprocessedTemplates, appView, this.appViewPrefix, true);
+        const mainPreprocessed = this.getTemplate(appSite, appFile, preprocessedTemplates, searchAppSites, appView, this.appViewPrefix, true);
         if (!mainPreprocessed) {
             Logger.warn(`Main template not found for appSite=${appSite}, appFile=${appFile}`, 'EnginePreProcess');
             return '';
@@ -46,7 +47,7 @@ export class EnginePreProcess {
         let contentHtml = mainPreprocessed.originalContent;
 
         // Apply ALL replacement mappings from ALL templates (TemplateLoader did all the processing)
-        contentHtml = this.applyTemplateReplacements(contentHtml, preprocessedTemplates, enableJsonProcessing, appView, mainPreprocessed);
+        contentHtml = this.applyTemplateReplacements(contentHtml, preprocessedTemplates, searchAppSites, enableJsonProcessing, appView, mainPreprocessed);
 
         Logger.debug(`MergeTemplates complete: output size=${contentHtml.length}`, 'EnginePreProcess');
 
@@ -58,27 +59,28 @@ export class EnginePreProcess {
      * @param {string} appSite The application site name
      * @param {string} templateName The template name (can be appFile or placeholderName)
      * @param {Object.<string, PreprocessedTemplate>} preprocessedTemplates Dictionary of preprocessed templates
+     * @param {string} searchAppSites Comma-separated fallback AppSites to search when template not found in primary AppSite
      * @param {string|null} appView The application view name (optional)
      * @param {string|null} appViewPrefix The application view prefix (optional, uses instance property if not provided)
      * @param {boolean} useAppViewFallback Whether to apply AppView fallback logic
      * @returns {PreprocessedTemplate|null} The template if found, null otherwise
      */
-    getTemplate(appSite, templateName, preprocessedTemplates, appView = null, appViewPrefix = null, useAppViewFallback = true) {
-        if (!preprocessedTemplates || 
+    getTemplate(appSite, templateName, preprocessedTemplates, searchAppSites, appView = null, appViewPrefix = null, useAppViewFallback = true) {
+        if (!preprocessedTemplates ||
             (preprocessedTemplates instanceof Map && preprocessedTemplates.size === 0) ||
             (!(preprocessedTemplates instanceof Map) && Object.keys(preprocessedTemplates).length === 0)) {
             return null;
         }
 
         const viewPrefix = appViewPrefix || this.appViewPrefix;
-        
+
         // FIRST: Check for AppView-specific template resolution when AppView context is provided
         if (useAppViewFallback && appView && viewPrefix && templateName.toLowerCase().includes(viewPrefix.toLowerCase())) {
             // Direct replacement: Replace the AppViewPrefix with the AppView value
             // For example: Html3AContent with AppViewPrefix=Html3A and AppView=html3B becomes html3BContent
-            const appKey = CommonUtil.replaceCaseInsensitive(templateName, viewPrefix, appView);
+            const appKey = replaceCaseInsensitive(templateName, viewPrefix, appView);
             const fallbackTemplateKey = `${appSite.toLowerCase()}_${appKey.toLowerCase()}`;
-            
+
             if (preprocessedTemplates instanceof Map) {
                 if (preprocessedTemplates.has(fallbackTemplateKey)) {
                     return preprocessedTemplates.get(fallbackTemplateKey);
@@ -97,6 +99,29 @@ export class EnginePreProcess {
         } else if (preprocessedTemplates[primaryTemplateKey]) {
             return preprocessedTemplates[primaryTemplateKey];
         }
+
+        // THIRD: Search in SearchAppSites as fallback
+        if (searchAppSites && searchAppSites.trim() !== '') {
+            const searchAppSitesArray = searchAppSites.split(',');
+            for (const searchAppSite of searchAppSitesArray) {
+                const trimmedSearchAppSite = searchAppSite.trim();
+                if (!trimmedSearchAppSite) {
+                    continue;
+                }
+
+                const searchKey = `${trimmedSearchAppSite.toLowerCase()}_${templateName.toLowerCase()}`;
+                if (preprocessedTemplates instanceof Map) {
+                    if (preprocessedTemplates.has(searchKey)) {
+                        Logger.debug(`Template '${templateName}' not found in '${appSite}', using fallback from '${trimmedSearchAppSite}'`, 'EnginePreProcess');
+                        return preprocessedTemplates.get(searchKey);
+                    }
+                } else if (preprocessedTemplates[searchKey]) {
+                    Logger.debug(`Template '${templateName}' not found in '${appSite}', using fallback from '${trimmedSearchAppSite}'`, 'EnginePreProcess');
+                    return preprocessedTemplates[searchKey];
+                }
+            }
+        }
+
         return null;
     }
 
@@ -104,12 +129,13 @@ export class EnginePreProcess {
      * Applies all replacement mappings from all templates - NO processing logic, only direct replacements
      * @param {string} content The content to apply replacements to
      * @param {Object.<string, PreprocessedTemplate>} preprocessedTemplates Dictionary of preprocessed templates
+     * @param {string} searchAppSites Comma-separated fallback AppSites to search when template not found
      * @param {boolean} enableJsonProcessing Whether to enable JSON processing
      * @param {string|null} appView The application view name
      * @param {PreprocessedTemplate|null} mainTemplate The main template (optional)
      * @returns {string} Content with all replacements applied
      */
-    applyTemplateReplacements(content, preprocessedTemplates, enableJsonProcessing, appView, mainTemplate = null) {
+    applyTemplateReplacements(content, preprocessedTemplates, searchAppSites, enableJsonProcessing, appView, mainTemplate = null) {
         let result = content;
 
         Logger.debug(`Starting ApplyTemplateReplacements, initial size: ${content.length}`, 'EnginePreProcess');
@@ -132,7 +158,7 @@ export class EnginePreProcess {
             if (mainTemplate && currentPass === 1 && enableJsonProcessing) {
                 for (const mapping of mainTemplate.replacementMappings) {
                     if ((mapping.type === 0 || mapping.type === "JsonPlaceholder") && result.includes(mapping.originalText)) {
-                        Logger.debug(`Applying main template JSON placeholder: ${mapping.originalText} -> ${mapping.replacementText}`, 'EnginePreProcess');
+                        Logger.debug(`Applying main template JSON placeholder (original size: ${mapping.originalText.length}, replacement size: ${mapping.replacementText.length})`, 'EnginePreProcess');
                         result = result.replaceAll(mapping.originalText, mapping.replacementText);
                         jsonPlaceholderCount++;
                     }
@@ -158,7 +184,7 @@ export class EnginePreProcess {
                 for (const mapping of template.replacementMappings) {
                     if ((mapping.type === 1 || mapping.type === "SimpleTemplate") && result.includes(mapping.originalText)) {
                         // Apply AppView logic before replacement
-                        const replacementText = this.applyAppViewLogicToReplacement(mapping.originalText, mapping.replacementText, preprocessedTemplates, appView);
+                        const replacementText = this.applyAppViewLogicToReplacement(mapping.originalText, mapping.replacementText, preprocessedTemplates, searchAppSites, appView);
                         Logger.debug(`Applying simple template: ${mapping.originalText} -> replacement text (first 200 chars): ${replacementText.substring(0, Math.min(200, replacementText.length))}`, 'EnginePreProcess');
                         result = result.replaceAll(mapping.originalText, replacementText);
                         simpleCount++;
@@ -232,12 +258,19 @@ export class EnginePreProcess {
      * @param {string} originalText Original placeholder text
      * @param {string} replacementText Current replacement text
      * @param {Object.<string, PreprocessedTemplate>} preprocessedTemplates Dictionary of preprocessed templates
+     * @param {string} searchAppSites Comma-separated fallback AppSites to search when template not found
      * @param {string|null} appView The application view name
      * @returns {string} Updated replacement text with AppView logic applied
      */
-    applyAppViewLogicToReplacement(originalText, replacementText, preprocessedTemplates, appView) {
+    applyAppViewLogicToReplacement(originalText, replacementText, preprocessedTemplates, searchAppSites, appView) {
+        Logger.debug(
+            `ApplyAppViewLogicToReplacement: originalText=${originalText}, hasReplacementText=${replacementText ? 'true' : 'false'}, appView=${appView || 'null'}, searchAppSites=${searchAppSites}`,
+            'EnginePreProcess'
+        );
+
         // If no appView context, use the default replacement text (which already has JSON values baked in)
         if (!appView) {
+            Logger.debug('No appView context, returning replacementText', 'EnginePreProcess');
             return replacementText;
         }
 
@@ -248,7 +281,15 @@ export class EnginePreProcess {
         }
 
         // First get the appSite from the template key pattern
-        const sampleKey = Object.keys(preprocessedTemplates)[0];
+        let sampleKey;
+        if (preprocessedTemplates instanceof Map) {
+            const iterator = preprocessedTemplates.keys();
+            const first = iterator.next();
+            sampleKey = first && !first.done ? first.value : undefined;
+        } else {
+            sampleKey = Object.keys(preprocessedTemplates)[0];
+        }
+
         if (!sampleKey) {
             return replacementText;
         }
@@ -261,15 +302,22 @@ export class EnginePreProcess {
         const appSite = parts[0]; // Extract appSite from the key pattern
 
         // Use GetTemplate to find the AppView-specific template variant
-        const appViewTemplate = this.getTemplate(appSite, placeholderName, preprocessedTemplates, appView, this.appViewPrefix, true);
+        const appViewTemplate = this.getTemplate(appSite, placeholderName, preprocessedTemplates, searchAppSites, appView, this.appViewPrefix, true);
 
         // If no AppView-specific template found, use the default replacement text
         if (!appViewTemplate) {
             return replacementText;
         }
 
-        // Return the AppView-specific template's original content (which already has JSON baked in by LoaderPreProcess)
-        return appViewTemplate.originalContent;
+        // Apply JSON placeholder replacements before returning the content
+        let processedContent = appViewTemplate.originalContent;
+        for (const mapping of appViewTemplate.replacementMappings) {
+            if ((mapping.type === 0 || mapping.type === 'JsonPlaceholder') && processedContent.includes(mapping.originalText)) {
+                processedContent = processedContent.replaceAll(mapping.originalText, mapping.replacementText);
+            }
+        }
+
+        return processedContent;
     }
 
     /**

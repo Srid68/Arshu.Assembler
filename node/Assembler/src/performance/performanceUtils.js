@@ -11,11 +11,12 @@ export class PerformanceUtils {
      * Runs performance comparison and returns summary rows
      * @param {string} assemblerWebDirPath
      * @param {Array} scenarios
+     * @param {string} searchAppSites
      * @param {boolean} skipDetails
      * @param {boolean} enableJsonProcessing
      * @returns {Array}
      */
-    static runPerformanceComparison(assemblerWebDirPath, scenarios, skipDetails = false, enableJsonProcessing = true) {
+    static runPerformanceComparison(assemblerWebDirPath, scenarios, searchAppSites, skipDetails = false, enableJsonProcessing = true) {
         const startTime = Date.now();
 
         if (!assemblerWebDirPath) {
@@ -41,8 +42,8 @@ export class PerformanceUtils {
             try {
                 LoaderNormal.clearCache();
                 LoaderPreProcess.clearCache();
-                const templates = LoaderNormal.loadGetTemplateFiles(assemblerWebDirPath, testAppSite);
-                const siteTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, testAppSite);
+                const templates = LoaderNormal.loadGetTemplateFiles(assemblerWebDirPath, testAppSite, searchAppSites);
+                const siteTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, testAppSite, searchAppSites);
                 if (!templates || templates.size === 0)
                     continue;
                 const mainTemplateKey = (testAppSite + "_" + appFileName).toLowerCase();
@@ -59,13 +60,13 @@ export class PerformanceUtils {
 
                 // JIT Warmup - run a few iterations first to warm up the V8 engine
                 for (let warmup = 0; warmup < 100; warmup++) {
-                    normalEngine.mergeTemplates(testAppSite, appFileName, appView, templates, enableJsonProcessing);
+                    normalEngine.mergeTemplates(testAppSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
                 }
 
                 const normalStart = process.hrtime.bigint();
                 let resultNormal = "";
                 for (let i = 0; i < iterations; i++) {
-                    resultNormal = normalEngine.mergeTemplates(testAppSite, appFileName, appView, templates, enableJsonProcessing);
+                    resultNormal = normalEngine.mergeTemplates(testAppSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
                 }
                 const normalEnd = process.hrtime.bigint();
                 const normalTimeNs = Number(normalEnd - normalStart);
@@ -81,13 +82,13 @@ export class PerformanceUtils {
                 // JIT Warmup for PreProcess engine
                 const preprocessedTemplatesObj = Object.fromEntries(siteTemplates.templates);
                 for (let warmup = 0; warmup < 100; warmup++) {
-                    preProcessEngine.mergeTemplates(testAppSite, appFileName, appView, preprocessedTemplatesObj, enableJsonProcessing);
+                    preProcessEngine.mergeTemplates(testAppSite, appFileName, appView, preprocessedTemplatesObj, searchAppSites, enableJsonProcessing);
                 }
 
                 const preProcessStart = process.hrtime.bigint();
                 let resultPreProcess = "";
                 for (let i = 0; i < iterations; i++) {
-                    resultPreProcess = preProcessEngine.mergeTemplates(testAppSite, appFileName, appView, preprocessedTemplatesObj, enableJsonProcessing);
+                    resultPreProcess = preProcessEngine.mergeTemplates(testAppSite, appFileName, appView, preprocessedTemplatesObj, searchAppSites, enableJsonProcessing);
                 }
                 const preProcessEnd = process.hrtime.bigint();
                 const preProcessTimeNs = Number(preProcessEnd - preProcessStart);

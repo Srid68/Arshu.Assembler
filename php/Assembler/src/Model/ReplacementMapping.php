@@ -6,7 +6,8 @@ class ReplacementMapping {
     public string $originalText = '';
     public string $replacementText = '';
     public string $type = ReplacementType::SIMPLE_TEMPLATE;
-    public function toArray(): array {
+    public function toArray(): array
+    {
         return [
             'startIndex' => $this->startIndex,
             'endIndex' => $this->endIndex,
@@ -14,5 +15,17 @@ class ReplacementMapping {
             'replacementText' => $this->replacementText,
             'type' => $this->type
         ];
+    }
+
+    // For debug logging
+    public function __toString(): string
+    {
+        return json_encode($this->toArray());
+    }
+
+    // For json_encode
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 }

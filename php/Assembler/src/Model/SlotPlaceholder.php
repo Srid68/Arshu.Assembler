@@ -1,6 +1,10 @@
 <?php
 namespace Assembler\Model;
 class SlotPlaceholder {
+    // Getter for content
+    public function getContent(): string {
+        return $this->content;
+    }
     public array $nestedSlots = [];
     public string $number = '';
     public int $startIndex = 0;
