@@ -149,7 +149,33 @@ export class LoaderPreProcess {
      * @returns {JsonObject} JsonObject containing preprocessed JSON data
      */
     static preprocessJsonData(jsonContent) {
-        return JsonConverter.parseJsonString(jsonContent);
+        const parsed = JsonConverter.parseJsonString(jsonContent);
+        return this.#normalizeJsonStructure(parsed);
+    }
+
+    static #normalizeJsonStructure(value) {
+        if (!value) return value;
+
+        const ctorName = value?.constructor?.name;
+
+        if (ctorName === 'JsonObject') {
+            const normalized = new value.constructor();
+            for (const [key, subValue] of value) {
+                const normalizedKey = key.endsWith('#') ? key.slice(0, -1) : key;
+                normalized.set(normalizedKey, this.#normalizeJsonStructure(subValue));
+            }
+            return normalized;
+        }
+
+        if (ctorName === 'JsonArray') {
+            const normalizedArray = new value.constructor();
+            for (const item of value) {
+                normalizedArray.push(this.#normalizeJsonStructure(item));
+            }
+            return normalizedArray;
+        }
+
+        return value;
     }
 
     /**

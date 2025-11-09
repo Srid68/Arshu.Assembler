@@ -126,7 +126,9 @@ class EngineNormalJson {
                 const slotContents = this.extractSlotContents(innerContent, appSite, appView, loader, enableJsonProcessing);
                 let processedTemplate = templateHtml;
                 for (const key in slotContents) {
-                    processedTemplate = processedTemplate.replace(new RegExp(key, 'g'), slotContents[key]);
+                    if (!Object.prototype.hasOwnProperty.call(slotContents, key)) continue;
+                    const replacementValue = slotContents[key] ?? '';
+                    processedTemplate = processedTemplate.split(key).join(replacementValue);
                 }
 
                 processedTemplate = removeRemainingSlotPlaceholders(processedTemplate);

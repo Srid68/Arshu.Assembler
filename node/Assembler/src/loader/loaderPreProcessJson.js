@@ -259,14 +259,21 @@ export class LoaderPreProcessJson {
                 if (key.endsWith('#')) {
                     hasInheritance = true;
                     const actualKey = key.slice(0, -1);
-                    const resolvedValue = this.SearchParentTreeForKeyPreProcessJson(actualKey, templateKey, siteTemplates.templates, parentMap);
+                    const hasExplicitValue = this.hasExplicitJsonValue(value);
 
-                    if (resolvedValue !== null) {
-                        resolvedJson[actualKey] = resolvedValue;
-                        Logger.debug(`Resolved inherited key ${key} -> ${actualKey} = ${resolvedValue} for template ${templateKey}`, 'LoaderPreProcessJson');
-                    } else {
+                    if (hasExplicitValue) {
                         resolvedJson[actualKey] = value;
-                        Logger.debug(`No inherited value found for ${actualKey}, using default: ${value}`, 'LoaderPreProcessJson');
+                        Logger.debug(`Using explicit value for inherited key ${key} -> ${actualKey} = ${value} for template ${templateKey}`, 'LoaderPreProcessJson');
+                    } else {
+                        const resolvedValue = this.SearchParentTreeForKeyPreProcessJson(actualKey, templateKey, siteTemplates.templates, parentMap);
+
+                        if (resolvedValue !== null) {
+                            resolvedJson[actualKey] = resolvedValue;
+                            Logger.debug(`Resolved inherited key ${key} -> ${actualKey} = ${resolvedValue} for template ${templateKey}`, 'LoaderPreProcessJson');
+                        } else {
+                            resolvedJson[actualKey] = value;
+                            Logger.debug(`No inherited value found for ${actualKey}, using default: ${value}`, 'LoaderPreProcessJson');
+                        }
                     }
                 } else {
                     resolvedJson[key] = value;
@@ -278,6 +285,14 @@ export class LoaderPreProcessJson {
                 Logger.debug(`Updated JsonData for template ${templateKey} with resolved inheritance`, 'LoaderPreProcessJson');
             }
         }
+    }
+
+    hasExplicitJsonValue(value) {
+        if (value === null || value === undefined) return false;
+        if (typeof value === 'string') return value.trim().length > 0;
+        if (Array.isArray(value)) return value.length > 0;
+        if (typeof value === 'object') return Object.keys(value).length > 0;
+        return true;
     }
 
     RecreateJsonPlaceholderMappingsAfterInheritanceJson(siteTemplates) {
@@ -563,7 +578,7 @@ export class LoaderPreProcessJson {
                 continue;
             }
 
-            const innerContent = content.substring(openEnd + 2, closeStart - (openEnd + 2));
+            const innerContent = content.substring(openEnd + 2, closeStart);
             const templateKey = templateName.toLowerCase();
             const nestedSlottedTemplate = new SlottedTemplate(
                 templateName,

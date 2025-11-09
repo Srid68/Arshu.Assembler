@@ -33,33 +33,36 @@ function replaceAllCaseInsensitive(input, search, replacement) {
  */
 function handleConditional(input, key, condition) {
     const condStart = `{{@${key}}}`;
-    // Support spaces in closing tag, e.g., {{ /Selected}}
-    const condEndWithSpace = `{{ /${key}}}`;
-    const condEndWithoutSpace = `{{/${key}}}`;
+    const startLower = condStart.toLowerCase();
+    const endTags = [`{{ /${key}}}`, `{{/${key}}}`];
 
     let result = input;
 
-    const processTag = (endTag) => {
-        let index = result.toLowerCase().indexOf(condStart.toLowerCase());
-        while (index !== -1) {
-            const endIndex = result.toLowerCase().indexOf(endTag.toLowerCase(), index + condStart.length);
-            if (endIndex === -1) break;
+    endTags.forEach(endTag => {
+        const endLower = endTag.toLowerCase();
+        let searchIndex = 0;
 
-            const content = result.substring(index + condStart.length, endIndex);
+        while (true) {
+            const startIndex = result.toLowerCase().indexOf(startLower, searchIndex);
+            if (startIndex === -1) {
+                break;
+            }
+
+            const endIndex = result.toLowerCase().indexOf(endLower, startIndex + condStart.length);
+            if (endIndex === -1) {
+                break;
+            }
+
+            const content = result.substring(startIndex + condStart.length, endIndex);
             if (condition) {
-                result = result.substring(0, index) + content + result.substring(endIndex + endTag.length);
-                // Move index past the inserted content to re-evaluate from there
-                index = index + content.length;
+                result = result.substring(0, startIndex) + content + result.substring(endIndex + endTag.length);
+                searchIndex = startIndex + content.length;
             } else {
-                result = result.substring(0, index) + result.substring(endIndex + endTag.length);
-                // After removal, re-start search from the point of removal
-                index = index;
+                result = result.substring(0, startIndex) + result.substring(endIndex + endTag.length);
+                searchIndex = startIndex;
             }
         }
-    };
-
-    processTag(condEndWithSpace);
-    processTag(condEndWithoutSpace);
+    });
 
     return result;
 }
@@ -71,23 +74,38 @@ function handleConditional(input, key, condition) {
  * @param {object} jsonObject The JSON object.
  * @returns {string} The merged HTML.
  */
+function normalizeJsonValue(value) {
+    if (Array.isArray(value)) {
+        return value.map(item => normalizeJsonValue(item));
+    }
+    if (value && typeof value === 'object') {
+        const normalized = {};
+        for (const key in value) {
+            const normalizedKey = key.endsWith('#') ? key.slice(0, -1) : key;
+            normalized[normalizedKey] = normalizeJsonValue(value[key]);
+        }
+        return normalized;
+    }
+    return value;
+}
+
 function mergeTemplateWithJson(template, jsonObject) {
     if (!template || !jsonObject) {
         return template;
     }
 
     let result = template;
+    const normalizedJson = normalizeJsonValue(jsonObject);
 
     // Process arrays: {{@array}}...{{/array}}
-    for (const key in jsonObject) {
-        if (Array.isArray(jsonObject[key])) {
-            const dataList = jsonObject[key];
+    for (const key in normalizedJson) {
+        if (Array.isArray(normalizedJson[key])) {
+            const dataList = normalizedJson[key];
             const blockStartTag = `{{@${key}}}`;
             const blockEndTag = `{{/${key}}}`;
             const emptyBlockStartTag = `{{^${key}}}`;
 
             const blockStartIndex = result.toLowerCase().indexOf(blockStartTag.toLowerCase());
-            const emptyBlockStartIndex = result.toLowerCase().indexOf(emptyBlockStartTag.toLowerCase());
 
             if (blockStartIndex !== -1) {
                 const blockEndIndex = result.toLowerCase().indexOf(blockEndTag.toLowerCase(), blockStartIndex + blockStartTag.length);
@@ -132,6 +150,7 @@ function mergeTemplateWithJson(template, jsonObject) {
             }
 
             // Handle empty array blocks: {{^array}}...{{/array}}
+            const emptyBlockStartIndex = result.toLowerCase().indexOf(emptyBlockStartTag.toLowerCase());
             if (emptyBlockStartIndex !== -1) {
                  const emptyBlockEndIndex = result.toLowerCase().indexOf(blockEndTag.toLowerCase(), emptyBlockStartIndex + emptyBlockStartTag.length);
                  if (emptyBlockEndIndex !== -1) {
@@ -147,10 +166,10 @@ function mergeTemplateWithJson(template, jsonObject) {
     }
 
     // Replace simple placeholders: {{$key}}
-    for (const key in jsonObject) {
-        if (!Array.isArray(jsonObject[key])) {
+    for (const key in normalizedJson) {
+        if (!Array.isArray(normalizedJson[key])) {
             const placeholder = `{{$${key}}}`;
-            const value = jsonObject[key] === null || jsonObject[key] === undefined ? '' : jsonObject[key];
+            const value = normalizedJson[key] === null || normalizedJson[key] === undefined ? '' : normalizedJson[key];
             result = replaceAllCaseInsensitive(result, placeholder, String(value));
         }
     }

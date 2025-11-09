@@ -88,7 +88,7 @@ class EnginePreProcessJson {
                     if (mapping.type !== ReplacementType.JsonPlaceholder) continue;
                     if (result.includes(mapping.originalText)) {
                         Logger.debug(`Applying main template JSON placeholder: ${mapping.originalText} -> ${mapping.replacementText}`, 'EnginePreProcessJson');
-                        result = result.replace(new RegExp(mapping.originalText, 'g'), mapping.replacementText);
+                        result = result.split(mapping.originalText).join(mapping.replacementText);
                         jsonPlaceholderCount++;
                     }
                 }
@@ -106,7 +106,7 @@ class EnginePreProcessJson {
                             Logger.debug(`After merging JSON for slotted template ${mapping.targetTemplateName}: ${replacementText.length} chars`, 'EnginePreProcessJson');
                         }
                         Logger.debug(`Applying slotted template: ${mapping.originalText.substring(0, Math.min(50, mapping.originalText.length))}... -> ${replacementText.length} chars`, 'EnginePreProcessJson');
-                        result = result.replace(new RegExp(mapping.originalText, 'g'), replacementText);
+                        result = result.split(mapping.originalText).join(replacementText);
                         slottedCount++;
                     }
                 }
@@ -127,7 +127,7 @@ class EnginePreProcessJson {
                             Logger.debug(`After merging JSON for simple template ${mapping.targetTemplateName}: ${replacementText.length} chars`, 'EnginePreProcessJson');
                         }
                         Logger.debug(`Applying simple template: ${mapping.originalText} -> ${replacementText.length} chars`, 'EnginePreProcessJson');
-                        result = result.replace(new RegExp(mapping.originalText, 'g'), replacementText);
+                        result = result.split(mapping.originalText).join(replacementText);
                         simpleCount++;
                     }
                 }

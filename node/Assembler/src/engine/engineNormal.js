@@ -287,30 +287,42 @@ export class EngineNormal {
         // Parse JSON using JsonConverter
         const jsonObj = JsonConverter.parseJsonString(jsonText);
         const dict = new Map();
-        
-        // Convert JsonObject to Map with proper array handling
-        for (const [key, value] of jsonObj) {
+
+        const normalizeKey = key => (key.endsWith('#') ? key.slice(0, -1) : key);
+
+        const convertJsonValue = (value) => {
             if (value && value.constructor && value.constructor.name === 'JsonArray') {
-                // Convert JsonArray to proper format
                 const arr = [];
                 for (const item of value) {
                     if (item && item.constructor && item.constructor.name === 'JsonObject') {
-                        const obj = new Map();
-                        for (const [subKey, subValue] of item) {
-                            obj.set(subKey, subValue);
-                        }
-                        arr.push(obj);
+                        arr.push(convertJsonObject(item));
                     } else {
-                        // Handle array of simple values
                         const simpleObj = new Map();
                         simpleObj.set('Value', item);
                         arr.push(simpleObj);
                     }
                 }
-                dict.set(key, arr);
-            } else {
-                dict.set(key, value);
+                return arr;
             }
+
+            if (value && value.constructor && value.constructor.name === 'JsonObject') {
+                return convertJsonObject(value);
+            }
+
+            return value;
+        };
+
+        const convertJsonObject = (jsonObjectValue) => {
+            const obj = new Map();
+            for (const [subKey, subValue] of jsonObjectValue) {
+                obj.set(normalizeKey(subKey), convertJsonValue(subValue));
+            }
+            return obj;
+        };
+
+        // Convert JsonObject to Map with proper array handling
+        for (const [key, value] of jsonObj) {
+            dict.set(normalizeKey(key), convertJsonValue(value));
         }
 
         let result = template;

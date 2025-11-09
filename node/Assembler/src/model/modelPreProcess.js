@@ -43,7 +43,10 @@ export class PreprocessedTemplate {
     }
 
     get hasJsonData() {
-        return this.jsonData !== null && Object.keys(this.jsonData).length > 0;
+        if (this.jsonData === null || this.jsonData === undefined) return false;
+        if (typeof this.jsonData.size === 'number') return this.jsonData.size > 0; // JsonObject (Map-like)
+        if (typeof this.jsonData === 'object') return Object.keys(this.jsonData).length > 0; // plain object
+        return false;
     }
 
     get hasJsonPlaceholders() {
