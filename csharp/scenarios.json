@@ -1,17 +1,18 @@
 {
   "RelativeRootPath": "AssemblerWeb/wwwroot",
+  "DefaultAppFile": "Index",
   "CopyJson": true,
   "UpdateJsonLists": [
     "AppSites/Test/Component/Toolbar/toolbar.json"
   ],
   "AppSites": [
     {
-      "appSite": "Home",
+      "appSite": "Common",
       "appFile": "Index",
       "appView": "Main",
-      "displayName": "Home → Main",
-      "description": " (Main view)",
-      "totalSize": 18638
+      "displayName": "Common → Main",
+      "description": "Search AppSite to store Common Components",
+      "totalSize": 22863
     },
     {
       "appSite": "HtmlRule1A",
@@ -110,6 +111,14 @@
       "totalSize": 1712
     },
     {
+      "appSite": "HtmlRuleFind1A",
+      "appFile": "Index",
+      "appView": "Main",
+      "displayName": "RuleFind1A (HTML) → Main",
+      "description": "Find Index.html from SearchAppSites (Common)",
+      "totalSize": 16786
+    },
+    {
       "appSite": "JsonRule1A",
       "appFile": "json1A",
       "appView": "",
@@ -174,12 +183,28 @@
       "totalSize": 3634
     },
     {
+      "appSite": "JsonRuleFlow1A",
+      "appFile": "Index",
+      "appView": "Main",
+      "displayName": "RuleFlow1A (JSON) → Main",
+      "description": "Json Key Inheritance from Index to Links",
+      "totalSize": 19519
+    },
+    {
       "appSite": "Language",
       "appFile": "Index",
       "appView": "Main",
       "displayName": "Language → Main",
-      "description": " (Main view)",
-      "totalSize": 19526
+      "description": "SearchAppSite for giving LanguageLinks",
+      "totalSize": 14141
+    },
+    {
+      "appSite": "Main",
+      "appFile": "Index",
+      "appView": "Main",
+      "displayName": "Main → Main",
+      "description": "Main AppSite to Navigate to Test AppSite",
+      "totalSize": 16786
     },
     {
       "appSite": "Rule1A",
@@ -187,7 +212,7 @@
       "appView": "Main",
       "displayName": "Rule 3A2A - Nested Placehoder (JSON)",
       "description": "Nested placeholders with HTML and JSON",
-      "totalSize": 3744
+      "totalSize": 2775
     },
     {
       "appSite": "Rule1B",
@@ -195,15 +220,15 @@
       "appView": "Main",
       "displayName": "Rule 3A2B - Multiple Nested Placehoder (JSON)",
       "description": "Multiple Nested placeholders with HTML and JSON",
-      "totalSize": 4891
+      "totalSize": 3922
     },
     {
       "appSite": "Test",
-      "appFile": "index",
+      "appFile": "Index",
       "appView": "Main",
       "displayName": "Test Page - Using 4 Assembly Rules",
       "description": "Test Page using 5 Assembly Rules with SearchAppSites",
-      "totalSize": 108002
+      "totalSize": 95892
     }
   ]
 }

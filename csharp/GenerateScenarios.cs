@@ -22,6 +22,7 @@ class GenerateScenarios
     class ScenariosConfig
     {
         public string RelativeRootPath { get; set; } = "";
+        public string DefaultAppFile { get; set; } = "Index";
         public bool CopyJson { get; set; } = false;
         public List<string> UpdateJsonLists { get; set; } = new List<string>();
         public List<Scenario> AppSites { get; set; } = new List<Scenario>();
@@ -86,7 +87,7 @@ class GenerateScenarios
                 }
 
                 Console.WriteLine($"Loaded {existingScenarios.Count} existing scenarios");
-                Console.WriteLine($"Config: RelativeRootPath={existingConfig.RelativeRootPath}, CopyJson={existingConfig.CopyJson}");
+                Console.WriteLine($"Config: RelativeRootPath={existingConfig.RelativeRootPath}, DefaultAppFile={existingConfig.DefaultAppFile}, CopyJson={existingConfig.CopyJson}");
                 Console.WriteLine();
             }
             catch (Exception ex)
@@ -153,37 +154,37 @@ class GenerateScenarios
                 // Get all HTML files in the appSite directory (top level only)
                 var htmlFiles = Directory.GetFiles(appSiteDir, "*.html", SearchOption.TopDirectoryOnly);
 
-                foreach (var htmlFile in htmlFiles)
+                // Calculate total size
+                int totalSize = CalculateTotalTemplateSize(appSiteDir);
+
+                // Check for Views folder
+                var viewsPath = Path.Combine(appSiteDir, "Views");
+                var viewDirs = new List<string>();
+
+                if (Directory.Exists(viewsPath))
                 {
-                    var appFile = Path.GetFileNameWithoutExtension(htmlFile);
+                    // Get all subdirectories in Views folder
+                    viewDirs = Directory.GetDirectories(viewsPath)
+                        .Select(dir => Path.GetFileName(dir))
+                        .Where(dirName => !string.IsNullOrEmpty(dirName))
+                        .ToList();
+                }
 
-                    // Calculate total size
-                    int totalSize = CalculateTotalTemplateSize(appSiteDir);
-
-                    // Check for Views folder
-                    var viewsPath = Path.Combine(appSiteDir, "Views");
-                    var viewDirs = new List<string>();
-
-                    if (Directory.Exists(viewsPath))
-                    {
-                        // Get all subdirectories in Views folder
-                        viewDirs = Directory.GetDirectories(viewsPath)
-                            .Select(dir => Path.GetFileName(dir))
-                            .Where(dirName => !string.IsNullOrEmpty(dirName))
-                            .ToList();
-                    }
-
-                    // Only add empty AppView scenario if no specific Views exist
+                // If no HTML files found at root, use DefaultAppFile
+                if (htmlFiles.Length == 0)
+                {
+                    var defaultAppFile = existingConfig?.DefaultAppFile ?? "Index";
+                    
                     if (viewDirs.Count == 0)
                     {
-                        // Check if we have existing scenario data
+                        // No HTML files and no Views - create single scenario with default
                         var key = $"{appSite}:";
                         var existingScenario = existingScenarios.GetValueOrDefault(key);
 
                         scenarios.Add(new Scenario
                         {
                             AppSite = appSite,
-                            AppFile = appFile,
+                            AppFile = defaultAppFile,
                             AppView = "",
                             TotalSize = totalSize,
                             DisplayName = existingScenario?.DisplayName ?? GenerateDisplayName(appSite, ""),
@@ -192,7 +193,7 @@ class GenerateScenarios
                     }
                     else
                     {
-                        // Add specific view scenarios
+                        // No HTML files but has Views - create scenarios for each view with default
                         foreach (var viewDir in viewDirs)
                         {
                             var viewKey = $"{appSite}:{viewDir}";
@@ -201,12 +202,57 @@ class GenerateScenarios
                             scenarios.Add(new Scenario
                             {
                                 AppSite = appSite,
-                                AppFile = appFile,
+                                AppFile = defaultAppFile,
                                 AppView = viewDir,
                                 TotalSize = totalSize,
                                 DisplayName = existingViewScenario?.DisplayName ?? GenerateDisplayName(appSite, viewDir),
                                 Description = existingViewScenario?.Description ?? GenerateDescription(appSite, viewDir)
                             });
+                        }
+                    }
+                }
+                else
+                {
+                    // Process each HTML file found at root
+                    foreach (var htmlFile in htmlFiles)
+                    {
+                        var appFile = Path.GetFileNameWithoutExtension(htmlFile);
+
+                        // Only add empty AppView scenario if no specific Views exist
+                        if (viewDirs.Count == 0)
+                        {
+                            // Check if we have existing scenario data
+                            var key = $"{appSite}:";
+                            var existingScenario = existingScenarios.GetValueOrDefault(key);
+
+                            scenarios.Add(new Scenario
+                            {
+                                AppSite = appSite,
+                                AppFile = appFile,
+                                AppView = "",
+                                TotalSize = totalSize,
+                                DisplayName = existingScenario?.DisplayName ?? GenerateDisplayName(appSite, ""),
+                                Description = existingScenario?.Description ?? GenerateDescription(appSite, "")
+                            });
+                        }
+                        else
+                        {
+                            // Add specific view scenarios
+                            foreach (var viewDir in viewDirs)
+                            {
+                                var viewKey = $"{appSite}:{viewDir}";
+                                var existingViewScenario = existingScenarios.GetValueOrDefault(viewKey);
+
+                                scenarios.Add(new Scenario
+                                {
+                                    AppSite = appSite,
+                                    AppFile = appFile,
+                                    AppView = viewDir,
+                                    TotalSize = totalSize,
+                                    DisplayName = existingViewScenario?.DisplayName ?? GenerateDisplayName(appSite, viewDir),
+                                    Description = existingViewScenario?.Description ?? GenerateDescription(appSite, viewDir)
+                                });
+                            }
                         }
                     }
                 }
@@ -219,6 +265,7 @@ class GenerateScenarios
             var config = new ScenariosConfig
             {
                 RelativeRootPath = relativeRootPath,
+                DefaultAppFile = existingConfig?.DefaultAppFile ?? "Index",
                 CopyJson = existingConfig?.CopyJson ?? false,
                 UpdateJsonLists = existingConfig?.UpdateJsonLists ?? new List<string>(),
                 AppSites = scenarios
@@ -371,6 +418,7 @@ class GenerateScenarios
         var json = new StringBuilder();
         json.AppendLine("{");
         json.AppendLine($"  \"RelativeRootPath\": \"{EscapeJson(config.RelativeRootPath)}\",");
+        json.AppendLine($"  \"DefaultAppFile\": \"{EscapeJson(config.DefaultAppFile)}\",");
         json.AppendLine($"  \"CopyJson\": {config.CopyJson.ToString().ToLower()},");
 
         // Write UpdateJsonLists array
@@ -539,6 +587,9 @@ class GenerateScenarios
                     case "RelativeRootPath":
                         config.RelativeRootPath = value;
                         break;
+                    case "DefaultAppFile":
+                        config.DefaultAppFile = value;
+                        break;
                     case "CopyJson":
                         if (bool.TryParse(value, out var copyJson))
                             config.CopyJson = copyJson;
@@ -555,6 +606,7 @@ class GenerateScenarios
         var json = new StringBuilder();
         json.AppendLine("{");
         json.AppendLine("  \"RelativeRootPath\": \"\",");
+        json.AppendLine("  \"DefaultAppFile\": \"Index\",");
         json.AppendLine("  \"CopyJson\": false,");
         json.AppendLine("  \"UpdateJsonLists\": [");
         json.AppendLine("    \"Test/Component/Toolbar/toolbar.json\"");
