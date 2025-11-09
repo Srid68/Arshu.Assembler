@@ -1,8 +1,29 @@
-# INSTRUCTIONS
+# Project Overview
+
+Arshu.Assembler is a polyglot declarative framework for application creation, inspired by Mustache, React, and HTMX. The core idea is to assemble final HTML markup by composing templates and data. This repository is a multi-language recreation of the original Arshu Assembler, developed with AI assistance.
+
+The project is implemented in the following languages:
+
+* C#
+* Go
+* Node.js
+* PHP
+* Rust
+* Javascript
+
+The project is structured by language, with each language having a consistent set of subprojects:
+
+* `<language>/Assembler`: The core assembler logic.
+* `<language>/AssemblerTest`: Tests for the assembler.
+* `<language>/AssemblerWeb`: A simple web server to demonstrate the assembler.
+
+## INSTRUCTIONS
 
 Follow the same naming conventions as the rust/csharp project strictly accross all other projects using idiomatic patterns in respective languages.
 
 STRUCTURAL CONSISTENCY ACROSS PROJECTS IN DIFFERENT LANGS IS CRUCIAL. DO NOT CHANGE THE STRUCTURE BE DIFFERENT BETWEEN PROJECTS
+
+Compare always with c# to fix the structural and logical issues in other langs
 
 Important: Follow the same structure/logic as the rust/csharp project strictly accross all other projects
 
@@ -21,8 +42,9 @@ After every change build only and fix any compile errors, do not test unless spe
 Normal Loader
 
 * The loader does the loading
-Normal engine 
-* Does both parsing and merging. 
+Normal engine
+
+* Does both parsing and merging.
 
 PreProcess Loader role:
 
