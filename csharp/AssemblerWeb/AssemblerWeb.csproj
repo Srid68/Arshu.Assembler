@@ -23,15 +23,6 @@
     <ProjectReference Include="..\Assembler\Assembler.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Update="wwwroot\AppSites\Common\Index.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Update="wwwroot\AppSites\HtmlRuleFind1A\Index.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
   <PropertyGroup>
     <IsTrimmable>true</IsTrimmable>
     <IsAotCompatible>true</IsAotCompatible>
