@@ -1,4 +1,4 @@
-use crate::app::json::{JsonObject, JsonArray, JsonValue};
+use crate::app::json::{JsonArray, JsonObject, JsonValue};
 use serde_json::Value;
 
 /// Converts between serde_json::Value and uniform JSON types for normalization
@@ -19,12 +19,12 @@ impl JsonConverter {
     /// Converts serde_json::Map to uniform JsonObject for consistent processing
     pub fn normalize_json_object(serde_map: serde_json::Map<String, Value>) -> JsonObject {
         let mut json_object = JsonObject::new();
-        
+
         for (key, value) in serde_map {
             let converted_value = Self::convert_json_value(value);
             json_object.insert(key, converted_value);
         }
-        
+
         json_object
     }
 
@@ -40,7 +40,7 @@ impl JsonConverter {
                 } else {
                     JsonValue::String(n.to_string())
                 }
-            },
+            }
             Value::Bool(b) => JsonValue::Bool(b),
             Value::Array(arr) => {
                 let mut json_array = JsonArray::new();
@@ -49,11 +49,11 @@ impl JsonConverter {
                     json_array.push(converted_item);
                 }
                 JsonValue::Array(json_array)
-            },
+            }
             Value::Object(map) => {
                 let json_object = Self::normalize_json_object(map);
                 JsonValue::Object(json_object)
-            },
+            }
             Value::Null => JsonValue::Null,
         }
     }
@@ -61,12 +61,12 @@ impl JsonConverter {
     /// Converts JsonObject back to serde_json::Value for compatibility with existing code
     pub fn to_serde_value(json_object: &JsonObject) -> Value {
         let mut map = serde_json::Map::new();
-        
+
         for (key, value) in json_object.iter() {
             let serde_value = Self::json_value_to_serde(value);
             map.insert(key.clone(), serde_value);
         }
-        
+
         Value::Object(map)
     }
 
@@ -81,14 +81,15 @@ impl JsonConverter {
                 } else {
                     Value::Null
                 }
-            },
+            }
             JsonValue::Bool(b) => Value::Bool(*b),
             JsonValue::Array(arr) => {
-                let serde_arr: Vec<Value> = arr.iter()
+                let serde_arr: Vec<Value> = arr
+                    .iter()
                     .map(|item| Self::json_value_to_serde(item))
                     .collect();
                 Value::Array(serde_arr)
-            },
+            }
             JsonValue::Object(obj) => Self::to_serde_value(obj),
             JsonValue::Null => Value::Null,
         }
@@ -96,14 +97,16 @@ impl JsonConverter {
 
     /// Helper method to get a string value from JsonObject with fallback
     pub fn get_string_value(json_object: &JsonObject, key: &str) -> String {
-        json_object.get_string(key)
+        json_object
+            .get_string(key)
             .map(|s| s.clone())
             .unwrap_or_default()
     }
 
     /// Helper method to check if JsonObject contains a key with a non-empty string value
     pub fn has_non_empty_string(json_object: &JsonObject, key: &str) -> bool {
-        json_object.get_string(key)
+        json_object
+            .get_string(key)
             .map(|s| !s.is_empty())
             .unwrap_or(false)
     }

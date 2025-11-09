@@ -1,9 +1,13 @@
-use std::collections::HashMap;
-use crate::loader::loader_normal::LoaderNormal;
-use crate::loader::loader_preprocess::LoaderPreProcess;
-use crate::engine::engine_normal::EngineNormal;
-use crate::engine::engine_preprocess::EnginePreProcess;
 use crate::common::common_util::CommonUtil;
+use crate::engine::engine_normal::EngineNormal;
+use crate::engine::engine_normal_json::EngineNormalJson;
+use crate::engine::engine_preprocess::EnginePreProcess;
+use crate::engine::engine_preprocess_json::EnginePreProcessJson;
+use crate::loader::loader_normal::LoaderNormal;
+use crate::loader::loader_normal_json::LoaderNormalJson;
+use crate::loader::loader_preprocess::LoaderPreProcess;
+use crate::loader::loader_preprocess_json::LoaderPreProcessJson;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TestSummaryRow {
@@ -19,31 +23,163 @@ pub struct TestSummaryRow {
     pub cross_view_unmatch: String,
     #[serde(rename = "Error")]
     pub error: String,
+    // Advanced test fields - output sizes for all 4 engines
+    #[serde(rename = "NormalSize")]
+    pub normal_size: usize,
+    #[serde(rename = "NormalJsonSize")]
+    pub normal_json_size: usize,
+    #[serde(rename = "PreProcessSize")]
+    pub preprocess_size: usize,
+    #[serde(rename = "PreProcessJsonSize")]
+    pub preprocess_json_size: usize,
+    #[serde(rename = "AllEnginesMatch")]
+    pub all_engines_match: bool,
 }
 
 pub struct TestingUtils;
 
 impl TestingUtils {
-    pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scenarios: &[crate::config::Scenario], print_html_output: bool, skip_details: bool, enable_json_processing: bool) -> Vec<TestSummaryRow> {
-        run_standard_tests(assembler_web_dir, project_directory, scenarios, print_html_output, skip_details, enable_json_processing)
+    pub fn run_standard_tests(
+        assembler_web_dir: &str,
+        project_directory: &str,
+        scenarios: &[crate::config::Scenario],
+        search_app_sites: &str,
+        print_html_output: bool,
+        skip_details: bool,
+        enable_json_processing: bool,
+    ) -> Vec<TestSummaryRow> {
+        run_standard_tests(
+            assembler_web_dir,
+            project_directory,
+            scenarios,
+            search_app_sites,
+            print_html_output,
+            skip_details,
+            enable_json_processing,
+        )
     }
 
-    pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scenarios: &[crate::config::Scenario], print_html_output: bool, skip_details: bool, enable_json_processing: bool) -> Vec<TestSummaryRow> {
-        run_advanced_tests(assembler_web_dir, project_directory, scenarios, print_html_output, skip_details, enable_json_processing)
+    pub fn run_standard_preprocess_tests(
+        assembler_web_dir: &str,
+        project_directory: &str,
+        scenarios: &[crate::config::Scenario],
+        search_app_sites: &str,
+        print_html_output: bool,
+        skip_details: bool,
+        enable_json_processing: bool,
+    ) -> Vec<TestSummaryRow> {
+        run_standard_preprocess_tests(
+            assembler_web_dir,
+            project_directory,
+            scenarios,
+            search_app_sites,
+            print_html_output,
+            skip_details,
+            enable_json_processing,
+        )
     }
 
-    pub fn print_test_summary_table(assembler_web_dir_path: &str, project_directory: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str) {
-        print_test_summary_table(assembler_web_dir_path, project_directory, summary_rows, test_type)
+    pub fn run_standard_json_tests(
+        assembler_web_dir: &str,
+        project_directory: &str,
+        scenarios: &[crate::config::Scenario],
+        search_app_sites: &str,
+        print_html_output: bool,
+        skip_details: bool,
+        enable_json_processing: bool,
+    ) -> Vec<TestSummaryRow> {
+        run_standard_json_tests(
+            assembler_web_dir,
+            project_directory,
+            scenarios,
+            search_app_sites,
+            print_html_output,
+            skip_details,
+            enable_json_processing,
+        )
+    }
+
+    pub fn run_standard_preprocess_json_tests(
+        assembler_web_dir: &str,
+        project_directory: &str,
+        scenarios: &[crate::config::Scenario],
+        search_app_sites: &str,
+        print_html_output: bool,
+        skip_details: bool,
+        enable_json_processing: bool,
+    ) -> Vec<TestSummaryRow> {
+        run_standard_preprocess_json_tests(
+            assembler_web_dir,
+            project_directory,
+            scenarios,
+            search_app_sites,
+            print_html_output,
+            skip_details,
+            enable_json_processing,
+        )
+    }
+
+    pub fn run_advanced_tests(
+        assembler_web_dir: &str,
+        project_directory: &str,
+        scenarios: &[crate::config::Scenario],
+        search_app_sites: &str,
+        print_html_output: bool,
+        skip_details: bool,
+        enable_json_processing: bool,
+    ) -> Vec<TestSummaryRow> {
+        run_advanced_tests(
+            assembler_web_dir,
+            project_directory,
+            scenarios,
+            search_app_sites,
+            print_html_output,
+            skip_details,
+            enable_json_processing,
+        )
+    }
+
+    pub fn print_test_summary_table(
+        assembler_web_dir_path: &str,
+        project_directory: &str,
+        summary_rows: &Vec<TestSummaryRow>,
+        test_type: &str,
+    ) {
+        print_test_summary_table(
+            assembler_web_dir_path,
+            project_directory,
+            summary_rows,
+            test_type,
+        )
     }
 
     /// Dumps preprocessed template structures to JSON files (matching C# DumpPreprocessedTemplateStructures)
-    pub fn dump_preprocessed_template_structures(assembler_web_dir_path: &str, project_directory: &str, scenarios: &[crate::config::Scenario], skip_details: bool) {
-        dump_preprocessed_template_structures(assembler_web_dir_path, project_directory, scenarios, skip_details)
+    pub fn dump_preprocessed_template_structures(
+        assembler_web_dir_path: &str,
+        project_directory: &str,
+        scenarios: &[crate::config::Scenario],
+        search_app_sites: &str,
+        skip_details: bool,
+    ) {
+        dump_preprocessed_template_structures(
+            assembler_web_dir_path,
+            project_directory,
+            scenarios,
+            search_app_sites,
+            skip_details,
+        )
     }
 }
 
-pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scenarios: &[crate::config::Scenario], print_html_output: bool, skip_details: bool, enable_json_processing: bool) -> Vec<TestSummaryRow>
-{
+pub fn run_standard_tests(
+    assembler_web_dir: &str,
+    project_directory: &str,
+    scenarios: &[crate::config::Scenario],
+    search_app_sites: &str,
+    print_html_output: bool,
+    skip_details: bool,
+    enable_json_processing: bool,
+) -> Vec<TestSummaryRow> {
     if assembler_web_dir.is_empty() {
         println!("❌ No assemblerWebDir passed");
         return Vec::new();
@@ -60,7 +196,14 @@ pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scen
     }
 
     if !skip_details {
-        println!("✅ JSON Processing {} for both engines\n", if enable_json_processing {"ENABLED"} else {"DISABLED"});
+        println!(
+            "✅ JSON Processing {} for both engines\n",
+            if enable_json_processing {
+                "ENABLED"
+            } else {
+                "DISABLED"
+            }
+        );
     }
 
     // Group scenarios by AppSite and AppFile
@@ -72,7 +215,9 @@ pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scen
     }
 
     // Create output directory for HTML files
-    let output_dir = std::path::Path::new(project_directory).join("Analysis").join("output");
+    let output_dir = std::path::Path::new(project_directory)
+        .join("Analysis")
+        .join("output");
     let _ = std::fs::create_dir_all(&output_dir);
 
     let mut global_test_summary_rows: Vec<TestSummaryRow> = Vec::new();
@@ -82,69 +227,102 @@ pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scen
     sorted_keys.sort();
 
     for (test_site, app_file_name) in sorted_keys {
-        let group = grouped.get(&(test_site.clone(), app_file_name.clone())).unwrap();
+        let group = grouped
+            .get(&(test_site.clone(), app_file_name.clone()))
+            .unwrap();
+        if !skip_details {
+            println!(
+                "{}: STANDARD TEST : appsite: {} appfile: {}",
+                test_site, test_site, app_file_name
+            );
+            println!(
+                "{}: AppSite: {}, AppViewPrefix: Html3A",
+                test_site, test_site
+            );
+            println!("{}: {}", test_site, "=".repeat(50));
+        }
+        let templates =
+            LoaderNormal::load_get_template_files(assembler_web_dir, &test_site, search_app_sites);
+
+        let mut scenario_outputs = Vec::new();
+        let mut scenario_unresolved: Vec<bool> = Vec::new();
+
+        for scenario in group {
+            let app_view = &scenario.app_view;
+            let normal_engine = EngineNormal::new(app_file_name.clone());
+            let result_normal = normal_engine.merge_templates(
+                &test_site,
+                &app_file_name,
+                Some(app_view),
+                &mut templates.clone(),
+                search_app_sites,
+                enable_json_processing,
+            );
+            scenario_outputs.push(result_normal.clone());
+
+            // Save HTML output to Analysis/output folder
+            let app_view_suffix = if app_view.is_empty() {
+                String::new()
+            } else {
+                format!("_{}", app_view)
+            };
+            let output_file =
+                output_dir.join(format!("{}{}_normal.html", test_site, app_view_suffix));
+            let _ = std::fs::write(&output_file, &result_normal);
+
             if !skip_details {
-                println!("{}: STANDARD TEST : appsite: {} appfile: {}", test_site, test_site, app_file_name);
-                println!("{}: AppSite: {}, AppViewPrefix: Html3A", test_site, test_site);
-                println!("{}: {}", test_site, "=".repeat(50));
+                println!(
+                    "{}: 🧪 STANDARD TEST : scenario: AppView='{}'",
+                    test_site, app_view
+                );
+                println!("Output length = {}", result_normal.len());
             }
-            let templates = LoaderNormal::load_get_template_files(assembler_web_dir, &test_site);
-
-            let mut scenario_outputs = Vec::new();
-            let mut scenario_unresolved: Vec<bool> = Vec::new();
-
-            for scenario in group {
-                let app_view = &scenario.app_view;
-                let normal_engine = EngineNormal::new(app_file_name.clone());
-                let result_normal = normal_engine.merge_templates(&test_site, &app_file_name, Some(app_view), &mut templates.clone(), enable_json_processing);
-                scenario_outputs.push(result_normal.clone());
-
-                // Save HTML output to Analysis/output folder
-                let app_view_suffix = if app_view.is_empty() { String::new() } else { format!("_{}", app_view) };
-                let output_file = output_dir.join(format!("{}{}_normal.html", test_site, app_view_suffix));
-                let _ = std::fs::write(&output_file, &result_normal);
-
-                if !skip_details {
-                    println!("{}: 🧪 STANDARD TEST : scenario: AppView='{}'", test_site, app_view);
-                    println!("Output length = {}", result_normal.len());
-                }
-                if print_html_output {
-                    println!("\nFULL HTML OUTPUT for AppView '{}':\n{}\n", app_view, result_normal);
-                }
-                // Scan output for unresolved template placeholders and check for empty output
-                let mut unresolved = Vec::new();
-                let is_empty = result_normal.trim().is_empty();
-                let mut start_index = 0;
-                while let Some(pos) = result_normal[start_index..].find("{{") {
-                    let absolute_pos = start_index + pos;
-                    if let Some(end_pos) = result_normal[absolute_pos..].find("}}") {
-                        let end_absolute = absolute_pos + end_pos + 2;
-                        // Any {{...}} pattern in final output is unresolved
-                        let placeholder = &result_normal[absolute_pos..end_absolute];
-                        unresolved.push(placeholder.to_string());
-                        start_index = end_absolute;
-                    } else {
-                        break;
-                    }
-                }
-                if !unresolved.is_empty() || is_empty {
-                    if is_empty {
-                        println!("❌ Empty output found for AppView '{}'", app_view);
-                    }
-                    if !unresolved.is_empty() {
-                        println!("❌ Unresolved template placeholders found in output for AppView '{}':", app_view);
-                        for placeholder in &unresolved {
-                            println!("   Unresolved: {}", placeholder);
-                        }
-                    }
-                    scenario_unresolved.push(true);
+            if print_html_output {
+                println!(
+                    "\nFULL HTML OUTPUT for AppView '{}':\n{}\n",
+                    app_view, result_normal
+                );
+            }
+            // Scan output for unresolved template placeholders and check for empty output
+            let mut unresolved = Vec::new();
+            let is_empty = result_normal.trim().is_empty();
+            let mut start_index = 0;
+            while let Some(pos) = result_normal[start_index..].find("{{") {
+                let absolute_pos = start_index + pos;
+                if let Some(end_pos) = result_normal[absolute_pos..].find("}}") {
+                    let end_absolute = absolute_pos + end_pos + 2;
+                    // Any {{...}} pattern in final output is unresolved
+                    let placeholder = &result_normal[absolute_pos..end_absolute];
+                    unresolved.push(placeholder.to_string());
+                    start_index = end_absolute;
                 } else {
-                    if !skip_details {
-                        println!("✅ No unresolved template placeholders found in output for AppView '{}'.", app_view);
-                    }
-                    scenario_unresolved.push(false);
+                    break;
                 }
             }
+            if !unresolved.is_empty() || is_empty {
+                if is_empty {
+                    println!("❌ Empty output found for AppView '{}'", app_view);
+                }
+                if !unresolved.is_empty() {
+                    println!(
+                        "❌ Unresolved template placeholders found in output for AppView '{}':",
+                        app_view
+                    );
+                    for placeholder in &unresolved {
+                        println!("   Unresolved: {}", placeholder);
+                    }
+                }
+                scenario_unresolved.push(true);
+            } else {
+                if !skip_details {
+                    println!(
+                        "✅ No unresolved template placeholders found in output for AppView '{}'.",
+                        app_view
+                    );
+                }
+                scenario_unresolved.push(false);
+            }
+        }
 
         // Compare outputs for cross-view
         let mut match_result = String::new();
@@ -172,16 +350,32 @@ pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scen
 
         // Add summary rows for each scenario
         for (i, scenario) in group.iter().enumerate() {
-            let cross_view = if i > 0 && group.len() > 2 { match_result.clone() } else { String::new() };
+            let cross_view = if i > 0 && group.len() > 2 {
+                match_result.clone()
+            } else {
+                String::new()
+            };
             let has_unresolved = scenario_unresolved.get(i).copied().unwrap_or(false);
             global_test_summary_rows.push(TestSummaryRow {
                 app_site: test_site.clone(),
                 app_file: app_file_name.clone(),
                 app_view: scenario.app_view.clone(),
-                normal_preprocess: if i == 0 { if has_unresolved { "FAIL".to_string() } else { "PASS".to_string() } } else { String::new() },
+                normal_preprocess: if i == 0 {
+                    if has_unresolved {
+                        "FAIL".to_string()
+                    } else {
+                        "PASS".to_string()
+                    }
+                } else {
+                    String::new()
+                },
                 cross_view_unmatch: cross_view,
                 error: if has_unresolved {
-                    if scenario_outputs.get(i).map(|s| s.trim().is_empty()).unwrap_or(false) {
+                    if scenario_outputs
+                        .get(i)
+                        .map(|s| s.trim().is_empty())
+                        .unwrap_or(false)
+                    {
                         "Empty".to_string()
                     } else {
                         "Unresolv".to_string()
@@ -189,6 +383,11 @@ pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scen
                 } else {
                     String::new()
                 },
+                normal_size: 0,
+                normal_json_size: 0,
+                preprocess_size: 0,
+                preprocess_json_size: 0,
+                all_engines_match: false,
             });
         }
     }
@@ -196,8 +395,534 @@ pub fn run_standard_tests(assembler_web_dir: &str, project_directory: &str, scen
     global_test_summary_rows
 }
 
-pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scenarios: &[crate::config::Scenario], print_html_output: bool, skip_details: bool, enable_json_processing: bool) -> Vec<TestSummaryRow>
-{
+pub fn run_standard_preprocess_tests(
+    assembler_web_dir: &str,
+    project_directory: &str,
+    scenarios: &[crate::config::Scenario],
+    search_app_sites: &str,
+    print_html_output: bool,
+    skip_details: bool,
+    enable_json_processing: bool,
+) -> Vec<TestSummaryRow> {
+    if assembler_web_dir.is_empty() {
+        println!("❌ No assemblerWebDir passed");
+        return Vec::new();
+    }
+
+    if project_directory.is_empty() {
+        println!("❌ No projectDirectory passed");
+        return Vec::new();
+    }
+
+    if scenarios.is_empty() {
+        println!("❌ No scenarios passed");
+        return Vec::new();
+    }
+
+    if !skip_details {
+        println!(
+            "✅ JSON Processing {} for PreProcess engine\n",
+            if enable_json_processing {
+                "ENABLED"
+            } else {
+                "DISABLED"
+            }
+        );
+    }
+
+    // Group scenarios by AppSite and AppFile
+    use std::collections::HashMap;
+    let mut grouped: HashMap<(String, String), Vec<&crate::config::Scenario>> = HashMap::new();
+    for scenario in scenarios {
+        let key = (scenario.app_site.clone(), scenario.app_file.clone());
+        grouped.entry(key).or_insert_with(Vec::new).push(scenario);
+    }
+
+    // Create output directory for HTML files
+    let output_dir = std::path::Path::new(project_directory)
+        .join("Analysis")
+        .join("output");
+    let _ = std::fs::create_dir_all(&output_dir);
+
+    let mut global_test_summary_rows: Vec<TestSummaryRow> = Vec::new();
+
+    // Sort the grouped keys to ensure consistent ordering
+    let mut sorted_keys: Vec<_> = grouped.keys().cloned().collect();
+    sorted_keys.sort();
+
+    for (test_site, app_file_name) in sorted_keys {
+        let group = grouped
+            .get(&(test_site.clone(), app_file_name.clone()))
+            .unwrap();
+        if !skip_details {
+            println!(
+                "{}: STANDARD PREPROCESS TEST : appsite: {} appfile: {}",
+                test_site, test_site, app_file_name
+            );
+            println!(
+                "{}: AppSite: {}, AppViewPrefix: {}",
+                test_site, test_site, app_file_name
+            );
+            println!("{}: {}", test_site, "=".repeat(50));
+        }
+        // Use LoaderPreProcess instead of LoaderNormal
+        let preprocessed_templates = LoaderPreProcess::load_process_get_template_files(
+            assembler_web_dir,
+            &test_site,
+            search_app_sites,
+        )
+        .templates;
+
+        let mut scenario_outputs = Vec::new();
+        let mut scenario_unresolved: Vec<bool> = Vec::new();
+
+        for scenario in group {
+            let app_view = &scenario.app_view;
+            // Use EnginePreProcess instead of EngineNormal
+            let preprocess_engine = EnginePreProcess::new(app_file_name.clone());
+            let result_preprocess = preprocess_engine.merge_templates(
+                &test_site,
+                &app_file_name,
+                Some(app_view),
+                &preprocessed_templates,
+                search_app_sites,
+                enable_json_processing,
+            );
+            scenario_outputs.push(result_preprocess.clone());
+
+            // Save HTML output to Analysis/output folder with _preprocess suffix
+            let app_view_suffix = if app_view.is_empty() {
+                String::new()
+            } else {
+                format!("_{}", app_view)
+            };
+            let output_file =
+                output_dir.join(format!("{}{}_preprocess.html", test_site, app_view_suffix));
+            let _ = std::fs::write(&output_file, &result_preprocess);
+
+            if !skip_details {
+                println!(
+                    "{}: 🧪 STANDARD PREPROCESS TEST : scenario: AppView='{}'",
+                    test_site, app_view
+                );
+                println!("Output length = {}", result_preprocess.len());
+            }
+            if print_html_output {
+                println!(
+                    "\nFULL HTML OUTPUT for AppView '{}':\n{}\n",
+                    app_view, result_preprocess
+                );
+            }
+            // Scan output for unresolved template placeholders and check for empty output
+            let mut unresolved = Vec::new();
+            let is_empty = result_preprocess.trim().is_empty();
+            let mut start_index = 0;
+            while let Some(pos) = result_preprocess[start_index..].find("{{") {
+                let absolute_pos = start_index + pos;
+                if let Some(end_pos) = result_preprocess[absolute_pos..].find("}}") {
+                    let end_absolute = absolute_pos + end_pos + 2;
+                    // Any {{...}} pattern in final output is unresolved
+                    let placeholder = &result_preprocess[absolute_pos..end_absolute];
+                    unresolved.push(placeholder.to_string());
+                    start_index = end_absolute;
+                } else {
+                    break;
+                }
+            }
+            if !unresolved.is_empty() || is_empty {
+                if is_empty {
+                    println!("❌ Empty output found for AppView '{}'", app_view);
+                }
+                if !unresolved.is_empty() {
+                    println!(
+                        "❌ Unresolved template placeholders found in output for AppView '{}':",
+                        app_view
+                    );
+                    for placeholder in &unresolved {
+                        println!("   Unresolved: {}", placeholder);
+                    }
+                }
+                scenario_unresolved.push(true);
+            } else {
+                if !skip_details {
+                    println!(
+                        "✅ No unresolved template placeholders found in output for AppView '{}'.",
+                        app_view
+                    );
+                }
+                scenario_unresolved.push(false);
+            }
+        }
+
+        // Compare outputs for cross-view
+        let mut match_result = String::new();
+        if group.len() > 2 {
+            let mut all_differ = true;
+            let first_app_view_output = &scenario_outputs[1];
+            for output in scenario_outputs.iter().skip(2) {
+                if output == first_app_view_output {
+                    all_differ = false;
+                    break;
+                }
+            }
+            if all_differ {
+                if !skip_details {
+                    println!("✅ SUCCESS: Outputs for different AppViews DO NOT MATCH in {} as expected.", test_site);
+                }
+                match_result = "PASS".to_string();
+            } else {
+                if !skip_details {
+                    println!("❌ FAILURE: Some outputs for AppViews MATCH in {}. Expected them to differ.", test_site);
+                }
+                match_result = "FAIL".to_string();
+            }
+        }
+
+        // Add summary rows for each scenario
+        for (i, scenario) in group.iter().enumerate() {
+            let cross_view = if i > 0 && group.len() > 2 {
+                match_result.clone()
+            } else {
+                String::new()
+            };
+            let has_unresolved = scenario_unresolved.get(i).copied().unwrap_or(false);
+            global_test_summary_rows.push(TestSummaryRow {
+                app_site: test_site.clone(),
+                app_file: app_file_name.clone(),
+                app_view: scenario.app_view.clone(),
+                normal_preprocess: if i == 0 {
+                    if has_unresolved {
+                        "FAIL".to_string()
+                    } else {
+                        "PASS".to_string()
+                    }
+                } else {
+                    String::new()
+                },
+                cross_view_unmatch: cross_view,
+                error: if has_unresolved {
+                    if scenario_outputs
+                        .get(i)
+                        .map(|s| s.trim().is_empty())
+                        .unwrap_or(false)
+                    {
+                        "Empty".to_string()
+                    } else {
+                        "Unresolv".to_string()
+                    }
+                } else {
+                    String::new()
+                },
+                normal_size: 0,
+                normal_json_size: 0,
+                preprocess_size: 0,
+                preprocess_json_size: 0,
+                all_engines_match: false,
+            });
+        }
+    }
+
+    global_test_summary_rows
+}
+pub fn run_standard_json_tests(
+    assembler_web_dir: &str,
+    project_directory: &str,
+    scenarios: &[crate::config::Scenario],
+    search_app_sites: &str,
+    print_html_output: bool,
+    skip_details: bool,
+    enable_json_processing: bool,
+) -> Vec<TestSummaryRow> {
+    if assembler_web_dir.is_empty() || project_directory.is_empty() || scenarios.is_empty() {
+        println!("❌ Invalid parameters for run_standard_json_tests");
+        return Vec::new();
+    }
+
+    if !skip_details {
+        println!(
+            "✅ JSON Processing {} for JSON engine\n",
+            if enable_json_processing {
+                "ENABLED"
+            } else {
+                "DISABLED"
+            }
+        );
+    }
+
+    let mut grouped: HashMap<(String, String), Vec<&crate::config::Scenario>> = HashMap::new();
+    for scenario in scenarios {
+        let key = (scenario.app_site.clone(), scenario.app_file.clone());
+        grouped.entry(key).or_insert_with(Vec::new).push(scenario);
+    }
+
+    let output_dir = std::path::Path::new(project_directory)
+        .join("Analysis")
+        .join("output");
+    let _ = std::fs::create_dir_all(&output_dir);
+
+    let mut global_test_summary_rows: Vec<TestSummaryRow> = Vec::new();
+    let mut sorted_keys: Vec<_> = grouped.keys().cloned().collect();
+    sorted_keys.sort();
+
+    for (test_site, app_file_name) in sorted_keys {
+        let group = grouped
+            .get(&(test_site.clone(), app_file_name.clone()))
+            .unwrap();
+        if !skip_details {
+            println!(
+                "{}: 🔍 STANDARD JSON TEST : appsite: {} appfile: {}",
+                test_site, test_site, app_file_name
+            );
+            println!("{}: {}", test_site, "=".repeat(50));
+        }
+
+        let loader = LoaderNormalJson::new(assembler_web_dir, &test_site, search_app_sites);
+        let mut scenario_outputs = Vec::new();
+        let mut scenario_unresolved = Vec::new();
+
+        for scenario in group {
+            let app_view = &scenario.app_view;
+            let engine = EngineNormalJson::new(app_file_name.clone());
+            let result = engine.merge_templates(
+                &test_site,
+                &app_file_name,
+                Some(app_view),
+                &loader,
+                enable_json_processing,
+            );
+
+            let has_unresolved = result.contains("{{") && result.contains("}}");
+            scenario_outputs.push(result.clone());
+            scenario_unresolved.push(has_unresolved);
+
+            let app_view_suffix = if app_view.is_empty() {
+                String::new()
+            } else {
+                format!("_{}", app_view)
+            };
+            let output_file =
+                output_dir.join(format!("{}{}_normaljson.html", test_site, app_view_suffix));
+            let _ = std::fs::write(&output_file, &result);
+
+            if !skip_details {
+                println!(
+                    "{}: 🧪 STANDARD JSON TEST : scenario: AppView='{}'",
+                    test_site, app_view
+                );
+                println!("Output length = {}", result.len());
+            }
+            if print_html_output {
+                println!(
+                    "\nFULL HTML OUTPUT for AppView '{}':\n{}\n",
+                    app_view, result
+                );
+            }
+        }
+
+        // Cross-view comparison
+        let match_result = if group.len() > 1 {
+            let all_differ = scenario_outputs.windows(2).all(|w| w[0] != w[1]);
+            if all_differ {
+                "PASS"
+            } else {
+                "FAIL"
+            }
+        } else {
+            ""
+        };
+
+        for (i, scenario) in group.iter().enumerate() {
+            let cross_view = if i > 0 && group.len() > 1 {
+                match_result.to_string()
+            } else {
+                String::new()
+            };
+            let has_unresolved = scenario_unresolved.get(i).copied().unwrap_or(false);
+            global_test_summary_rows.push(TestSummaryRow {
+                app_site: test_site.clone(),
+                app_file: app_file_name.clone(),
+                app_view: scenario.app_view.clone(),
+                normal_preprocess: if i == 0 {
+                    if has_unresolved {
+                        "FAIL".to_string()
+                    } else {
+                        "PASS".to_string()
+                    }
+                } else {
+                    String::new()
+                },
+                cross_view_unmatch: cross_view,
+                error: if has_unresolved {
+                    "Unresolv".to_string()
+                } else {
+                    String::new()
+                },
+                normal_size: 0,
+                normal_json_size: 0,
+                preprocess_size: 0,
+                preprocess_json_size: 0,
+                all_engines_match: false,
+            });
+        }
+    }
+    global_test_summary_rows
+}
+
+pub fn run_standard_preprocess_json_tests(
+    assembler_web_dir: &str,
+    project_directory: &str,
+    scenarios: &[crate::config::Scenario],
+    search_app_sites: &str,
+    print_html_output: bool,
+    skip_details: bool,
+    enable_json_processing: bool,
+) -> Vec<TestSummaryRow> {
+    if assembler_web_dir.is_empty() || project_directory.is_empty() || scenarios.is_empty() {
+        println!("❌ Invalid parameters for run_standard_preprocess_json_tests");
+        return Vec::new();
+    }
+
+    if !skip_details {
+        println!(
+            "✅ JSON Processing {} for PreProcess JSON engine\n",
+            if enable_json_processing {
+                "ENABLED"
+            } else {
+                "DISABLED"
+            }
+        );
+    }
+
+    let mut grouped: HashMap<(String, String), Vec<&crate::config::Scenario>> = HashMap::new();
+    for scenario in scenarios {
+        let key = (scenario.app_site.clone(), scenario.app_file.clone());
+        grouped.entry(key).or_insert_with(Vec::new).push(scenario);
+    }
+
+    let output_dir = std::path::Path::new(project_directory)
+        .join("Analysis")
+        .join("output");
+    let _ = std::fs::create_dir_all(&output_dir);
+
+    let mut global_test_summary_rows: Vec<TestSummaryRow> = Vec::new();
+    let mut sorted_keys: Vec<_> = grouped.keys().cloned().collect();
+    sorted_keys.sort();
+
+    for (test_site, app_file_name) in sorted_keys {
+        let group = grouped
+            .get(&(test_site.clone(), app_file_name.clone()))
+            .unwrap();
+        if !skip_details {
+            println!(
+                "{}: 🔍 STANDARD PREPROCESS JSON TEST : appsite: {} appfile: {}",
+                test_site, test_site, app_file_name
+            );
+            println!("{}: {}", test_site, "=".repeat(50));
+        }
+
+        let loader = LoaderPreProcessJson::new(assembler_web_dir, &test_site, search_app_sites);
+        let mut scenario_outputs = Vec::new();
+        let mut scenario_unresolved = Vec::new();
+
+        for scenario in group {
+            let app_view = &scenario.app_view;
+            let engine = EnginePreProcessJson::new(app_file_name.clone());
+            let result = engine.merge_templates(
+                &test_site,
+                &app_file_name,
+                Some(app_view),
+                &loader,
+                enable_json_processing,
+            );
+
+            let has_unresolved = result.contains("{{") && result.contains("}}");
+            scenario_outputs.push(result.clone());
+            scenario_unresolved.push(has_unresolved);
+
+            let app_view_suffix = if app_view.is_empty() {
+                String::new()
+            } else {
+                format!("_{}", app_view)
+            };
+            let output_file = output_dir.join(format!(
+                "{}{}_preprocessjson.html",
+                test_site, app_view_suffix
+            ));
+            let _ = std::fs::write(&output_file, &result);
+
+            if !skip_details {
+                println!(
+                    "{}: 🧪 STANDARD PREPROCESS JSON TEST : scenario: AppView='{}'",
+                    test_site, app_view
+                );
+                println!("Output length = {}", result.len());
+            }
+            if print_html_output {
+                println!(
+                    "\nFULL HTML OUTPUT for AppView '{}':\n{}\n",
+                    app_view, result
+                );
+            }
+        }
+
+        // Cross-view comparison
+        let match_result = if group.len() > 1 {
+            let all_differ = scenario_outputs.windows(2).all(|w| w[0] != w[1]);
+            if all_differ {
+                "PASS"
+            } else {
+                "FAIL"
+            }
+        } else {
+            ""
+        };
+
+        for (i, scenario) in group.iter().enumerate() {
+            let cross_view = if i > 0 && group.len() > 1 {
+                match_result.to_string()
+            } else {
+                String::new()
+            };
+            let has_unresolved = scenario_unresolved.get(i).copied().unwrap_or(false);
+            global_test_summary_rows.push(TestSummaryRow {
+                app_site: test_site.clone(),
+                app_file: app_file_name.clone(),
+                app_view: scenario.app_view.clone(),
+                normal_preprocess: if i == 0 {
+                    if has_unresolved {
+                        "FAIL".to_string()
+                    } else {
+                        "PASS".to_string()
+                    }
+                } else {
+                    String::new()
+                },
+                cross_view_unmatch: cross_view,
+                error: if has_unresolved {
+                    "Unresolv".to_string()
+                } else {
+                    String::new()
+                },
+                normal_size: 0,
+                normal_json_size: 0,
+                preprocess_size: 0,
+                preprocess_json_size: 0,
+                all_engines_match: false,
+            });
+        }
+    }
+    global_test_summary_rows
+}
+
+pub fn run_advanced_tests(
+    assembler_web_dir: &str,
+    project_directory: &str,
+    scenarios: &[crate::config::Scenario],
+    search_app_sites: &str,
+    print_html_output: bool,
+    skip_details: bool,
+    enable_json_processing: bool,
+) -> Vec<TestSummaryRow> {
     if assembler_web_dir.is_empty() {
         println!("❌ No assemblerWebDir passed");
         return Vec::new();
@@ -228,15 +953,32 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
     sorted_keys.sort();
 
     for (test_site, app_file_name) in sorted_keys {
-        let group = grouped.get(&(test_site.clone(), app_file_name.clone())).unwrap();
+        let group = grouped
+            .get(&(test_site.clone(), app_file_name.clone()))
+            .unwrap();
 
         if !skip_details {
-            println!("🔍 ADVANCED TEST : appsite: {} appfile: {}", test_site, app_file_name);
+            println!(
+                "🔍 ADVANCED TEST : appsite: {} appfile: {}",
+                test_site, app_file_name
+            );
         }
 
         // Load templates with timing output
-        let templates = LoaderNormal::load_get_template_files(assembler_web_dir, &test_site);
-        let preprocessed_site_templates = LoaderPreProcess::load_process_get_template_files(assembler_web_dir, &test_site);
+        LoaderNormal::clear_cache();
+        LoaderPreProcess::clear_cache();
+
+        let templates =
+            LoaderNormal::load_get_template_files(assembler_web_dir, &test_site, search_app_sites);
+        let loader_normal_json =
+            LoaderNormalJson::new(assembler_web_dir, &test_site, search_app_sites);
+        let preprocessed_site_templates = LoaderPreProcess::load_process_get_template_files(
+            assembler_web_dir,
+            &test_site,
+            search_app_sites,
+        );
+        let loader_preprocess_json =
+            LoaderPreProcessJson::new(assembler_web_dir, &test_site, search_app_sites);
 
         if !skip_details {
             println!("📂 Loaded {} templates:", templates.len());
@@ -252,7 +994,14 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
                 println!("   • {}: {} chars HTML{}", key, html_length, json_info);
             }
             println!();
-            println!("🔧 JSON Processing: {}", if enable_json_processing { "ENABLED" } else { "DISABLED" });
+            println!(
+                "🔧 JSON Processing: {}",
+                if enable_json_processing {
+                    "ENABLED"
+                } else {
+                    "DISABLED"
+                }
+            );
         }
 
         let mut scenario_results = Vec::new();
@@ -260,33 +1009,96 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
         for scenario in group {
             let app_view = &scenario.app_view;
             // Use empty AppViewPrefix for default scenario (when app_view is empty), otherwise use app_file_name
-            let app_view_prefix = if app_view.is_empty() { "" } else { &app_file_name };
+            let app_view_prefix = if app_view.is_empty() {
+                "".to_string()
+            } else {
+                app_file_name.clone()
+            };
             if !skip_details {
-                println!("{}: 🧪 ADVANCED TEST : scenario: AppView='{}', AppViewPrefix='{}'", test_site, app_view, app_view_prefix);
+                println!(
+                    "{}: 🧪 ADVANCED TEST : scenario: AppView='{}', AppViewPrefix='{}'",
+                    test_site, app_view, app_view_prefix
+                );
             }
 
             let normal_engine = EngineNormal::new(app_view_prefix.to_string());
+            let normal_json_engine = EngineNormalJson::new(app_view_prefix.to_string());
             let preprocess_engine = EnginePreProcess::new(app_view_prefix.to_string());
+            let preprocess_json_engine = EnginePreProcessJson::new(app_view_prefix.to_string());
 
-            // Time the Normal engine
-            let result_normal = normal_engine.merge_templates(&test_site, &app_file_name, Some(app_view), &mut templates.clone(), enable_json_processing);
+            // Run all 4 engines
+            let result_normal = normal_engine.merge_templates(
+                &test_site,
+                &app_file_name,
+                Some(app_view),
+                &mut templates.clone(),
+                search_app_sites,
+                enable_json_processing,
+            );
+            let result_normal_json = normal_json_engine.merge_templates(
+                &test_site,
+                &app_file_name,
+                Some(app_view),
+                &loader_normal_json,
+                enable_json_processing,
+            );
+            let result_preprocess = preprocess_engine.merge_templates(
+                &test_site,
+                &app_file_name,
+                Some(app_view),
+                &preprocessed_site_templates.templates,
+                search_app_sites,
+                enable_json_processing,
+            );
+            let result_preprocess_json = preprocess_json_engine.merge_templates(
+                &test_site,
+                &app_file_name,
+                Some(app_view),
+                &loader_preprocess_json,
+                enable_json_processing,
+            );
 
-            // Time the PreProcess engine
-            let result_preprocess = preprocess_engine.merge_templates(&test_site, &app_file_name, Some(app_view), &preprocessed_site_templates.templates, enable_json_processing);
+            // Check if all engines match
+            let all_match = result_normal == result_normal_json
+                && result_normal == result_preprocess
+                && result_normal == result_preprocess_json;
 
             // Store for cross-AppView comparison
-            scenario_results.push((app_view.clone(), result_normal.clone(), result_preprocess.clone()));
+            scenario_results.push((
+                app_view.clone(),
+                result_normal.clone(),
+                result_normal_json.clone(),
+                result_preprocess.clone(),
+                result_preprocess_json.clone(),
+                all_match,
+            ));
 
             // Save HTML outputs to Analysis/output folder
-            let output_dir = std::path::Path::new(project_directory).join("Analysis").join("output");
+            let output_dir = std::path::Path::new(project_directory)
+                .join("Analysis")
+                .join("output");
             let _ = std::fs::create_dir_all(&output_dir);
 
-            let app_view_suffix = if app_view.is_empty() { String::new() } else { format!("_{}", app_view) };
-            let normal_output_file = output_dir.join(format!("{}{}_normal.html", test_site, app_view_suffix));
-            let preprocess_output_file = output_dir.join(format!("{}{}_preprocess.html", test_site, app_view_suffix));
+            let app_view_suffix = if app_view.is_empty() {
+                String::new()
+            } else {
+                format!("_{}", app_view)
+            };
+            let normal_output_file =
+                output_dir.join(format!("{}{}_normal.html", test_site, app_view_suffix));
+            let normal_json_output_file =
+                output_dir.join(format!("{}{}_normaljson.html", test_site, app_view_suffix));
+            let preprocess_output_file =
+                output_dir.join(format!("{}{}_preprocess.html", test_site, app_view_suffix));
+            let preprocess_json_output_file = output_dir.join(format!(
+                "{}{}_preprocessjson.html",
+                test_site, app_view_suffix
+            ));
 
             let _ = std::fs::write(&normal_output_file, &result_normal);
+            let _ = std::fs::write(&normal_json_output_file, &result_normal_json);
             let _ = std::fs::write(&preprocess_output_file, &result_preprocess);
+            let _ = std::fs::write(&preprocess_json_output_file, &result_preprocess_json);
 
             if print_html_output {
                 println!("\n📋 FULL HTML OUTPUT (Normal):\n{}", result_normal);
@@ -302,8 +1114,16 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
                 println!("{}: {}", test_site, "-".repeat(45));
 
                 println!("{}: 🔹 All Two Methods:", test_site);
-                println!("{}:   Normal: {} chars", test_site, CommonUtil::utf16_len(&result_normal));
-                println!("{}:   PreProcess: {} chars", test_site, CommonUtil::utf16_len(&result_preprocess));
+                println!(
+                    "{}:   Normal: {} chars",
+                    test_site,
+                    CommonUtil::utf16_len(&result_normal)
+                );
+                println!(
+                    "{}:   PreProcess: {} chars",
+                    test_site,
+                    CommonUtil::utf16_len(&result_preprocess)
+                );
 
                 if outputs_match {
                     println!("{}:   ✅ Normal vs PreProcess: MATCH", test_site);
@@ -312,7 +1132,7 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
                 }
             }
 
-            let match_result = if outputs_match { "PASS" } else { "FAIL" };
+            let match_result = if all_match { "PASS" } else { "FAIL" };
             global_test_summary_rows.push(TestSummaryRow {
                 app_site: test_site.clone(),
                 app_file: app_file_name.clone(),
@@ -320,11 +1140,19 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
                 normal_preprocess: match_result.to_string(),
                 cross_view_unmatch: "".to_string(),
                 error: "".to_string(),
+                normal_size: result_normal.len(),
+                normal_json_size: result_normal_json.len(),
+                preprocess_size: result_preprocess.len(),
+                preprocess_json_size: result_preprocess_json.len(),
+                all_engines_match: all_match,
             });
 
             if !skip_details {
                 if outputs_match {
-                    println!("\n{}: 🎉 ALL METHODS PRODUCE IDENTICAL RESULTS! ✅", test_site);
+                    println!(
+                        "\n{}: 🎉 ALL METHODS PRODUCE IDENTICAL RESULTS! ✅",
+                        test_site
+                    );
                 } else {
                     println!("\n{}: ⚠️  METHODS PRODUCE DIFFERENT RESULTS! ❌", test_site);
                 }
@@ -347,11 +1175,19 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
 
             // Check for unmerged template fields in all outputs
             if !skip_details {
-                println!("\n{}: 🔎 Checking for unmerged template fields in outputs...", test_site);
+                println!(
+                    "\n{}: 🔎 Checking for unmerged template fields in outputs...",
+                    test_site
+                );
             }
             let mut found_unmerged = false;
 
-            for (name, output) in [("Normal", &result_normal), ("PreProcess", &result_preprocess)] {
+            for (name, output) in [
+                ("Normal", &result_normal),
+                ("NormalJson", &result_normal_json),
+                ("PreProcess", &result_preprocess),
+                ("PreProcessJson", &result_preprocess_json),
+            ] {
                 let mut unmerged_fields = Vec::new();
 
                 // Find all ${{field}} patterns using indexOf (double brackets only, ignore single bracket ${} which are JavaScript template literals)
@@ -373,24 +1209,36 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
                     let filtered_fields: Vec<_> = if enable_json_processing {
                         unmerged_fields
                     } else {
-                        unmerged_fields.into_iter()
+                        unmerged_fields
+                            .into_iter()
                             .filter(|f| !f.starts_with("${{Json") && !f.starts_with("${{$Json"))
                             .collect()
                     };
 
                     if !filtered_fields.is_empty() {
                         if !skip_details {
-                            println!("{}:   ❌ {} output contains {} unmerged non-JSON template fields!", test_site, name, filtered_fields.len());
+                            println!(
+                                "{}:   ❌ {} output contains {} unmerged non-JSON template fields!",
+                                test_site,
+                                name,
+                                filtered_fields.len()
+                            );
                             for field in &filtered_fields {
                                 println!("{}:      Unmerged field: {}", test_site, field);
                             }
                         }
                         found_unmerged = true;
                     } else if !skip_details {
-                        println!("{}:   ✅ {} output contains no unmerged non-JSON template fields.", test_site, name);
+                        println!(
+                            "{}:   ✅ {} output contains no unmerged non-JSON template fields.",
+                            test_site, name
+                        );
                     }
                 } else if !skip_details {
-                    println!("{}:   ✅ {} output contains no unmerged template fields.", test_site, name);
+                    println!(
+                        "{}:   ✅ {} output contains no unmerged template fields.",
+                        test_site, name
+                    );
                 }
             }
 
@@ -405,17 +1253,26 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
 
         // Compare outputs from different AppViews (cross-scenario)
         // Only compare AppView scenarios (exclude empty AppView scenario)
-        let app_view_results: Vec<_> = scenario_results.iter().filter(|(app_view, _, _)| !app_view.is_empty()).collect();
+        let app_view_results: Vec<_> = scenario_results
+            .iter()
+            .filter(|(app_view, _, _, _, _, _)| !app_view.is_empty())
+            .collect();
         if app_view_results.len() > 1 {
             if !skip_details {
                 println!("\n🔬 Cross-AppView Output Comparison:");
             }
             let mut all_app_views_differ = true;
             let first_app_view_normal = &app_view_results[0].1;
-            let first_app_view_preprocess = &app_view_results[0].2;
+            let first_app_view_normal_json = &app_view_results[0].2;
+            let first_app_view_preprocess = &app_view_results[0].3;
+            let first_app_view_preprocess_json = &app_view_results[0].4;
 
             for i in 1..app_view_results.len() {
-                let cross_view_match = if &app_view_results[i].1 == first_app_view_normal && &app_view_results[i].2 == first_app_view_preprocess {
+                let cross_view_match = if &app_view_results[i].1 == first_app_view_normal
+                    && &app_view_results[i].2 == first_app_view_normal_json
+                    && &app_view_results[i].3 == first_app_view_preprocess
+                    && &app_view_results[i].4 == first_app_view_preprocess_json
+                {
                     if !skip_details {
                         println!("❌ FAILURE: Outputs for AppView '{}' and AppView '{}' MATCH. Expected them to differ.", app_view_results[0].0, app_view_results[i].0);
                     }
@@ -430,19 +1287,13 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
 
                 // Find and update the corresponding row in global_test_summary_rows
                 let target_app_view = &app_view_results[i].0;
-                if let Some(row_to_update) = global_test_summary_rows.iter_mut()
-                    .rev()
-                    .find(|r| r.app_site == test_site && r.app_file == app_file_name && r.app_view == *target_app_view) {
+                if let Some(row_to_update) = global_test_summary_rows.iter_mut().rev().find(|r| {
+                    r.app_site == test_site
+                        && r.app_file == app_file_name
+                        && r.app_view == *target_app_view
+                }) {
                     row_to_update.cross_view_unmatch = cross_view_match;
                 }
-            }
-
-            // Also set the first AppView result
-            let first_target_app_view = &app_view_results[0].0;
-            if let Some(first_row_to_update) = global_test_summary_rows.iter_mut()
-                .rev()
-                .find(|r| r.app_site == test_site && r.app_file == app_file_name && r.app_view == *first_target_app_view) {
-                first_row_to_update.cross_view_unmatch = if all_app_views_differ { "PASS".to_string() } else { "FAIL".to_string() };
             }
 
             if !skip_details {
@@ -457,92 +1308,165 @@ pub fn run_advanced_tests(assembler_web_dir: &str, project_directory: &str, scen
     global_test_summary_rows
 }
 
-pub fn print_test_summary_table(assembler_web_dir_path: &str, project_directory: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str)
-{
+pub fn print_test_summary_table(
+    assembler_web_dir_path: &str,
+    project_directory: &str,
+    summary_rows: &Vec<TestSummaryRow>,
+    test_type: &str,
+) {
     if summary_rows.is_empty() {
         return;
     }
 
-    println!("\n==================== RUST {} SUMMARY ====================\n", test_type.to_uppercase());
+    println!(
+        "\n==================== RUST {} SUMMARY ====================\n",
+        test_type.to_uppercase()
+    );
 
-    let headers = ["AppSite", "AppFile", "AppView", "OutputMatch", "ViewUnMatch", "Error"];
-    let col_count = headers.len();
-    let mut widths = vec![10; col_count]; // minimum width of 10
+    // Check if this is an advanced test (has engine size data)
+    let is_advanced_test = test_type.to_uppercase().contains("ADVANCED")
+        || (summary_rows.len() > 0 && summary_rows[0].normal_size > 0);
 
-    // Calculate column widths
-    for (i, header) in headers.iter().enumerate() {
-        widths[i] = std::cmp::max(widths[i], header.len());
-    }
+    if is_advanced_test {
+        // Advanced test table with engine output sizes for all 4 engines
+        println!("| {:<15} | {:<10} | {:<10} | {:<8} | {:<8} | {:<8} | {:<8} | {:<6} | {:<11} | {:<10} |",
+                "AppSite", "AppFile", "AppView", "Normal", "NormalJ", "PreProc", "PreProcJ", "Match", "ViewUnMatch", "Error");
+        println!("| {:<15} | {:<10} | {:<10} | {:<8} | {:<8} | {:<8} | {:<8} | {:<6} | {:<11} | {:<10} |",
+                "---------------", "----------", "----------", "--------", "--------", "--------", "--------", "------", "-----------", "----------");
 
-    for row in summary_rows {
-        let values = [&row.app_site, &row.app_file, &row.app_view, &row.normal_preprocess, &row.cross_view_unmatch, &row.error];
-        for (i, value) in values.iter().enumerate() {
-            widths[i] = std::cmp::max(widths[i], value.len());
+        for row in summary_rows {
+            let match_indicator = if row.all_engines_match { "✓" } else { "✗" };
+            println!("| {:<15} | {:<10} | {:<10} | {:<8} | {:<8} | {:<8} | {:<8} | {:<6} | {:<11} | {:<10} |",
+                    row.app_site, row.app_file, row.app_view, row.normal_size, row.normal_json_size,
+                    row.preprocess_size, row.preprocess_json_size,
+                    match_indicator, row.cross_view_unmatch, row.error);
         }
-    }
 
-    // Print header
-    print!("| ");
-    for (i, header) in headers.iter().enumerate() {
-        print!("{:<width$}", header, width = widths[i]);
-        if i < col_count - 1 {
-            print!(" | ");
+        println!("| {:<15} | {:<10} | {:<10} | {:<8} | {:<8} | {:<8} | {:<8} | {:<6} | {:<11} | {:<10} |",
+                "---------------", "----------", "----------", "--------", "--------", "--------", "--------", "------", "-----------", "----------");
+    } else {
+        // Standard test table (original format)
+        let headers = [
+            "AppSite",
+            "AppFile",
+            "AppView",
+            "OutputMatch",
+            "ViewUnMatch",
+            "Error",
+        ];
+        let col_count = headers.len();
+        let mut widths = vec![10; col_count]; // minimum width of 10
+        widths[0] = 15; // AppSite column width
+
+        // Calculate column widths
+        for (i, header) in headers.iter().enumerate() {
+            widths[i] = std::cmp::max(widths[i], header.len());
         }
-    }
-    println!(" |");
 
-    // Print divider
-    print!("|");
-    for (i, _) in headers.iter().enumerate() {
-        print!(" {:-<width$} ", "", width = widths[i]);
-        if i < col_count - 1 {
-            print!("|");
+        for row in summary_rows {
+            let values = [
+                &row.app_site,
+                &row.app_file,
+                &row.app_view,
+                &row.normal_preprocess,
+                &row.cross_view_unmatch,
+                &row.error,
+            ];
+            for (i, value) in values.iter().enumerate() {
+                widths[i] = std::cmp::max(widths[i], value.len());
+            }
         }
-    }
-    println!("|");
 
-    // Print rows
-    for row in summary_rows {
-        let values = [&row.app_site, &row.app_file, &row.app_view, &row.normal_preprocess, &row.cross_view_unmatch, &row.error];
+        // Print header
         print!("| ");
-        for (i, value) in values.iter().enumerate() {
-            print!("{:<width$}", value, width = widths[i]);
+        for (i, header) in headers.iter().enumerate() {
+            print!("{:<width$}", header, width = widths[i]);
             if i < col_count - 1 {
                 print!(" | ");
             }
         }
         println!(" |");
-    }
 
-    // Print bottom divider
-    print!("|");
-    for (i, _) in headers.iter().enumerate() {
-        print!(" {:-<width$} ", "", width = widths[i]);
-        if i < col_count - 1 {
-            print!("|");
+        // Print divider
+        print!("|");
+        for (i, _) in headers.iter().enumerate() {
+            print!(" {:-<width$} ", "", width = widths[i]);
+            if i < col_count - 1 {
+                print!("|");
+            }
         }
+        println!("|");
+
+        // Print rows
+        for row in summary_rows {
+            let values = [
+                &row.app_site,
+                &row.app_file,
+                &row.app_view,
+                &row.normal_preprocess,
+                &row.cross_view_unmatch,
+                &row.error,
+            ];
+            print!("| ");
+            for (i, value) in values.iter().enumerate() {
+                print!("{:<width$}", value, width = widths[i]);
+                if i < col_count - 1 {
+                    print!(" | ");
+                }
+            }
+            println!(" |");
+        }
+
+        // Print bottom divider
+        print!("|");
+        for (i, _) in headers.iter().enumerate() {
+            print!(" {:-<width$} ", "", width = widths[i]);
+            if i < col_count - 1 {
+                print!("|");
+            }
+        }
+        println!("|");
     }
-    println!("|");
 
     // Save HTML file
-    match save_test_summary_html(assembler_web_dir_path, project_directory, summary_rows, test_type) {
+    match save_test_summary_html(
+        assembler_web_dir_path,
+        project_directory,
+        summary_rows,
+        test_type,
+    ) {
         Ok(path) => println!("Test summary HTML saved to: {}", path),
         Err(e) => println!("Error saving test summary HTML: {}", e),
     }
 
     // Save JSON file
-    match save_test_summary_json(assembler_web_dir_path, project_directory, summary_rows, test_type) {
+    match save_test_summary_json(
+        assembler_web_dir_path,
+        project_directory,
+        summary_rows,
+        test_type,
+    ) {
         Ok(path) => println!("Test summary JSON saved to: {}", path),
         Err(e) => println!("Error saving test summary JSON: {}", e),
     }
 }
 
-fn save_test_summary_html(_assembler_web_dir_path: &str, project_directory: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str) -> Result<String, Box<dyn std::error::Error>> {
+fn save_test_summary_html(
+    _assembler_web_dir_path: &str,
+    project_directory: &str,
+    summary_rows: &Vec<TestSummaryRow>,
+    test_type: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
     let mut html = String::new();
     html.push_str("<!DOCTYPE html>\n<html>\n<head>\n");
     html.push_str("    <meta charset=\"UTF-8\">\n");
-    html.push_str("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-    html.push_str(&format!("    <title>Rust {} Summary</title>\n", test_type.to_uppercase()));
+    html.push_str(
+        "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n",
+    );
+    html.push_str(&format!(
+        "    <title>Rust {} Summary</title>\n",
+        test_type.to_uppercase()
+    ));
     html.push_str("    <style>\n");
     html.push_str("        body { font-family: Arial, sans-serif; margin: 20px; }\n");
     html.push_str("        h1 { color: #333; }\n");
@@ -559,30 +1483,108 @@ fn save_test_summary_html(_assembler_web_dir_path: &str, project_directory: &str
     html.push_str("            h1 { font-size: 24px; }\n");
     html.push_str("        }\n");
     html.push_str("    </style>\n</head>\n<body>\n");
-    html.push_str(&format!("    <h1>Rust {} Summary</h1>\n", test_type.to_uppercase()));
+    html.push_str(&format!(
+        "    <h1>Rust {} Summary</h1>\n",
+        test_type.to_uppercase()
+    ));
     html.push_str(&format!("    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: {} UTC</div>\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
     html.push_str("    <div class=\"table-container\">\n    <table>\n");
-    html.push_str("        <tr>\n");
-    html.push_str("            <th>AppSite</th>\n");
-    html.push_str("            <th>AppFile</th>\n");
-    html.push_str("            <th>AppView</th>\n");
-    html.push_str("            <th>OutputMatch</th>\n");
-    html.push_str("            <th>ViewUnMatch</th>\n");
-    html.push_str("            <th>Error</th>\n");
-    html.push_str("        </tr>\n");
 
-    for row in summary_rows {
-        let output_match_class = if row.normal_preprocess == "PASS" { "pass" } else if row.normal_preprocess == "FAIL" { "fail" } else { "" };
-        let view_unmatch_class = if row.cross_view_unmatch == "PASS" { "pass" } else if row.cross_view_unmatch == "FAIL" { "fail" } else { "" };
+    // Check if this is an advanced test
+    let is_advanced_test = test_type.to_uppercase().contains("ADVANCED")
+        || (summary_rows.len() > 0 && summary_rows[0].normal_size > 0);
 
+    if is_advanced_test {
+        // Advanced test headers
         html.push_str("        <tr>\n");
-        html.push_str(&format!("            <td>{}</td>\n", row.app_site));
-        html.push_str(&format!("            <td>{}</td>\n", row.app_file));
-        html.push_str(&format!("            <td>{}</td>\n", row.app_view));
-        html.push_str(&format!("            <td class=\"{}\">{}</td>\n", output_match_class, row.normal_preprocess));
-        html.push_str(&format!("            <td class=\"{}\">{}</td>\n", view_unmatch_class, row.cross_view_unmatch));
-        html.push_str(&format!("            <td>{}</td>\n", row.error));
+        html.push_str("            <th>AppSite</th>\n");
+        html.push_str("            <th>AppFile</th>\n");
+        html.push_str("            <th>AppView</th>\n");
+        html.push_str("            <th>Normal</th>\n");
+        html.push_str("            <th>PreProc</th>\n");
+        html.push_str("            <th>Match</th>\n");
+        html.push_str("            <th>ViewUnMatch</th>\n");
+        html.push_str("            <th>Error</th>\n");
         html.push_str("        </tr>\n");
+
+        for row in summary_rows {
+            let match_indicator = if row.normal_size == row.preprocess_size {
+                "✓"
+            } else {
+                "✗"
+            };
+            let match_class = if row.normal_size == row.preprocess_size {
+                "pass"
+            } else {
+                "fail"
+            };
+            let view_unmatch_class = if row.cross_view_unmatch == "PASS" {
+                "pass"
+            } else if row.cross_view_unmatch == "FAIL" {
+                "fail"
+            } else {
+                ""
+            };
+
+            html.push_str("        <tr>\n");
+            html.push_str(&format!("            <td>{}</td>\n", row.app_site));
+            html.push_str(&format!("            <td>{}</td>\n", row.app_file));
+            html.push_str(&format!("            <td>{}</td>\n", row.app_view));
+            html.push_str(&format!("            <td>{}</td>\n", row.normal_size));
+            html.push_str(&format!("            <td>{}</td>\n", row.preprocess_size));
+            html.push_str(&format!(
+                "            <td class=\"{}\">{}</td>\n",
+                match_class, match_indicator
+            ));
+            html.push_str(&format!(
+                "            <td class=\"{}\">{}</td>\n",
+                view_unmatch_class, row.cross_view_unmatch
+            ));
+            html.push_str(&format!("            <td>{}</td>\n", row.error));
+            html.push_str("        </tr>\n");
+        }
+    } else {
+        // Standard test headers
+        html.push_str("        <tr>\n");
+        html.push_str("            <th>AppSite</th>\n");
+        html.push_str("            <th>AppFile</th>\n");
+        html.push_str("            <th>AppView</th>\n");
+        html.push_str("            <th>OutputMatch</th>\n");
+        html.push_str("            <th>ViewUnMatch</th>\n");
+        html.push_str("            <th>Error</th>\n");
+        html.push_str("        </tr>\n");
+
+        for row in summary_rows {
+            let output_match_class = if row.normal_preprocess == "PASS" {
+                "pass"
+            } else if row.normal_preprocess == "FAIL" {
+                "fail"
+            } else {
+                ""
+            };
+            let view_unmatch_class = if row.cross_view_unmatch == "PASS" {
+                "pass"
+            } else if row.cross_view_unmatch == "FAIL" {
+                "fail"
+            } else {
+                ""
+            };
+
+            html.push_str("        <tr>\n");
+            html.push_str(&format!("            <td>{}</td>\n", row.app_site));
+            html.push_str(&format!("            <td>{}</td>\n", row.app_file));
+            html.push_str(&format!("            <td>{}</td>\n", row.app_view));
+            html.push_str(&format!(
+                "            <td class=\"{}\">{}</td>\n",
+                output_match_class, row.normal_preprocess
+            ));
+            html.push_str(&format!(
+                "            <td class=\"{}\">{}</td>\n",
+                view_unmatch_class, row.cross_view_unmatch
+            ));
+            html.push_str(&format!("            <td>{}</td>\n", row.error));
+            html.push_str("        </tr>\n");
+        }
     }
 
     html.push_str("    </table>\n    </div>\n</body>\n</html>\n");
@@ -596,7 +1598,12 @@ fn save_test_summary_html(_assembler_web_dir_path: &str, project_directory: &str
     Ok(out_file)
 }
 
-fn save_test_summary_json(_assembler_web_dir_path: &str, project_directory: &str, summary_rows: &Vec<TestSummaryRow>, test_type: &str) -> Result<String, Box<dyn std::error::Error>> {
+fn save_test_summary_json(
+    _assembler_web_dir_path: &str,
+    project_directory: &str,
+    summary_rows: &Vec<TestSummaryRow>,
+    test_type: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
     let test_type_file = test_type.replace(" ", "").replace("-", "").to_lowercase();
     let reports_dir = format!("{}/Analysis/Reports", project_directory);
     std::fs::create_dir_all(&reports_dir)?;
@@ -606,13 +1613,15 @@ fn save_test_summary_json(_assembler_web_dir_path: &str, project_directory: &str
     Ok(json_file)
 }
 
-pub fn analyze_output_differences(output1: &str, output2: &str, print_detailed_diff: bool)
-{
+pub fn analyze_output_differences(output1: &str, output2: &str, print_detailed_diff: bool) {
     let normal_len = CommonUtil::utf16_len(output1);
     let preprocess_len = CommonUtil::utf16_len(output2);
     println!("   Normal length: {} chars", normal_len);
     println!("   PreProcess length: {} chars", preprocess_len);
-    println!("   Difference: {} chars", normal_len as i64 - preprocess_len as i64);
+    println!(
+        "   Difference: {} chars",
+        normal_len as i64 - preprocess_len as i64
+    );
 
     if print_detailed_diff {
         // Find first character-level difference
@@ -640,15 +1649,22 @@ pub fn analyze_output_differences(output1: &str, output2: &str, print_detailed_d
         }
 
         // Check if one output is longer
-        if output1.len() != output2.len() && min_len == std::cmp::min(output1.len(), output2.len()) {
+        if output1.len() != output2.len() && min_len == std::cmp::min(output1.len(), output2.len())
+        {
             println!("\n   Files differ in length at position {}", min_len);
             if output1.len() > output2.len() {
                 let extra_len = std::cmp::min(100, output1.len() - min_len);
-                println!("   Normal has extra {} chars at the end:", output1.len() - output2.len());
+                println!(
+                    "   Normal has extra {} chars at the end:",
+                    output1.len() - output2.len()
+                );
                 println!("     '{}'", &output1[min_len..min_len + extra_len]);
             } else {
                 let extra_len = std::cmp::min(100, output2.len() - min_len);
-                println!("   PreProcess has extra {} chars at the end:", output2.len() - output1.len());
+                println!(
+                    "   PreProcess has extra {} chars at the end:",
+                    output2.len() - output1.len()
+                );
                 println!("     '{}'", &output2[min_len..min_len + extra_len]);
             }
         }
@@ -673,7 +1689,12 @@ pub fn analyze_output_differences(output1: &str, output2: &str, print_detailed_d
                 let chars2: Vec<char> = lines2[i].chars().collect();
                 for j in 0..min_length {
                     if chars1[j] != chars2[j] {
-                        println!("   First difference at character {}: '{}' vs '{}'", j + 1, chars1[j], chars2[j]);
+                        println!(
+                            "   First difference at character {}: '{}' vs '{}'",
+                            j + 1,
+                            chars1[j],
+                            chars2[j]
+                        );
                         break;
                     }
                 }
@@ -682,31 +1703,74 @@ pub fn analyze_output_differences(output1: &str, output2: &str, print_detailed_d
     }
 }
 
-pub fn compare_engines_for_scenario(app_site: &str, app_file: &str, app_view: &str,
-    normal_engine: &EngineNormal, preprocess_engine: &EnginePreProcess,
+pub fn compare_engines_for_scenario(
+    app_site: &str,
+    app_file: &str,
+    app_view: &str,
+    normal_engine: &EngineNormal,
+    preprocess_engine: &EnginePreProcess,
     templates: &mut HashMap<String, (String, Option<String>)>,
     preprocessed_templates: &HashMap<String, crate::model::model_preprocess::PreprocessedTemplate>,
-    enable_json_processing: bool, assembler_web_dir: &str, skip_details: bool) -> (String, String, bool)
-{
-    let result_normal = normal_engine.merge_templates(app_site, app_file, Some(app_view), templates, enable_json_processing);
-    let result_preprocess = preprocess_engine.merge_templates(app_site, app_file, Some(app_view), preprocessed_templates, enable_json_processing);
+    search_app_sites: &str,
+    enable_json_processing: bool,
+    assembler_web_dir: &str,
+    skip_details: bool,
+) -> (String, String, bool) {
+    let result_normal = normal_engine.merge_templates(
+        app_site,
+        app_file,
+        Some(app_view),
+        templates,
+        search_app_sites,
+        enable_json_processing,
+    );
+    let result_preprocess = preprocess_engine.merge_templates(
+        app_site,
+        app_file,
+        Some(app_view),
+        preprocessed_templates,
+        search_app_sites,
+        enable_json_processing,
+    );
 
     if !skip_details {
         println!("{}: 🧪 Testing scenario: AppView='{}'", app_site, app_view);
         println!("   📏 Normal Engine Output: {} chars", result_normal.len());
-        println!("   📏 PreProcess Engine Output: {} chars", result_preprocess.len());
+        println!(
+            "   📏 PreProcess Engine Output: {} chars",
+            result_preprocess.len()
+        );
     }
 
     let outputs_match = result_normal == result_preprocess;
     if !skip_details {
-        println!("\n✅ Outputs {}", if outputs_match {"Match! ✨"} else {"Differ ❌"});
+        println!(
+            "\n✅ Outputs {}",
+            if outputs_match {
+                "Match! ✨"
+            } else {
+                "Differ ❌"
+            }
+        );
     }
 
     if !outputs_match {
         let test_output_dir = format!("{}/test_output", assembler_web_dir);
         let _ = std::fs::create_dir_all(&test_output_dir);
-        let normal_path = format!("{}/{}_normal_{}_{}.html", test_output_dir, app_site, app_view, if enable_json_processing {"with"} else {"no"});
-        let preprocess_path = format!("{}/{}_preprocess_{}_{}.html", test_output_dir, app_site, app_view, if enable_json_processing {"with"} else {"no"});
+        let normal_path = format!(
+            "{}/{}_normal_{}_{}.html",
+            test_output_dir,
+            app_site,
+            app_view,
+            if enable_json_processing { "with" } else { "no" }
+        );
+        let preprocess_path = format!(
+            "{}/{}_preprocess_{}_{}.html",
+            test_output_dir,
+            app_site,
+            app_view,
+            if enable_json_processing { "with" } else { "no" }
+        );
         let _ = std::fs::write(&normal_path, &result_normal);
         let _ = std::fs::write(&preprocess_path, &result_preprocess);
         println!("\n📄 Outputs saved to: {}", test_output_dir);
@@ -718,10 +1782,16 @@ pub fn compare_engines_for_scenario(app_site: &str, app_file: &str, app_view: &s
 }
 
 /// Dumps preprocessed template structures to JSON files (matching C# DumpPreprocessedTemplateStructures)
-pub fn dump_preprocessed_template_structures(assembler_web_dir_path: &str, project_directory: &str, scenarios: &[crate::config::Scenario], skip_details: bool) {
-    use std::path::Path;
-    use std::fs;
+pub fn dump_preprocessed_template_structures(
+    assembler_web_dir_path: &str,
+    project_directory: &str,
+    scenarios: &[crate::config::Scenario],
+    search_app_sites: &str,
+    skip_details: bool,
+) {
     use crate::api::api_response::ApiResponse;
+    use std::fs;
+    use std::path::Path;
 
     if assembler_web_dir_path.is_empty() {
         if !skip_details {
@@ -745,7 +1815,8 @@ pub fn dump_preprocessed_template_structures(assembler_web_dir_path: &str, proje
     }
 
     // Get unique AppSites from scenarios
-    let mut app_sites: Vec<String> = scenarios.iter()
+    let mut app_sites: Vec<String> = scenarios
+        .iter()
         .map(|s| s.app_site.clone())
         .collect::<std::collections::HashSet<_>>()
         .into_iter()
@@ -753,17 +1824,22 @@ pub fn dump_preprocessed_template_structures(assembler_web_dir_path: &str, proje
     app_sites.sort();
 
     for site in app_sites {
-
         LoaderNormal::clear_cache();
         LoaderPreProcess::clear_cache();
 
-        let _templates = LoaderNormal::load_get_template_files(assembler_web_dir_path, &site);
-        let preprocessed_site_templates = LoaderPreProcess::load_process_get_template_files(assembler_web_dir_path, &site);
+        let _templates =
+            LoaderNormal::load_get_template_files(assembler_web_dir_path, &site, search_app_sites);
+        let preprocessed_site_templates = LoaderPreProcess::load_process_get_template_files(
+            assembler_web_dir_path,
+            &site,
+            search_app_sites,
+        );
 
-        let full_json = ApiResponse::serialize_preprocessed_site_templates(&preprocessed_site_templates, true);
+        let full_json =
+            ApiResponse::serialize_preprocessed_site_templates(&preprocessed_site_templates, true);
 
-        // Save to file for easier analysis
-        let output_dir = Path::new(project_directory).join("Analysis");
+        // Save to file for easier analysis in 'dump' folder inside Analysis
+        let output_dir = Path::new(project_directory).join("Analysis").join("dump");
         if let Err(e) = fs::create_dir_all(&output_dir) {
             if !skip_details {
                 println!("❌ Error creating output directory: {}", e);

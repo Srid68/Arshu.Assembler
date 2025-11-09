@@ -1,8 +1,8 @@
 // TemplateModel: Data structure for parsed template
 // Should represent the template's structure and metadata
 
-use serde::{Deserialize, Serialize};
 use crate::app::JsonObject;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PreprocessedSiteTemplates {
@@ -28,7 +28,7 @@ pub struct PreprocessedTemplate {
     pub json_placeholders: Vec<JsonPlaceholder>,
     #[serde(rename = "replacementMappings")]
     pub replacement_mappings: Vec<ReplacementMapping>,
-    
+
     // Helper properties included in JSON serialization
     #[serde(rename = "hasPlaceholders")]
     pub has_placeholders_flag: bool,
@@ -49,27 +49,31 @@ impl PreprocessedTemplate {
     pub fn has_placeholders(&self) -> bool {
         !self.placeholders.is_empty()
     }
-    
+
     pub fn has_slotted_templates(&self) -> bool {
         !self.slotted_templates.is_empty()
     }
-    
+
     pub fn has_json_data(&self) -> bool {
         self.json_data.is_some() && !self.json_data.as_ref().unwrap().is_empty()
     }
-    
+
     pub fn has_json_placeholders(&self) -> bool {
         !self.json_placeholders.is_empty()
     }
-    
+
     pub fn has_replacement_mappings(&self) -> bool {
         !self.replacement_mappings.is_empty()
     }
-    
+
     pub fn requires_processing(&self) -> bool {
-        self.has_placeholders() || self.has_slotted_templates() || self.has_json_data() || self.has_json_placeholders() || self.has_replacement_mappings()
+        self.has_placeholders()
+            || self.has_slotted_templates()
+            || self.has_json_data()
+            || self.has_json_placeholders()
+            || self.has_replacement_mappings()
     }
-    
+
     // Helper method to update convenience flags
     pub fn update_flags(&mut self) {
         self.has_placeholders_flag = self.has_placeholders();
@@ -100,6 +104,14 @@ pub struct ReplacementMapping {
     pub replacement_text: String,
     #[serde(rename = "type")]
     pub r#type: ReplacementType,
+    /// Name of the target template this mapping references (for engine to retrieve JSON)
+    /// Format: lowercase template name (e.g., "header", "footer")
+    #[serde(
+        rename = "targetTemplateName",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub target_template_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
@@ -174,8 +186,7 @@ pub struct SlotPlaceholder {
     pub requires_nested_processing: bool,
 }
 
-impl PreprocessedSiteTemplates {
-}
+impl PreprocessedSiteTemplates {}
 
 #[derive(Debug, Serialize, Clone)]
 pub struct PreprocessedSummary {

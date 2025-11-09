@@ -18,7 +18,10 @@ import (
 	Logger "arshu/common"
 )
 
-const DefaultAppSite = "Test"
+const DefaultAppSite = "Main"
+
+// SearchAppSites is the default search AppSites for template loading
+const SearchAppSites = "Common, Language"
 
 // Maximum parameter length to prevent DoS attacks
 const paramMaxLength = 256
@@ -185,51 +188,104 @@ func Index(c *gin.Context) {
 	}
 
 	// Load templates for requested AppSite
-	normalTemplatesRaw := loader.LoadGetTemplateFiles(rootDirPath, appSite)
-	preprocessTemplatesRaw := loader.LoadProcessGetTemplateFiles(rootDirPath, appSite)
+	normalTemplatesRaw := loader.LoadGetTemplateFiles(rootDirPath, appSite, SearchAppSites)
+	preprocessTemplatesRaw := loader.LoadProcessGetTemplateFiles(rootDirPath, appSite, SearchAppSites)
 
 	// Merge using selected engine (no AppView context)
 	var mergedHtml string
 	if strings.EqualFold(engineType, "PreProcess") {
 		engine := engine.NewEnginePreProcess("")
-		mergedHtml = engine.MergeTemplates(appSite, appFile, "", preprocessTemplatesRaw.Templates, true)
+		mergedHtml = engine.MergeTemplates(appSite, appFile, "", preprocessTemplatesRaw.Templates, "", true)
 	} else {
 		engine := engine.NewEngineNormal("")
-		mergedHtml = engine.MergeTemplates(appSite, appFile, "", normalTemplatesRaw, true)
+		mergedHtml = engine.MergeTemplates(appSite, appFile, "", normalTemplatesRaw, "", true)
 	}
 
 	c.Header("Content-Type", "text/html")
 	c.String(http.StatusOK, mergedHtml)
 }
 
-// Scenarios handles the GET /api/scenarios endpoint
-func Scenarios(c *gin.Context) {
-	allScenarios, err := config.GetScenarios()
+// NavigationEndpoint handles GET /:appSite/:appView navigation
+func NavigationEndpoint(c *gin.Context) {
+	appSite := c.Param("appSite")
+	appView := c.Param("appView") // Optional, may be empty
+
+	// Validate AppSite against allowlist
+	validAppSites, err := getValidAppSites()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error loading scenarios: " + err.Error()})
+		c.String(http.StatusInternalServerError, "Error loading valid AppSites: "+err.Error())
 		return
 	}
 
-	type ScenarioDto struct {
-		AppSite     string `json:"appSite"`
-		AppFile     string `json:"appFile"`
-		AppView     string `json:"appView"`
-		DisplayName string `json:"displayName"`
-		Description string `json:"description"`
+	appSiteLower := strings.ToLower(appSite)
+	if !validAppSites[appSiteLower] {
+		c.String(http.StatusBadRequest, "Invalid AppSite value")
+		return
 	}
 
-	var scenarioDtos []ScenarioDto
-	for _, s := range allScenarios {
-		scenarioDtos = append(scenarioDtos, ScenarioDto{
-			AppSite:     s.AppSite,
-			AppFile:     s.AppFile,
-			AppView:     s.AppView,
-			DisplayName: s.DisplayName,
-			Description: s.Description,
-		})
+	// Validate path components for path traversal attacks
+	if !isValidPathComponent(&appSite) {
+		c.String(http.StatusBadRequest, "Invalid characters in AppSite")
+		return
 	}
 
-	c.JSON(http.StatusOK, scenarioDtos)
+	if appView != "" && !isValidPathComponent(&appView) {
+		c.String(http.StatusBadRequest, "Invalid characters in AppView")
+		return
+	}
+
+	// Get AppFile from scenarios
+	scenarios, err := config.GetScenarios()
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to get scenarios: "+err.Error())
+		return
+	}
+
+	appViewValue := appView
+	var matchingScenario *config.Scenario
+	for _, s := range scenarios {
+		if strings.EqualFold(s.AppSite, appSite) && strings.EqualFold(s.AppView, appViewValue) {
+			matchingScenario = &s
+			break
+		}
+	}
+
+	if matchingScenario == nil {
+		c.String(http.StatusBadRequest, fmt.Sprintf("No matching scenario found for AppSite='%s' and AppView='%s'", appSite, appViewValue))
+		return
+	}
+
+	appFile := matchingScenario.AppFile
+
+	// Get engine type from query parameter (default to Normal)
+	engineType := c.Query("engine")
+	if engineType == "" {
+		engineType = "Normal"
+	}
+
+	// Validate EngineType against allowlist
+	if !validEngineTypes[engineType] {
+		c.String(http.StatusBadRequest, "Invalid engine type. Use 'Normal' or 'PreProcess'")
+		return
+	}
+
+	// Get wwwroot path
+	wwwrootPath := getWwwrootPath()
+
+	// Merge using selected engine
+	var mergedHtml string
+	if strings.EqualFold(engineType, "PreProcess") {
+		templates := loader.LoadProcessGetTemplateFiles(wwwrootPath, appSite, SearchAppSites)
+		eng := engine.NewEnginePreProcess("")
+		mergedHtml = eng.MergeTemplates(appSite, appFile, appViewValue, templates.Templates, SearchAppSites, false)
+	} else {
+		templates := loader.LoadGetTemplateFiles(wwwrootPath, appSite, SearchAppSites)
+		eng := engine.NewEngineNormal("")
+		mergedHtml = eng.MergeTemplates(appSite, appFile, appViewValue, templates, SearchAppSites, false)
+	}
+
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, mergedHtml)
 }
 
 // MergeTemplates handles the POST /merge endpoint
@@ -356,13 +412,13 @@ func MergeTemplates(c *gin.Context) {
 	engineStart := time.Now()
 	var mergedHTML string
 	if strings.EqualFold(*req.EngineType, "PreProcess") {
-		templates := loader.LoadProcessGetTemplateFiles(rootDirPath, *req.AppSite)
+		templates := loader.LoadProcessGetTemplateFiles(rootDirPath, *req.AppSite, SearchAppSites)
 		engine := engine.NewEnginePreProcess(appViewPrefix)
-		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, templates.Templates, true)
+		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, templates.Templates, SearchAppSites, true)
 	} else {
-		templates := loader.LoadGetTemplateFiles(rootDirPath, *req.AppSite)
+		templates := loader.LoadGetTemplateFiles(rootDirPath, *req.AppSite, SearchAppSites)
 		engine := engine.NewEngineNormal(appViewPrefix)
-		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, templates, true)
+		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, templates, SearchAppSites, true)
 	}
 	engineTimeMs := float64(time.Since(engineStart).Microseconds()) / 1000.0
 	serverTimeMs := float64(time.Since(serverStart).Microseconds()) / 1000.0
@@ -431,10 +487,10 @@ func GetTemplates(c *gin.Context) {
 	rootDirPath := getWwwrootPath()
 
 	// Load Normal templates
-	normalTemplates := loader.LoadGetTemplateFiles(rootDirPath, req.AppSite)
+	normalTemplates := loader.LoadGetTemplateFiles(rootDirPath, req.AppSite, SearchAppSites)
 
 	// Load PreProcess templates
-	preprocessTemplates := loader.LoadProcessGetTemplateFiles(rootDirPath, req.AppSite)
+	preprocessTemplates := loader.LoadProcessGetTemplateFiles(rootDirPath, req.AppSite, SearchAppSites)
 
 	// Convert Normal templates to TemplateData objects for proper JSON serialization
 	normalResult := make(map[string]api.TemplateData)
@@ -510,7 +566,8 @@ func safeString(s *string) string {
 func MapAssemblerEndpoints(router *gin.Engine) {
 	// Map assembler endpoints
 	router.GET("/", Index)
-	router.GET("/api/scenarios", Scenarios)
+	router.GET("/:appSite", NavigationEndpoint)
+	router.GET("/:appSite/:appView", NavigationEndpoint)
 	router.POST("/merge", MergeTemplates)
 	router.POST("/api/templates", GetTemplates)
 }

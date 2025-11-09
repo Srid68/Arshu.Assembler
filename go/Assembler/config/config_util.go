@@ -4,28 +4,27 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
 
 type Scenario struct {
-	AppSite     string
-	AppFile     string
-	AppView     string
-	TotalSize   int
-	DisplayName string
-	Description string
+	AppSite string
+	AppFile string
+	AppView string
 }
 
-func NewScenario(appSite, appFile, appView string, totalSize int, displayName, description string) Scenario {
+func NewScenario(appSite, appFile, appView string) Scenario {
 	return Scenario{
-		AppSite:     appSite,
-		AppFile:     appFile,
-		AppView:     appView,
-		TotalSize:   totalSize,
-		DisplayName: displayName,
-		Description: description,
+		AppSite: appSite,
+		AppFile: appFile,
+		AppView: appView,
 	}
+}
+
+func (s *Scenario) ToString() string {
+	return fmt.Sprintf("%s:%s:%s", s.AppSite, s.AppFile, s.AppView)
 }
 
 type configCache struct {
@@ -41,8 +40,116 @@ var (
 
 type ConfigUtil struct{}
 
-// Load loads AppSites and scenarios from wwwroot path and caches them
+const DefaultAppFile = "Index"
+
+// extractAppSitesFromScenarios extracts unique AppSites from scenarios
+func extractAppSitesFromScenarios(scenarios []Scenario) map[string]bool {
+	appSitesMap := make(map[string]bool)
+	for _, scenario := range scenarios {
+		if scenario.AppSite != "" {
+			appSitesMap[strings.ToLower(scenario.AppSite)] = true
+		}
+	}
+
+	fmt.Printf("[ConfigUtil] Extracted %d AppSites from folder scan\n", len(appSitesMap))
+	return appSitesMap
+}
+
+// loadScenariosInternal discovers scenarios by scanning AppSites folder structure
+func loadScenariosInternal(wwwrootPath string) ([]Scenario, error) {
+	appSitesPath := filepath.Join(wwwrootPath, "AppSites")
+
+	if _, err := os.Stat(appSitesPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("AppSites directory not found: %s", appSitesPath)
+	}
+
+	scenarios := []Scenario{}
+
+	// Get all directories in AppSites folder
+	entries, err := os.ReadDir(appSitesPath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read AppSites directory: %v", err)
+	}
+
+	var appSiteDirs []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			appSiteDirs = append(appSiteDirs, entry.Name())
+		}
+	}
+	sort.Strings(appSiteDirs)
+
+	for _, appSite := range appSiteDirs {
+		// Get all HTML files in the appSite directory (top level only)
+		appSiteDir := filepath.Join(appSitesPath, appSite)
+
+		files, err := os.ReadDir(appSiteDir)
+		if err != nil {
+			continue
+		}
+
+		var htmlFiles []string
+		for _, file := range files {
+			if file.IsDir() || !strings.HasSuffix(file.Name(), ".html") {
+				continue
+			}
+			htmlFiles = append(htmlFiles, file.Name())
+		}
+
+		// If no HTML files found, use DefaultAppFile
+		if len(htmlFiles) == 0 {
+			htmlFiles = []string{DefaultAppFile}
+		}
+
+		for _, fileName := range htmlFiles {
+			var appFile string
+			if fileName == DefaultAppFile {
+				appFile = DefaultAppFile
+			} else {
+				appFile = strings.TrimSuffix(fileName, ".html")
+			}
+
+			// Check for Views folder
+			viewsPath := filepath.Join(appSiteDir, "Views")
+			var viewDirs []string
+
+			if viewsInfo, err := os.Stat(viewsPath); err == nil && viewsInfo.IsDir() {
+				// Get all subdirectories in Views folder
+				if viewEntries, err := os.ReadDir(viewsPath); err == nil {
+					for _, viewEntry := range viewEntries {
+						if viewEntry.IsDir() {
+							viewDirs = append(viewDirs, viewEntry.Name())
+						}
+					}
+				}
+			}
+
+			// Only add empty AppView scenario if no specific Views exist
+			if len(viewDirs) == 0 {
+				scenarios = append(scenarios, NewScenario(appSite, appFile, ""))
+			} else {
+				// Add specific view scenarios
+				for _, viewDir := range viewDirs {
+					scenarios = append(scenarios, NewScenario(appSite, appFile, viewDir))
+				}
+			}
+		}
+	}
+
+	if len(scenarios) == 0 {
+		return nil, fmt.Errorf("No scenarios found in AppSites folder")
+	}
+
+	fmt.Printf("[ConfigUtil] Loaded %d scenarios from AppSites folder\n", len(scenarios))
+
+	return scenarios, nil
+}
+
+// Load loads AppSites from wwwroot path and caches them. Call this during startup.
 func Load(wwwrootPath string) error {
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+
 	scenarios, err := loadScenariosInternal(wwwrootPath)
 	if err != nil {
 		return err
@@ -50,37 +157,56 @@ func Load(wwwrootPath string) error {
 
 	appSites := extractAppSitesFromScenarios(scenarios)
 
-	cacheMutex.Lock()
-	defer cacheMutex.Unlock()
-
 	cache = &configCache{
 		wwwrootPath: wwwrootPath,
-		appSites:    appSites,
 		scenarios:   scenarios,
+		appSites:    appSites,
 	}
 
 	return nil
 }
 
-// GetAppSites gets the cached AppSites
+// Reload reloads AppSites and Scenarios from the stored wwwroot path. Throws if not loaded.
+func Reload() error {
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+
+	if cache == nil {
+		return fmt.Errorf("ConfigUtil not loaded. Call Load(wwwrootPath) first.")
+	}
+
+	scenarios, err := loadScenariosInternal(cache.wwwrootPath)
+	if err != nil {
+		return err
+	}
+
+	appSites := extractAppSitesFromScenarios(scenarios)
+
+	cache.scenarios = scenarios
+	cache.appSites = appSites
+
+	return nil
+}
+
+// GetAppSites gets the cached AppSites. Throws if not loaded.
 func GetAppSites() (map[string]bool, error) {
 	cacheMutex.Lock()
 	defer cacheMutex.Unlock()
 
 	if cache == nil {
-		return nil, fmt.Errorf("ConfigUtil not loaded. Call Load(wwwrootPath) first.")
+		return nil, fmt.Errorf("AppSitesConfig not loaded. Call Load(wwwrootPath) first.")
 	}
 
 	return cache.appSites, nil
 }
 
-// GetScenarios gets the cached scenarios
+// GetScenarios gets the cached Scenarios. Throws if not loaded.
 func GetScenarios() ([]Scenario, error) {
 	cacheMutex.Lock()
 	defer cacheMutex.Unlock()
 
 	if cache == nil {
-		return nil, fmt.Errorf("ConfigUtil not loaded. Call Load(wwwrootPath) first.")
+		return nil, fmt.Errorf("AppSitesConfig not loaded. Call Load(wwwrootPath) first.")
 	}
 
 	return cache.scenarios, nil
@@ -100,209 +226,3 @@ func FilterByAppSite(scenarios []Scenario, appSiteFilter string) []Scenario {
 	}
 	return filtered
 }
-
-func extractAppSitesFromScenarios(scenarios []Scenario) map[string]bool {
-	appSitesMap := make(map[string]bool)
-	for _, scenario := range scenarios {
-		if scenario.AppSite != "" {
-			appSitesMap[scenario.AppSite] = true
-		}
-	}
-
-	fmt.Printf("[ConfigUtil] Extracted %d AppSites from scenarios.csv\n", len(appSitesMap))
-
-	return appSitesMap
-}
-
-func loadScenariosInternal(wwwrootPath string) ([]Scenario, error) {
-	appDataPath := filepath.Join(wwwrootPath, "App_Data")
-	csvFilePath := filepath.Join(appDataPath, "scenarios.csv")
-
-	// Generate if doesn't exist
-	if _, err := os.Stat(csvFilePath); os.IsNotExist(err) {
-		fmt.Println("[ConfigUtil] scenarios.csv not found, generating...")
-		if err := generateScenariosCsv(wwwrootPath); err != nil {
-			return nil, err
-		}
-	}
-
-	// Read CSV
-	csvContent, err := os.ReadFile(csvFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to read scenarios.csv: %v", err)
-	}
-
-	lines := strings.Split(string(csvContent), "\n")
-	if len(lines) == 0 {
-		return nil, fmt.Errorf("scenarios.csv is empty")
-	}
-
-	scenarios := []Scenario{}
-
-	// Check if first line is header
-	hasHeader := strings.Contains(lines[0], "AppSite") && strings.Contains(lines[0], "AppFile")
-	startLine := 0
-	if hasHeader {
-		startLine = 1
-	}
-
-	for i := startLine; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "" {
-			continue
-		}
-
-		parts := parseCsvLine(line)
-		if len(parts) >= 2 {
-			appSite := strings.TrimSpace(parts[0])
-			appFile := strings.TrimSpace(parts[1])
-			appView := ""
-			if len(parts) > 2 {
-				appView = strings.TrimSpace(parts[2])
-			}
-			totalSize := 0
-			if len(parts) > 3 {
-				fmt.Sscanf(parts[3], "%d", &totalSize)
-			}
-			displayName := ""
-			if len(parts) > 4 {
-				displayName = strings.Trim(strings.TrimSpace(parts[4]), "\"")
-			}
-			description := ""
-			if len(parts) > 5 {
-				description = strings.Trim(strings.TrimSpace(parts[5]), "\"")
-			}
-
-			scenarios = append(scenarios, NewScenario(appSite, appFile, appView, totalSize, displayName, description))
-		}
-	}
-
-	if len(scenarios) == 0 {
-		return nil, fmt.Errorf("No scenarios found in scenarios.csv")
-	}
-
-	fmt.Printf("[ConfigUtil] Loaded %d scenarios from scenarios.csv\n", len(scenarios))
-
-	return scenarios, nil
-}
-
-func parseCsvLine(line string) []string {
-	result := []string{}
-	current := ""
-	inQuotes := false
-
-	for _, c := range line {
-		switch c {
-		case '"':
-			inQuotes = !inQuotes
-		case ',':
-			if !inQuotes {
-				result = append(result, current)
-				current = ""
-			} else {
-				current += string(c)
-			}
-		default:
-			current += string(c)
-		}
-	}
-
-	result = append(result, current)
-	return result
-}
-
-func generateScenariosCsv(wwwrootPath string) error {
-	appSitesPath := filepath.Join(wwwrootPath, "AppSites")
-	appDataPath := filepath.Join(wwwrootPath, "App_Data")
-	csvFilePath := filepath.Join(appDataPath, "scenarios.csv")
-
-	if _, err := os.Stat(appSitesPath); os.IsNotExist(err) {
-		return fmt.Errorf("AppSites directory not found: %s", appSitesPath)
-	}
-
-	// Ensure App_Data exists
-	if err := os.MkdirAll(appDataPath, 0755); err != nil {
-		return fmt.Errorf("Failed to create App_Data directory: %v", err)
-	}
-
-	scenarios := []Scenario{}
-
-	// Read all AppSite directories
-	entries, err := os.ReadDir(appSitesPath)
-	if err != nil {
-		return fmt.Errorf("Failed to read AppSites directory: %v", err)
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		appSite := entry.Name()
-
-		// Get all HTML files
-		appSiteDir := filepath.Join(appSitesPath, appSite)
-		files, err := os.ReadDir(appSiteDir)
-		if err != nil {
-			continue
-		}
-
-		for _, file := range files {
-			if file.IsDir() || !strings.HasSuffix(file.Name(), ".html") {
-				continue
-			}
-
-			appFile := strings.TrimSuffix(file.Name(), ".html")
-
-			// Add default scenario
-			scenarios = append(scenarios, NewScenario(appSite, appFile, "", 0, "", ""))
-
-			// Check for Views
-			viewsPath := filepath.Join(appSiteDir, "Views")
-			if viewsInfo, err := os.Stat(viewsPath); err == nil && viewsInfo.IsDir() {
-				viewFiles, err := os.ReadDir(viewsPath)
-				if err == nil {
-					for _, viewFile := range viewFiles {
-						if viewFile.IsDir() || !strings.HasSuffix(viewFile.Name(), ".html") {
-							continue
-						}
-
-						viewName := strings.ToLower(strings.TrimSuffix(viewFile.Name(), ".html"))
-						if strings.Contains(viewName, "content") {
-							contentIndex := strings.Index(viewName, "content")
-							if contentIndex > 0 {
-								viewPart := viewName[:contentIndex]
-								if len(viewPart) > 0 {
-									appView := strings.ToUpper(string(viewPart[0])) + viewPart[1:]
-									scenarios = append(scenarios, NewScenario(appSite, appFile, appView, 0, "", ""))
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Write CSV
-	csvLines := []string{"AppSite,AppFile,AppView,TotalSize,DisplayName,Description"}
-	for _, scenario := range scenarios {
-		csvLines = append(csvLines, fmt.Sprintf(
-			"%s,%s,%s,%d,\"%s\",\"%s\"",
-			scenario.AppSite,
-			scenario.AppFile,
-			scenario.AppView,
-			scenario.TotalSize,
-			scenario.DisplayName,
-			scenario.Description,
-		))
-	}
-
-	if err := os.WriteFile(csvFilePath, []byte(strings.Join(csvLines, "\n")), 0644); err != nil {
-		return fmt.Errorf("Failed to write scenarios.csv: %v", err)
-	}
-
-	fmt.Printf("[ConfigUtil] Generated scenarios.csv with %d scenarios\n", len(scenarios))
-	return nil
-}
-

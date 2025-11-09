@@ -1,28 +1,27 @@
-use std::path::Path;
-use std::fs;
-use std::sync::Mutex;
 use once_cell::sync::Lazy;
+use std::collections::HashSet;
+use std::fs;
+use std::path::Path;
+use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub struct Scenario {
     pub app_site: String,
     pub app_file: String,
     pub app_view: String,
-    pub total_size: i32,
-    pub display_name: String,
-    pub description: String,
 }
 
 impl Scenario {
-    pub fn new(app_site: String, app_file: String, app_view: String, total_size: i32, display_name: String, description: String) -> Self {
+    pub fn new(app_site: String, app_file: String, app_view: String) -> Self {
         Scenario {
             app_site,
             app_file,
             app_view,
-            total_size,
-            display_name,
-            description,
         }
+    }
+
+    pub fn to_string(&self) -> String {
+        format!("{}:{}:{}", self.app_site, self.app_file, self.app_view)
     }
 }
 
@@ -36,35 +35,211 @@ static CONFIG_CACHE: Lazy<Mutex<ConfigCache>> = Lazy::new(|| {
 
 struct ConfigCache {
     wwwroot_path: Option<String>,
-    app_sites: Option<std::collections::HashSet<String>>,
+    app_sites: Option<HashSet<String>>,
     scenarios: Option<Vec<Scenario>>,
 }
 
 pub struct ConfigUtil;
 
+pub const DEFAULT_APP_FILE: &str = "Index";
+
 impl ConfigUtil {
-    /// Loads AppSites and scenarios from wwwroot path and caches them
+    /// Extracts unique AppSites from scenarios
+    fn extract_app_sites_from_scenarios(scenarios: &[Scenario]) -> HashSet<String> {
+        let mut app_sites = HashSet::new();
+
+        for scenario in scenarios {
+            if !scenario.app_site.is_empty() {
+                app_sites.insert(scenario.app_site.to_lowercase());
+            }
+        }
+
+        println!(
+            "[ConfigUtil] Extracted {} AppSites from folder scan",
+            app_sites.len()
+        );
+        app_sites
+    }
+
+    /// Discovers scenarios by scanning AppSites folder structure
+    fn load_scenarios_internal(wwwroot_path: &str) -> Result<Vec<Scenario>, String> {
+        let app_sites_path = Path::new(wwwroot_path).join("AppSites");
+
+        if !app_sites_path.exists() {
+            return Err(format!(
+                "AppSites directory not found: {:?}",
+                app_sites_path
+            ));
+        }
+
+        let mut scenarios = Vec::new();
+
+        // Get all directories in AppSites folder
+        let entries = fs::read_dir(&app_sites_path)
+            .map_err(|e| format!("Failed to read AppSites directory: {}", e))?;
+
+        let mut app_site_dirs: Vec<String> = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir())
+            .filter_map(|e| e.file_name().into_string().ok())
+            .collect();
+
+        app_site_dirs.sort();
+
+        for app_site in app_site_dirs {
+            // Get all HTML files in the appSite directory (top level only)
+            let app_site_dir = app_sites_path.join(&app_site);
+
+            let html_files = fs::read_dir(&app_site_dir)
+                .map_err(|e| format!("Failed to read AppSite directory {}: {}", app_site, e))?
+                .filter_map(|e| e.ok())
+                .filter(|e| {
+                    e.path().is_file()
+                        && e.path()
+                            .extension()
+                            .map(|ext| ext == "html")
+                            .unwrap_or(false)
+                })
+                .collect::<Vec<_>>();
+
+            // If no HTML files found, use DEFAULT_APP_FILE
+            if html_files.is_empty() {
+                // Create a dummy entry for DEFAULT_APP_FILE
+                let app_file = DEFAULT_APP_FILE.to_string();
+
+                // Check for Views folder
+                let views_path = app_site_dir.join("Views");
+                let mut view_dirs = Vec::new();
+
+                if views_path.exists() && views_path.is_dir() {
+                    // Get all subdirectories in Views folder
+                    if let Ok(view_entries) = fs::read_dir(&views_path) {
+                        view_dirs = view_entries
+                            .filter_map(|e| e.ok())
+                            .filter(|e| e.path().is_dir())
+                            .filter_map(|e| e.file_name().into_string().ok())
+                            .collect();
+                    }
+                }
+
+                // Only add empty AppView scenario if no specific Views exist
+                if view_dirs.is_empty() {
+                    scenarios.push(Scenario::new(
+                        app_site.clone(),
+                        app_file.clone(),
+                        String::new(),
+                    ));
+                } else {
+                    // Add specific view scenarios
+                    for view_dir in view_dirs {
+                        scenarios.push(Scenario::new(app_site.clone(), app_file.clone(), view_dir));
+                    }
+                }
+            } else {
+                for html_file in html_files {
+                    let app_file = html_file
+                        .path()
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+
+                    // Check for Views folder
+                    let views_path = app_site_dir.join("Views");
+                    let mut view_dirs = Vec::new();
+
+                    if views_path.exists() && views_path.is_dir() {
+                        // Get all subdirectories in Views folder
+                        if let Ok(view_entries) = fs::read_dir(&views_path) {
+                            view_dirs = view_entries
+                                .filter_map(|e| e.ok())
+                                .filter(|e| e.path().is_dir())
+                                .filter_map(|e| e.file_name().into_string().ok())
+                                .collect();
+                        }
+                    }
+
+                    // Only add empty AppView scenario if no specific Views exist
+                    if view_dirs.is_empty() {
+                        scenarios.push(Scenario::new(
+                            app_site.clone(),
+                            app_file.clone(),
+                            String::new(),
+                        ));
+                    } else {
+                        // Add specific view scenarios
+                        for view_dir in view_dirs {
+                            scenarios.push(Scenario::new(
+                                app_site.clone(),
+                                app_file.clone(),
+                                view_dir,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        if scenarios.is_empty() {
+            return Err("No scenarios found in AppSites folder".to_string());
+        }
+
+        println!(
+            "[ConfigUtil] Loaded {} scenarios from AppSites folder",
+            scenarios.len()
+        );
+
+        Ok(scenarios)
+    }
+
+    /// Loads AppSites from wwwroot path and caches them. Call this during startup.
     pub fn load(wwwroot_path: &str) -> Result<(), String> {
+        let mut cache = CONFIG_CACHE.lock().unwrap();
+
         let scenarios = Self::load_scenarios_internal(wwwroot_path)?;
         let app_sites = Self::extract_app_sites_from_scenarios(&scenarios);
 
-        let mut cache = CONFIG_CACHE.lock().unwrap();
         cache.wwwroot_path = Some(wwwroot_path.to_string());
-        cache.app_sites = Some(app_sites);
         cache.scenarios = Some(scenarios);
+        cache.app_sites = Some(app_sites);
+
         Ok(())
     }
 
-    /// Gets the cached AppSites
-    pub fn get_app_sites() -> Result<std::collections::HashSet<String>, String> {
-        let cache = CONFIG_CACHE.lock().unwrap();
-        cache.app_sites.clone().ok_or_else(|| "ConfigUtil not loaded. Call load(wwwroot_path) first.".to_string())
+    /// Reloads AppSites and Scenarios from the stored wwwroot path. Throws if not loaded.
+    pub fn reload() -> Result<(), String> {
+        let mut cache = CONFIG_CACHE.lock().unwrap();
+
+        let wwwroot_path = cache
+            .wwwroot_path
+            .clone()
+            .ok_or_else(|| "ConfigUtil not loaded. Call load(wwwroot_path) first.".to_string())?;
+
+        let scenarios = Self::load_scenarios_internal(&wwwroot_path)?;
+        let app_sites = Self::extract_app_sites_from_scenarios(&scenarios);
+
+        cache.scenarios = Some(scenarios);
+        cache.app_sites = Some(app_sites);
+
+        Ok(())
     }
 
-    /// Gets the cached scenarios
+    /// Gets the cached AppSites. Throws if not loaded.
+    pub fn get_app_sites() -> Result<HashSet<String>, String> {
+        let cache = CONFIG_CACHE.lock().unwrap();
+        cache
+            .app_sites
+            .clone()
+            .ok_or_else(|| "AppSitesConfig not loaded. Call load(wwwroot_path) first.".to_string())
+    }
+
+    /// Gets the cached Scenarios. Throws if not loaded.
     pub fn get_scenarios() -> Result<Vec<Scenario>, String> {
         let cache = CONFIG_CACHE.lock().unwrap();
-        cache.scenarios.clone().ok_or_else(|| "ConfigUtil not loaded. Call load(wwwroot_path) first.".to_string())
+        cache
+            .scenarios
+            .clone()
+            .ok_or_else(|| "AppSitesConfig not loaded. Call load(wwwroot_path) first.".to_string())
     }
 
     /// Filters scenarios by appSite
@@ -79,202 +254,4 @@ impl ConfigUtil {
             .cloned()
             .collect()
     }
-
-    fn extract_app_sites_from_scenarios(scenarios: &[Scenario]) -> std::collections::HashSet<String> {
-        let app_sites: std::collections::HashSet<String> = scenarios
-            .iter()
-            .map(|s| s.app_site.clone())
-            .filter(|s| !s.is_empty())
-            .collect();
-
-        println!("[ConfigUtil] Extracted {} AppSites from scenarios.csv", app_sites.len());
-
-        app_sites
-    }
-
-    fn load_scenarios_internal(wwwroot_path: &str) -> Result<Vec<Scenario>, String> {
-        let app_data_path = Path::new(wwwroot_path).join("App_Data");
-        let csv_file_path = app_data_path.join("scenarios.csv");
-
-        // Generate if doesn't exist
-        if !csv_file_path.exists() {
-            println!("[ConfigUtil] scenarios.csv not found, generating...");
-            Self::generate_scenarios_csv(wwwroot_path)?;
-        }
-
-        // Read CSV
-        let csv_content = fs::read_to_string(&csv_file_path)
-            .map_err(|e| format!("Failed to read scenarios.csv: {}", e))?;
-
-        let lines: Vec<&str> = csv_content.lines().collect();
-        if lines.is_empty() {
-            return Err("scenarios.csv is empty".to_string());
-        }
-
-        let mut scenarios = Vec::new();
-
-        // Check if first line is header
-        let has_header = lines[0].contains("AppSite") && lines[0].contains("AppFile");
-        let start_line = if has_header { 1 } else { 0 };
-
-        for line in lines.iter().skip(start_line) {
-            let line = line.trim();
-            if line.is_empty() {
-                continue;
-            }
-
-            let parts = Self::parse_csv_line(line);
-            if parts.len() >= 2 {
-                let app_site = parts[0].trim().to_string();
-                let app_file = parts[1].trim().to_string();
-                let app_view = if parts.len() > 2 { parts[2].trim().to_string() } else { String::new() };
-                let total_size = if parts.len() > 3 { parts[3].trim().parse().unwrap_or(0) } else { 0 };
-                let display_name = if parts.len() > 4 { parts[4].trim().trim_matches('"').to_string() } else { String::new() };
-                let description = if parts.len() > 5 { parts[5].trim().trim_matches('"').to_string() } else { String::new() };
-
-                scenarios.push(Scenario::new(app_site, app_file, app_view, total_size, display_name, description));
-            }
-        }
-
-        if scenarios.is_empty() {
-            return Err("No scenarios found in scenarios.csv".to_string());
-        }
-
-        println!("[ConfigUtil] Loaded {} scenarios from scenarios.csv", scenarios.len());
-
-        Ok(scenarios)
-    }
-
-    fn parse_csv_line(line: &str) -> Vec<String> {
-        let mut result = Vec::new();
-        let mut current = String::new();
-        let mut in_quotes = false;
-
-        for c in line.chars() {
-            match c {
-                '"' => in_quotes = !in_quotes,
-                ',' if !in_quotes => {
-                    result.push(current.clone());
-                    current.clear();
-                }
-                _ => current.push(c),
-            }
-        }
-
-        result.push(current);
-        result
-    }
-
-    fn generate_scenarios_csv(wwwroot_path: &str) -> Result<(), String> {
-        let app_sites_path = Path::new(wwwroot_path).join("AppSites");
-        let app_data_path = Path::new(wwwroot_path).join("App_Data");
-        let csv_file_path = app_data_path.join("scenarios.csv");
-
-        if !app_sites_path.exists() {
-            return Err(format!("AppSites directory not found: {:?}", app_sites_path));
-        }
-
-        // Ensure App_Data exists
-        fs::create_dir_all(&app_data_path)
-            .map_err(|e| format!("Failed to create App_Data directory: {}", e))?;
-
-        let mut scenarios = Vec::new();
-
-        // Read all AppSite directories
-        if let Ok(entries) = fs::read_dir(&app_sites_path) {
-            for entry in entries.filter_map(|e| e.ok()) {
-                if !entry.path().is_dir() {
-                    continue;
-                }
-
-                let app_site = entry.file_name().to_string_lossy().to_string();
-
-                // Get all HTML files
-                if let Ok(files) = fs::read_dir(entry.path()) {
-                    for file_entry in files.filter_map(|e| e.ok()) {
-                        if let Some(extension) = file_entry.path().extension() {
-                            if extension == "html" {
-                                let app_file = file_entry.path()
-                                    .file_stem()
-                                    .unwrap()
-                                    .to_string_lossy()
-                                    .to_string();
-
-                                // Add default scenario
-                                scenarios.push(Scenario::new(
-                                    app_site.clone(),
-                                    app_file.clone(),
-                                    String::new(),
-                                    0,
-                                    String::new(),
-                                    String::new()
-                                ));
-
-                                // Check for Views
-                                let views_path = entry.path().join("Views");
-                                if views_path.exists() {
-                                    if let Ok(view_files) = fs::read_dir(&views_path) {
-                                        for view_file in view_files.filter_map(|e| e.ok()) {
-                                            if let Some(ext) = view_file.path().extension() {
-                                                if ext == "html" {
-                                                    let view_name = view_file.path()
-                                                        .file_stem()
-                                                        .unwrap()
-                                                        .to_string_lossy()
-                                                        .to_lowercase();
-
-                                                    if view_name.contains("content") {
-                                                        if let Some(content_index) = view_name.find("content") {
-                                                            if content_index > 0 {
-                                                                let view_part = &view_name[..content_index];
-                                                                if !view_part.is_empty() {
-                                                                    let mut app_view = String::new();
-                                                                    app_view.push(view_part.chars().next().unwrap().to_uppercase().next().unwrap());
-                                                                    app_view.push_str(&view_part[1..]);
-
-                                                                    scenarios.push(Scenario::new(
-                                                                        app_site.clone(),
-                                                                        app_file.clone(),
-                                                                        app_view,
-                                                                        0,
-                                                                        String::new(),
-                                                                        String::new()
-                                                                    ));
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Write CSV
-        let mut csv_lines = vec!["AppSite,AppFile,AppView,TotalSize,DisplayName,Description".to_string()];
-        for scenario in &scenarios {
-            csv_lines.push(format!(
-                "{},{},{},{},\"{}\",\"{}\"",
-                scenario.app_site,
-                scenario.app_file,
-                scenario.app_view,
-                scenario.total_size,
-                scenario.display_name,
-                scenario.description
-            ));
-        }
-
-        fs::write(&csv_file_path, csv_lines.join("\n"))
-            .map_err(|e| format!("Failed to write scenarios.csv: {}", e))?;
-
-        println!("[ConfigUtil] Generated scenarios.csv with {} scenarios", scenarios.len());
-        Ok(())
-    }
-
 }

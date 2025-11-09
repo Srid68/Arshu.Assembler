@@ -9,14 +9,23 @@ impl CommonUtil {
     }
 
     /// Find matching closing tag with proper nesting support
-    pub fn find_matching_close_tag(content: &str, start_pos: usize, open_tag: &str, close_tag: &str) -> Option<usize> {
+    pub fn find_matching_close_tag(
+        content: &str,
+        start_pos: usize,
+        open_tag: &str,
+        close_tag: &str,
+    ) -> Option<usize> {
         let mut search_pos = start_pos;
         let mut open_count = 1;
         let content_len = content.len();
         while search_pos < content_len && open_count > 0 {
             let next_open = content[search_pos..].find(open_tag).map(|i| search_pos + i);
-            let next_close = content[search_pos..].find(close_tag).map(|i| search_pos + i);
-            if next_close.is_none() { return None; }
+            let next_close = content[search_pos..]
+                .find(close_tag)
+                .map(|i| search_pos + i);
+            if next_close.is_none() {
+                return None;
+            }
             let next_close = next_close.unwrap();
             if let Some(next_open) = next_open {
                 if next_open < next_close {
@@ -43,8 +52,13 @@ impl CommonUtil {
                 let placeholder_start = search_pos + placeholder_start;
                 let after_placeholder = placeholder_start + 18;
                 let mut pos = after_placeholder;
-                while pos < result.len() && result.chars().nth(pos).unwrap_or(' ').is_ascii_digit() {
-                    pos += 1;
+                while pos < result.len() {
+                    let byte = result.as_bytes()[pos];
+                    if byte.is_ascii_digit() {
+                        pos += 1;
+                    } else {
+                        break;
+                    }
                 }
                 if pos + 1 < result.len() && &result[pos..pos + 2] == "}}" {
                     let placeholder_end = pos + 2;
@@ -95,13 +109,15 @@ impl CommonUtil {
     /// Count UTF-16 code units (same as C# string.Length)
     /// This is for test reporting only to match C#'s character counting
     pub fn utf16_len(s: &str) -> usize {
-        s.chars().map(|c| {
-            let code_point = c as u32;
-            if code_point <= 0xFFFF {
-                1 // BMP character = 1 UTF-16 code unit
-            } else {
-                2 // Supplementary character = 2 UTF-16 code units (surrogate pair)
-            }
-        }).sum()
+        s.chars()
+            .map(|c| {
+                let code_point = c as u32;
+                if code_point <= 0xFFFF {
+                    1 // BMP character = 1 UTF-16 code unit
+                } else {
+                    2 // Supplementary character = 2 UTF-16 code units (surrogate pair)
+                }
+            })
+            .sum()
     }
 }

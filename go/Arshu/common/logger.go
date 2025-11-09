@@ -132,8 +132,21 @@ func Error(message string, context ...string) {
 	log(ERROR, message, contextStr)
 }
 
+var loggingEnabled = true
+
+func DisableLogging() {
+	loggingEnabled = false
+}
+
+func EnableLogging() {
+	loggingEnabled = true
+}
+
 // log is the core logging method
 func log(level LogLevel, message string, context string) {
+	if !loggingEnabled {
+		return
+	}
 	globalLogger.mutex.Lock()
 	defer globalLogger.mutex.Unlock()
 

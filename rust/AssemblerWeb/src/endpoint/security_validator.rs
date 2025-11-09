@@ -8,9 +8,6 @@ const PARAM_MAX_LENGTH: usize = 256;
 // Maximum content sizes to prevent DDOS attacks
 pub const MAX_LOG_FILE_SIZE: usize = 500 * 1024; // 500 KB per log file
 
-// Buffer allowance for output size validation (50 KB)
-pub const OUTPUT_SIZE_BUFFER: usize = 50 * 1024; // 50 KB buffer for dynamic content (performance reports, test results)
-
 /// Valid engine types allowlist
 static VALID_ENGINE_TYPES: OnceLock<HashSet<String>> = OnceLock::new();
 
@@ -76,26 +73,6 @@ pub fn is_valid_content_size(content: Option<&str>, max_size: usize) -> bool {
     }
 }
 
-/// Validates output size against template total size with fixed buffer
-pub fn is_valid_output_size_with_buffer(html_content: Option<&str>, template_total_size: usize) -> bool {
-    match html_content {
-        None => true,
-        Some(content) if content.is_empty() => true,
-        Some(content) => {
-            let output_size = content.len();
-
-            // Check against template size + buffer
-            if template_total_size > 0 {
-                let max_allowed_size = template_total_size + OUTPUT_SIZE_BUFFER;
-                return output_size <= max_allowed_size;
-            }
-
-            // If template size is unknown, reject (requires template size for validation)
-            false
-        }
-    }
-}
-
 /// Validates log content format and size
 pub fn is_valid_log_content(log_content: Option<&str>) -> (bool, Option<String>) {
     let content = match log_content {
@@ -136,16 +113,3 @@ pub fn is_valid_log_content(log_content: Option<&str>) -> (bool, Option<String>)
     (true, None)
 }
 
-/// Gets the template total size for an AppSite from scenarios
-pub fn get_template_total_size(app_site: &str, app_view: &str) -> usize {
-    match assembler::config::config_util::ConfigUtil::get_scenarios() {
-        Ok(scenarios) => {
-            scenarios.iter()
-                .find(|s| s.app_site.eq_ignore_ascii_case(app_site) &&
-                          s.app_view.eq_ignore_ascii_case(app_view))
-                .map(|s| s.total_size as usize)
-                .unwrap_or(0)
-        }
-        Err(_) => 0,
-    }
-}

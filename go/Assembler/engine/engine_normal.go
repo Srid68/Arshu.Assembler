@@ -1,12 +1,12 @@
 package engine
 
 import (
-	"assembler/app"
-	"assembler/app/json"
 	"assembler/common"
-	Logger "arshu/common"
+	"encoding/json"
 	"fmt"
 	"strings"
+
+	Logger "arshu/common"
 )
 
 type EngineNormal struct {
@@ -25,14 +25,11 @@ func (e *EngineNormal) GetAppViewPrefix() string {
 	return e.AppViewPrefix
 }
 
-// MergeTemplates merges templates by replacing placeholders with corresponding HTML
-// This is a hybrid method that processes both slotted templates and simple placeholders
-// JSON files with matching names are automatically merged with HTML templates before processing
 func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, templates map[string]struct {
 	HTML string
 	JSON *string
-}, enableJsonProcessing bool) string {
-	Logger.Debug(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EngineNormal")
+}, searchAppSites string, enableJsonProcessing bool) string {
+	Logger.Debug(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, searchAppSites=%s, enableJson=%t", appSite, appFile, appView, searchAppSites, enableJsonProcessing), "EngineNormal")
 
 	if len(templates) == 0 {
 		Logger.Warn("No templates available", "EngineNormal")
@@ -41,7 +38,11 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 
 	Logger.Debug(fmt.Sprintf("Using %d templates", len(templates)), "EngineNormal")
 
-	mainHtml, mainJson := e.GetTemplate(appSite, appFile, templates, appView, e.AppViewPrefix, true)
+	// Build parent-child relationship map for JSON inheritance
+	parentMap := BuildParentMap(appSite, templates)
+	Logger.Debug(fmt.Sprintf("Built parent map with %d relationships for JSON inheritance", len(parentMap)), "EngineNormal")
+
+	mainHtml, mainJson := e.GetTemplate(appSite, appFile, templates, searchAppSites, appView, e.AppViewPrefix, true)
 	if mainHtml == "" {
 		Logger.Warn(fmt.Sprintf("Main template not found for appSite=%s, appFile=%s", appSite, appFile), "EngineNormal")
 		return ""
@@ -53,21 +54,23 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 	}
 	Logger.Debug(fmt.Sprintf("Main template found, html size: %d, json: %d", len(mainHtml), jsonLen), "EngineNormal")
 
+	mainTemplateKey := strings.ToLower(appSite) + "_" + strings.ToLower(appFile)
 	contentHtml := mainHtml
 	if enableJsonProcessing && mainJson != nil {
 		Logger.Debug(fmt.Sprintf("Merging main template with JSON (size: %d)", len(*mainJson)), "EngineNormal")
-		contentHtml = MergeTemplateWithJson(contentHtml, *mainJson)
+		contentHtml = e.mergeTemplateWithJson(contentHtml, *mainJson, mainTemplateKey, templates, parentMap)
 		Logger.Debug(fmt.Sprintf("After main JSON merge: %d chars", len(contentHtml)), "EngineNormal")
 	}
 	mergedTemplates := make(map[string]string)
 	allJsonValues := make(map[string]string)
 
-	// Add main template JSON values to the global collection if it exists
 	if enableJsonProcessing && mainJson != nil {
-		jsonObj := app.ParseJsonString(*mainJson)
-		for k, v := range jsonObj.Iter() {
-			if v.Kind == json.JsonString {
-				allJsonValues[k] = v.StrVal
+		var jsonData map[string]interface{}
+		if err := json.Unmarshal([]byte(*mainJson), &jsonData); err == nil {
+			for k, v := range jsonData {
+				if s, ok := v.(string); ok {
+					allJsonValues[k] = s
+				}
 			}
 		}
 	}
@@ -76,14 +79,24 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 	for k, v := range templates {
 		htmlContent := v.HTML
 		jsonContent := v.JSON
-		if enableJsonProcessing && jsonContent != nil {
-			htmlContent = MergeTemplateWithJson(htmlContent, *jsonContent)
+
+		Logger.Debug(fmt.Sprintf("Processing template: %s, has JSON: %t", k, jsonContent != nil && *jsonContent != ""), "EngineNormal")
+
+		if enableJsonProcessing && jsonContent != nil && *jsonContent != "" {
+			// Pre-merge component HTML with JSON so {{$Key}} placeholders are resolved
+			htmlContent = e.mergeTemplateWithJson(htmlContent, *jsonContent, k, templates, parentMap)
+			Logger.Debug(fmt.Sprintf("Template %s pre-merged with JSON", k), "EngineNormal")
 			jsonMergeCount++
-			// Parse JSON and collect key-value pairs for allJsonValues
-			jsonObj := app.ParseJsonString(*jsonContent)
-			for jk, jv := range jsonObj.Iter() {
-				if jv.Kind == json.JsonString {
-					allJsonValues[jk] = jv.StrVal
+
+			var jsonData map[string]interface{}
+			if err := json.Unmarshal([]byte(*jsonContent), &jsonData); err == nil {
+				for jk, jv := range jsonData {
+					if s, ok := jv.(string); ok {
+						// Skip keys ending with #  - they are inheritance markers
+						if !strings.HasSuffix(jk, "#") {
+							allJsonValues[jk] = s
+						}
+					}
 				}
 			}
 		}
@@ -104,7 +117,7 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 		contentHtml = e.MergeTemplateSlots(contentHtml, appSite, appView, mergedTemplates)
 		Logger.Debug(fmt.Sprintf("After slot merge: %d chars", len(contentHtml)), "EngineNormal")
 
-		contentHtml = e.ReplaceTemplatePlaceholdersWithJson(contentHtml, appSite, mergedTemplates, allJsonValues, appView)
+		contentHtml = e.ReplaceTemplatePlaceholdersWithJson(contentHtml, appSite, mergedTemplates, allJsonValues, searchAppSites, appView)
 		Logger.Debug(fmt.Sprintf("After placeholder replacement: %d chars", len(contentHtml)), "EngineNormal")
 
 		if contentHtml == previous {
@@ -117,215 +130,31 @@ func (e *EngineNormal) MergeTemplates(appSite, appFile, appView string, template
 	return contentHtml
 }
 
-// MergeTemplateWithJson merges JSON data into the HTML template
-// Advanced merge logic for block and conditional patterns
-func MergeTemplateWithJson(template, jsonText string) string {
-	// Parse JSON using our JsonConverter
-	jsonObj := app.ParseJsonString(jsonText)
-
-	// Advanced merge logic for block and conditional patterns
-	result := template
-
-	// Instead of finding all array tags first, directly match JSON array keys to template blocks
-	for key, value := range jsonObj.Iter() {
-		if value.Kind == json.JsonArrayKind && value.ArrVal != nil {
-			dataList := value.ArrVal
-			// Try to find a matching template block for this JSON array
-			keyNorm := strings.ToLower(key)
-
-			// Look for possible template tags that match this JSON key
-			possibleTags := []string{
-				key,
-				keyNorm,
-				strings.TrimSuffix(keyNorm, "s"), // Remove trailing 's'
-				keyNorm + "s",                    // Add trailing 's'
-			}
-
-			for _, tag := range possibleTags {
-				blockStartTag := "{{@" + tag + "}}"
-				blockEndTag := "{{/" + tag + "}}"
-
-				if startIdx := findCaseInsensitive(result, blockStartTag); startIdx != -1 {
-					searchFrom := startIdx + len(blockStartTag)
-					if endIdx := findCaseInsensitive(result[searchFrom:], blockEndTag); endIdx != -1 {
-						endIdx = searchFrom + endIdx
-
-						if startIdx < endIdx {
-							// Found a valid block - process it
-							contentStartIdx := startIdx + len(blockStartTag)
-							if contentStartIdx <= endIdx {
-								blockContent := result[contentStartIdx:endIdx]
-								var mergedBlock strings.Builder
-
-								// Find all conditional blocks in the template block (e.g., {{@Key}}...{{/Key}})
-								conditionalKeys := make(map[string]bool)
-								condIdx := 0
-								for condIdx < len(blockContent) {
-									if condStart := findCaseInsensitive(blockContent[condIdx:], "{{@"); condStart != -1 {
-										condStart = condIdx + condStart
-										if condEnd := strings.Index(blockContent[condStart:], "}}"); condEnd != -1 {
-											condEnd = condStart + condEnd
-											condKey := strings.TrimSpace(blockContent[condStart+3 : condEnd])
-											conditionalKeys[condKey] = true
-											condIdx = condEnd + 2
-										} else {
-											break
-										}
-									} else {
-										break
-									}
-								}
-
-								for i := 0; i < dataList.Len(); i++ {
-									if item, exists := dataList.Get(i); exists && item.Kind == json.JsonObjectKind && item.ObjVal != nil {
-										itemObj := item.ObjVal
-										itemBlock := blockContent
-
-										// Replace all placeholders dynamically
-										for k, v := range itemObj.Iter() {
-											placeholder := "{{$" + k + "}}"
-											var valueStr string
-											switch v.Kind {
-											case json.JsonString:
-												valueStr = v.StrVal
-											case json.JsonNumber:
-												valueStr = v.String()
-											case json.JsonInteger:
-												valueStr = v.String()
-											case json.JsonBool:
-												if v.BoolVal {
-													valueStr = "true"
-												} else {
-													valueStr = "false"
-												}
-											default:
-												valueStr = ""
-											}
-											itemBlock = replaceAllCaseInsensitive(itemBlock, placeholder, valueStr)
-										}
-
-										// Handle all conditional blocks dynamically
-										for condKey := range conditionalKeys {
-											condValue := false
-											// Try case-insensitive lookup for the conditional key
-											for objKey, condObj := range itemObj.Iter() {
-												if strings.EqualFold(objKey, condKey) {
-													switch condObj.Kind {
-													case json.JsonBool:
-														condValue = condObj.BoolVal
-													case json.JsonString:
-														// Parse string as bool, or check if non-empty
-														if condObj.StrVal == "true" {
-															condValue = true
-														} else if condObj.StrVal == "false" {
-															condValue = false
-														} else {
-															condValue = condObj.StrVal != ""
-														}
-													case json.JsonInteger:
-														condValue = condObj.IntVal != 0
-													case json.JsonNumber:
-														condValue = condObj.NumVal != 0.0
-													default:
-														condValue = false
-													}
-													break
-												}
-											}
-											itemBlock = handleConditional(itemBlock, condKey, condValue)
-										}
-										mergedBlock.WriteString(itemBlock)
-									}
-								}
-
-								// Replace block in result
-								result = result[:startIdx] + mergedBlock.String() + result[endIdx+len(blockEndTag):]
-								break // Process only the first matching template for this JSON key
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Handle {{^ArrayName}} block if array is empty (dynamic detection)
-	for key, value := range jsonObj.Iter() {
-		emptyBlockStart := "{{^" + key + "}}"
-		emptyBlockEnd := "{{/" + key + "}}"
-
-		if emptyStartIdx := findCaseInsensitive(result, emptyBlockStart); emptyStartIdx != -1 {
-			if emptyEndIdx := findCaseInsensitive(result, emptyBlockEnd); emptyEndIdx != -1 {
-				if value.Kind == json.JsonArrayKind && value.ArrVal != nil {
-					isEmpty := value.ArrVal.Len() == 0
-					emptyContent := result[emptyStartIdx+len(emptyBlockStart) : emptyEndIdx]
-					if isEmpty {
-						result = result[:emptyStartIdx] + emptyContent + result[emptyEndIdx+len(emptyBlockEnd):]
-					} else {
-						result = result[:emptyStartIdx] + result[emptyEndIdx+len(emptyBlockEnd):]
-					}
-				}
-			}
-		}
-	}
-
-	// Replace remaining simple placeholders
-	for key, value := range jsonObj.Iter() {
-		placeholder := "{{$" + key + "}}"
-		var valueStr string
-		switch value.Kind {
-		case json.JsonString:
-			valueStr = value.StrVal
-		case json.JsonNumber:
-			valueStr = value.String()
-		case json.JsonInteger:
-			valueStr = value.String()
-		case json.JsonBool:
-			if value.BoolVal {
-				valueStr = "true"
-			} else {
-				valueStr = "false"
-			}
-		default:
-			continue
-		}
-		result = replaceAllCaseInsensitive(result, placeholder, valueStr)
-	}
-
-	return result
-}
-
-// GetTemplate retrieves a template (html and json) from the templates dictionary with AppView fallback
 func (e *EngineNormal) GetTemplate(appSite, templateName string, templates map[string]struct {
 	HTML string
 	JSON *string
-}, appView, appViewPrefix string, useAppViewFallback bool) (string, *string) {
+}, searchAppSites, appView, appViewPrefix string, useAppViewFallback bool) (string, *string) {
 	if len(templates) == 0 {
 		return "", nil
 	}
 	viewPrefix := appViewPrefix
 
-	// FIRST: Check for AppView-specific template resolution when AppView context is provided
 	if useAppViewFallback && appView != "" && viewPrefix != "" {
-		// Case-insensitive check if template_name contains view_prefix
 		templateNameLower := strings.ToLower(templateName)
 		viewPrefixLower := strings.ToLower(viewPrefix)
 
 		if strings.Contains(templateNameLower, viewPrefixLower) {
-			// Direct replacement: Replace the AppViewPrefix with the AppView value
-			// For example: Html3AContent with AppViewPrefix=Html3A and AppView=html3B becomes html3BContent
 			appKey := common.ReplaceCaseInsensitive(templateName, viewPrefix, appView)
 			fallbackTemplateKey := strings.ToLower(appSite) + "_" + strings.ToLower(appKey)
 			for k := range templates {
 				if strings.EqualFold(k, fallbackTemplateKey) {
 					v := templates[k]
-					return v.HTML, v.JSON // Found AppView-specific template, use it
+					return v.HTML, v.JSON
 				}
 			}
 		}
 	}
 
-	// SECOND: If no AppView-specific template found, try primary template
 	primaryTemplateKey := strings.ToLower(appSite) + "_" + strings.ToLower(templateName)
 	for k := range templates {
 		if strings.EqualFold(k, primaryTemplateKey) {
@@ -334,11 +163,73 @@ func (e *EngineNormal) GetTemplate(appSite, templateName string, templates map[s
 		}
 	}
 
+	if searchAppSites != "" {
+		Logger.Debug(fmt.Sprintf("Attempting to find fallback template for '%s' in searchAppSites: %s", templateName, searchAppSites), "EngineNormal")
+		searchAppSitesArray := strings.Split(searchAppSites, ",")
+		for _, searchAppSite := range searchAppSitesArray {
+			searchAppSite = strings.TrimSpace(searchAppSite)
+			if searchAppSite == "" {
+				continue
+			}
+
+			searchKey := strings.ToLower(searchAppSite) + "_" + strings.ToLower(templateName)
+			for k := range templates {
+				if strings.EqualFold(k, searchKey) {
+					v := templates[k]
+					Logger.Debug(fmt.Sprintf("Component '%s' not found in '%s', using fallback from '%s'", templateName, appSite, searchAppSite), "EngineNormal")
+					return v.HTML, v.JSON
+				}
+			}
+		}
+		Logger.Debug(fmt.Sprintf("No fallback template found for '%s' in any of the searchAppSites: %s", templateName, searchAppSites), "EngineNormal")
+	}
+
 	return "", nil
 }
 
-// ReplaceTemplatePlaceholdersWithJson replaces placeholders using both templates and JSON values
-func (e *EngineNormal) ReplaceTemplatePlaceholdersWithJson(html, appSite string, htmlFiles, jsonValues map[string]string, appView string) string {
+func (e *EngineNormal) getTemplateFromMerged(appSite, templateName string, mergedTemplates map[string]string, searchAppSites, appView string) string {
+	if len(mergedTemplates) == 0 {
+		return ""
+	}
+
+	if appView != "" && e.AppViewPrefix != "" {
+		templateNameLower := strings.ToLower(templateName)
+		viewPrefixLower := strings.ToLower(e.AppViewPrefix)
+
+		if strings.Contains(templateNameLower, viewPrefixLower) {
+			appKey := common.ReplaceCaseInsensitive(templateName, e.AppViewPrefix, appView)
+			fallbackTemplateKey := strings.ToLower(appSite) + "_" + strings.ToLower(appKey)
+			if fallbackTemplate, exists := mergedTemplates[fallbackTemplateKey]; exists {
+				return fallbackTemplate
+			}
+		}
+	}
+
+	primaryTemplateKey := strings.ToLower(appSite) + "_" + strings.ToLower(templateName)
+	if primaryTemplate, exists := mergedTemplates[primaryTemplateKey]; exists {
+		return primaryTemplate
+	}
+
+	if searchAppSites != "" {
+		searchAppSitesArray := strings.Split(searchAppSites, ",")
+		for _, searchAppSite := range searchAppSitesArray {
+			searchAppSite = strings.TrimSpace(searchAppSite)
+			if searchAppSite == "" {
+				continue
+			}
+
+			searchKey := strings.ToLower(searchAppSite) + "_" + strings.ToLower(templateName)
+			if searchTemplate, exists := mergedTemplates[searchKey]; exists {
+				Logger.Debug(fmt.Sprintf("Component '%s' not found in '%s', using fallback from '%s'", templateName, appSite, searchAppSite), "EngineNormal")
+				return searchTemplate
+			}
+		}
+	}
+
+	return ""
+}
+
+func (e *EngineNormal) ReplaceTemplatePlaceholdersWithJson(html, appSite string, htmlFiles, jsonValues map[string]string, searchAppSites, appView string) string {
 	result := html
 	searchPos := 0
 	for searchPos < len(result) {
@@ -347,7 +238,7 @@ func (e *EngineNormal) ReplaceTemplatePlaceholdersWithJson(html, appSite string,
 			break
 		}
 		openStart += searchPos
-		if openStart+2 < len(result) && strings.ContainsAny(string(result[openStart+2]), "#@/") { // Don't skip '$' placeholders!
+		if openStart+2 < len(result) && strings.ContainsAny(string(result[openStart+2]), "#@/") {
 			searchPos = openStart + 2
 			continue
 		}
@@ -364,43 +255,19 @@ func (e *EngineNormal) ReplaceTemplatePlaceholdersWithJson(html, appSite string,
 
 		var processedReplacement string
 
-		// PRIORITY 1: Check for JSON placeholders first (starts with '$')
 		if strings.HasPrefix(placeholderName, "$") {
-			key := placeholderName[1:] // Remove the leading '$'
+			key := placeholderName[1:]
 			if value, exists := jsonValues[key]; exists {
 				processedReplacement = value
 			}
 		} else if common.IsAlphaNumeric(placeholderName) {
-			// PRIORITY 2: Check for template placeholders (alphanumeric)
-			templateKey := strings.ToLower(appSite) + "_" + strings.ToLower(placeholderName)
+			templateContent := e.getTemplateFromMerged(appSite, placeholderName, htmlFiles, searchAppSites, appView)
 
-			// Check for AppView fallback FIRST if appView is provided
-			if appView != "" && e.AppViewPrefix != "" {
-				// Case-insensitive check if placeholderName contains AppViewPrefix
-				placeholderLower := strings.ToLower(placeholderName)
-				prefixLower := strings.ToLower(e.AppViewPrefix)
-				if strings.Contains(placeholderLower, prefixLower) {
-					// Replace AppViewPrefix with AppView in placeholderName
-					appKey := common.ReplaceCaseInsensitive(placeholderName, e.AppViewPrefix, appView)
-					fallbackTemplateKey := strings.ToLower(appSite) + "_" + strings.ToLower(appKey)
-					if fallbackContent, exists := htmlFiles[fallbackTemplateKey]; exists {
-						processedReplacement = e.ReplaceTemplatePlaceholdersWithJson(fallbackContent, appSite, htmlFiles, jsonValues, appView)
-					}
-				}
-			}
-
-			// If no AppView fallback found, use primary template key
-			if processedReplacement == "" {
-				if templateContent, exists := htmlFiles[templateKey]; exists {
-					processedReplacement = e.ReplaceTemplatePlaceholdersWithJson(templateContent, appSite, htmlFiles, jsonValues, appView)
-				}
-			}
-
-			// PRIORITY 3: If no template found, try JSON values (for backward compatibility)
-			if processedReplacement == "" {
-				if value, exists := jsonValues[placeholderName]; exists {
-					processedReplacement = value
-				}
+			if templateContent != "" {
+				Logger.Debug(fmt.Sprintf("Found template for placeholder {{%s}}", placeholderName), "EngineNormal")
+				processedReplacement = e.ReplaceTemplatePlaceholdersWithJson(templateContent, appSite, htmlFiles, jsonValues, searchAppSites, appView)
+			} else {
+				Logger.Debug(fmt.Sprintf("No template found for {{%s}} - use {{$%s}} for JSON values", placeholderName, placeholderName), "EngineNormal")
 			}
 		}
 
@@ -415,7 +282,6 @@ func (e *EngineNormal) ReplaceTemplatePlaceholdersWithJson(html, appSite string,
 	return result
 }
 
-// MergeTemplateSlots recursively merges slotted templates with content
 func (e *EngineNormal) MergeTemplateSlots(contentHtml, appSite, appView string, templates map[string]string) string {
 	if contentHtml == "" || len(templates) == 0 {
 		return contentHtml
@@ -431,7 +297,6 @@ func (e *EngineNormal) MergeTemplateSlots(contentHtml, appSite, appView string, 
 	return contentHtml
 }
 
-// ProcessTemplateSlots processes slotted templates using IndexOf
 func (e *EngineNormal) ProcessTemplateSlots(contentHtml, appSite, appView string, templates map[string]string) string {
 	result := contentHtml
 	searchPos := 0
@@ -460,7 +325,6 @@ func (e *EngineNormal) ProcessTemplateSlots(contentHtml, appSite, appView string
 		innerStart := openEnd + 2
 		innerContent := result[innerStart:closeStart]
 
-		// Convert string map to anonymous struct map for GetTemplate method (like Rust does)
 		templatesForGetTemplate := make(map[string]struct {
 			HTML string
 			JSON *string
@@ -472,8 +336,7 @@ func (e *EngineNormal) ProcessTemplateSlots(contentHtml, appSite, appView string
 			}{HTML: v, JSON: nil}
 		}
 
-		// Use GetTemplate method like Rust does
-		templateHtml, _ := e.GetTemplate(appSite, templateName, templatesForGetTemplate, appView, e.AppViewPrefix, true)
+		templateHtml, _ := e.GetTemplate(appSite, templateName, templatesForGetTemplate, "", appView, e.AppViewPrefix, true)
 		if templateHtml != "" {
 			slotContents := e.ExtractSlotContents(innerContent, appSite, appView, templates)
 			processedTemplate := templateHtml
@@ -490,7 +353,6 @@ func (e *EngineNormal) ProcessTemplateSlots(contentHtml, appSite, appView string
 	return result
 }
 
-// ExtractSlotContents extracts slot contents using IndexOf approach
 func (e *EngineNormal) ExtractSlotContents(innerContent, appSite, appView string, templates map[string]string) map[string]string {
 	slotContents := make(map[string]string)
 	searchPos := 0
@@ -540,7 +402,6 @@ func (e *EngineNormal) ExtractSlotContents(innerContent, appSite, appView string
 	return slotContents
 }
 
-// ReplaceTemplatePlaceholders processes simple placeholders only
 func (e *EngineNormal) ReplaceTemplatePlaceholders(html, appSite, appView string, htmlFiles map[string]string) string {
 	result := html
 	searchPos := 0
@@ -580,73 +441,47 @@ func (e *EngineNormal) ReplaceTemplatePlaceholders(html, appSite, appView string
 	return result
 }
 
-// Helper: Replace all case-insensitive occurrences
-func replaceAllCaseInsensitive(input, search, replacement string) string {
-	result := input
-	idx := 0
-	for {
-		if found := findCaseInsensitive(result[idx:], search); found != -1 {
-			found = idx + found
-			result = result[:found] + replacement + result[found+len(search):]
-			idx = found + len(replacement)
-		} else {
-			break
-		}
+// mergeTemplateWithJson merges HTML template with JSON data using placeholder replacement
+// Supports JSON key inheritance: keys ending with # will inherit values from parent templates
+func (e *EngineNormal) mergeTemplateWithJson(
+	template string,
+	jsonText string,
+	templateKey string,
+	allTemplates map[string]struct {
+		HTML string
+		JSON *string
+	},
+	parentMap map[string]string) string {
+
+	// Parse JSON
+	var jsonObject map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonText), &jsonObject); err != nil {
+		Logger.Error(fmt.Sprintf("Error parsing JSON for template %s: %v", templateKey, err), "EngineNormal")
+		return template
 	}
-	return result
-}
 
-// Helper: Handle conditional blocks like {{@Selected}}...{{/Selected}}
-func handleConditional(input, key string, condition bool) string {
-	result := input
-
-	// Support spaces inside block tags, e.g. {{@Selected}} ... {{ /Selected}}
-	condStart := "{{@" + key + "}}"
-	condEndSpace := "{{ /" + key + "}}"
-
-	// Handle first pattern: {{ /Key}} (with space)
-	for {
-		if startIdx := findCaseInsensitive(result, condStart); startIdx != -1 {
-			if endIdx := findCaseInsensitive(result, condEndSpace); endIdx != -1 {
-				content := result[startIdx+len(condStart) : endIdx]
-				if condition {
-					result = result[:startIdx] + content + result[endIdx+len(condEndSpace):]
-				} else {
-					result = result[:startIdx] + result[endIdx+len(condEndSpace):]
+	// Convert and resolve inherited keys
+	resolvedData := make(map[string]interface{})
+	for key, value := range jsonObject {
+		// Check if this is an inheritable key (ends with #)
+		if strings.HasSuffix(key, "#") {
+			if strValue, ok := value.(string); ok {
+				// Resolve inherited value
+				resolvedValue := ResolveJsonKeyWithInheritance(key, strValue, templateKey, allTemplates, parentMap)
+				if resolvedValue != "" {
+					// Store with the actual key name (without #)
+					actualKey := key[:len(key)-1]
+					resolvedData[actualKey] = resolvedValue
+					Logger.Debug(fmt.Sprintf("Resolved inherited key %s -> %s = %s", key, actualKey, resolvedValue), "EngineNormal")
+					continue
 				}
-			} else {
-				break
 			}
-		} else {
-			break
 		}
+
+		// Normal key processing (non-inheritable keys)
+		resolvedData[key] = value
 	}
 
-	// Also handle without space: {{/Key}}
-	condEndNoSpace := "{{/" + key + "}}"
-	for {
-		if startIdx := findCaseInsensitive(result, condStart); startIdx != -1 {
-			if endIdx := findCaseInsensitive(result, condEndNoSpace); endIdx != -1 {
-				content := result[startIdx+len(condStart) : endIdx]
-				if condition {
-					result = result[:startIdx] + content + result[endIdx+len(condEndNoSpace):]
-				} else {
-					result = result[:startIdx] + result[endIdx+len(condEndNoSpace):]
-				}
-			} else {
-				break
-			}
-		} else {
-			break
-		}
-	}
-
-	return result
-}
-
-// Helper: Find case-insensitive occurrence of search string
-func findCaseInsensitive(haystack, needle string) int {
-	lower := strings.ToLower(haystack)
-	lowerNeedle := strings.ToLower(needle)
-	return strings.Index(lower, lowerNeedle)
+	// Use common merge function for the actual merging
+	return common.MergeTemplateWithJson(template, resolvedData)
 }

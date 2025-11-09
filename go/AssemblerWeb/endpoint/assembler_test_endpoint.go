@@ -17,7 +17,7 @@ import (
 	"assembler/config"
 	"assembler/performance"
 	"assembler/test"
-	Logger "arshu/common"
+    Logger "arshu/common"
 )
 
 // RULE_GROUPS defines the configurable rule groups for consolidated report grouping
@@ -76,7 +76,7 @@ func TestStandard(c *gin.Context) {
 		return
 	}
 
-	results := test.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true)
+    results := test.RunStandardTests(rootDirPath, projectDirectory, scenarios, SearchAppSites, false, true, true)
 	if len(results) > 0 {
 		test.PrintTestSummaryTable(rootDirPath, projectDirectory, results, "STANDARD TEST")
 	}
@@ -143,9 +143,9 @@ func TestAdvanced(c *gin.Context) {
 	}
 
 	// Dump preprocessed template structures before running advanced tests
-	test.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true)
+    test.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, SearchAppSites, true)
 
-	results := test.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, false, true, true)
+    results := test.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, SearchAppSites, false, true, true)
 	if len(results) > 0 {
 		test.PrintTestSummaryTable(rootDirPath, projectDirectory, results, "ADVANCED TEST")
 	}
@@ -197,7 +197,7 @@ func TestPerformance(c *gin.Context) {
 		return
 	}
 
-	results := performance.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, true, true)
+    results := performance.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, SearchAppSites, true, true)
 	if len(results) > 0 {
 		performance.PrintPerfSummaryTable(rootDirPath, projectDirectory, results)
 	}
@@ -1231,18 +1231,9 @@ func SaveOutput(c *gin.Context) {
 		return
 	}
 
-	// Validate output size against template size + buffer
-	templateTotalSize := GetTemplateTotalSize(req.AppSite, req.AppView)
+	// Log output size (size validation removed - TotalSize no longer tracked)
 	outputSize := len(req.Html)
-	maxAllowedSize := templateTotalSize + OutputSizeBuffer
-	log.Printf("[/api/save-output] Size validation: output=%d, template=%d, buffer=%d, max=%d", outputSize, templateTotalSize, OutputSizeBuffer, maxAllowedSize)
-
-	if !IsValidOutputSizeWithBuffer(&req.Html, templateTotalSize) {
-		errorMsg := fmt.Sprintf("Save output failed: output size (%d bytes) exceeds max size allowed (%d bytes = template %d + buffer %d)", outputSize, maxAllowedSize, templateTotalSize, OutputSizeBuffer)
-		log.Printf("[/api/save-output] %s", errorMsg)
-		c.JSON(http.StatusBadRequest, gin.H{"error": errorMsg})
-		return
-	}
+	log.Printf("[/api/save-output] Output size: %d bytes", outputSize)
 
 	outputDir := filepath.Join(getProjectDirectory(), "Analysis", "output")
 	os.MkdirAll(outputDir, 0755)

@@ -6,6 +6,7 @@ use arshu::common::{Logger, LogLevel};
 use assembler::test::testing_utils::TestingUtils;
 use assembler::performance::performance_utils::PerformanceUtils;
 use crate::endpoint::security_validator;
+use crate::endpoint::assembler_endpoint::SEARCH_APP_SITE;
 
 // Configurable rule groups for consolidated report grouping
 const RULE_GROUPS: &[&str] = &[
@@ -97,7 +98,7 @@ pub async fn test_standard() -> impl Responder {
         }
     };
 
-    let results = TestingUtils::run_standard_tests(&root_dir_str, project_dir_str, &scenarios, false, false, true);
+    let results = TestingUtils::run_standard_tests(&root_dir_str, project_dir_str, &scenarios, SEARCH_APP_SITE, false, false, true);
     if !results.is_empty() {
         TestingUtils::print_test_summary_table(&root_dir_str, project_dir_str, &results, "STANDARD TEST");
     }
@@ -173,9 +174,9 @@ pub async fn test_advanced() -> impl Responder {
     };
 
     // Dump preprocessed template structures before running advanced tests
-    TestingUtils::dump_preprocessed_template_structures(&root_dir_str, project_dir_str, &scenarios, true);
+    TestingUtils::dump_preprocessed_template_structures(&root_dir_str, project_dir_str, &scenarios, SEARCH_APP_SITE, true);
 
-    let results = TestingUtils::run_advanced_tests(&root_dir_str, project_dir_str, &scenarios, false, false, true);
+    let results = TestingUtils::run_advanced_tests(&root_dir_str, project_dir_str, &scenarios, SEARCH_APP_SITE, false, false, true);
     if !results.is_empty() {
         TestingUtils::print_test_summary_table(&root_dir_str, project_dir_str, &results, "ADVANCED TEST");
     }
@@ -236,7 +237,7 @@ pub async fn test_performance() -> impl Responder {
     let original_log_level = Logger::get_log_level();
     Logger::set_log_level(LogLevel::NONE);
 
-    let results = PerformanceUtils::run_performance_comparison(&root_dir_str, project_dir_str, &scenarios, true, true);
+    let results = PerformanceUtils::run_performance_comparison(&root_dir_str, project_dir_str, &scenarios, SEARCH_APP_SITE, true, true);
 
     // Restore logging
     Logger::set_log_level(original_log_level);
@@ -1249,21 +1250,9 @@ pub async fn save_output(
         return HttpResponse::BadRequest().body("Invalid engineType parameter");
     }
 
-    // Validate output size against template size + buffer
-    let template_total_size = security_validator::get_template_total_size(&app_site, &app_view);
+    // Log output size (size validation removed - TotalSize no longer tracked)
     let output_size = html_content.len();
-    let max_allowed_size = template_total_size + security_validator::OUTPUT_SIZE_BUFFER;
-    println!("[/api/save-output] Size validation: output={}, template={}, buffer={}, max={}",
-        output_size, template_total_size, security_validator::OUTPUT_SIZE_BUFFER, max_allowed_size);
-
-    if !security_validator::is_valid_output_size_with_buffer(Some(&html_content), template_total_size) {
-        let error_msg = format!(
-            "Save output failed: output size ({} bytes) exceeds max size allowed ({} bytes = template {} + buffer {})",
-            output_size, max_allowed_size, template_total_size, security_validator::OUTPUT_SIZE_BUFFER
-        );
-        println!("[/api/save-output] {}", error_msg);
-        return HttpResponse::BadRequest().body(error_msg);
-    }
+    println!("[/api/save-output] Output size: {} bytes", output_size);
 
     let output_dir = std::path::Path::new(project_dir_str).join("Analysis").join("output");
     let _ = std::fs::create_dir_all(&output_dir);

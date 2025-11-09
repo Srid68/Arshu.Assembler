@@ -1,8 +1,9 @@
-use std::collections::HashMap;
 use crate::app::json::JsonValue;
 use crate::app::json_convertor::JsonConverter;
 use crate::common::common_util::CommonUtil;
+use crate::engine::json_inheritance_util::JsonInheritanceUtil; // Import JsonInheritanceUtil
 use arshu::common::Logger;
+use std::collections::HashMap;
 
 /// <summary>
 /// IndexOf-based template engine implementation for improved performance
@@ -13,17 +14,19 @@ pub struct EngineNormal {
 
 impl EngineNormal {
     pub fn new(prefix: String) -> Self {
-        Self { app_view_prefix: prefix }
+        Self {
+            app_view_prefix: prefix,
+        }
     }
 
     pub fn app_view_prefix(&self) -> &str {
         &self.app_view_prefix
     }
-    
+
     pub fn set_app_view_prefix(&mut self, prefix: String) {
         self.app_view_prefix = prefix;
     }
-    
+
     /// <summary>
     /// Merges templates by replacing placeholders with corresponding HTML
     /// This is a hybrid method that processes both slotted templates and simple placeholders
@@ -33,6 +36,7 @@ impl EngineNormal {
     /// <param name="app_view">The application view name (optional)</param>
     /// <param name="app_file">The application file name</param>
     /// <param name="templates">Dictionary of available templates, where value is tuple of (HTML content, JSON content or null)</param>
+    /// <param name="search_app_sites">Comma-separated fallback AppSites to search when template not found in primary AppSite</param>
     /// <param name="enable_json_processing">Whether to enable JSON data processing</param>
     /// <returns>HTML with placeholders replaced</returns>
     pub fn merge_templates(
@@ -41,24 +45,33 @@ impl EngineNormal {
         app_file: &str,
         app_view: Option<&str>,
         templates: &mut HashMap<String, (String, Option<String>)>,
+        search_app_sites: &str,
         enable_json_processing: bool,
     ) -> String {
         let app_view_str = app_view.unwrap_or("null");
-        Logger::debug(&format!("MergeTemplates called: appSite={}, appFile={}, appView={}, enableJson={}",
-            app_site, app_file, app_view_str, enable_json_processing), Some("EngineNormal"));
+        Logger::debug(&format!("MergeTemplates called: appSite={}, appFile={}, appView={}, searchAppSites={}, enableJson={}",
+            app_site, app_file, app_view_str, search_app_sites, enable_json_processing), Some("EngineNormal"));
 
         if templates.is_empty() {
             Logger::warn("No templates available", Some("EngineNormal"));
             return String::new();
         }
 
-        Logger::debug(&format!("Using {} templates", templates.len()), Some("EngineNormal"));
+        Logger::debug(
+            &format!("Using {} templates", templates.len()),
+            Some("EngineNormal"),
+        );
+
+        // Build parent-child relationship map for JSON inheritance
+        let parent_map = JsonInheritanceUtil::build_parent_map(app_site, templates);
+        Logger::debug(&format!("Built parent map with {} relationships for JSON inheritance", parent_map.len()), Some("EngineNormal"));
 
         // Use the unified get_template method to retrieve the main template (html and json)
         let (main_template_html, main_template_json) = self.get_template(
             app_site,
             app_file,
             templates,
+            search_app_sites,
             app_view,
             true,
         );
@@ -66,27 +79,47 @@ impl EngineNormal {
         let mut content_html = match main_template_html {
             Some(html) => html,
             None => {
-                Logger::warn(&format!("Main template not found for appSite={}, appFile={}", app_site, app_file), Some("EngineNormal"));
+                Logger::warn(
+                    &format!(
+                        "Main template not found for appSite={}, appFile={}",
+                        app_site, app_file
+                    ),
+                    Some("EngineNormal"),
+                );
                 return String::new();
             }
         };
 
         let json_len = main_template_json.as_ref().map(|j| j.len()).unwrap_or(0);
-        Logger::debug(&format!("Main template found, html size: {}, json: {}", content_html.len(), json_len), Some("EngineNormal"));
+        Logger::debug(
+            &format!(
+                "Main template found, html size: {}, json: {}",
+                content_html.len(),
+                json_len
+            ),
+            Some("EngineNormal"),
+        );
 
         // Apply JSON merging to the main template if it has JSON and JSON processing is enabled
         if enable_json_processing {
             if let Some(json) = main_template_json.clone() {
-                Logger::debug(&format!("Merging main template with JSON (size: {})", json.len()), Some("EngineNormal"));
-                content_html = Self::merge_template_with_json(&content_html, &json);
-                Logger::debug(&format!("After main JSON merge: {} chars", content_html.len()), Some("EngineNormal"));
+                Logger::debug(
+                    &format!("Merging main template with JSON (size: {})", json.len()),
+                    Some("EngineNormal"),
+                );
+                let main_template_key = format!("{}_{}", app_site.to_lowercase(), app_file.to_lowercase());
+                content_html = Self::merge_template_with_json(&content_html, &json, &main_template_key, templates, &parent_map);
+                Logger::debug(
+                    &format!("After main JSON merge: {} chars", content_html.len()),
+                    Some("EngineNormal"),
+                );
             }
         }
 
         // Step 2: Process each template with its associated JSON (matching C# approach exactly)
         let mut processed_templates: HashMap<String, String> = HashMap::new();
         let mut all_json_values: HashMap<String, String> = HashMap::new();
-        
+
         // Add main template JSON values to the global collection if it exists
         if enable_json_processing {
             if let Some(json) = main_template_json.clone() {
@@ -98,7 +131,7 @@ impl EngineNormal {
                 }
             }
         }
-        
+
         let mut json_merge_count = 0;
         for (key, (html_content, json_content)) in templates.iter() {
             let mut processed_html = html_content.clone();
@@ -106,7 +139,7 @@ impl EngineNormal {
             // If JSON exists and JSON processing is enabled, merge it with the HTML template first
             if enable_json_processing {
                 if let Some(json) = json_content {
-                    processed_html = Self::merge_template_with_json(&processed_html, json);
+                    processed_html = Self::merge_template_with_json(&processed_html, json, key, templates, &parent_map);
                     json_merge_count += 1;
 
                     // Parse JSON and collect key-value pairs using our JsonConverter (matching C# exactly)
@@ -121,7 +154,14 @@ impl EngineNormal {
             processed_templates.insert(key.clone(), processed_html);
         }
 
-        Logger::debug(&format!("Pre-merged {} templates with JSON, collected {} JSON values", json_merge_count, all_json_values.len()), Some("EngineNormal"));
+        Logger::debug(
+            &format!(
+                "Pre-merged {} templates with JSON, collected {} JSON values",
+                json_merge_count,
+                all_json_values.len()
+            ),
+            Some("EngineNormal"),
+        );
 
         let mut previous;
         let max_passes = 10;
@@ -130,21 +170,60 @@ impl EngineNormal {
             previous = content_html.clone();
             actual_passes = pass + 1;
 
-            Logger::debug(&format!("Pass {}, current size: {}", actual_passes, content_html.len()), Some("EngineNormal"));
+            Logger::debug(
+                &format!(
+                    "Pass {}, current size: {}",
+                    actual_passes,
+                    content_html.len()
+                ),
+                Some("EngineNormal"),
+            );
 
-            content_html = self.merge_template_slots(&content_html, app_site, app_view, &processed_templates);
-            Logger::debug(&format!("After slot merge: {} chars", content_html.len()), Some("EngineNormal"));
+            content_html = self.merge_template_slots(
+                &content_html,
+                app_site,
+                app_view,
+                &processed_templates,
+                search_app_sites,
+            );
+            Logger::debug(
+                &format!("After slot merge: {} chars", content_html.len()),
+                Some("EngineNormal"),
+            );
 
-            content_html = self.replace_template_placeholders_with_json(&content_html, app_site, &processed_templates, &all_json_values, app_view);
-            Logger::debug(&format!("After placeholder replacement: {} chars", content_html.len()), Some("EngineNormal"));
+            content_html = self.replace_template_placeholders_with_json(
+                &content_html,
+                app_site,
+                &processed_templates,
+                &all_json_values,
+                search_app_sites,
+                app_view,
+            );
+            Logger::debug(
+                &format!(
+                    "After placeholder replacement: {} chars",
+                    content_html.len()
+                ),
+                Some("EngineNormal"),
+            );
 
             if content_html == previous {
-                Logger::debug(&format!("No changes in pass {}, stopping", actual_passes), Some("EngineNormal"));
+                Logger::debug(
+                    &format!("No changes in pass {}, stopping", actual_passes),
+                    Some("EngineNormal"),
+                );
                 break;
             }
         }
 
-        Logger::debug(&format!("MergeTemplates complete after {} passes: output size={}", actual_passes, content_html.len()), Some("EngineNormal"));
+        Logger::debug(
+            &format!(
+                "MergeTemplates complete after {} passes: output size={}",
+                actual_passes,
+                content_html.len()
+            ),
+            Some("EngineNormal"),
+        );
         content_html
     }
 }
@@ -160,6 +239,7 @@ impl EngineNormal {
         app_site: &str,
         template_name: &str,
         templates: &HashMap<String, (String, Option<String>)>,
+        search_app_sites: &str,
         app_view: Option<&str>,
         use_app_view_fallback: bool,
     ) -> (Option<String>, Option<String>) {
@@ -168,37 +248,107 @@ impl EngineNormal {
         }
 
         let view_prefix = &self.app_view_prefix;
-        let primary_template_key = format!("{}_{}", app_site.to_lowercase(), template_name.to_lowercase());
-        let found_key = templates.keys().find(|k| k.eq_ignore_ascii_case(&primary_template_key));
-        
+        let primary_template_key = format!(
+            "{}_{}",
+            app_site.to_lowercase(),
+            template_name.to_lowercase()
+        );
+        let found_key = templates
+            .keys()
+            .find(|k| k.eq_ignore_ascii_case(&primary_template_key));
+
         // FIRST: Check for AppView-specific template resolution when AppView context is provided
         if use_app_view_fallback && !view_prefix.is_empty() {
             if let Some(app_view) = app_view {
                 // Case-insensitive check if template_name contains view_prefix
                 let template_name_lower = template_name.to_lowercase();
                 let view_prefix_lower = view_prefix.to_lowercase();
-                
+
                 if template_name_lower.contains(&view_prefix_lower) {
                     // Direct replacement: Replace the AppViewPrefix with the AppView value
                     // For example: Html3AContent with AppViewPrefix=Html3A and AppView=html3B becomes html3BContent
-                    let app_key = CommonUtil::replace_case_insensitive(template_name, view_prefix, app_view);
-                    let fallback_template_key = format!("{}_{}", app_site.to_lowercase(), app_key.to_lowercase());
-                    if let Some(fallback_found_key) = templates.keys().find(|k| k.eq_ignore_ascii_case(&fallback_template_key)) {
+                    let app_key =
+                        CommonUtil::replace_case_insensitive(template_name, view_prefix, app_view);
+                    let fallback_template_key =
+                        format!("{}_{}", app_site.to_lowercase(), app_key.to_lowercase());
+                    if let Some(fallback_found_key) = templates
+                        .keys()
+                        .find(|k| k.eq_ignore_ascii_case(&fallback_template_key))
+                    {
                         if let Some((html, json)) = templates.get(fallback_found_key) {
                             return (Some(html.clone()), json.clone());
+                        }
+                    }
+
+                    // Try searchAppSites fallback for AppView-specific template
+                    if !search_app_sites.is_empty() {
+                        let search_app_sites_array: Vec<&str> =
+                            search_app_sites.split(',').collect();
+                        for search_app_site in search_app_sites_array {
+                            let search_app_site = search_app_site.trim();
+                            if search_app_site.is_empty() {
+                                continue;
+                            }
+
+                            let search_key = format!(
+                                "{}_{}",
+                                search_app_site.to_lowercase(),
+                                template_name.to_lowercase()
+                            );
+                            if let Some(search_found_key) = templates
+                                .keys()
+                                .find(|k| k.eq_ignore_ascii_case(&search_key))
+                            {
+                                if let Some((html, json)) = templates.get(search_found_key) {
+                                    Logger::debug(&format!("Main template '{}' not found in '{}', using fallback from '{}'", template_name, app_site, search_app_site), Some("EngineNormal"));
+                                    return (Some(html.clone()), json.clone());
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-        
+
         // SECOND: If no AppView-specific template found, try primary template
         if let Some(found_key) = found_key {
             if let Some((html, json)) = templates.get(found_key) {
                 return (Some(html.clone()), json.clone());
             }
         }
-        
+
+        // THIRD: Search in SearchAppSites as fallback
+        if !search_app_sites.is_empty() {
+            let search_app_sites_array: Vec<&str> = search_app_sites.split(',').collect();
+            for search_app_site in search_app_sites_array {
+                let search_app_site = search_app_site.trim();
+                if search_app_site.is_empty() {
+                    continue;
+                }
+
+                let search_key = format!(
+                    "{}_{}",
+                    search_app_site.to_lowercase(),
+                    template_name.to_lowercase()
+                );
+                if let Some(search_found_key) = templates
+                    .keys()
+                    .find(|k| k.eq_ignore_ascii_case(&search_key))
+                {
+                    if let Some((html, json)) = templates.get(search_found_key) {
+                        Logger::debug(
+                            &format!(
+                                "Component '{}' not found in '{}', using fallback from '{}'",
+                                template_name, app_site, search_app_site
+                            ),
+                            Some("EngineNormal"),
+                        );
+                        return (Some(html.clone()), json.clone());
+                    }
+                }
+            }
+        }
+
         (None, None)
     }
 
@@ -209,6 +359,7 @@ impl EngineNormal {
         app_site: &str,
         processed_templates: &HashMap<String, String>,
         json_values: &HashMap<String, String>,
+        search_app_sites: &str,
         app_view: Option<&str>,
     ) -> String {
         let mut result = html.to_string();
@@ -217,16 +368,20 @@ impl EngineNormal {
         // This temporary map is needed to reuse the complex `get_template` logic
         // which expects a specific tuple structure.
         let temp_templates_for_lookup: HashMap<String, (String, Option<String>)> =
-            processed_templates.iter().map(|(k, v)| (k.clone(), (v.clone(), None))).collect();
+            processed_templates
+                .iter()
+                .map(|(k, v)| (k.clone(), (v.clone(), None)))
+                .collect();
 
         while search_pos < result.len() {
             if let Some(open_start) = result[search_pos..].find("{{") {
                 let open_start = search_pos + open_start;
-                
+
                 // Make sure it's not a slot placeholder, which are handled separately
                 if open_start + 2 < result.len() {
                     let c = result.chars().nth(open_start + 2).unwrap_or(' ');
-                    if c == '#' || c == '@' || c == '/' { // Don't skip '$' placeholders here!
+                    if c == '#' || c == '@' || c == '/' {
+                        // Don't skip '$' placeholders here!
                         search_pos = open_start + 2;
                         continue;
                     }
@@ -234,7 +389,7 @@ impl EngineNormal {
 
                 if let Some(close_start) = result[open_start + 2..].find("}}") {
                     let close_start = open_start + 2 + close_start;
-                    
+
                     let placeholder_name = result[open_start + 2..close_start].trim();
                     if placeholder_name.is_empty() {
                         search_pos = open_start + 2;
@@ -256,15 +411,22 @@ impl EngineNormal {
                             app_site,
                             placeholder_name,
                             &temp_templates_for_lookup,
+                            search_app_sites,
                             app_view,
                             true,
                         );
 
                         if let Some(tc) = template_content {
                             // Recursively process nested placeholders within the replacement template
-                            processed_replacement = Some(self.replace_template_placeholders_with_json(
-                                &tc, app_site, processed_templates, json_values, app_view
-                            ));
+                            processed_replacement =
+                                Some(self.replace_template_placeholders_with_json(
+                                    &tc,
+                                    app_site,
+                                    processed_templates,
+                                    json_values,
+                                    search_app_sites,
+                                    app_view,
+                                ));
                         }
                         // PRIORITY 3: If no template found, try JSON values (for backward compatibility)
                         else if let Some(json_value) = json_values.get(placeholder_name) {
@@ -298,6 +460,7 @@ impl EngineNormal {
     /// <param name="content_html">The content HTML containing slot patterns</param>
     /// <param name="app_site">The application site name for template key generation</param>
     /// <param name="templates">Dictionary of available templates</param>
+    /// <param name="search_app_sites">Comma-separated fallback AppSites to search when template not found in primary AppSite</param>
     /// <returns>Merged HTML with slots filled</returns>
     fn merge_template_slots(
         &self,
@@ -305,6 +468,7 @@ impl EngineNormal {
         app_site: &str,
         app_view: Option<&str>,
         templates: &HashMap<String, String>,
+        search_app_sites: &str,
     ) -> String {
         if content_html.is_empty() || templates.is_empty() {
             return content_html.to_string();
@@ -314,7 +478,13 @@ impl EngineNormal {
         let mut result = content_html.to_string();
         loop {
             previous = result.clone();
-            result = self.process_template_slots(&result, app_site, app_view, templates);
+            result = self.process_template_slots(
+                &result,
+                app_site,
+                app_view,
+                templates,
+                search_app_sites,
+            );
             if result == previous {
                 break;
             }
@@ -331,6 +501,7 @@ impl EngineNormal {
         app_site: &str,
         app_view: Option<&str>,
         templates: &HashMap<String, String>,
+        search_app_sites: &str,
     ) -> String {
         let mut result = content_html.to_string();
         let mut search_pos = 0;
@@ -339,11 +510,11 @@ impl EngineNormal {
             // Look for opening tag {{#
             if let Some(open_start) = result[search_pos..].find("{{#") {
                 let open_start = search_pos + open_start;
-                
+
                 // Find the end of the template name
                 if let Some(open_end) = result[open_start + 3..].find("}}") {
                     let open_end = open_start + 3 + open_end;
-                    
+
                     // Extract template name
                     let template_name = result[open_start + 3..open_end].trim();
                     if template_name.is_empty() || !CommonUtil::is_alphanumeric(template_name) {
@@ -354,8 +525,11 @@ impl EngineNormal {
                     // Look for corresponding closing tag
                     let close_tag = format!("{{{{/{}}}}}", template_name);
                     if let Some(close_start) = CommonUtil::find_matching_close_tag(
-                        &result, open_end + 2, &format!("{{{{#{}}}}}", template_name), &close_tag) {
-                        
+                        &result,
+                        open_end + 2,
+                        &format!("{{{{#{}}}}}", template_name),
+                        &close_tag,
+                    ) {
                         // Extract inner content
                         let inner_start = open_end + 2;
                         let inner_content = &result[inner_start..close_start];
@@ -364,14 +538,24 @@ impl EngineNormal {
                         let (template_html, _) = self.get_template(
                             app_site,
                             template_name,
-                            &templates.iter().map(|(k, v)| (k.clone(), (v.clone(), None))).collect(),
+                            &templates
+                                .iter()
+                                .map(|(k, v)| (k.clone(), (v.clone(), None)))
+                                .collect(),
+                            search_app_sites,
                             app_view,
                             true,
                         );
 
                         if let Some(template_html) = template_html {
                             // Extract slot contents
-                            let slot_contents = self.extract_slot_contents(inner_content, app_site, app_view, templates);
+                            let slot_contents = self.extract_slot_contents(
+                                inner_content,
+                                app_site,
+                                app_view,
+                                templates,
+                                search_app_sites,
+                            );
 
                             // Replace slots in template
                             let mut processed_template = template_html;
@@ -412,6 +596,7 @@ impl EngineNormal {
         app_site: &str,
         app_view: Option<&str>,
         templates: &HashMap<String, String>,
+        search_app_sites: &str,
     ) -> HashMap<String, String> {
         let mut slot_contents = HashMap::new();
         let mut search_pos = 0;
@@ -458,8 +643,11 @@ impl EngineNormal {
                 };
 
                 if let Some(close_start) = CommonUtil::find_matching_close_tag(
-                    inner_content, slot_open_end, &open_tag, &close_tag) {
-                    
+                    inner_content,
+                    slot_open_end,
+                    &open_tag,
+                    &close_tag,
+                ) {
                     // Extract slot content
                     let slot_content = &inner_content[slot_open_end..close_start];
 
@@ -472,8 +660,20 @@ impl EngineNormal {
 
                     // FIXED: Process both slotted templates AND simple placeholders in slot content
                     // This enables proper nested template processing to match the preprocessing implementation
-                    let mut recursive_result = self.merge_template_slots(slot_content, app_site, app_view, templates);
-                    recursive_result = self.replace_template_placeholders(&recursive_result, app_site, app_view, templates);
+                    let mut recursive_result = self.merge_template_slots(
+                        slot_content,
+                        app_site,
+                        app_view,
+                        templates,
+                        search_app_sites,
+                    );
+                    recursive_result = self.replace_template_placeholders(
+                        &recursive_result,
+                        app_site,
+                        app_view,
+                        templates,
+                        search_app_sites,
+                    );
                     slot_contents.insert(slot_key, recursive_result);
 
                     search_pos = close_start + close_tag.len();
@@ -499,6 +699,7 @@ impl EngineNormal {
         app_site: &str,
         app_view: Option<&str>,
         html_files: &HashMap<String, String>,
+        search_app_sites: &str,
     ) -> String {
         let mut result = html.to_string();
         let mut search_pos = 0;
@@ -507,7 +708,8 @@ impl EngineNormal {
         let json_values = if let Some(json_raw) = html_files.get("__json_values__") {
             if !json_raw.is_empty() {
                 // Parse as key=value pairs separated by newlines (custom format for this fix)
-                json_raw.split('\n')
+                json_raw
+                    .split('\n')
                     .filter_map(|line| {
                         let parts: Vec<&str> = line.splitn(2, '=').collect();
                         if parts.len() == 2 {
@@ -528,7 +730,7 @@ impl EngineNormal {
             // Look for opening placeholder {{
             if let Some(open_start) = result[search_pos..].find("{{") {
                 let open_start = search_pos + open_start;
-                
+
                 // Make sure it's not a slotted template or special placeholder
                 if open_start + 2 < result.len() {
                     let c = result.chars().nth(open_start + 2).unwrap_or(' ');
@@ -541,10 +743,11 @@ impl EngineNormal {
                 // Find closing }}
                 if let Some(close_start) = result[open_start + 2..].find("}}") {
                     let close_start = open_start + 2 + close_start;
-                    
+
                     // Extract placeholder name
                     let placeholder_name = result[open_start + 2..close_start].trim();
-                    if placeholder_name.is_empty() || !CommonUtil::is_alphanumeric(placeholder_name) {
+                    if placeholder_name.is_empty() || !CommonUtil::is_alphanumeric(placeholder_name)
+                    {
                         search_pos = open_start + 2;
                         continue;
                     }
@@ -553,13 +756,23 @@ impl EngineNormal {
                     let (template_content, _) = self.get_template(
                         app_site,
                         placeholder_name,
-                        &html_files.iter().map(|(k, v)| (k.clone(), (v.clone(), None))).collect(),
+                        &html_files
+                            .iter()
+                            .map(|(k, v)| (k.clone(), (v.clone(), None)))
+                            .collect(),
+                        search_app_sites,
                         app_view,
                         true,
                     );
 
                     let processed_replacement = if let Some(tc) = template_content {
-                        Some(self.replace_template_placeholders(&tc, app_site, app_view, html_files))
+                        Some(self.replace_template_placeholders(
+                            &tc,
+                            app_site,
+                            app_view,
+                            html_files,
+                            search_app_sites,
+                        ))
                     }
                     // If not found, try JSON value
                     else if let Some(json_value) = json_values.get(placeholder_name) {
@@ -593,8 +806,11 @@ impl EngineNormal {
     /// </summary>
     /// <param name="template">The HTML template content</param>
     /// <param name="json_text">The JSON data as string</param>
+    /// <param name="current_template_key">The key of the current template being processed</param>
+    /// <param name="all_templates">All loaded templates for parent lookup</param>
+    /// <param name="parent_map">The parent-child relationship map for templates</param>
     /// <returns>Merged HTML with JSON data populated</returns>
-    fn merge_template_with_json(template: &str, json_text: &str) -> String {
+    fn merge_template_with_json(template: &str, json_text: &str, current_template_key: &str, all_templates: &HashMap<String, (String, Option<String>)>, parent_map: &HashMap<String, String>) -> String {
         // Parse JSON using our JsonConverter
         let json_obj = JsonConverter::parse_json_string(json_text);
 
@@ -604,12 +820,12 @@ impl EngineNormal {
         // Process array blocks one at a time to avoid index corruption
         'outer: loop {
             let mut processed_any = false;
-            
+
             // First pass: find all {{@TagName}} patterns in current template
             let mut array_tag_names = std::collections::HashSet::new();
             let result_lower = result.to_lowercase();
             let mut start_search = 0;
-            
+
             while let Some(tag_start) = result_lower[start_search..].find("{{@") {
                 let tag_start = start_search + tag_start + 3;
                 if let Some(tag_end) = result_lower[tag_start..].find("}}") {
@@ -628,10 +844,10 @@ impl EngineNormal {
             for (json_key, value) in json_obj.iter() {
                 if let JsonValue::Array(data_list) = value {
                     let key_norm = json_key.to_lowercase();
-                    
+
                     // Find matching template tag for this JSON key using Node.js logic
                     let mut matching_tag: Option<String> = None;
-                    
+
                     // Try exact key match first
                     if array_tag_names.contains(&key_norm) {
                         matching_tag = Some(key_norm.clone());
@@ -655,11 +871,15 @@ impl EngineNormal {
                         let block_start_tag = format!("{{{{@{}}}}}", tag);
                         let block_end_tag = format!("{{{{/{}}}}}", tag);
 
-                        if let Some(start_idx) = Self::find_case_insensitive(&result, &block_start_tag) {
+                        if let Some(start_idx) =
+                            Self::find_case_insensitive(&result, &block_start_tag)
+                        {
                             let search_from = start_idx + block_start_tag.len();
-                            if let Some(relative_end_idx) = Self::find_case_insensitive(&result[search_from..], &block_end_tag) {
+                            if let Some(relative_end_idx) =
+                                Self::find_case_insensitive(&result[search_from..], &block_end_tag)
+                            {
                                 let end_idx = search_from + relative_end_idx;
-                                
+
                                 let content_start_idx = start_idx + block_start_tag.len();
                                 let block_content = &result[content_start_idx..end_idx];
                                 let mut merged_block = String::new();
@@ -667,11 +887,14 @@ impl EngineNormal {
                                 // Collect all conditional keys in this block
                                 let mut conditional_keys = std::collections::HashSet::new();
                                 let mut cond_idx = 0;
-                                while let Some(cond_start) = block_content[cond_idx..].to_lowercase().find("{{@") {
+                                while let Some(cond_start) =
+                                    block_content[cond_idx..].to_lowercase().find("{{@")
+                                {
                                     let cond_start = cond_idx + cond_start;
                                     if let Some(cond_end) = block_content[cond_start..].find("}}") {
                                         let cond_end = cond_start + cond_end;
-                                        let cond_key = block_content[cond_start + 3..cond_end].trim();
+                                        let cond_key =
+                                            block_content[cond_start + 3..cond_end].trim();
                                         conditional_keys.insert(cond_key.to_string());
                                         cond_idx = cond_end + 2;
                                     } else {
@@ -690,20 +913,33 @@ impl EngineNormal {
                                                 JsonValue::String(s) => s.clone(),
                                                 JsonValue::Number(n) => n.to_string(),
                                                 JsonValue::Integer(i) => i.to_string(),
-                                                JsonValue::Bool(b) => if *b { "true".to_string() } else { "false".to_string() },
+                                                JsonValue::Bool(b) => {
+                                                    if *b {
+                                                        "true".to_string()
+                                                    } else {
+                                                        "false".to_string()
+                                                    }
+                                                }
                                                 _ => String::new(),
                                             };
-                                            item_block = Self::replace_all_case_insensitive(&item_block, &placeholder, &value_str);
+                                            item_block = Self::replace_all_case_insensitive(
+                                                &item_block,
+                                                &placeholder,
+                                                &value_str,
+                                            );
                                         }
 
                                         // Handle conditionals
                                         for cond_key in &conditional_keys {
                                             let mut cond_value = false;
                                             for (obj_key, cond_obj) in item_obj.iter() {
-                                                if obj_key.to_lowercase() == cond_key.to_lowercase() {
+                                                if obj_key.to_lowercase() == cond_key.to_lowercase()
+                                                {
                                                     cond_value = match cond_obj {
                                                         JsonValue::Bool(b) => *b,
-                                                        JsonValue::String(s) => s.parse::<bool>().unwrap_or(!s.is_empty()),
+                                                        JsonValue::String(s) => s
+                                                            .parse::<bool>()
+                                                            .unwrap_or(!s.is_empty()),
                                                         JsonValue::Integer(i) => *i != 0,
                                                         JsonValue::Number(n) => *n != 0.0,
                                                         _ => false,
@@ -711,15 +947,20 @@ impl EngineNormal {
                                                     break;
                                                 }
                                             }
-                                            item_block = Self::handle_conditional(&item_block, cond_key, cond_value);
+                                            item_block = Self::handle_conditional(
+                                                &item_block,
+                                                cond_key,
+                                                cond_value,
+                                            );
                                         }
                                         merged_block.push_str(&item_block);
                                     }
                                 }
 
-                                result = format!("{}{}{}", 
-                                    &result[..start_idx], 
-                                    merged_block, 
+                                result = format!(
+                                    "{}{}{}",
+                                    &result[..start_idx],
+                                    merged_block,
                                     &result[end_idx + block_end_tag.len()..]
                                 );
                                 processed_any = true;
@@ -729,7 +970,7 @@ impl EngineNormal {
                     }
                 }
             }
-            
+
             if !processed_any {
                 break 'outer; // No more arrays to process
             }
@@ -739,21 +980,26 @@ impl EngineNormal {
         for (key, value) in json_obj.iter() {
             let empty_block_start = format!("{{{{^{}}}}}", key);
             let empty_block_end = format!("{{{{/{}}}}}", key);
-            
-            if let Some(empty_start_idx) = Self::find_case_insensitive(&result, &empty_block_start) {
-                if let Some(empty_end_idx) = Self::find_case_insensitive(&result, &empty_block_end) {
+
+            if let Some(empty_start_idx) = Self::find_case_insensitive(&result, &empty_block_start)
+            {
+                if let Some(empty_end_idx) = Self::find_case_insensitive(&result, &empty_block_end)
+                {
                     if let JsonValue::Array(l) = value {
                         let is_empty = l.is_empty();
-                        let empty_content = &result[empty_start_idx + empty_block_start.len()..empty_end_idx];
+                        let empty_content =
+                            &result[empty_start_idx + empty_block_start.len()..empty_end_idx];
                         result = if is_empty {
-                            format!("{}{}{}", 
-                                &result[..empty_start_idx], 
-                                empty_content, 
+                            format!(
+                                "{}{}{}",
+                                &result[..empty_start_idx],
+                                empty_content,
                                 &result[empty_end_idx + empty_block_end.len()..]
                             )
                         } else {
-                            format!("{}{}", 
-                                &result[..empty_start_idx], 
+                            format!(
+                                "{}{}",
+                                &result[..empty_start_idx],
                                 &result[empty_end_idx + empty_block_end.len()..]
                             )
                         };
@@ -764,21 +1010,45 @@ impl EngineNormal {
 
         // Replace remaining simple placeholders
         for (key, value) in json_obj.iter() {
-            let placeholder = format!("{{{{${}}}}}", key);
-            let value_str = match value {
-                JsonValue::String(s) => s.clone(),
-                JsonValue::Number(n) => n.to_string(),
-                JsonValue::Integer(i) => i.to_string(),
-                JsonValue::Bool(b) => if *b { "true".to_string() } else { "false".to_string() },
-                _ => continue, // Skip arrays and objects as they're handled above
+            let resolved_value_str = if key.ends_with('#') {
+                let current_value = match value {
+                    JsonValue::String(s) => s.clone(),
+                    JsonValue::Number(n) => n.to_string(),
+                    JsonValue::Integer(i) => i.to_string(),
+                    JsonValue::Bool(b) => b.to_string(),
+                    _ => String::new(), // Should not happen for simple placeholders
+                };
+                JsonInheritanceUtil::resolve_json_key_with_inheritance(
+                    key,
+                    &current_value,
+                    current_template_key,
+                    all_templates,
+                    parent_map,
+                )
+            } else {
+                match value {
+                    JsonValue::String(s) => s.clone(),
+                    JsonValue::Number(n) => n.to_string(),
+                    JsonValue::Integer(i) => i.to_string(),
+                    JsonValue::Bool(b) => {
+                        if *b {
+                            "true".to_string()
+                        } else {
+                            "false".to_string()
+                        }
+                    }
+                    _ => continue, // Skip arrays and objects as they're handled above
+                }
             };
-            
+
+            let placeholder = format!("{{{{${}}}}}", key);
+
             // Use simple case-sensitive replacement for exact matches first
             if result.contains(&placeholder) {
-                result = result.replace(&placeholder, &value_str);
+                result = result.replace(&placeholder, &resolved_value_str);
             } else {
                 // Fallback to case-insensitive if needed
-                result = Self::replace_all_case_insensitive(&result, &placeholder, &value_str);
+                result = Self::replace_all_case_insensitive(&result, &placeholder, &resolved_value_str);
             }
         }
 
@@ -808,25 +1078,27 @@ impl EngineNormal {
     /// </summary>
     fn handle_conditional(input: &str, key: &str, condition: bool) -> String {
         let mut result = input.to_string();
-        
+
         // Support spaces inside block tags, e.g. {{@Selected}} ... {{ /Selected}}
         let cond_start = format!("{{{{@{}}}}}", key);
         let cond_end_space = format!("{{{{ /{}}}}}", key);
-        
+
         // Handle first pattern: {{ /Key}} (with space)
         loop {
             if let Some(start_idx) = Self::find_case_insensitive(&result, &cond_start) {
                 if let Some(end_idx) = Self::find_case_insensitive(&result, &cond_end_space) {
                     let content = &result[start_idx + cond_start.len()..end_idx];
                     result = if condition {
-                        format!("{}{}{}", 
-                            &result[..start_idx], 
-                            content, 
+                        format!(
+                            "{}{}{}",
+                            &result[..start_idx],
+                            content,
                             &result[end_idx + cond_end_space.len()..]
                         )
                     } else {
-                        format!("{}{}", 
-                            &result[..start_idx], 
+                        format!(
+                            "{}{}",
+                            &result[..start_idx],
                             &result[end_idx + cond_end_space.len()..]
                         )
                     };
@@ -837,7 +1109,7 @@ impl EngineNormal {
                 break;
             }
         }
-        
+
         // Also handle without space: {{/Key}}
         let cond_end_no_space = format!("{{{{/{}}}}}", key);
         loop {
@@ -845,14 +1117,16 @@ impl EngineNormal {
                 if let Some(end_idx) = Self::find_case_insensitive(&result, &cond_end_no_space) {
                     let content = &result[start_idx + cond_start.len()..end_idx];
                     result = if condition {
-                        format!("{}{}{}", 
-                            &result[..start_idx], 
-                            content, 
+                        format!(
+                            "{}{}{}",
+                            &result[..start_idx],
+                            content,
                             &result[end_idx + cond_end_no_space.len()..]
                         )
                     } else {
-                        format!("{}{}", 
-                            &result[..start_idx], 
+                        format!(
+                            "{}{}",
+                            &result[..start_idx],
                             &result[end_idx + cond_end_no_space.len()..]
                         )
                     };
@@ -863,7 +1137,7 @@ impl EngineNormal {
                 break;
             }
         }
-        
+
         result
     }
 

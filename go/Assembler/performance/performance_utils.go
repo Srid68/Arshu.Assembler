@@ -17,18 +17,18 @@ import (
 )
 
 type PerfSummaryRow struct {
-	AppSite              string  `json:"AppSite"`
-	AppFile              string  `json:"AppFile"`
-	AppView              string  `json:"AppView"`
-	Iterations           int     `json:"Iterations"`
-	NormalTimeNanos      int64   `json:"NormalTimeNanos"`
-	PreProcessTimeNanos  int64   `json:"PreProcessTimeNanos"`
-	OutputSize           int     `json:"OutputSize"`
-	ResultsMatch         string  `json:"ResultsMatch"`
-	PerfDifference       string  `json:"PerfDifference"`
-	ScenarioTotalTimeMs  int64   `json:"ScenarioTotalTimeMs"`
-	ElapsedTimeMs        int64   `json:"ElapsedTimeMs"`
-	NormalTimeMsValue    float64 `json:"NormalTimeMs"`
+	AppSite               string  `json:"AppSite"`
+	AppFile               string  `json:"AppFile"`
+	AppView               string  `json:"AppView"`
+	Iterations            int     `json:"Iterations"`
+	NormalTimeNanos       int64   `json:"NormalTimeNanos"`
+	PreProcessTimeNanos   int64   `json:"PreProcessTimeNanos"`
+	OutputSize            int     `json:"OutputSize"`
+	ResultsMatch          string  `json:"ResultsMatch"`
+	PerfDifference        string  `json:"PerfDifference"`
+	ScenarioTotalTimeMs   int64   `json:"ScenarioTotalTimeMs"`
+	ElapsedTimeMs         int64   `json:"ElapsedTimeMs"`
+	NormalTimeMsValue     float64 `json:"NormalTimeMs"`
 	PreProcessTimeMsValue float64 `json:"PreProcessTimeMs"`
 }
 
@@ -41,7 +41,7 @@ func (p *PerfSummaryRow) PreProcessTimeMs() float64 {
 	return float64(p.PreProcessTimeNanos) / 1_000_000.0
 }
 
-func RunPerformanceComparison(assemblerWebDir, projectDirectory string, scenarios []config.Scenario, skipDetails bool, enableJsonProcessing bool) []PerfSummaryRow {
+func RunPerformanceComparison(assemblerWebDir, projectDirectory string, scenarios []config.Scenario, searchAppSites string, skipDetails bool, enableJsonProcessing bool) []PerfSummaryRow {
 	startTime := time.Now()
 
 	if assemblerWebDir == "" {
@@ -79,9 +79,10 @@ func RunPerformanceComparison(assemblerWebDir, projectDirectory string, scenario
 			fmt.Printf("[Go] Iterations: %d\n", iterations)
 		}
 
-		loader.ClearCache()
-		templates := loader.LoadGetTemplateFiles(assemblerWebDir, testAppSite)
-		siteTemplates := loader.LoadProcessGetTemplateFiles(assemblerWebDir, testAppSite)
+		loader.ClearNormalCache()
+		loader.ClearPreProcessCache()
+		templates := loader.LoadGetTemplateFiles(assemblerWebDir, testAppSite, searchAppSites)
+		siteTemplates := loader.LoadProcessGetTemplateFiles(assemblerWebDir, testAppSite, searchAppSites)
 
 		if len(templates) == 0 {
 			continue
@@ -97,13 +98,13 @@ func RunPerformanceComparison(assemblerWebDir, projectDirectory string, scenario
 
 		// Warmup - run a few iterations first to ensure consistent performance
 		for warmup := 0; warmup < 100; warmup++ {
-			normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, enableJsonProcessing)
+			normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing)
 		}
 
 		start := time.Now()
 		var resultNormal string
 		for i := 0; i < iterations; i++ {
-			resultNormal = normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, enableJsonProcessing)
+			resultNormal = normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing)
 		}
 		normalTimeNanos := time.Since(start).Nanoseconds()
 		if !skipDetails {
@@ -112,19 +113,20 @@ func RunPerformanceComparison(assemblerWebDir, projectDirectory string, scenario
 			fmt.Printf("[Go] Normal Engine:     %.0fms | Avg: %.3fms/op | Size: %d chars\n", normalTimeMs, avg, common.Utf16Len(resultNormal))
 		}
 
-		loader.ClearCache()
+		loader.ClearNormalCache()
+		loader.ClearPreProcessCache()
 		preprocessEngine := engine.NewEnginePreProcess(appFileName)
 		preprocessEngine.SetAppViewPrefix(appViewPrefix)
 
 		// Warmup for PreProcess engine
 		for warmup := 0; warmup < 100; warmup++ {
-			preprocessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, enableJsonProcessing)
+			preprocessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, searchAppSites, enableJsonProcessing)
 		}
 
 		start = time.Now()
 		var resultPreprocess string
 		for i := 0; i < iterations; i++ {
-			resultPreprocess = preprocessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, enableJsonProcessing)
+			resultPreprocess = preprocessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, searchAppSites, enableJsonProcessing)
 		}
 		preprocessTimeNanos := time.Since(start).Nanoseconds()
 		resultsMatch := resultNormal == resultPreprocess

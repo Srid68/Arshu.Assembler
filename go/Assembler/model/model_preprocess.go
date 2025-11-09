@@ -67,6 +67,7 @@ type ReplacementMapping struct {
 	OriginalText    string          `json:"originalText"`
 	ReplacementText string          `json:"replacementText"`
 	Type            ReplacementType `json:"type"`
+	TargetTemplateName string       `json:"targetTemplateName"`
 }
 
 type ReplacementType int

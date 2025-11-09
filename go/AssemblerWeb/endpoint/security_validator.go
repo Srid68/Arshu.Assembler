@@ -66,19 +66,6 @@ func IsValidLogContent(logContent *string) (bool, string) {
 	return true, ""
 }
 
-// GetTemplateTotalSize gets the template total size for an AppSite/AppView from scenarios
-func GetTemplateTotalSize(appSite, appView string) int {
-	scenarios, err := config.GetScenarios()
-	if err != nil {
-		return 0
-	}
-	for _, s := range scenarios {
-		if strings.EqualFold(s.AppSite, appSite) && strings.EqualFold(s.AppView, appView) {
-			return s.TotalSize
-		}
-	}
-	return 0
-}
 
 // ValidEngineTypes is the allowlist of valid engine types
 var ValidEngineTypes = map[string]bool{

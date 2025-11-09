@@ -1,8 +1,8 @@
 package loader
 
 import (
-	"assembler/common"
 	Logger "arshu/common"
+	"assembler/common"
 	"fmt"
 	"io"
 	"os"
@@ -24,22 +24,54 @@ var htmlTemplatesCache = struct {
 
 // LoadGetTemplateFiles loads HTML and corresponding JSON files from the specified appSite directory, caching the output per appSite
 // Returns map[string]struct{HTML string; JSON *string} equivalent to C#'s (string, string?) and Rust's (String, Option<String>)
-func LoadGetTemplateFiles(rootDirPath, appSite string) map[string]struct {
+func LoadGetTemplateFiles(rootDirPath, appSite, searchAppSites string) map[string]struct {
 	HTML string
 	JSON *string
 } {
-	Logger.Debug(fmt.Sprintf("LoadGetTemplateFiles called for appSite: %s", appSite), "LoaderNormal")
+	Logger.Debug(fmt.Sprintf("LoadGetTemplateFiles called for appSite: %s, searchAppSites: %s", appSite, searchAppSites), "LoaderNormal")
 
-	cacheKey := fmt.Sprintf("%s|%s", filepath.Dir(rootDirPath), appSite)
+	cacheKey := fmt.Sprintf("%s|%s|%s", filepath.Dir(rootDirPath), appSite, searchAppSites)
 
 	htmlTemplatesCache.RLock()
-	if cached, ok := htmlTemplatesCache.cache[cacheKey]; ok {
-		htmlTemplatesCache.RUnlock()
+	cached, ok := htmlTemplatesCache.cache[cacheKey]
+	htmlTemplatesCache.RUnlock()
+	if ok {
 		Logger.Debug(fmt.Sprintf("Returning cached templates for %s (%d templates)", appSite, len(cached)), "LoaderNormal")
 		return cached
 	}
-	htmlTemplatesCache.RUnlock()
 
+	// Load templates from primary appSite
+	result := loadTemplatesFromSingleAppSiteNormal(rootDirPath, appSite)
+
+	// Load templates from searchAppSites for fallback
+	if searchAppSites != "" {
+		searchAppSitesArray := strings.Split(searchAppSites, ",")
+		for _, searchAppSite := range searchAppSitesArray {
+			searchAppSite = strings.TrimSpace(searchAppSite)
+			if searchAppSite == "" {
+				continue
+			}
+			searchTemplates := loadTemplatesFromSingleAppSiteNormal(rootDirPath, searchAppSite)
+			for k, v := range searchTemplates {
+				if _, exists := result[k]; !exists {
+					result[k] = v
+					Logger.Debug(fmt.Sprintf("Added fallback template '%s' from '%s'", k, searchAppSite), "LoaderNormal")
+				}
+			}
+		}
+	}
+
+	htmlTemplatesCache.Lock()
+	htmlTemplatesCache.cache[cacheKey] = result
+	htmlTemplatesCache.Unlock()
+	return result
+}
+
+// loadTemplatesFromSingleAppSiteNormal loads templates from a single AppSite without caching or fallback logic
+func loadTemplatesFromSingleAppSiteNormal(rootDirPath, appSite string) map[string]struct {
+	HTML string
+	JSON *string
+} {
 	result := make(map[string]struct {
 		HTML string
 		JSON *string
@@ -47,9 +79,6 @@ func LoadGetTemplateFiles(rootDirPath, appSite string) map[string]struct {
 	appSitesPath := filepath.Join(rootDirPath, "AppSites", appSite)
 	if stat, err := os.Stat(appSitesPath); err != nil || !stat.IsDir() {
 		Logger.Warn(fmt.Sprintf("AppSites directory not found: %s", appSitesPath), "LoaderNormal")
-		htmlTemplatesCache.Lock()
-		htmlTemplatesCache.cache[cacheKey] = result
-		htmlTemplatesCache.Unlock()
 		return result
 	}
 
@@ -71,6 +100,7 @@ func LoadGetTemplateFiles(rootDirPath, appSite string) map[string]struct {
 		// Find JSON file case-insensitively
 		jsonFile := strings.TrimSuffix(path, ".html") + ".json"
 		var jsonContent *string
+		// Try exact match first
 		if _, err := os.Stat(jsonFile); err == nil {
 			jf, _ := os.Open(jsonFile)
 			jsonBytes, _ := io.ReadAll(jf)
@@ -109,15 +139,11 @@ func LoadGetTemplateFiles(rootDirPath, appSite string) map[string]struct {
 	})
 
 	Logger.Debug(fmt.Sprintf("Loaded %d templates for %s", len(result), appSite), "LoaderNormal")
-
-	htmlTemplatesCache.Lock()
-	htmlTemplatesCache.cache[cacheKey] = result
-	htmlTemplatesCache.Unlock()
 	return result
 }
 
-// ClearCache clears all cached normal templates
-func ClearCache() {
+// ClearNormalCache clears all cached normal templates (useful for testing or when templates change)
+func ClearNormalCache() {
 	htmlTemplatesCache.Lock()
 	htmlTemplatesCache.cache = make(map[string]map[string]struct {
 		HTML string

@@ -1,4 +1,4 @@
-use super::json_object::{JsonValue, JsonObject};
+use super::json_object::{JsonObject, JsonValue};
 use serde::{Deserialize, Serialize};
 
 /// Uniform JsonArray type for consistent JSON array handling across the application
@@ -10,9 +10,7 @@ pub struct JsonArray {
 
 impl JsonArray {
     pub fn new() -> Self {
-        Self {
-            data: Vec::new(),
-        }
+        Self { data: Vec::new() }
     }
 
     /// Adds an item to the end of the JsonArray

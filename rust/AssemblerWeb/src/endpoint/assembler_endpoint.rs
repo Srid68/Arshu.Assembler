@@ -12,7 +12,8 @@ use assembler::api::api_response::TemplateData;
 use arshu::common::Logger;
 use assembler::config::config_util;
 
-pub const DEFAULT_APP_SITE: &str = "Test";
+pub const DEFAULT_APP_SITE: &str = "Main";
+pub const SEARCH_APP_SITE: &str = "Common, Language";
 
 // Maximum parameter length to prevent DoS attacks
 const PARAM_MAX_LENGTH: usize = 256;
@@ -68,8 +69,6 @@ pub struct ScenarioDto {
     pub app_site: String,
     pub app_file: String,
     pub app_view: String,
-    pub display_name: String,
-    pub description: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, utoipa::ToSchema)]
@@ -152,53 +151,106 @@ pub async fn index(req: HttpRequest) -> impl Responder {
     }
 
     // Load templates for requested AppSite
-    let mut normal_templates_raw = LoaderNormal::load_get_template_files(root_dir_path_str, &app_site);
-    let preprocess_templates_raw = LoaderPreProcess::load_process_get_template_files(root_dir_path_str, &app_site);
+    let mut normal_templates_raw = LoaderNormal::load_get_template_files(root_dir_path_str, &app_site, SEARCH_APP_SITE);
+    let preprocess_templates_raw = LoaderPreProcess::load_process_get_template_files(root_dir_path_str, &app_site, SEARCH_APP_SITE);
 
     // Merge using selected engine (no AppView context)
     let merged_html = if engine_type.eq_ignore_ascii_case("PreProcess") {
         let engine = EnginePreProcess::new(String::new());
-        engine.merge_templates(&app_site, &app_file, None, &preprocess_templates_raw.templates, true)
+        engine.merge_templates(&app_site, &app_file, None, &preprocess_templates_raw.templates, SEARCH_APP_SITE, true)
     } else {
         let engine = EngineNormal::new(String::new());
-        engine.merge_templates(&app_site, &app_file, None, &mut normal_templates_raw, true)
+        engine.merge_templates(&app_site, &app_file, None, &mut normal_templates_raw, SEARCH_APP_SITE, true)
     };
 
     HttpResponse::Ok().content_type(ContentType::html()).body(merged_html)
 }
 
-/// GET /api/scenarios - Get all scenarios
+/// GET /{appSite}/{appView?} - Navigation endpoint
 #[utoipa::path(
     get,
-    path = "/api/scenarios",
+    path = "/{appSite}/{appView}",
     responses(
-        (status = 200, description = "List of scenarios", body = Vec<ScenarioDto>),
+        (status = 200, description = "Merged HTML template", body = String),
+        (status = 400, description = "Bad request"),
         (status = 500, description = "Internal server error")
     )
 )]
-pub async fn get_scenarios() -> impl Responder {
-    match assembler::config::config_util::ConfigUtil::get_scenarios() {
-        Ok(scenarios) => {
-            let scenario_dtos: Vec<ScenarioDto> = scenarios
-                .iter()
-                .map(|s| ScenarioDto {
-                    app_site: s.app_site.clone(),
-                    app_file: s.app_file.clone(),
-                    app_view: s.app_view.clone(),
-                    display_name: s.display_name.clone(),
-                    description: s.description.clone(),
-                })
-                .collect();
+pub async fn navigation_endpoint(req: HttpRequest, path: web::Path<(String, Option<String>)>) -> impl Responder {
+    let (app_site, app_view_opt) = path.into_inner();
+    let app_view = app_view_opt.unwrap_or_default();
 
-            HttpResponse::Ok()
-                .content_type("application/json")
-                .json(scenario_dtos)
-        }
-        Err(e) => {
-            HttpResponse::InternalServerError()
-                .body(format!("Error loading scenarios: {}", e))
+    // Validate AppSite against allowlist
+    let valid_app_sites = match get_valid_app_sites() {
+        Ok(sites) => sites,
+        Err(e) => return HttpResponse::InternalServerError().body(format!("Error loading valid AppSites: {}", e)),
+    };
+
+    if !valid_app_sites.contains(&app_site.to_lowercase()) {
+        return HttpResponse::BadRequest().body("Invalid AppSite value");
+    }
+
+    // Validate path components for path traversal attacks
+    if !is_valid_path_component(Some(&app_site)) {
+        return HttpResponse::BadRequest().body("Invalid characters in AppSite");
+    }
+
+    if !app_view.is_empty() && !is_valid_path_component(Some(&app_view)) {
+        return HttpResponse::BadRequest().body("Invalid characters in AppView");
+    }
+
+    // Get AppFile from scenarios
+    let scenarios = match config_util::ConfigUtil::get_scenarios() {
+        Ok(s) => s,
+        Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to get scenarios: {}", e)),
+    };
+
+    let matching_scenario = scenarios.iter().find(|s| {
+        s.app_site.eq_ignore_ascii_case(&app_site) && s.app_view.eq_ignore_ascii_case(&app_view)
+    });
+
+    let app_file = match matching_scenario {
+        Some(s) => &s.app_file,
+        None => return HttpResponse::BadRequest().body(format!("No matching scenario found for AppSite='{}' and AppView='{}'", app_site, app_view)),
+    };
+
+    // Get engine type from query parameter (default to Normal)
+    let query_string = req.query_string();
+    let params: Vec<&str> = query_string.split('&').collect();
+    let mut engine_type = "Normal".to_string();
+    for param in params {
+        if let Some(value) = param.strip_prefix("engine=") {
+            engine_type = value.to_string();
+            break;
         }
     }
+
+    // Validate EngineType against allowlist
+    if !get_valid_engine_types().iter().any(|valid| valid.eq_ignore_ascii_case(&engine_type)) {
+        return HttpResponse::BadRequest().body("Invalid engine type. Use 'Normal' or 'PreProcess'");
+    }
+
+    // Get wwwroot path
+    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let wwwroot_path = project_directory.join("wwwroot");
+    let wwwroot_path_str = wwwroot_path.to_str().unwrap_or("");
+
+    // Merge using selected engine
+    let merged_html = if engine_type.eq_ignore_ascii_case("PreProcess") {
+        let templates = LoaderPreProcess::load_process_get_template_files(wwwroot_path_str, &app_site, SEARCH_APP_SITE);
+        let engine = EnginePreProcess::new(String::new());
+        let app_view_opt = if app_view.is_empty() { None } else { Some(app_view.as_str()) };
+        engine.merge_templates(&app_site, app_file, app_view_opt, &templates.templates, SEARCH_APP_SITE, false)
+    } else {
+        let mut templates = LoaderNormal::load_get_template_files(wwwroot_path_str, &app_site, SEARCH_APP_SITE);
+        let engine = EngineNormal::new(String::new());
+        let app_view_opt = if app_view.is_empty() { None } else { Some(app_view.as_str()) };
+        engine.merge_templates(&app_site, app_file, app_view_opt, &mut templates, SEARCH_APP_SITE, false)
+    };
+
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(merged_html)
 }
 
 /// POST /merge - Merge templates endpoint
@@ -317,8 +369,8 @@ pub async fn merge_templates(
     
     let server_start = Instant::now();
 
-    let templates_map = LoaderNormal::load_get_template_files(root_dir_path, app_site);
-    let pre_templates = LoaderPreProcess::load_process_get_template_files(root_dir_path, app_site);
+    let templates_map = LoaderNormal::load_get_template_files(root_dir_path, app_site, SEARCH_APP_SITE);
+    let pre_templates = LoaderPreProcess::load_process_get_template_files(root_dir_path, app_site, SEARCH_APP_SITE);
 
     // Convert (String, Option<String>) to TemplateData for ApiResponse
     let mut templates = std::collections::HashMap::new();
@@ -361,6 +413,7 @@ pub async fn merge_templates(
             app_file,
             req.app_view.as_deref(),
             &pre_templates.templates,
+            SEARCH_APP_SITE,
             true
         );
         (std::collections::HashMap::new(), preprocess_map, html)
@@ -371,6 +424,7 @@ pub async fn merge_templates(
             app_file,
             req.app_view.as_deref(),
             &mut templates_map.clone(),
+            SEARCH_APP_SITE,
             true
         );
         (templates, std::collections::HashMap::new(), html)
@@ -475,10 +529,10 @@ pub async fn get_templates(
     let server_start = Instant::now();
 
     // Load Normal templates
-    let normal_templates = LoaderNormal::load_get_template_files(root_dir_path_str, &app_site);
+    let normal_templates = LoaderNormal::load_get_template_files(root_dir_path_str, &app_site, SEARCH_APP_SITE);
 
     // Load PreProcess templates
-    let preprocess_templates = LoaderPreProcess::load_process_get_template_files(root_dir_path_str, &app_site);
+    let preprocess_templates = LoaderPreProcess::load_process_get_template_files(root_dir_path_str, &app_site, SEARCH_APP_SITE);
 
     // Convert Normal templates to TemplateData objects for proper JSON serialization
     let mut normal_result = std::collections::HashMap::new();
@@ -555,7 +609,7 @@ use utoipa::OpenApi;
 #[openapi(
     paths(
         index,
-        get_scenarios,
+        navigation_endpoint,
         get_templates,
         merge_templates
     ),
@@ -575,7 +629,8 @@ pub async fn openapi_handler() -> impl Responder {
 /// Usage: map_assembler_endpoints(&mut cfg)
 pub fn map_assembler_endpoints(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/").route(web::get().to(index)))
-        .route("/api/scenarios", web::get().to(get_scenarios))
+        .route("/{appSite}", web::get().to(navigation_endpoint))
+        .route("/{appSite}/{appView}", web::get().to(navigation_endpoint))
         .route("/api/templates", web::post().to(get_templates))
         .service(merge_templates);
 }
