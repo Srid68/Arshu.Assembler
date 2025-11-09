@@ -3,11 +3,17 @@
 namespace Assembler\Engine;
 
 use Arshu\Common\Logger;
+use Assembler\App\Json\JsonObject;
 
 class JsonMergeUtil
 {
-    public static function mergeTemplateWithJson(string $template, array $jsonObject): string
+    public static function mergeTemplateWithJson(string $template, JsonObject|array $jsonObject): string
     {
+        // Convert JsonObject to array if needed
+        if ($jsonObject instanceof JsonObject) {
+            $jsonObject = $jsonObject->toArray();
+        }
+        
         if (empty($template) || empty($jsonObject)) {
             Logger::debug('mergeTemplateWithJson: empty template or jsonObject', 'JsonMergeUtil');
             return $template;

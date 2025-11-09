@@ -2,9 +2,28 @@
 namespace Assembler\Model;
 use Assembler\App\Json\JsonObject;
 class TemplatePlaceholder {
+    public function __construct(
+        string $name = '',
+        int $startIndex = 0,
+        int $endIndex = 0,
+        string $fullMatch = '',
+        string $templateKey = '',
+        ?JsonObject $jsonData = null
+    ) {
+        $this->name = $name;
+        $this->startIndex = $startIndex;
+        $this->endIndex = $endIndex;
+        $this->fullMatch = $fullMatch;
+        $this->templateKey = $templateKey;
+        $this->jsonData = $jsonData;
+    }
+
     // Getter for templateKey
     public function getTemplateKey(): string {
         return $this->templateKey;
+    }
+    public function getFullMatch(): string {
+        return $this->fullMatch;
     }
     public string $name = '';
     public int $startIndex = 0;

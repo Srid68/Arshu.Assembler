@@ -11,6 +11,7 @@ use Assembler\Model\TemplatePlaceholder;
 use Assembler\Model\ReplacementMapping;
 use Assembler\Model\ReplacementType;
 use Assembler\Model\JsonPlaceholder;
+use Assembler\App\JsonConverter;
 
 class LoaderPreProcessJson
 {
@@ -55,7 +56,7 @@ class LoaderPreProcessJson
         return $this->getTemplateInternal($appSite, $templateName, $appView, $appViewPrefix);
     }
 
-    public function getTemplateJson(string $appSite, string $templateName): ?array
+    public function getTemplateJson(string $appSite, string $templateName): ?\Assembler\App\Json\JsonObject
     {
         $template = $this->getTemplateInternal($appSite, $templateName, null, null);
         return $template ? $template->getJsonData() : null;
@@ -192,26 +193,49 @@ class LoaderPreProcessJson
 
     private function createAllReplacementMappingsForSite(array &$siteTemplates, string $appSite): void
     {
+        Logger::debug("createAllReplacementMappingsForSite called for appSite: $appSite", 'LoaderPreProcessJson');
+        // Phase 0: Build parent map and resolve JSON inheritance BEFORE creating any mappings
+        Logger::debug("Creating replacement mappings for $appSite - Phase 0: JSON inheritance", 'LoaderPreProcessJson');
+        $parentMap = $this->buildParentMapForPreProcessJson($siteTemplates, $appSite);
+        $this->resolveJsonInheritanceForAllTemplatesJson($siteTemplates, $parentMap);
+        $this->recreateJsonPlaceholderMappingsAfterInheritanceJson($siteTemplates);
+        Logger::debug("Phase 0 (JSON inheritance) complete for $appSite.", 'LoaderPreProcessJson');
+
         Logger::debug("Creating replacement mappings for $appSite - Phase 1: JSON arrays", 'LoaderPreProcessJson');
-        foreach ($siteTemplates['templates'] as $template) {
+        foreach ($siteTemplates['templates'] as $templateKey => $template) {
+            Logger::debug("  Processing template $templateKey for JSON array mappings.", 'LoaderPreProcessJson');
             $this->createJsonArrayReplacementMappings($template, $template->getOriginalContent());
         }
+        Logger::debug("Phase 1 (JSON arrays) complete for $appSite. Total mappings: " . $this->getTotalReplacementMappings($siteTemplates), 'LoaderPreProcessJson');
 
         Logger::debug("Creating replacement mappings for $appSite - Phase 2: Simple placeholders", 'LoaderPreProcessJson');
-        foreach ($siteTemplates['templates'] as $template) {
+        foreach ($siteTemplates['templates'] as $templateKey => $template) {
+            Logger::debug("  Processing template $templateKey for simple placeholder mappings.", 'LoaderPreProcessJson');
             $this->createPlaceholderReplacementMappings($template, $siteTemplates['templates'], $appSite);
         }
+        Logger::debug("Phase 2 (Simple placeholders) complete for $appSite. Total mappings: " . $this->getTotalReplacementMappings($siteTemplates), 'LoaderPreProcessJson');
 
         Logger::debug("Creating replacement mappings for $appSite - Phase 3: Slotted templates", 'LoaderPreProcessJson');
-        foreach ($siteTemplates['templates'] as $template) {
+        foreach ($siteTemplates['templates'] as $templateKey => $template) {
+            Logger::debug("  Processing template $templateKey for slotted template mappings.", 'LoaderPreProcessJson');
             $this->createSlottedTemplateReplacementMappings($template, $siteTemplates['templates'], $appSite);
         }
+        Logger::debug("Phase 3 (Slotted templates) complete for $appSite. Total mappings: " . $this->getTotalReplacementMappings($siteTemplates), 'LoaderPreProcessJson');
 
         $totalMappings = 0;
         foreach ($siteTemplates['templates'] as $template) {
             $totalMappings += count($template->getReplacementMappings());
         }
         Logger::info("Total replacement mappings created for $appSite: $totalMappings", 'LoaderPreProcessJson');
+    }
+
+    private function getTotalReplacementMappings(array $siteTemplates): int
+    {
+        $total = 0;
+        foreach ($siteTemplates['templates'] as $template) {
+            $total += count($template->getReplacementMappings());
+        }
+        return $total;
     }
 
     private function createPlaceholderReplacementMappings(PreprocessedTemplate $template, array $allTemplates, string $appSite): void
@@ -228,9 +252,9 @@ class LoaderPreProcessJson
                 $template->addReplacementMapping(new ReplacementMapping(
                     $placeholder->getFullMatch(),
                     $processedTemplate,
-                    ReplacementType::SimpleTemplate,
-                    null,
-                    null,
+                    ReplacementType::SIMPLE_TEMPLATE,
+                    0,
+                    0,
                     $placeholder->getTemplateKey()
                 ));
             }
@@ -270,9 +294,9 @@ class LoaderPreProcessJson
                 $template->addReplacementMapping(new ReplacementMapping(
                     $fullMatch,
                     $processedTemplate,
-                    ReplacementType::SlottedTemplate,
-                    null,
-                    null,
+                    ReplacementType::SLOTTED_TEMPLATE,
+                    0,
+                    0,
                     $slottedTemplate->getTemplateKey()
                 ));
             }
@@ -501,6 +525,7 @@ class LoaderPreProcessJson
     private function preprocessJsonTemplates(PreprocessedTemplate $template): void
     {
         if (!$template->getJsonData()) return;
+        Logger::debug("preprocessJsonTemplates: hasJsonData=" . ($template->getJsonData() ? "true" : "false") . ", count=" . $template->getJsonData()->count(), 'LoaderPreProcessJson');
         $content = $template->getOriginalContent();
         $this->createJsonArrayReplacementMappings($template, $content);
         $this->createJsonPlaceholderReplacementMappings($template, $content);
@@ -531,7 +556,7 @@ class LoaderPreProcessJson
                             $template->addReplacementMapping(new ReplacementMapping(
                                 $fullBlock,
                                 $processedArrayContent,
-                                ReplacementType::JsonPlaceholder,
+                                ReplacementType::JSON_PLACEHOLDER,
                                 $startIdx,
                                 $endIdx + strlen($blockEndTag)
                             ));
@@ -547,7 +572,7 @@ class LoaderPreProcessJson
                                     $template->addReplacementMapping(new ReplacementMapping(
                                         $fullEmptyBlock,
                                         $emptyReplacement,
-                                        ReplacementType::JsonPlaceholder,
+                                        ReplacementType::JSON_PLACEHOLDER,
                                         $emptyStartIdx,
                                         $emptyEndIdx + strlen($blockEndTag)
                                     ));
@@ -565,22 +590,29 @@ class LoaderPreProcessJson
     {
         if (!$template->getJsonData()) return;
 
+        Logger::debug("createJsonPlaceholderReplacementMappings: starting, jsonData count=" . $template->getJsonData()->count(), 'LoaderPreProcessJson');
         foreach ($template->getJsonData() as $key => $value) {
+            Logger::debug("  Checking key='$key', value type=" . gettype($value) . ", is_string=" . (is_string($value) ? "true" : "false"), 'LoaderPreProcessJson');
             if (is_string($value)) {
                 $placeholder = '{{$' . $key . '}}';
+                Logger::debug("    String value found, placeholder='$placeholder', searching in content (len=" . strlen($content) . ")", 'LoaderPreProcessJson');
                 if (stripos($content, $placeholder) !== false) {
+                    Logger::debug("    Found '$placeholder' in content, adding replacement mapping", 'LoaderPreProcessJson');
                     $template->addReplacementMapping(new ReplacementMapping(
                         $placeholder,
                         $value,
-                        ReplacementType::JsonPlaceholder
+                        ReplacementType::JSON_PLACEHOLDER,
                     ));
 
                     if (!in_array($placeholder, array_map(fn($p) => $p->getPlaceholder(), $template->getJsonPlaceholders()))) {
                         $template->addJsonPlaceholder(new JsonPlaceholder($key, $placeholder, $value));
                     }
+                } else {
+                    Logger::debug("    Placeholder '$placeholder' NOT found in content", 'LoaderPreProcessJson');
                 }
             }
         }
+        Logger::debug("createJsonPlaceholderReplacementMappings: finished", 'LoaderPreProcessJson');
     }
 
     private function processArrayBlockContentSafely(string $blockContent, array $arrayData): string
@@ -671,5 +703,131 @@ class LoaderPreProcessJson
         } catch (\Exception $e) {
             return $input;
         }
+    }
+
+    // NOTE: The following methods are INTENTIONAL COPIES used across all loaders for architectural separation.
+    // Each loader/engine pair is independent to allow individual evolution without shared dependencies.
+    // DO NOT extract these to shared utilities - that would create tight coupling.
+
+    private function buildParentMapForPreProcessJson(array $siteTemplates, string $appSite): array
+    {
+        $parentMap = [];
+        Logger::debug("Building parent map for appSite: $appSite", "LoaderPreProcessJson");
+
+        foreach ($siteTemplates['templates'] as $templateKey => $template) {
+            foreach ($template->getPlaceholders() as $placeholder) {
+                $childTemplateKey = strtolower($appSite) . '_' . strtolower($placeholder->name);
+                if (!isset($parentMap[$childTemplateKey])) {
+                    $parentMap[$childTemplateKey] = $templateKey;
+                    Logger::debug("Parent relationship: $childTemplateKey -> parent: $templateKey", "LoaderPreProcessJson");
+                }
+            }
+
+            foreach ($template->getSlottedTemplates() as $slottedTemplate) {
+                $childTemplateKey = strtolower($appSite) . '_' . strtolower($slottedTemplate->name);
+                if (!isset($parentMap[$childTemplateKey])) {
+                    $parentMap[$childTemplateKey] = $templateKey;
+                    Logger::debug("Parent relationship (slotted): $childTemplateKey -> parent: $templateKey", "LoaderPreProcessJson");
+                }
+            }
+        }
+
+        Logger::debug("Built parent map with " . count($parentMap) . " relationships", "LoaderPreProcessJson");
+        return $parentMap;
+    }
+
+    private function resolveJsonInheritanceForAllTemplatesJson(array &$siteTemplates, array $parentMap): void
+    {
+        foreach ($siteTemplates['templates'] as $templateKey => $template) {
+            $jsonData = $template->getJsonData();
+            if ($jsonData === null) {
+                continue;
+            }
+
+            $resolvedJson = [];
+            $hasInheritance = false;
+
+            foreach ($jsonData as $key => $value) {
+                if (str_ends_with($key, '#') && is_string($value)) {
+                    $hasInheritance = true;
+                    $actualKey = substr($key, 0, -1);
+                    $resolvedValue = $this->searchParentTreeForKeyPreProcessJson($actualKey, $templateKey, $siteTemplates['templates'], $parentMap);
+
+                    if ($resolvedValue !== null) {
+                        $resolvedJson[$actualKey] = $resolvedValue;
+                        Logger::debug("Resolved inherited key $key -> $actualKey = $resolvedValue for template $templateKey", "LoaderPreProcessJson");
+                    } else {
+                        $resolvedJson[$actualKey] = $value; // Use default if not resolved
+                        Logger::debug("No inherited value found for $actualKey, using default: $value", "LoaderPreProcessJson");
+                    }
+                } else {
+                    $resolvedJson[$key] = $value;
+                }
+            }
+
+            if ($hasInheritance) {
+                $template->setJsonData(JsonConverter::parseJsonString(json_encode($resolvedJson)));
+                Logger::debug("Updated JsonData for template $templateKey with resolved inheritance", "LoaderPreProcessJson");
+            }
+        }
+    }
+
+    private function recreateJsonPlaceholderMappingsAfterInheritanceJson(array &$siteTemplates): void
+    {
+        foreach ($siteTemplates['templates'] as $templateKey => $template) {
+            if ($template->getJsonData() === null) {
+                continue;
+            }
+
+            $newMappings = [];
+            foreach ($template->getReplacementMappings() as $mapping) {
+                if ($mapping->getType() !== ReplacementType::JSON_PLACEHOLDER) {
+                    $newMappings[] = $mapping;
+                }
+            }
+
+            $template->setReplacementMappings($newMappings);
+            $template->clearJsonPlaceholders();
+
+            $this->createJsonArrayReplacementMappings($template, $template->getOriginalContent());
+            $this->createJsonPlaceholderReplacementMappings($template, $template->getOriginalContent());
+
+            Logger::debug("Recreated JSON placeholder and array mappings for template $templateKey after inheritance resolution", "LoaderPreProcessJson");
+        }
+    }
+
+    private function searchParentTreeForKeyPreProcessJson(string $key, string $currentTemplateKey, array $allTemplates, array $parentMap): ?string
+    {
+        if (!isset($parentMap[$currentTemplateKey])) {
+            Logger::debug("No parent found for $currentTemplateKey", "LoaderPreProcessJson");
+            return null;
+        }
+
+        $parentKey = $parentMap[$currentTemplateKey];
+        Logger::debug("Checking parent $parentKey for key $key", "LoaderPreProcessJson");
+
+        if (!isset($allTemplates[$parentKey])) {
+            Logger::debug("Parent template $parentKey not found in templates", "LoaderPreProcessJson");
+            return null;
+        }
+
+        $parentTemplate = $allTemplates[$parentKey];
+
+        if ($parentTemplate->getJsonData() === null) {
+            Logger::debug("Parent template $parentKey has no JSON data, searching further up", "LoaderPreProcessJson");
+            return $this->searchParentTreeForKeyPreProcessJson($key, $parentKey, $allTemplates, $parentMap);
+        }
+
+        foreach ($parentTemplate->getJsonData() as $jsonKvpKey => $jsonKvpValue) {
+            if (strcasecmp($jsonKvpKey, $key) === 0) {
+                if (is_string($jsonKvpValue)) {
+                    Logger::debug("Found key $key in parent $parentKey: $jsonKvpValue", "LoaderPreProcessJson");
+                    return $jsonKvpValue;
+                }
+            }
+        }
+
+        Logger::debug("Key $key not found in parent $parentKey, searching further up", "LoaderPreProcessJson");
+        return $this->searchParentTreeForKeyPreProcessJson($key, $parentKey, $allTemplates, $parentMap);
     }
 }

@@ -113,7 +113,38 @@ class EnginePreProcessJson
                 foreach ($template->getReplacementMappings() as $mid => $mapping) {
                     Logger::debug("[Slotted/Simple] Mapping #$mid: " . json_encode($mapping), 'EnginePreProcessJson');
                     if (method_exists($mapping, 'getType') && $mapping->getType() === ReplacementType::SLOTTED_TEMPLATE) {
-                        if (method_exists($mapping, 'getOriginalText') && strpos($result, $mapping->getOriginalText()) !== false) {
+                        $originalText = $mapping->getOriginalText();
+                        $matchFound = false;
+                        
+                        // First try exact match
+                        if (strpos($result, $originalText) !== false) {
+                            $matchFound = true;
+                        } else {
+                            // Try matching with flexible whitespace for slotted templates
+                            // Extract the slot tag pattern (e.g., {{#Center}})
+                            if (preg_match('/^\{\{#(\w+)\}\}/', $originalText, $matches)) {
+                                $slotName = $matches[1];
+                                $openTag = '{{#' . $slotName . '}}';
+                                $closeTag = '{{/' . $slotName . '}}';
+                                
+                                // Find the slot block in result, accounting for whitespace variations
+                                $openPos = strpos($result, $openTag);
+                                if ($openPos !== false) {
+                                    // Find matching close tag
+                                    $searchStart = $openPos + strlen($openTag);
+                                    $closePos = strpos($result, $closeTag, $searchStart);
+                                    if ($closePos !== false) {
+                                        // Extract the actual text from result (including tags)
+                                        $actualText = substr($result, $openPos, $closePos + strlen($closeTag) - $openPos);
+                                        $originalText = $actualText;
+                                        $matchFound = true;
+                                        Logger::debug("Slotted template: Using flexible whitespace match for $slotName", 'EnginePreProcessJson');
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if ($matchFound && method_exists($mapping, 'getOriginalText')) {
                             $replacementText = $mapping->getReplacementText();
                             if ($enableJsonProcessing && method_exists($mapping, 'getTargetTemplateName') && $mapping->getTargetTemplateName()) {
                                 $targetJson = $loader->getTemplateJson($appSite, $mapping->getTargetTemplateName());
@@ -122,8 +153,8 @@ class EnginePreProcessJson
                                     $replacementText = JsonMergeUtil::mergeTemplateWithJson($replacementText, $targetJson);
                                 }
                             }
-                            Logger::debug('Applying slotted template: ' . substr($mapping->getOriginalText(), 0, 50) . '... -> ' . strlen($replacementText) . ' chars', 'EnginePreProcessJson');
-                            $result = str_replace($mapping->getOriginalText(), $replacementText, $result);
+                            Logger::debug('Applying slotted template: ' . substr($originalText, 0, 50) . '... -> ' . strlen($replacementText) . ' chars', 'EnginePreProcessJson');
+                            $result = str_replace($originalText, $replacementText, $result);
                             $slottedCount++;
                         }
                     } elseif (method_exists($mapping, 'getType') && $mapping->getType() === ReplacementType::SIMPLE_TEMPLATE) {

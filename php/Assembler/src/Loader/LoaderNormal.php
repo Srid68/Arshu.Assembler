@@ -6,21 +6,6 @@ use Arshu\Common\Logger;
 use Assembler\Common\CommonUtil;
 
 /**
- * Template result structure
- */
-class TemplateResult
-{
-    public string $html;
-    public ?string $json;
-
-    public function __construct(string $html, ?string $json = null)
-    {
-        $this->html = $html;
-        $this->json = $json;
-    }
-}
-
-/**
  * Handles loading and caching of HTML templates from the file system
  */
 class LoaderNormal
@@ -31,17 +16,18 @@ class LoaderNormal
      * Loads HTML files and corresponding JSON files from the specified application site directory, caching the output per appSite
      * @param string $rootDirPath Root directory path
      * @param string $appSite Application site name
-     * @return array<string, TemplateResult> Array of templates
+     * @param string $searchAppSites Comma-delimited string of AppSite names to search for fallback templates (can be empty string)
+     * @return array<string, array{html: string, json: ?string}> Array of templates
      */
     public static function loadGetTemplateFiles(string $rootDirPath, string $appSite, string $searchAppSites = ""): array
     {
-        Logger::debug("LoadGetTemplateFiles called for appSite: $appSite, searchAppSites: $searchAppSites", 'LoaderNormal');
+        Logger::debug("LoadGetTemplateFiles called for appSite: {$appSite}, searchAppSites: {$searchAppSites}", 'LoaderNormal');
 
         $cacheKey = dirname($rootDirPath) . '|' . $appSite . '|' . $searchAppSites;
 
         if (isset(self::$htmlTemplatesCache[$cacheKey])) {
             $cached = self::$htmlTemplatesCache[$cacheKey];
-            Logger::debug("Returning cached templates for $appSite (" . count($cached) . " templates)", 'LoaderNormal');
+            Logger::debug("Returning cached templates for {$appSite} (" . count($cached) . " templates)", 'LoaderNormal');
             return $cached;
         }
 
@@ -53,12 +39,15 @@ class LoaderNormal
             $searchAppSitesArray = explode(',', $searchAppSites);
             foreach ($searchAppSitesArray as $searchAppSiteRaw) {
                 $searchAppSite = trim($searchAppSiteRaw);
-                if (empty($searchAppSite)) continue;
+                if (empty($searchAppSite)) {
+                    continue;
+                }
                 $searchTemplates = self::loadTemplatesFromSingleAppSite($rootDirPath, $searchAppSite);
                 foreach ($searchTemplates as $k => $v) {
+                    // Only add if not already present (primary appSite takes precedence)
                     if (!isset($result[$k])) {
                         $result[$k] = $v;
-                        Logger::debug("Added fallback template '$k' from '$searchAppSite'", 'LoaderNormal');
+                        Logger::debug("Added fallback template '{$k}' from '{$searchAppSite}'", 'LoaderNormal');
                     }
                 }
             }
@@ -68,66 +57,75 @@ class LoaderNormal
         return $result;
     }
 
-    // Helper to load templates from a single AppSite (no caching/fallback)
+    /// <summary>
+    /// Loads templates from a single AppSite without caching or fallback logic
+    /// </summary>
     private static function loadTemplatesFromSingleAppSite(string $rootDirPath, string $appSite): array
     {
         $result = [];
         $appSitesPath = $rootDirPath . DIRECTORY_SEPARATOR . 'AppSites' . DIRECTORY_SEPARATOR . $appSite;
+
         if (!is_dir($appSitesPath)) {
-            Logger::warn("AppSites directory not found: $appSitesPath", 'LoaderNormal');
+            Logger::warn("AppSites directory not found: {$appSitesPath}", 'LoaderNormal');
             return $result;
         }
-        Logger::debug("Loading templates from: $appSitesPath", 'LoaderNormal');
+
+        Logger::debug("Loading templates from: {$appSitesPath}", 'LoaderNormal');
+
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($appSitesPath, \RecursiveDirectoryIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::LEAVES_ONLY
         );
+
         foreach ($iterator as $file) {
             if ($file->isFile() && $file->getExtension() === 'html') {
                 $fileName = $file->getBasename('.html');
-                $key = strtolower($appSite) . '_' . strtolower($fileName);
+                $key = strtolower("{$appSite}_{$fileName}");
                 $htmlContent = CommonUtil::normalizeFileContent(file_get_contents($file->getPathname()));
-                Logger::debug("Loading template: $key (html size: " . strlen($htmlContent ?: '') . ")", 'LoaderNormal');
+
+                Logger::debug("Loading template: {$key} (html size: " . strlen($htmlContent) . ")", 'LoaderNormal');
+
                 // Find JSON file case-insensitively
                 $jsonFile = substr($file->getPathname(), 0, -5) . '.json';
                 $jsonContent = null;
+
+                // Try exact match first
                 if (file_exists($jsonFile)) {
                     $jsonContent = CommonUtil::normalizeFileContent(file_get_contents($jsonFile));
-                    Logger::debug("Found JSON file for $key (size: " . strlen($jsonContent ?: '') . ")", 'LoaderNormal');
+                    Logger::debug("Found JSON file for {$key} (size: " . strlen($jsonContent) . ")", 'LoaderNormal');
                 } else {
                     // Try case-insensitive search in the same directory
-                    $dir = dirname($file->getPathname());
-                    $baseName = strtolower($file->getBasename('.html'));
-                    $files = scandir($dir);
-                    if ($files !== false) {
-                        foreach ($files as $entry) {
-                            if ($entry !== '.' && $entry !== '..' && is_file($dir . DIRECTORY_SEPARATOR . $entry)) {
-                                if (strtolower(pathinfo($entry, PATHINFO_EXTENSION)) === 'json') {
-                                    $entryBase = strtolower(pathinfo($entry, PATHINFO_FILENAME));
-                                    if ($entryBase === $baseName) {
-                                        $matchedJsonPath = $dir . DIRECTORY_SEPARATOR . $entry;
-                                        $jsonContent = CommonUtil::normalizeFileContent(file_get_contents($matchedJsonPath));
-                                        Logger::debug("Found JSON file (case-insensitive) for $key (size: " . strlen($jsonContent ?: '') . ")", 'LoaderNormal');
-                                        break;
-                                    }
-                                }
+                    $directory = dirname($file->getPathname());
+                    $baseFileName = pathinfo($file->getBasename(), PATHINFO_FILENAME);
+                    if (!empty($directory)) {
+                        $jsonFiles = glob($directory . DIRECTORY_SEPARATOR . '*.json');
+                        $matchingJson = null;
+                        foreach ($jsonFiles as $jsonFilePath) {
+                            if (strcasecmp(pathinfo($jsonFilePath, PATHINFO_FILENAME), $baseFileName) === 0) {
+                                $matchingJson = $jsonFilePath;
+                                break;
                             }
+                        }
+
+                        if ($matchingJson !== null) {
+                            $jsonContent = CommonUtil::normalizeFileContent(file_get_contents($matchingJson));
+                            Logger::debug("Found JSON file (case-insensitive) for {$key} (size: " . strlen($jsonContent) . ")", 'LoaderNormal');
                         }
                     }
                 }
-                $result[$key] = new TemplateResult($htmlContent ?: '', $jsonContent ?: null);
+                $result[$key] = new TemplateResult($htmlContent, $jsonContent);
             }
         }
-        Logger::debug("Loaded " . count($result) . " templates for $appSite", 'LoaderNormal');
+
+        Logger::debug("Loaded " . count($result) . " templates for {$appSite}", 'LoaderNormal');
         return $result;
     }
 
-    /**
-     * Clear all cached templates (useful for testing or when templates change)
-     */
+    /// <summary>
+    /// Clear all cached templates (useful for testing or when templates change)
+    /// </summary>
     public static function clearCache(): void
     {
         self::$htmlTemplatesCache = [];
     }
 }
-?>

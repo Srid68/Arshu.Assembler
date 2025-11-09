@@ -1,7 +1,16 @@
 <?php
 namespace Assembler\Model;
 use Assembler\App\Json\JsonObject;
+use Assembler\App\JsonConverter;
+
 class PreprocessedTemplate {
+    public function __construct(string $originalContent = '', ?array $jsonData = null)
+    {
+        $this->originalContent = $originalContent;
+        if ($jsonData !== null) {
+            $this->jsonData = JsonConverter::parseJsonString(json_encode($jsonData));
+        }
+    }
     // Getter for jsonData
     public function getJsonData(): ?JsonObject {
         return $this->jsonData;
@@ -45,6 +54,14 @@ class PreprocessedTemplate {
     public function getReplacementMappings(): array { return $this->replacementMappings; }
     public function getSlottedTemplates(): array { return $this->slottedTemplates; }
     public function getPlaceholders(): array { return $this->placeholders; }
+    public function getJsonPlaceholders(): array { return $this->jsonPlaceholders; }
+    
+    // Added missing setter methods for compatibility
+    public function setReplacementMappings(array $mappings): void { $this->replacementMappings = $mappings; }
+    public function setJsonPlaceholders(array $placeholders): void { $this->jsonPlaceholders = $placeholders; }
+    public function clearJsonPlaceholders(): void { $this->jsonPlaceholders = []; }
+    public function clearReplacementMappings(): void { $this->replacementMappings = []; }
+    public function setJsonData(?JsonObject $jsonData): void { $this->jsonData = $jsonData; }
 
     public function requiresProcessing(): bool {
         return $this->hasPlaceholders() || $this->hasSlottedTemplates() || $this->hasJsonData() || $this->hasJsonPlaceholders() || $this->hasReplacementMappings();

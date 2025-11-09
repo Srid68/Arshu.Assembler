@@ -54,6 +54,10 @@ class EngineNormal
 
         Logger::debug('Using ' . count($templates) . ' templates', 'EngineNormal');
 
+        // Build parent-child relationship map for JSON inheritance
+        $parentMap = self::buildParentMap($appSite, $templates);
+        Logger::debug("Built parent map with " . count($parentMap) . " relationships for JSON inheritance", "EngineNormal");
+
         // Direct lookup for main template
         $mainTemplateKey = strtolower($appSite) . '_' . strtolower($appFile);
         $mainTemplate = $templates[$mainTemplateKey] ?? null;
@@ -123,7 +127,7 @@ class EngineNormal
         $contentHtml = $mainTemplate->html;
         if ($enableJsonProcessing && $mainTemplate->json) {
             Logger::debug('Merging main template with JSON (size: ' . strlen($mainTemplate->json) . ')', 'EngineNormal');
-            $contentHtml = $this->mergeTemplateWithJson($contentHtml, $mainTemplate->json);
+            $contentHtml = $this->mergeTemplateWithJson($contentHtml, $mainTemplate->json, $mainTemplateKey, $templates, $parentMap);
             Logger::debug('After main JSON merge: ' . strlen($contentHtml) . ' chars', 'EngineNormal');
         }
 
@@ -136,8 +140,12 @@ class EngineNormal
             $htmlContent = $template->html;
             $jsonContent = $template->json;
 
+            Logger::debug("Processing template: $key, has JSON: " . (!empty($jsonContent) ? 'true' : 'false'), "EngineNormal");
+
             if ($enableJsonProcessing && $jsonContent) {
-                $htmlContent = $this->mergeTemplateWithJson($htmlContent, $jsonContent);
+                // Pre-merge component HTML with JSON so {{$Key}} placeholders are resolved
+                $htmlContent = $this->mergeTemplateWithJson($htmlContent, $jsonContent, $key, $templates, $parentMap);
+                Logger::debug("Template $key pre-merged with JSON", "EngineNormal");
                 $jsonMergeCount++;
                 try {
                     $jsonObj = JsonConverter::parseJsonString($jsonContent);
@@ -569,18 +577,29 @@ class EngineNormal
      * Merge JSON data into the HTML template
      * @param string $template HTML template
      * @param string $jsonText JSON data as string
+     * @param string $currentTemplateKey The key of the current template being merged
+     * @param array<string, TemplateResult> $allTemplates All available templates
+     * @param array<string, string> $parentMap Parent map for inheritance
      * @return string Merged HTML
      */
-    private function mergeTemplateWithJson(string $template, string $jsonText): string
+    private function mergeTemplateWithJson(string $template, string $jsonText, string $currentTemplateKey, array $allTemplates, array $parentMap): string
     {
         // Parse JSON using JsonConverter
         $jsonObject = JsonConverter::parseJsonString($jsonText);
         
         $dict = [];
 
-        // Convert JsonObject to dictionary
+        // Convert JsonObject to dictionary and resolve inheritance
         foreach ($jsonObject as $key => $value) {
-            if ($value instanceof JsonArray) {
+            if (str_ends_with($key, '#') && is_string($value)) {
+                $actualKey = substr($key, 0, -1);
+                $resolvedValue = self::resolveJsonKeyWithInheritance($actualKey, $value, $currentTemplateKey, $allTemplates, $parentMap);
+                if ($resolvedValue !== null) {
+                    $dict[strtolower($actualKey)] = $resolvedValue;
+                } else {
+                    $dict[strtolower($actualKey)] = $value; // Use default if not resolved
+                }
+            } elseif ($value instanceof JsonArray) {
                 // Convert JsonArray to array of associative arrays
                 $arr = [];
                 foreach ($value as $item) {
@@ -787,5 +806,135 @@ class EngineNormal
         }
         return $input;
     }
+    // --- JSON Inheritance Support (EngineNormal) ---
+
+    /**
+     * Builds a parent-child relationship map by analyzing template placeholders
+     * Tracks which template is the parent of another based on {{TemplateName}} references
+     * @param string $appSite The application site name
+     * @param array<string, TemplateResult> $allTemplates All templates
+     * @return array<string, string> Parent map (childKey => parentKey)
+     */
+    private static function buildParentMap(string $appSite, array $allTemplates): array
+    {
+        $parentMap = [];
+
+        Logger::debug("Building parent map for appSite: $appSite", "EngineNormal");
+
+        foreach ($allTemplates as $templateKey => $templateData) {
+            $html = $templateData->html;
+
+            // Find all {{TemplateName}} placeholders in this template
+            $searchPos = 0;
+            while ($searchPos < strlen($html)) {
+                $openStart = strpos($html, '{{', $searchPos);
+                if ($openStart === false) break;
+
+                // Skip special placeholders (#, @, $, /)
+                if ($openStart + 2 < strlen($html) &&
+                    in_array($html[$openStart + 2], ['#', '@', '$', '/'])) {
+                    $searchPos = $openStart + 2;
+                    continue;
+                }
+
+                $closeStart = strpos($html, '}}', $openStart + 2);
+                if ($closeStart === false) break;
+
+                $placeholderName = trim(substr($html, $openStart + 2, $closeStart - $openStart - 2));
+
+                // Check if this is a valid alphanumeric template name
+                if (!empty($placeholderName) && CommonUtil::isAlphaNumeric($placeholderName)) {
+                    // This template (templateKey) is the parent of the placeholder template
+                    $childTemplateKey = strtolower($appSite) . '_' . strtolower($placeholderName);
+
+                    if (!isset($parentMap[$childTemplateKey])) {
+                        $parentMap[$childTemplateKey] = $templateKey;
+                        Logger::debug("Parent relationship: $childTemplateKey -> parent: $templateKey", "EngineNormal");
+                    }
+                }
+
+                $searchPos = $closeStart + 2;
+            }
+        }
+
+        Logger::debug("Built parent map with " . count($parentMap) . " relationships", "EngineNormal");
+        return $parentMap;
+    }
+
+    /**
+     * Resolves a JSON key by searching up the parent tree
+     * @param string $actualKey The key to resolve (without '#')
+     * @param string $defaultValue The default value if not found in parents
+     * @param string $currentTemplateKey The key of the current template
+     * @param array<string, TemplateResult> $allTemplates All templates
+     * @param array<string, string> $parentMap Parent map
+     * @return string|null Resolved value or null
+     */
+    private static function resolveJsonKeyWithInheritance(string $actualKey, string $defaultValue, string $currentTemplateKey, array $allTemplates, array $parentMap): ?string
+    {
+        Logger::debug("Resolving inherited key: $actualKey for template $currentTemplateKey", "EngineNormal");
+
+        // Search up the parent tree for the key
+        $inheritedValue = self::searchParentTreeForKey($actualKey, $currentTemplateKey, $allTemplates, $parentMap);
+
+        if ($inheritedValue !== null) {
+            Logger::debug("Found inherited value for $actualKey: $inheritedValue", "EngineNormal");
+            return $inheritedValue;
+        }
+
+        // If not found in parents, use the default value
+        Logger::debug("No inherited value found for $actualKey, using default: $defaultValue", "EngineNormal");
+        return $defaultValue;
+    }
+
+    /**
+     * Searches up the parent tree to find a JSON key value
+     * @param string $key The key to search for
+     * @param string $currentTemplateKey The key of the current template
+     * @param array<string, TemplateResult> $allTemplates All templates
+     * @param array<string, string> $parentMap Parent map
+     * @return string|null Found value or null
+     */
+    private static function searchParentTreeForKey(string $key, string $currentTemplateKey, array $allTemplates, array $parentMap): ?string
+    {
+        // Get parent template key
+        if (!isset($parentMap[$currentTemplateKey])) {
+            Logger::debug("No parent found for $currentTemplateKey", "EngineNormal");
+            return null;
+        }
+
+        $parentKey = $parentMap[$currentTemplateKey];
+        Logger::debug("Checking parent $parentKey for key $key", "EngineNormal");
+
+        // Get parent's template
+        if (!isset($allTemplates[$parentKey])) {
+            Logger::debug("Parent template $parentKey not found in templates", "EngineNormal");
+            return null;
+        }
+
+        $parentTemplate = $allTemplates[$parentKey];
+
+        if ($parentTemplate->json === null) {
+            Logger::debug("Parent template $parentKey has no JSON data, searching further up", "EngineNormal");
+            // Parent has no JSON, search further up the tree
+            return self::searchParentTreeForKey($key, $parentKey, $allTemplates, $parentMap);
+        }
+
+        // Parse parent's JSON
+        $parentJsonObj = JsonConverter::parseJsonString($parentTemplate->json);
+
+        // Look for the key (case-insensitive)
+        foreach ($parentJsonObj as $jsonKvpKey => $jsonKvpValue) {
+            if (strcasecmp($jsonKvpKey, $key) === 0) {
+                if (is_string($jsonKvpValue)) {
+                    Logger::debug("Found key $key in parent $parentKey: $jsonKvpValue", "EngineNormal");
+                    return $jsonKvpValue;
+                }
+            }
+        }
+
+        Logger::debug("Key $key not found in parent $parentKey, searching further up", "EngineNormal");
+        // Not found in this parent, search further up the tree
+        return self::searchParentTreeForKey($key, $parentKey, $allTemplates, $parentMap);
+    }
 }
-?>
