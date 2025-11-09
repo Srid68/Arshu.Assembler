@@ -77,6 +77,9 @@ namespace AssemblerWeb
 
     public static class AssemblerTestEndpoint
     {
+        // SearchAppSites fallback configuration
+        public const string SearchAppSites = "Home, Language";
+
         // Configurable rule groups for consolidated report grouping
         private static readonly string[] RULE_GROUPS = new[]
         {
@@ -123,27 +126,52 @@ namespace AssemblerWeb
                 try
                 {
                     var scenarios = ConfigUtil.GetScenarios();
-                    var summaryRows = TestingUtils.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true);
+                    int totalTestCount = 0;
+                    int totalFailedCount = 0;
+
+                    // Run Normal engine tests
+                    var summaryRows = TestingUtils.RunStandardTests(rootDirPath, projectDirectory, scenarios, SearchAppSites, false, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
                         TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "STANDARD TEST");
+                        totalTestCount += summaryRows.Count;
+                        totalFailedCount += summaryRows.Count(r => r.NormalPreProcess == "FAIL" || r.CrossViewUnMatch == "FAIL" || !string.IsNullOrEmpty(r.Error));
+                    }
+
+                    // Run NormalJson engine tests
+                    var jsonSummaryRows = TestingUtils.RunStandardJsonTests(rootDirPath, projectDirectory, scenarios, SearchAppSites, false, true, true);
+                    if (jsonSummaryRows != null && jsonSummaryRows.Count > 0)
+                    {
+                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, jsonSummaryRows, "STANDARD JSON TEST");
+                        totalTestCount += jsonSummaryRows.Count;
+                        totalFailedCount += jsonSummaryRows.Count(r => r.NormalPreProcess == "FAIL" || r.CrossViewUnMatch == "FAIL" || !string.IsNullOrEmpty(r.Error));
+                    }
+
+                    // Run PreProcess engine tests
+                    var preprocessSummaryRows = TestingUtils.RunStandardPreProcessTests(rootDirPath, projectDirectory, scenarios, SearchAppSites, false, true, true);
+                    if (preprocessSummaryRows != null && preprocessSummaryRows.Count > 0)
+                    {
+                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, preprocessSummaryRows, "STANDARD PREPROCESS TEST");
+                        totalTestCount += preprocessSummaryRows.Count;
+                        totalFailedCount += preprocessSummaryRows.Count(r => r.NormalPreProcess == "FAIL" || r.CrossViewUnMatch == "FAIL" || !string.IsNullOrEmpty(r.Error));
+                    }
+
+                    // Run PreProcessJson engine tests
+                    var preprocessJsonSummaryRows = TestingUtils.RunStandardPreProcessJsonTests(rootDirPath, projectDirectory, scenarios, SearchAppSites, false, true, true);
+                    if (preprocessJsonSummaryRows != null && preprocessJsonSummaryRows.Count > 0)
+                    {
+                        TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, preprocessJsonSummaryRows, "STANDARD PREPROCESS JSON TEST");
+                        totalTestCount += preprocessJsonSummaryRows.Count;
+                        totalFailedCount += preprocessJsonSummaryRows.Count(r => r.NormalPreProcess == "FAIL" || r.CrossViewUnMatch == "FAIL" || !string.IsNullOrEmpty(r.Error));
                     }
 
                     sw.Stop();
                     var elapsedSeconds = sw.Elapsed.TotalSeconds;
-                    var testCount = summaryRows?.Count ?? 0;
 
-                    // Check for failures
-                    var failedTests = summaryRows?.Where(r =>
-                        r.NormalPreProcess == "FAIL" ||
-                        r.CrossViewUnMatch == "FAIL" ||
-                        !string.IsNullOrEmpty(r.Error)
-                    ).ToList() ?? new List<TestSummaryRow>();
-
-                    var message = $"Successful run of Standard Tests in {elapsedSeconds:F2} secs ({testCount} tests)";
-                    if (failedTests.Count > 0)
+                    var message = $"Successful run of All 4 Standard Tests in {elapsedSeconds:F2} secs ({totalTestCount} total tests)";
+                    if (totalFailedCount > 0)
                     {
-                        message += $"\n⚠️ Warning: {failedTests.Count} test(s) failed";
+                        message += $"\n⚠️ Warning: {totalFailedCount} test(s) failed";
                     }
 
                     var response = new TestResponse
@@ -151,7 +179,7 @@ namespace AssemblerWeb
                         Success = true,
                         Message = message,
                         Elapsed = elapsedSeconds,
-                        TestCount = testCount
+                        TestCount = totalTestCount
                     };
 
                     return Results.Json(response, AssemblerTestJsonContext.Default.TestResponse);
@@ -206,9 +234,9 @@ namespace AssemblerWeb
                     var scenarios = ConfigUtil.GetScenarios();
 
                     // Dump preprocessed template structures before running advanced tests
-                    TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true);
+                    TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, SearchAppSites, true);
 
-                    var summaryRows = TestingUtils.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, false, true, true);
+                    var summaryRows = TestingUtils.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, SearchAppSites, false, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
                         TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "ADVANCED TEST");
@@ -274,7 +302,7 @@ namespace AssemblerWeb
                 try
                 {
                     var scenarios = ConfigUtil.GetScenarios();
-                    var summaryRows = PerformanceUtils.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, true, true);
+                    var summaryRows = PerformanceUtils.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, SearchAppSites, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
                         PerformanceUtils.PrintPerfSummaryTable(rootDirPath, projectDirectory, summaryRows);
@@ -1251,17 +1279,9 @@ namespace AssemblerWeb
                         return Results.Text("Invalid engineType parameter", statusCode: 400);
                     }
 
-                    // Validate output size against template size + buffer
-                    var templateTotalSize = SecurityValidator.GetTemplateTotalSize(appSite, appView ?? "");
+                    // Log output size (size validation removed - TotalSize no longer tracked)
                     var outputSize = System.Text.Encoding.UTF8.GetByteCount(htmlContent);
-                    var maxAllowedSize = templateTotalSize + SecurityValidator.OutputSizeBuffer;
-                    Console.WriteLine($"[/api/save-output] Size validation: output={outputSize:N0}, template={templateTotalSize:N0}, buffer={SecurityValidator.OutputSizeBuffer:N0}, max={maxAllowedSize:N0}");
-                    if (!SecurityValidator.IsValidOutputSizeWithBuffer(htmlContent, templateTotalSize))
-                    {
-                        var errorMsg = $"Save output failed: output size ({outputSize:N0} bytes) exceeds max size allowed ({maxAllowedSize:N0} bytes = template {templateTotalSize:N0} + buffer {SecurityValidator.OutputSizeBuffer:N0})";
-                        Console.WriteLine($"[/api/save-output] {errorMsg}");
-                        return Results.Text(errorMsg, statusCode: 400);
-                    }
+                    Console.WriteLine($"[/api/save-output] Output size: {outputSize:N0} bytes");
 
                     string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
                     var outputDir = Path.Combine(projectDirectory, "Analysis", "output");

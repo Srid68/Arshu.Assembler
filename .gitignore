@@ -90,5 +90,20 @@ csharp/fly_run_js_web.bat
 !LocalPackages/*.tgz
 !LocalPackages/*.zip
 
+.github
+.snapshots
+.alpackages
+.gemini
+GEMINI.md
+.gocache
+.gopath
+
 .keep
 ocaml
+clojure
+.lsp
+.clj-kondo
+
+
+
+

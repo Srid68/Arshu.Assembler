@@ -78,6 +78,8 @@ namespace AssemblerWebJs
 
     public static class AssemblerTestEndpoint
     {
+        public const string SearchAppSites = "Home, Language";
+
         // Configurable rule groups for consolidated report grouping
         private static readonly string[] RULE_GROUPS = new[]
         {
@@ -124,7 +126,7 @@ namespace AssemblerWebJs
                 try
                 {
                     var scenarios = ConfigUtil.GetScenarios();
-                    var summaryRows = TestingUtils.RunStandardTests(rootDirPath, projectDirectory, scenarios, false, true, true);
+                    var summaryRows = TestingUtils.RunStandardTests(rootDirPath, projectDirectory, scenarios, SearchAppSites, false, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
                         TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "STANDARD TEST");
@@ -207,9 +209,9 @@ namespace AssemblerWebJs
                     var scenarios = ConfigUtil.GetScenarios();
 
                     // Dump preprocessed template structures before running advanced tests
-                    TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, true);
+                    TestingUtils.DumpPreprocessedTemplateStructures(rootDirPath, projectDirectory, scenarios, SearchAppSites, true);
 
-                    var summaryRows = TestingUtils.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, false, true, true);
+                    var summaryRows = TestingUtils.RunAdvancedTests(rootDirPath, projectDirectory, scenarios, SearchAppSites, false, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
                         TestingUtils.PrintTestSummaryTable(rootDirPath, projectDirectory, summaryRows, "ADVANCED TEST");
@@ -275,7 +277,7 @@ namespace AssemblerWebJs
                 try
                 {
                     var scenarios = ConfigUtil.GetScenarios();
-                    var summaryRows = PerformanceUtils.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, true, true);
+                    var summaryRows = PerformanceUtils.RunPerformanceComparison(rootDirPath, projectDirectory, scenarios, SearchAppSites, true, true);
                     if (summaryRows != null && summaryRows.Count > 0)
                     {
                         PerformanceUtils.PrintPerfSummaryTable(rootDirPath, projectDirectory, summaryRows);
@@ -1242,17 +1244,9 @@ namespace AssemblerWebJs
                         return Results.Text("Invalid engineType parameter", statusCode: 400);
                     }
 
-                    // Validate output size against template size + buffer
-                    var templateTotalSize = SecurityValidator.GetTemplateTotalSize(appSite, appView ?? "");
+                    // Log output size (size validation removed - TotalSize no longer tracked)
                     var outputSize = System.Text.Encoding.UTF8.GetByteCount(htmlContent);
-                    var maxAllowedSize = templateTotalSize + SecurityValidator.OutputSizeBuffer;
-                    Console.WriteLine($"[/api/save-output] Size validation: output={outputSize:N0}, template={templateTotalSize:N0}, buffer={SecurityValidator.OutputSizeBuffer:N0}, max={maxAllowedSize:N0}");
-                    if (!SecurityValidator.IsValidOutputSizeWithBuffer(htmlContent, templateTotalSize))
-                    {
-                        var errorMsg = $"Save output failed: output size ({outputSize:N0} bytes) exceeds max size allowed ({maxAllowedSize:N0} bytes = template {templateTotalSize:N0} + buffer {SecurityValidator.OutputSizeBuffer:N0})";
-                        Console.WriteLine($"[/api/save-output] {errorMsg}");
-                        return Results.Text(errorMsg, statusCode: 400);
-                    }
+                    Console.WriteLine($"[/api/save-output] Output size: {outputSize:N0} bytes");
 
                     string projectDirectory = context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath;
                     var outputDir = Path.Combine(projectDirectory, "Analysis", "output");

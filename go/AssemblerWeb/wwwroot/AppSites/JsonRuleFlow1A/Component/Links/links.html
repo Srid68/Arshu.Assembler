@@ -1,0 +1,109 @@
+<style>
+.header-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: var(--white-transparent-10);
+    border-top: 1px solid var(--white-transparent-20);
+}
+
+.lang-links {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.lang-label {
+    color: var(--white);
+    font-size: 0.9em;
+    font-weight: 600;
+    opacity: 0.95;
+}
+
+.lang-link {
+    color: var(--white);
+    text-decoration: none;
+    padding: 8px 16px;
+    background: var(--white-transparent-20);
+    border-radius: 6px;
+    font-size: 0.9em;
+    font-weight: 500;
+    transition: all 0.2s;
+    border: 2px solid var(--white-transparent-30);
+    min-width: 85px;
+    text-align: center;
+    display: inline-block;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.lang-link:hover {
+    background: var(--white-transparent-30);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.lang-link.active {
+    background: var(--white-transparent-40);
+    font-weight: 600;
+    border-color: var(--white);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+@media (max-width: 768px) {
+    .header-bottom {
+        padding: 8px;
+    }
+
+    .lang-label {
+        width: 100%;
+        text-align: center;
+        font-size: 0.75em;
+    }
+
+    .lang-link {
+        font-size: 0.75em;
+        padding: 4px 8px;
+    }
+}
+</style>
+
+<div class="header-bottom">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 8px;">
+        <p style="color: rgba(255,255,255,0.9); font-size: 0.9em; margin: 0; text-align: center;">
+            Arshu Polyglot <span id="{{$LanguageId}}">{{$Language}}</span> {{$Title}}
+        </p>
+        <span style="color: rgba(255,215,0,0.95); font-size: 0.85em; font-weight: 500; font-style: italic;">{{$HighlightText}}</span>
+    </div>
+    <span class="lang-label">{{$Label}}</span>
+    <div class="lang-links">
+        {{@Languages}}
+        <a href="{{$Url}}" target="_blank" rel="noopener noreferrer" class="lang-link" data-lang-id="{{$Id}}">{{$Name}}</a>
+        {{/Languages}}
+    </div>
+    <p style="color: rgba(255,255,255,0.85); font-size: 0.75em; margin: 8px 0 0 0; text-align: center; display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;">
+        <span>{{$UsingText}} <a href="{{$ArshuAssemblerUrl}}" target="_blank" rel="noopener noreferrer" style="color: rgba(255,215,0,0.95); text-decoration: underline;" title="{{$ArshuAssemblerGitHubUrl}}">{{$ArshuAssemblerText}}</a> {{$InText}} <a href="{{$ArshuAssemblerGitHubUrl}}" target="_blank" rel="noopener noreferrer" style="color: rgba(255,215,0,0.95); text-decoration: underline;" title="{{$ArshuAssemblerGitHubUrl}}">{{$ArshuAssemblerGitHubText}}</a></span>
+    </p>
+</div>
+
+<script>
+(function() {
+    // Get the language ID from the languagelinks component
+    const languageIdElement = document.getElementById('{{$LanguageId}}');
+    if (languageIdElement) {
+        const currentLanguageId = languageIdElement.id;
+
+        // Find and highlight the matching language link
+        const languageLinks = document.querySelectorAll('.lang-link[data-lang-id]');
+        languageLinks.forEach(link => {
+            if (link.getAttribute('data-lang-id') === currentLanguageId) {
+                link.classList.add('active');
+            }
+        });
+    }
+})();
+</script>

@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 
 namespace Assembler.Common;
 
@@ -14,7 +13,15 @@ public static class CommonUtil
     /// </summary>
     public static bool IsAlphaNumeric(string str)
     {
-        return !string.IsNullOrEmpty(str) && str.All(c => char.IsLetterOrDigit(c));
+        if (string.IsNullOrEmpty(str))
+            return false;
+
+        for (int i = 0; i < str.Length; i++)
+        {
+            if (!char.IsLetterOrDigit(str[i]))
+                return false;
+        }
+        return true;
     }
 
     /// <summary>

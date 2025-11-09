@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Arshu.Common;
 using Assembler.Common;
 
@@ -20,17 +19,55 @@ public static class LoaderNormal
     /// <summary>
     /// Loads HTML files and corresponding JSON files from the specified application site directory, caching the output per appSite
     /// </summary>
-    public static Dictionary<string, (string html, string? json)> LoadGetTemplateFiles(string rootDirPath, string appSite)
+    /// <param name="rootDirPath">Root directory path containing AppSites folder</param>
+    /// <param name="appSite">Primary AppSite name to load</param>
+    /// <param name="searchAppSites">Comma-delimited string of AppSite names to search for fallback templates (can be empty string)</param>
+    public static Dictionary<string, (string html, string? json)> LoadGetTemplateFiles(string rootDirPath, string appSite, string searchAppSites)
     {
-        Logger.Debug($"LoadGetTemplateFiles called for appSite: {appSite}", "LoaderNormal");
+        Logger.Debug($"LoadGetTemplateFiles called for appSite: {appSite}, searchAppSites: {searchAppSites}", "LoaderNormal");
 
-        var cacheKey = Path.GetDirectoryName(rootDirPath) + "|" + appSite;
+        var cacheKey = Path.GetDirectoryName(rootDirPath) + "|" + appSite + "|" + searchAppSites;
         if (_htmlTemplatesCache.TryGetValue(cacheKey, out var cached))
         {
             Logger.Debug($"Returning cached templates for {appSite} ({cached.Count} templates)", "LoaderNormal");
             return cached;
         }
 
+        // Load templates from primary appSite
+        var result = LoadTemplatesFromSingleAppSite(rootDirPath, appSite);
+
+        // Load templates from searchAppSites for fallback
+        if (!string.IsNullOrEmpty(searchAppSites))
+        {
+            var searchAppSitesArray = searchAppSites.Split(',');
+            for (int i = 0; i < searchAppSitesArray.Length; i++)
+            {
+                var searchAppSite = searchAppSitesArray[i].Trim();
+                if (string.IsNullOrEmpty(searchAppSite))
+                    continue;
+
+                var searchTemplates = LoadTemplatesFromSingleAppSite(rootDirPath, searchAppSite);
+                foreach (var kvp in searchTemplates)
+                {
+                    // Only add if not already present (primary appSite takes precedence)
+                    if (!result.ContainsKey(kvp.Key))
+                    {
+                        result[kvp.Key] = kvp.Value;
+                        Logger.Debug($"Added fallback template '{kvp.Key}' from '{searchAppSite}'", "LoaderNormal");
+                    }
+                }
+            }
+        }
+
+        _htmlTemplatesCache.TryAdd(cacheKey, result);
+        return result;
+    }
+
+    /// <summary>
+    /// Loads templates from a single AppSite without caching or fallback logic
+    /// </summary>
+    private static Dictionary<string, (string html, string? json)> LoadTemplatesFromSingleAppSite(string rootDirPath, string appSite)
+    {
         var result = new Dictionary<string, (string html, string? json)>();
         var appSitesPath = Path.Combine(rootDirPath, "AppSites", appSite);
 
@@ -68,8 +105,15 @@ public static class LoaderNormal
                 if (!string.IsNullOrEmpty(directory))
                 {
                     var jsonFiles = Directory.GetFiles(directory, "*.json", SearchOption.TopDirectoryOnly);
-                    var matchingJson = jsonFiles.FirstOrDefault(f =>
-                        string.Equals(Path.GetFileNameWithoutExtension(f), baseFileName, StringComparison.OrdinalIgnoreCase));
+                    string? matchingJson = null;
+                    for (int i = 0; i < jsonFiles.Length; i++)
+                    {
+                        if (string.Equals(Path.GetFileNameWithoutExtension(jsonFiles[i]), baseFileName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            matchingJson = jsonFiles[i];
+                            break;
+                        }
+                    }
 
                     if (matchingJson != null)
                     {
@@ -83,8 +127,6 @@ public static class LoaderNormal
         }
 
         Logger.Debug($"Loaded {result.Count} templates for {appSite}", "LoaderNormal");
-
-        _htmlTemplatesCache.TryAdd(cacheKey, result);
         return result;
     }
 

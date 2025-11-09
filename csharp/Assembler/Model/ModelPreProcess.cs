@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json.Serialization;
 using Arshu.App.Json;
 
@@ -69,22 +68,37 @@ public class PreprocessedTemplate
     /// Complete replacement mappings for direct string replacement (no substring processing needed)
     /// </summary>
     public List<ReplacementMapping> ReplacementMappings { get; set; } = new();
+
+    /// <summary>
+    /// Parent template key for JSON inheritance lookup
+    /// </summary>
+    public string? ParentTemplateKey { get; set; }
+
+    /// <summary>
+    /// List of child template keys that reference this template
+    /// </summary>
+    public List<string> ChildTemplateKeys { get; set; } = new();
+
+    /// <summary>
+    /// List of JSON keys that should be inherited from parent (keys ending with #)
+    /// </summary>
+    public List<string> InheritableJsonKeys { get; set; } = new();
     
     // Helper properties to check template state (included in JSON serialization)
     [JsonPropertyName("hasPlaceholders")]
-    public bool HasPlaceholders => Placeholders.Any();
-    
+    public bool HasPlaceholders => Placeholders.Count > 0;
+
     [JsonPropertyName("hasSlottedTemplates")]
-    public bool HasSlottedTemplates => SlottedTemplates.Any();
-    
+    public bool HasSlottedTemplates => SlottedTemplates.Count > 0;
+
     [JsonPropertyName("hasJsonData")]
-    public bool HasJsonData => JsonData != null && JsonData.Any();
-    
+    public bool HasJsonData => JsonData != null && JsonData.Count > 0;
+
     [JsonPropertyName("hasJsonPlaceholders")]
-    public bool HasJsonPlaceholders => JsonPlaceholders.Any();
-    
+    public bool HasJsonPlaceholders => JsonPlaceholders.Count > 0;
+
     [JsonPropertyName("hasReplacementMappings")]
-    public bool HasReplacementMappings => ReplacementMappings.Any();
+    public bool HasReplacementMappings => ReplacementMappings.Count > 0;
     
     [JsonPropertyName("requiresProcessing")]
     public bool RequiresProcessing => HasPlaceholders || HasSlottedTemplates || HasJsonData || HasJsonPlaceholders || HasReplacementMappings;
@@ -102,6 +116,7 @@ public class JsonPlaceholder
 
 /// <summary>
 /// Represents a pre-computed replacement for ultra-fast template merging
+/// Engine uses TargetTemplateName to retrieve and merge JSON
 /// </summary>
 public class ReplacementMapping
 {
@@ -110,6 +125,12 @@ public class ReplacementMapping
     public string OriginalText { get; set; } = string.Empty;
     public string ReplacementText { get; set; } = string.Empty;
     public ReplacementType Type { get; set; }
+
+    /// <summary>
+    /// Name of the target template this mapping references (for engine to retrieve JSON)
+    /// Format: lowercase template name (e.g., "header", "footer")
+    /// </summary>
+    public string? TargetTemplateName { get; set; }
 }
 
 /// <summary>

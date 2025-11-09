@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
 using Arshu.App.Json;
 using Assembler.Engine;
@@ -31,8 +30,14 @@ public static class PerformanceUtils
         [JsonPropertyName("NormalTimeTicks")]
         public long NormalTimeTicks { get; set; }
 
+        [JsonPropertyName("NormalJsonTimeTicks")]
+        public long NormalJsonTimeTicks { get; set; }
+
         [JsonPropertyName("PreProcessTimeTicks")]
         public long PreProcessTimeTicks { get; set; }
+
+        [JsonPropertyName("PreProcessJsonTimeTicks")]
+        public long PreProcessJsonTimeTicks { get; set; }
 
         [JsonPropertyName("OutputSize")]
         public int OutputSize { get; set; }
@@ -53,11 +58,17 @@ public static class PerformanceUtils
         [JsonPropertyName("NormalTimeMs")]
         public double NormalTimeMs => (double)NormalTimeTicks / Stopwatch.Frequency * 1000;
 
+        [JsonPropertyName("NormalJsonTimeMs")]
+        public double NormalJsonTimeMs => (double)NormalJsonTimeTicks / Stopwatch.Frequency * 1000;
+
         [JsonPropertyName("PreProcessTimeMs")]
         public double PreProcessTimeMs => (double)PreProcessTimeTicks / Stopwatch.Frequency * 1000;
+
+        [JsonPropertyName("PreProcessJsonTimeMs")]
+        public double PreProcessJsonTimeMs => (double)PreProcessJsonTimeTicks / Stopwatch.Frequency * 1000;
     }
 
-    public static List<PerfSummaryRow> RunPerformanceComparison(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, bool skipDetails = false, bool enableJsonProcessing = true)
+    public static List<PerfSummaryRow> RunPerformanceComparison(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, string searchAppSites, bool skipDetails = false, bool enableJsonProcessing = true)
     {
         var startTime = Stopwatch.StartNew();
 
@@ -88,8 +99,10 @@ public static class PerformanceUtils
             {
                 LoaderNormal.ClearCache();
                 LoaderPreProcess.ClearCache();
-                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, testAppSite);
-                var siteTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, testAppSite);
+                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, testAppSite, searchAppSites);
+                var siteTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, testAppSite, searchAppSites);
+                var loaderNormalJson = new LoaderNormalJson(assemblerWebDirPath, testAppSite, searchAppSites);
+                var loaderPreProcessJson = new LoaderPreProcessJson(assemblerWebDirPath, testAppSite, searchAppSites);
                 if (templates == null || templates.Count == 0)
                     continue;
                 var mainTemplateKey = (testAppSite + "_" + appFileName).ToLowerInvariant();
@@ -108,14 +121,14 @@ public static class PerformanceUtils
                 // JIT Warmup - run a few iterations first to warm up the JIT
                 for (int warmup = 0; warmup < 100; warmup++)
                 {
-                    normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, enableJsonProcessing);
+                    normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
                 }
 
                 var sw = Stopwatch.StartNew();
                 string resultNormal = "";
                 for (int i = 0; i < iterations; i++)
                 {
-                    resultNormal = normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, enableJsonProcessing);
+                    resultNormal = normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
                 }
                 sw.Stop();
                 var normalTime = sw.ElapsedMilliseconds;
@@ -132,14 +145,14 @@ public static class PerformanceUtils
                 // JIT Warmup for PreProcess engine
                 for (int warmup = 0; warmup < 100; warmup++)
                 {
-                    preProcessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, enableJsonProcessing);
+                    preProcessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, searchAppSites, enableJsonProcessing);
                 }
 
                 sw.Restart();
                 string resultPreProcess = "";
                 for (int i = 0; i < iterations; i++)
                 {
-                    resultPreProcess = preProcessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, enableJsonProcessing);
+                    resultPreProcess = preProcessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, searchAppSites, enableJsonProcessing);
                 }
                 sw.Stop();
                 var preProcessTime = sw.ElapsedMilliseconds;
@@ -150,6 +163,61 @@ public static class PerformanceUtils
                     var difference = preProcessTime - normalTime;
                     var differencePercent = normalTime > 0 ? ((double)difference / normalTime) * 100 : 0;
                     Console.WriteLine($"[C#] Performance: {(difference >= 0 ? "+" : "")}{difference}ms ({(differencePercent >= 0 ? "+" : "")}{differencePercent:F1}%) | Match: {(resultNormal == resultPreProcess ? "YES" : "NO")}");
+                }
+
+                // Test NormalJson engine
+                var normalJsonEngine = new EngineNormalJson();
+                normalJsonEngine.AppViewPrefix = appViewPrefix;
+
+                // JIT Warmup for NormalJson engine
+                for (int warmup = 0; warmup < 100; warmup++)
+                {
+                    normalJsonEngine.MergeTemplates(testAppSite, appFileName, appView, loaderNormalJson, enableJsonProcessing);
+                }
+
+                sw.Restart();
+                string resultNormalJson = "";
+                for (int i = 0; i < iterations; i++)
+                {
+                    resultNormalJson = normalJsonEngine.MergeTemplates(testAppSite, appFileName, appView, loaderNormalJson, enableJsonProcessing);
+                }
+                sw.Stop();
+                var normalJsonTime = sw.ElapsedMilliseconds;
+                var normalJsonTicks = sw.ElapsedTicks;
+                if (!skipDetails)
+                {
+                    Console.WriteLine($"[C#] NormalJson Engine: {normalJsonTime}ms | Avg: {(double)normalJsonTime / iterations:F3}ms/op | Size: {resultNormalJson.Length} chars");
+                }
+
+                // Test PreProcessJson engine
+                var preProcessJsonEngine = new EnginePreProcessJson();
+                preProcessJsonEngine.AppViewPrefix = appViewPrefix;
+
+                // JIT Warmup for PreProcessJson engine
+                for (int warmup = 0; warmup < 100; warmup++)
+                {
+                    preProcessJsonEngine.MergeTemplates(testAppSite, appFileName, appView, loaderPreProcessJson, enableJsonProcessing);
+                }
+
+                sw.Restart();
+                string resultPreProcessJson = "";
+                for (int i = 0; i < iterations; i++)
+                {
+                    resultPreProcessJson = preProcessJsonEngine.MergeTemplates(testAppSite, appFileName, appView, loaderPreProcessJson, enableJsonProcessing);
+                }
+                sw.Stop();
+                var preProcessJsonTime = sw.ElapsedMilliseconds;
+                var preProcessJsonTicks = sw.ElapsedTicks;
+                if (!skipDetails)
+                {
+                    Console.WriteLine($"[C#] PreProcessJson Engine: {preProcessJsonTime}ms | Avg: {(double)preProcessJsonTime / iterations:F3}ms/op | Size: {resultPreProcessJson.Length} chars");
+                }
+
+                // Verify all engines match
+                bool allMatch = resultNormal == resultNormalJson && resultNormal == resultPreProcess && resultNormal == resultPreProcessJson;
+                if (!skipDetails)
+                {
+                    Console.WriteLine($"[C#] All Engines Match: {(allMatch ? "YES" : "NO")}");
                 }
 
                 scenarioStartTime.Stop();
@@ -168,9 +236,11 @@ public static class PerformanceUtils
                     AppView = appView,
                     Iterations = iterations,
                     NormalTimeTicks = normalTicks,
+                    NormalJsonTimeTicks = normalJsonTicks,
                     PreProcessTimeTicks = preProcessTicks,
+                    PreProcessJsonTimeTicks = preProcessJsonTicks,
                     OutputSize = resultNormal.Length,
-                    ResultsMatch = (resultNormal == resultPreProcess ? "YES" : "NO"),
+                    ResultsMatch = allMatch ? "YES" : "NO",
                     PerfDifference = normalTicks > 0 ? $"{((double)(preProcessTicks - normalTicks) / normalTicks * 100):F1}%" : "0%",
                     ScenarioTotalTimeMs = scenarioTotalTime,
                     ElapsedTimeMs = elapsedTime
@@ -194,7 +264,7 @@ public static class PerformanceUtils
             return;
         Console.WriteLine("\n==================== C# PERFORMANCE SUMMARY ====================\n");
 
-        var headers = new[] { "AppSite", "AppView", "Normal(ms)", "PreProc(ms)", "Match", "PerfDiff", "ScnTime(ms)", "Elapsed(ms)" };
+        var headers = new[] { "AppSite", "AppView", "Normal(ms)", "NormalJson(ms)", "PreProc(ms)", "PreProcJson(ms)", "Match", "PerfDiff", "ScnTime(ms)", "Elapsed(ms)" };
         int colCount = headers.Length;
         int[] widths = new int[colCount];
         for (int i = 0; i < colCount; i++)
@@ -206,11 +276,13 @@ public static class PerformanceUtils
             widths[0] = Math.Max(widths[0], row.AppSite?.Length ?? 0);
             widths[1] = Math.Max(widths[1], row.AppView?.Length ?? 0);
             widths[2] = Math.Max(widths[2], row.NormalTimeMs.ToString("F2").Length);
-            widths[3] = Math.Max(widths[3], row.PreProcessTimeMs.ToString("F2").Length);
-            widths[4] = Math.Max(widths[4], row.ResultsMatch?.Length ?? 0);
-            widths[5] = Math.Max(widths[5], row.PerfDifference?.Length ?? 0);
-            widths[6] = Math.Max(widths[6], row.ScenarioTotalTimeMs.ToString().Length);
-            widths[7] = Math.Max(widths[7], row.ElapsedTimeMs.ToString().Length);
+            widths[3] = Math.Max(widths[3], row.NormalJsonTimeMs.ToString("F2").Length);
+            widths[4] = Math.Max(widths[4], row.PreProcessTimeMs.ToString("F2").Length);
+            widths[5] = Math.Max(widths[5], row.PreProcessJsonTimeMs.ToString("F2").Length);
+            widths[6] = Math.Max(widths[6], row.ResultsMatch?.Length ?? 0);
+            widths[7] = Math.Max(widths[7], row.PerfDifference?.Length ?? 0);
+            widths[8] = Math.Max(widths[8], row.ScenarioTotalTimeMs.ToString().Length);
+            widths[9] = Math.Max(widths[9], row.ElapsedTimeMs.ToString().Length);
         }
         // Print header
         Console.Write("| ");
@@ -238,15 +310,19 @@ public static class PerformanceUtils
             Console.Write(" | ");
             Console.Write(row.NormalTimeMs.ToString("F2").PadRight(widths[2]));
             Console.Write(" | ");
-            Console.Write(row.PreProcessTimeMs.ToString("F2").PadRight(widths[3]));
+            Console.Write(row.NormalJsonTimeMs.ToString("F2").PadRight(widths[3]));
             Console.Write(" | ");
-            Console.Write((row.ResultsMatch ?? "").PadRight(widths[4]));
+            Console.Write(row.PreProcessTimeMs.ToString("F2").PadRight(widths[4]));
             Console.Write(" | ");
-            Console.Write((row.PerfDifference ?? "").PadRight(widths[5]));
+            Console.Write(row.PreProcessJsonTimeMs.ToString("F2").PadRight(widths[5]));
             Console.Write(" | ");
-            Console.Write(row.ScenarioTotalTimeMs.ToString().PadRight(widths[6]));
+            Console.Write((row.ResultsMatch ?? "").PadRight(widths[6]));
             Console.Write(" | ");
-            Console.Write(row.ElapsedTimeMs.ToString().PadRight(widths[7]));
+            Console.Write((row.PerfDifference ?? "").PadRight(widths[7]));
+            Console.Write(" | ");
+            Console.Write(row.ScenarioTotalTimeMs.ToString().PadRight(widths[8]));
+            Console.Write(" | ");
+            Console.Write(row.ElapsedTimeMs.ToString().PadRight(widths[9]));
             Console.WriteLine(" |");
         }
         // Print bottom divider
@@ -297,7 +373,9 @@ public static class PerformanceUtils
                 html.Append($"<td>{row.AppSite}</td>");
                 html.Append($"<td>{row.AppView}</td>");
                 html.Append($"<td>{row.NormalTimeMs:F2}</td>");
+                html.Append($"<td>{row.NormalJsonTimeMs:F2}</td>");
                 html.Append($"<td>{row.PreProcessTimeMs:F2}</td>");
+                html.Append($"<td>{row.PreProcessJsonTimeMs:F2}</td>");
                 html.Append($"<td>{row.ResultsMatch}</td>");
                 html.Append($"<td>{row.PerfDifference}</td>");
                 html.Append($"<td>{row.ScenarioTotalTimeMs}</td>");

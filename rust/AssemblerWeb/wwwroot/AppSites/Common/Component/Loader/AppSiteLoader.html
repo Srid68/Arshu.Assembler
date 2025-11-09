@@ -1,0 +1,214 @@
+﻿<style>
+    
+    /* Main content container */
+    .home-container {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
+
+    .home-content {
+        text-align: center;
+        max-width: 600px;
+        width: 100%;
+    }
+
+    .home-title {
+        font-size: 2.5em;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 20px;
+        font-weight: 700;
+    }
+
+    .home-description {
+        color: #666;
+        font-size: 1.1em;
+        margin-bottom: 30px;
+        line-height: 1.6;
+    }
+
+    /* Options container */
+    .options-container {
+        margin-bottom: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .option-group {
+        background: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+    }
+
+    .option-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 10px;
+        display: block;
+    }
+
+    .radio-group {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+        .radio-option input[type="radio"] {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .radio-option label {
+            cursor: pointer;
+            color: #666;
+            font-size: 0.95em;
+        }
+
+    .show-metrics-btn {
+        background: var(--primary-gradient);
+        color: white;
+        border: none;
+        padding: 16px 48px;
+        font-size: 1.2em;
+        font-weight: 600;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+    }
+
+        .show-metrics-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .show-metrics-btn:active {
+            transform: translateY(0);
+        }
+
+        .show-metrics-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+    /* Loading spinner */
+    .loading-spinner {
+        display: none;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .show-metrics-btn.loading .btn-text {
+        display: none;
+    }
+
+    .show-metrics-btn.loading .loading-spinner {
+        display: block;
+    }
+</style>
+<div class="home-container">
+    <div class="home-content">
+        <h1 class="home-title">{{$TitleIcon}} {{$Title}}</h1>
+        <p class="home-description">{{$Description}}</p>
+
+        <div class="options-container">
+            <div class="option-group">
+                <span class="option-label">{{$EngineTypeLabel}}</span>
+                <div class="radio-group">
+                    {{@EngineTypes}}
+                    {{@IsVisible}}
+                    <div class="radio-option">
+                        <input type="radio" id="engine{{$Value}}" name="engineType" value="{{$Value}}" {{@IsDefault}}checked{{ /IsDefault}}>
+                        <label for="engine{{$Value}}">{{$Label}}</label>
+                    </div>
+                    {{/IsVisible}}
+                    {{/EngineTypes}}
+                </div>
+            </div>
+
+            <div class="option-group">
+                <span class="option-label">{{$MergeModeLabel}}</span>
+                <div class="radio-group">
+                    {{@MergeModes}}
+                    <div class="radio-option">
+                        <input type="radio" id="merge{{$Value}}" name="mergeMode" value="{{$Value}}" {{@IsDefault}}checked{{ /IsDefault}}>
+                        <label for="merge{{$Value}}">{{$Label}}</label>
+                    </div>
+                    {{/MergeModes}}
+                </div>
+            </div>
+        </div>
+
+        <button id="showMetricsBtn" class="show-metrics-btn" onclick="handleLoadAppSite()">
+            <span class="btn-text">{{$ButtonText}}</span>
+            <div class="loading-spinner"></div>
+        </button>
+    </div>
+</div>
+
+<script>
+    async function handleLoadAppSite() {
+        const btn = document.getElementById('showMetricsBtn');
+
+        // Get selected options
+        const engineType = document.querySelector('input[name="engineType"]:checked')?.value;
+        const mergeMode = document.querySelector('input[name="mergeMode"]:checked')?.value;
+
+        if (!engineType || !mergeMode) {
+            alert('Please select both Engine Type and Merge Mode');
+            return;
+        }
+
+        // Show loading indicator for Server/Client modes (they make API calls)
+        if (mergeMode !== 'Navigation') {
+            btn.disabled = true;
+            btn.classList.add('loading');
+        }
+
+        try {
+            // Use assembler.js utility to load Test AppSite with Main view
+            // Configuration: TargetAppSite={{$TargetAppSite}}, TargetAppView={{$TargetAppView}}
+            await loadAppSite('{{$TargetAppSite}}', '{{$TargetAppView}}', engineType, mergeMode);
+        } catch (error) {
+            console.error('Failed to load AppSite:', error);
+            alert('Failed to load AppSite. Please try again.\n\n' + error.message);
+
+            // Re-enable button on error
+            if (mergeMode !== 'Navigation') {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            }
+        }
+    }
+</script>

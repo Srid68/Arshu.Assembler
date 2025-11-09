@@ -160,49 +160,9 @@ function updateTemplateVisibility() {
     }
 }
 
-// Scenarios data embedded from toolbar.json
-const SCENARIOS_DATA = {{$Scenarios}};
-
-// Load scenarios from embedded JSON data
-function loadScenariosFromJson() {
-    const testSelect = document.getElementById('test-select');
-    if (!testSelect) return;
-
-    try {
-        const scenarios = SCENARIOS_DATA;
-
-        // Clear existing options
-        testSelect.innerHTML = '';
-
-        // Add placeholder option
-        const placeholderOption = document.createElement('option');
-        placeholderOption.value = '';
-        placeholderOption.textContent = 'Select a Scenario...';
-        testSelect.appendChild(placeholderOption);
-
-        // Add scenario options
-        scenarios.forEach(scenario => {
-            const option = document.createElement('option');
-            option.value = `${scenario.appSite}_${scenario.appView || ''}`;
-            option.dataset.appsite = scenario.appSite;
-            option.dataset.appfile = scenario.appFile;
-            option.dataset.appview = scenario.appView || '';
-            option.dataset.description = scenario.description || '';
-            option.textContent = scenario.displayName || `${scenario.appSite}${scenario.appView ? ' → ' + scenario.appView : ''}`;
-            testSelect.appendChild(option);
-        });
-
-        console.log(`[Scenarios] Loaded ${scenarios.length} scenarios from JSON data`);
-    } catch (error) {
-        console.error('[Scenarios] Error loading scenarios:', error);
-        testSelect.innerHTML = '<option value="">Error loading scenarios</option>';
-    }
-}
-
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Load scenarios from embedded JSON data
-    loadScenariosFromJson();
+    // Scenarios are already loaded via server-side template rendering in toolbar.html
 
     // Get test select element
     const testSelect = document.getElementById('test-select');

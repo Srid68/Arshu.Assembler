@@ -1,6 +1,5 @@
 using Assembler.Model;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace Assembler.Api
@@ -799,7 +798,23 @@ namespace Assembler.Api
             sb.Append("\"Type\":");
             if (indented) sb.Append(' ');
             sb.Append((int)mapping.Type);
-            
+            sb.Append(",");
+            if (indented) sb.Append('\n');
+
+            if (indented) sb.Append(new string(' ', indent * 2));
+            sb.Append("\"TargetTemplateName\":");
+            if (indented) sb.Append(' ');
+            if (mapping.TargetTemplateName != null)
+            {
+                sb.Append("\"");
+                sb.Append(EscapeJsonString(mapping.TargetTemplateName));
+                sb.Append("\"");
+            }
+            else
+            {
+                sb.Append("null");
+            }
+
             if (indented)
             {
                 sb.Append('\n');
@@ -948,12 +963,26 @@ namespace Assembler.Api
         // Create summary from PreprocessedSiteTemplates
         public static PreprocessedSummary CreatePreprocessedSummary(PreprocessedSiteTemplates siteTemplates)
         {
+            int templatesRequiringProcessing = 0;
+            int templatesWithJsonData = 0;
+            int templatesWithPlaceholders = 0;
+
+            foreach (var template in siteTemplates.Templates.Values)
+            {
+                if (template.RequiresProcessing)
+                    templatesRequiringProcessing++;
+                if (template.HasJsonData)
+                    templatesWithJsonData++;
+                if (template.HasPlaceholders)
+                    templatesWithPlaceholders++;
+            }
+
             return new PreprocessedSummary
             {
                 SiteName = siteTemplates.SiteName,
-                TemplatesRequiringProcessing = siteTemplates.Templates.Values.Count(t => t.RequiresProcessing),
-                TemplatesWithJsonData = siteTemplates.Templates.Values.Count(t => t.HasJsonData),
-                TemplatesWithPlaceholders = siteTemplates.Templates.Values.Count(t => t.HasPlaceholders),
+                TemplatesRequiringProcessing = templatesRequiringProcessing,
+                TemplatesWithJsonData = templatesWithJsonData,
+                TemplatesWithPlaceholders = templatesWithPlaceholders,
                 TotalTemplates = siteTemplates.Templates.Count
             };
         }

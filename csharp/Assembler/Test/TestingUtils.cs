@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using Arshu.App.Json;
 using Assembler.Engine;
 using Assembler.Loader;
@@ -20,11 +19,56 @@ public class TestSummaryRow
     public string? NormalPreProcess { get; set; }
     public string? CrossViewUnMatch { get; set; }
     public string? Error { get; set; }
+
+    // Advanced test fields - output sizes for all 4 engines
+    public int NormalSize { get; set; }
+    public int NormalJsonSize { get; set; }
+    public int PreProcessSize { get; set; }
+    public int PreProcessJsonSize { get; set; }
+    public bool AllEnginesMatch { get; set; }
 }
 
 public static class TestingUtils
 {
-    public static List<TestSummaryRow> RunStandardTests(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, bool printHtmlOutput = false, bool skipDetails = false, bool enableJsonProcessing = true)
+    /// <summary>
+    /// Checks if output contains unreplaced placeholders ({{...}})
+    /// Returns error message if found, null if clean
+    /// Supports negative testing: AppSites ending with "-Fail" should have unreplaced placeholders
+    /// </summary>
+    private static string? CheckForUnreplacedPlaceholders(string output, string appSite, bool skipDetails)
+    {
+        // Negative testing disabled - first verify all engines fail consistently
+        bool hasUnresolved = false;
+        string? unresolvedPlaceholder = null;
+
+        if (string.IsNullOrWhiteSpace(output))
+        {
+            return "Empty output";
+        }
+
+        // Scan for any {{...}} patterns which indicate unresolved placeholders
+        int startIndex = 0;
+        while ((startIndex = output.IndexOf("{{", startIndex)) >= 0)
+        {
+            int endIndex = output.IndexOf("}}", startIndex);
+            if (endIndex >= 0)
+            {
+                hasUnresolved = true;
+                unresolvedPlaceholder = output.Substring(startIndex, endIndex - startIndex + 2);
+                if (!skipDetails)
+                {
+                    Console.WriteLine($"{appSite}: ❌ Found unreplaced placeholder: {unresolvedPlaceholder}");
+                }
+                break;
+            }
+            startIndex = endIndex + 2;
+        }
+
+        // Always fail on unreplaced placeholders (negative testing will be added later)
+        return hasUnresolved ? $"Unreplaced placeholder found: {unresolvedPlaceholder}" : null;
+    }
+
+    public static List<TestSummaryRow> RunStandardTests(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, string searchAppSites, bool printHtmlOutput = false, bool skipDetails = false, bool enableJsonProcessing = true)
     {
         var summaryRows = new List<TestSummaryRow>();
 
@@ -47,17 +91,26 @@ public static class TestingUtils
         }
 
         // Group scenarios by AppSite and AppFile
-        var groupedScenarios = scenarios
-            .GroupBy(s => new { s.AppSite, s.AppFile })
-            .ToList();
+        var groupedScenarios = new Dictionary<(string AppSite, string AppFile), List<Scenario>>();
+        for (int i = 0; i < scenarios.Count; i++)
+        {
+            var scenario = scenarios[i];
+            var key = (scenario.AppSite, scenario.AppFile);
+            if (!groupedScenarios.ContainsKey(key))
+            {
+                groupedScenarios[key] = new List<Scenario>();
+            }
+            groupedScenarios[key].Add(scenario);
+        }
 
         var outputDir = Path.Combine(projectDirectory ?? "", "Analysis", "output");
         Directory.CreateDirectory(outputDir);
 
-        foreach (var group in groupedScenarios)
+        foreach (var kvp in groupedScenarios)
         {
-            var testSite = group.Key.AppSite;
-            var appFileName = group.Key.AppFile;
+            var testSite = kvp.Key.AppSite;
+            var appFileName = kvp.Key.AppFile;
+            var group = kvp.Value;
 
             if (!skipDetails)
             {
@@ -68,14 +121,14 @@ public static class TestingUtils
             try
             {
                 var scenarioOutputs = new List<string>();
-                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, testSite);
+                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites);
 
                 foreach (var scenario in group)
                 {
                     var appView = scenario.AppView;
                     var normalEngine = new EngineNormal();
                     normalEngine.AppViewPrefix = appFileName;
-                    var resultNormal = normalEngine.MergeTemplates(testSite, appFileName, appView, templates, enableJsonProcessing);
+                    var resultNormal = normalEngine.MergeTemplates(testSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
                     scenarioOutputs.Add(resultNormal ?? "");
 
                     // Save HTML output to Analysis folder
@@ -94,44 +147,21 @@ public static class TestingUtils
                     }
                 }
 
-                // Validate for unresolved placeholders
-                var scenarioUnresolved = new List<bool>();
+                // Validate for unresolved placeholders using new helper
+                var scenarioErrors = new List<string?>();
                 foreach (var output in scenarioOutputs)
                 {
-                    bool hasUnresolved = false;
-                    bool isEmpty = string.IsNullOrWhiteSpace(output);
-
-                    // Scan for any {{...}} patterns which indicate unresolved placeholders
-                    int startIndex = 0;
-                    while ((startIndex = output.IndexOf("{{", startIndex)) >= 0)
-                    {
-                        int endIndex = output.IndexOf("}}", startIndex);
-                        if (endIndex >= 0)
-                        {
-                            // Any {{...}} pattern in final output is unresolved
-                            hasUnresolved = true;
-                            if (!skipDetails)
-                            {
-                                string content = output.Substring(startIndex, endIndex - startIndex + 2);
-                                Console.WriteLine($"{testSite}: ❌ Found unresolved placeholder: {content}");
-                            }
-                            break;
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-                    scenarioUnresolved.Add(hasUnresolved || isEmpty);
+                    var error = CheckForUnreplacedPlaceholders(output, testSite, skipDetails);
+                    scenarioErrors.Add(error);
                 }
 
                 // Compare outputs for cross-view
                 string matchResult = "";
-                if (group.Count() > 2) // default + at least two AppViews
+                if (group.Count > 1) // at least two AppViews to compare
                 {
                     bool allDiffer = true;
-                    var firstAppViewOutput = scenarioOutputs[1];
-                    for (int i = 2; i < scenarioOutputs.Count; i++)
+                    var firstAppViewOutput = scenarioOutputs[0];
+                    for (int i = 1; i < scenarioOutputs.Count; i++)
                     {
                         if (scenarioOutputs[i] == firstAppViewOutput)
                         {
@@ -149,13 +179,14 @@ public static class TestingUtils
                     }
                 }
 
-                // Add summary rows for each scenario (matching Rust logic)
-                for (int i = 0; i < group.Count(); i++)
+                // Add summary rows for each scenario (validate all AppViews, not just the first)
+                for (int i = 0; i < group.Count; i++)
                 {
-                    var scenario = group.ElementAt(i);
-                    var crossView = (i > 0 && group.Count() > 2) ? matchResult : "";
-                    var hasUnresolved = scenarioUnresolved[i];
-                    var normalPreProcess = (i == 0) ? (hasUnresolved ? "FAIL" : "PASS") : "";
+                    var scenario = group[i];
+                    var crossView = (i > 0 && group.Count > 1) ? matchResult : "";
+                    var error = scenarioErrors[i];
+                    // Validate all AppViews, not just the first one
+                    var normalPreProcess = (error != null ? "FAIL" : "PASS");
 
                     summaryRows.Add(new TestSummaryRow
                     {
@@ -164,7 +195,7 @@ public static class TestingUtils
                         AppView = scenario.AppView,
                         NormalPreProcess = normalPreProcess,
                         CrossViewUnMatch = crossView,
-                        Error = ""
+                        Error = error ?? ""
                     });
                 }
             }
@@ -185,7 +216,7 @@ public static class TestingUtils
         return summaryRows;
     }
 
-    public static List<TestSummaryRow> RunAdvancedTests(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, bool printHtmlOutput = false, bool skipDetails = false, bool enableJsonProcessing = true)
+    public static List<TestSummaryRow> RunStandardJsonTests(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, string searchAppSites, bool printHtmlOutput = false, bool skipDetails = false, bool enableJsonProcessing = true)
     {
         var summaryRows = new List<TestSummaryRow>();
 
@@ -208,17 +239,470 @@ public static class TestingUtils
         }
 
         // Group scenarios by AppSite and AppFile
-        var groupedScenarios = scenarios
-            .GroupBy(s => new { s.AppSite, s.AppFile })
-            .ToList();
+        var groupedScenarios = new Dictionary<(string AppSite, string AppFile), List<Scenario>>();
+        for (int i = 0; i < scenarios.Count; i++)
+        {
+            var scenario = scenarios[i];
+            var key = (scenario.AppSite, scenario.AppFile);
+            if (!groupedScenarios.ContainsKey(key))
+            {
+                groupedScenarios[key] = new List<Scenario>();
+            }
+            groupedScenarios[key].Add(scenario);
+        }
 
         var outputDir = Path.Combine(projectDirectory ?? "", "Analysis", "output");
         Directory.CreateDirectory(outputDir);
 
-        foreach (var group in groupedScenarios)
+        foreach (var kvp in groupedScenarios)
         {
-            var testSite = group.Key.AppSite;
-            var appFileName = group.Key.AppFile;
+            var testSite = kvp.Key.AppSite;
+            var appFileName = kvp.Key.AppFile;
+            var group = kvp.Value;
+
+            if (!skipDetails)
+            {
+                Console.WriteLine($"{testSite}: 🔍 STANDARD JSON TEST : appsite: {testSite} appfile: {appFileName}");
+                Console.WriteLine($"{testSite}: {new string('=', 50)}");
+            }
+
+            try
+            {
+                var scenarioOutputs = new List<string>();
+                var loader = new LoaderNormalJson(assemblerWebDirPath, testSite, searchAppSites);
+
+                foreach (var scenario in group)
+                {
+                    var appView = scenario.AppView;
+                    var normalJsonEngine = new EngineNormalJson();
+                    normalJsonEngine.AppViewPrefix = appFileName;
+                    var resultNormalJson = normalJsonEngine.MergeTemplates(testSite, appFileName, appView, loader, enableJsonProcessing);
+                    scenarioOutputs.Add(resultNormalJson ?? "");
+
+                    // Save HTML output to Analysis folder
+                    var appViewSuffix = string.IsNullOrEmpty(appView) ? "" : $"_{appView}";
+                    var outputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_normaljson.html");
+                    File.WriteAllText(outputFile, resultNormalJson ?? "");
+
+                    if (!skipDetails)
+                    {
+                        Console.WriteLine($"{testSite}: 🧪 STANDARD JSON TEST : scenario: AppView='{appView}'");
+                        Console.WriteLine($"Output length = {resultNormalJson?.Length ?? 0}");
+                    }
+                    if (printHtmlOutput)
+                    {
+                        Console.WriteLine($"\nFULL HTML OUTPUT for AppView '{appView}':\n{resultNormalJson}\n");
+                    }
+                }
+
+                // Validate for unresolved placeholders using new helper
+                var scenarioErrors = new List<string?>();
+                foreach (var output in scenarioOutputs)
+                {
+                    var error = CheckForUnreplacedPlaceholders(output, testSite, skipDetails);
+                    scenarioErrors.Add(error);
+                }
+
+                // Compare outputs for cross-view
+                string matchResult = "";
+                if (group.Count > 1) // at least two AppViews to compare
+                {
+                    bool allDiffer = true;
+                    var firstAppViewOutput = scenarioOutputs[0];
+                    for (int i = 1; i < scenarioOutputs.Count; i++)
+                    {
+                        if (scenarioOutputs[i] == firstAppViewOutput)
+                        {
+                            allDiffer = false;
+                            break;
+                        }
+                    }
+                    matchResult = allDiffer ? "PASS" : "FAIL";
+                    if (!skipDetails)
+                    {
+                        if (allDiffer)
+                            Console.WriteLine($"✅ SUCCESS: Outputs for different AppViews DO NOT MATCH in {testSite} as expected.");
+                        else
+                            Console.WriteLine($"❌ FAILURE: Some outputs for AppViews MATCH in {testSite}. Expected them to differ.");
+                    }
+                }
+
+                // Add summary rows for each scenario (validate all AppViews, not just the first)
+                for (int i = 0; i < group.Count; i++)
+                {
+                    var scenario = group[i];
+                    var crossView = (i > 0 && group.Count > 1) ? matchResult : "";
+                    var error = scenarioErrors[i];
+                    // Validate all AppViews, not just the first one
+                    var normalPreProcess = (error != null ? "FAIL" : "PASS");
+
+                    summaryRows.Add(new TestSummaryRow
+                    {
+                        AppSite = testSite,
+                        AppFile = appFileName,
+                        AppView = scenario.AppView,
+                        NormalPreProcess = normalPreProcess,
+                        CrossViewUnMatch = crossView,
+                        Error = error ?? ""
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error in {testSite}/{appFileName}: {ex.Message}");
+                summaryRows.Add(new TestSummaryRow
+                {
+                    AppSite = testSite,
+                    AppFile = appFileName,
+                    AppView = "",
+                    NormalPreProcess = "",
+                    CrossViewUnMatch = "",
+                    Error = ex.Message
+                });
+            }
+        }
+        return summaryRows;
+    }
+
+    public static List<TestSummaryRow> RunStandardPreProcessTests(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, string searchAppSites, bool printHtmlOutput = false, bool skipDetails = false, bool enableJsonProcessing = true)
+    {
+        var summaryRows = new List<TestSummaryRow>();
+
+        if (string.IsNullOrEmpty(assemblerWebDirPath))
+        {
+            Console.WriteLine("❌ No assemblerWebDirPath passed");
+            return summaryRows;
+        }
+
+        if (string.IsNullOrEmpty(projectDirectory))
+        {
+            Console.WriteLine("❌ No projectDirectory passed");
+            return summaryRows;
+        }
+
+        if (scenarios == null || scenarios.Count == 0)
+        {
+            Console.WriteLine("❌ No scenarios passed");
+            return summaryRows;
+        }
+
+        // Group scenarios by AppSite and AppFile
+        var groupedScenarios = new Dictionary<(string AppSite, string AppFile), List<Scenario>>();
+        for (int i = 0; i < scenarios.Count; i++)
+        {
+            var scenario = scenarios[i];
+            var key = (scenario.AppSite, scenario.AppFile);
+            if (!groupedScenarios.ContainsKey(key))
+            {
+                groupedScenarios[key] = new List<Scenario>();
+            }
+            groupedScenarios[key].Add(scenario);
+        }
+
+        var outputDir = Path.Combine(projectDirectory ?? "", "Analysis", "output");
+        Directory.CreateDirectory(outputDir);
+
+        foreach (var kvp in groupedScenarios)
+        {
+            var testSite = kvp.Key.AppSite;
+            var appFileName = kvp.Key.AppFile;
+            var group = kvp.Value;
+
+            if (!skipDetails)
+            {
+                Console.WriteLine($"{testSite}: 🔍 STANDARD PREPROCESS TEST : appsite: {testSite} appfile: {appFileName}");
+                Console.WriteLine($"{testSite}: {new string('=', 50)}");
+            }
+
+            try
+            {
+                var scenarioOutputs = new List<string>();
+                var preprocessedTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites).Templates;
+
+                foreach (var scenario in group)
+                {
+                    var appView = scenario.AppView;
+                    var preProcessEngine = new EnginePreProcess();
+                    preProcessEngine.AppViewPrefix = appFileName;
+                    var resultPreProcess = preProcessEngine.MergeTemplates(testSite, appFileName, appView, preprocessedTemplates, searchAppSites, enableJsonProcessing);
+                    scenarioOutputs.Add(resultPreProcess ?? "");
+
+                    // Save HTML output to Analysis folder
+                    var appViewSuffix = string.IsNullOrEmpty(appView) ? "" : $"_{appView}";
+                    var outputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_preprocess.html");
+                    File.WriteAllText(outputFile, resultPreProcess ?? "");
+
+                    if (!skipDetails)
+                    {
+                        Console.WriteLine($"{testSite}: 🧪 STANDARD PREPROCESS TEST : scenario: AppView='{appView}'");
+                        Console.WriteLine($"Output length = {resultPreProcess?.Length ?? 0}");
+                    }
+                    if (printHtmlOutput)
+                    {
+                        Console.WriteLine($"\nFULL HTML OUTPUT for AppView '{appView}':\n{resultPreProcess}\n");
+                    }
+                }
+
+                // Validate for unresolved placeholders using new helper
+                var scenarioErrors = new List<string?>();
+                foreach (var output in scenarioOutputs)
+                {
+                    var error = CheckForUnreplacedPlaceholders(output, testSite, skipDetails);
+                    scenarioErrors.Add(error);
+                }
+
+                // Compare outputs for cross-view
+                string matchResult = "";
+                if (group.Count > 1) // at least two AppViews to compare
+                {
+                    bool allDiffer = true;
+                    var firstAppViewOutput = scenarioOutputs[0];
+                    for (int i = 1; i < scenarioOutputs.Count; i++)
+                    {
+                        if (scenarioOutputs[i] == firstAppViewOutput)
+                        {
+                            allDiffer = false;
+                            break;
+                        }
+                    }
+                    matchResult = allDiffer ? "PASS" : "FAIL";
+                    if (!skipDetails)
+                    {
+                        if (allDiffer)
+                            Console.WriteLine($"✅ SUCCESS: Outputs for different AppViews DO NOT MATCH in {testSite} as expected.");
+                        else
+                            Console.WriteLine($"❌ FAILURE: Some outputs for AppViews MATCH in {testSite}. Expected them to differ.");
+                    }
+                }
+
+                // Add summary rows for each scenario (validate all AppViews, not just the first)
+                for (int i = 0; i < group.Count; i++)
+                {
+                    var scenario = group[i];
+                    var crossView = (i > 0 && group.Count > 1) ? matchResult : "";
+                    var error = scenarioErrors[i];
+                    // Validate all AppViews, not just the first one
+                    var normalPreProcess = (error != null ? "FAIL" : "PASS");
+
+                    summaryRows.Add(new TestSummaryRow
+                    {
+                        AppSite = testSite,
+                        AppFile = appFileName,
+                        AppView = scenario.AppView,
+                        NormalPreProcess = normalPreProcess,
+                        CrossViewUnMatch = crossView,
+                        Error = error ?? ""
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error in {testSite}/{appFileName}: {ex.Message}");
+                summaryRows.Add(new TestSummaryRow
+                {
+                    AppSite = testSite,
+                    AppFile = appFileName,
+                    AppView = "",
+                    NormalPreProcess = "",
+                    CrossViewUnMatch = "",
+                    Error = ex.Message
+                });
+            }
+        }
+        return summaryRows;
+    }
+
+    public static List<TestSummaryRow> RunStandardPreProcessJsonTests(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, string searchAppSites, bool printHtmlOutput = false, bool skipDetails = false, bool enableJsonProcessing = true)
+    {
+        var summaryRows = new List<TestSummaryRow>();
+
+        if (string.IsNullOrEmpty(assemblerWebDirPath))
+        {
+            Console.WriteLine("❌ No assemblerWebDirPath passed");
+            return summaryRows;
+        }
+
+        if (string.IsNullOrEmpty(projectDirectory))
+        {
+            Console.WriteLine("❌ No projectDirectory passed");
+            return summaryRows;
+        }
+
+        if (scenarios == null || scenarios.Count == 0)
+        {
+            Console.WriteLine("❌ No scenarios passed");
+            return summaryRows;
+        }
+
+        // Group scenarios by AppSite and AppFile
+        var groupedScenarios = new Dictionary<(string AppSite, string AppFile), List<Scenario>>();
+        for (int i = 0; i < scenarios.Count; i++)
+        {
+            var scenario = scenarios[i];
+            var key = (scenario.AppSite, scenario.AppFile);
+            if (!groupedScenarios.ContainsKey(key))
+            {
+                groupedScenarios[key] = new List<Scenario>();
+            }
+            groupedScenarios[key].Add(scenario);
+        }
+
+        var outputDir = Path.Combine(projectDirectory ?? "", "Analysis", "output");
+        Directory.CreateDirectory(outputDir);
+
+        foreach (var kvp in groupedScenarios)
+        {
+            var testSite = kvp.Key.AppSite;
+            var appFileName = kvp.Key.AppFile;
+            var group = kvp.Value;
+
+            if (!skipDetails)
+            {
+                Console.WriteLine($"{testSite}: 🔍 STANDARD PREPROCESS JSON TEST : appsite: {testSite} appfile: {appFileName}");
+                Console.WriteLine($"{testSite}: {new string('=', 50)}");
+            }
+
+            try
+            {
+                var scenarioOutputs = new List<string>();
+                var loaderPreProcessJson = new LoaderPreProcessJson(assemblerWebDirPath, testSite, searchAppSites);
+
+                foreach (var scenario in group)
+                {
+                    var appView = scenario.AppView;
+                    var preprocessJsonEngine = new EnginePreProcessJson();
+                    preprocessJsonEngine.AppViewPrefix = appFileName;
+                    var resultPreProcessJson = preprocessJsonEngine.MergeTemplates(testSite, appFileName, appView, loaderPreProcessJson, enableJsonProcessing);
+                    scenarioOutputs.Add(resultPreProcessJson ?? "");
+
+                    // Save HTML output to Analysis folder
+                    var appViewSuffix = string.IsNullOrEmpty(appView) ? "" : $"_{appView}";
+                    var outputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_preprocessjson.html");
+                    File.WriteAllText(outputFile, resultPreProcessJson ?? "");
+
+                    if (!skipDetails)
+                    {
+                        Console.WriteLine($"{testSite}: 🧪 STANDARD PREPROCESS JSON TEST : scenario: AppView='{appView}'");
+                        Console.WriteLine($"Output length = {resultPreProcessJson?.Length ?? 0}");
+                    }
+                    if (printHtmlOutput)
+                    {
+                        Console.WriteLine($"\nFULL HTML OUTPUT for AppView '{appView}':\n{resultPreProcessJson}\n");
+                    }
+                }
+
+                // Validate for unresolved placeholders using new helper
+                var scenarioErrors = new List<string?>();
+                foreach (var output in scenarioOutputs)
+                {
+                    var error = CheckForUnreplacedPlaceholders(output, testSite, skipDetails);
+                    scenarioErrors.Add(error);
+                }
+
+                // Compare outputs for cross-view
+                string matchResult = "";
+                if (group.Count > 1) // at least two AppViews to compare
+                {
+                    bool allDiffer = true;
+                    var firstAppViewOutput = scenarioOutputs[0];
+                    for (int i = 1; i < scenarioOutputs.Count; i++)
+                    {
+                        if (scenarioOutputs[i] == firstAppViewOutput)
+                        {
+                            allDiffer = false;
+                            break;
+                        }
+                    }
+                    matchResult = allDiffer ? "PASS" : "FAIL";
+                    if (!skipDetails)
+                    {
+                        if (allDiffer)
+                            Console.WriteLine($"✅ SUCCESS: Outputs for different AppViews DO NOT MATCH in {testSite} as expected.");
+                        else
+                            Console.WriteLine($"❌ FAILURE: Some outputs for AppViews MATCH in {testSite}. Expected them to differ.");
+                    }
+                }
+
+                // Add summary rows for each scenario (validate all AppViews, not just the first)
+                for (int i = 0; i < group.Count; i++)
+                {
+                    var scenario = group[i];
+                    var crossView = (i > 0 && group.Count > 1) ? matchResult : "";
+                    var error = scenarioErrors[i];
+                    // Validate all AppViews, not just the first one
+                    var normalPreProcess = (error != null ? "FAIL" : "PASS");
+
+                    summaryRows.Add(new TestSummaryRow
+                    {
+                        AppSite = testSite,
+                        AppFile = appFileName,
+                        AppView = scenario.AppView,
+                        NormalPreProcess = normalPreProcess,
+                        CrossViewUnMatch = crossView,
+                        Error = error ?? ""
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error in {testSite}/{appFileName}: {ex.Message}");
+                summaryRows.Add(new TestSummaryRow
+                {
+                    AppSite = testSite,
+                    AppFile = appFileName,
+                    AppView = "",
+                    NormalPreProcess = "",
+                    CrossViewUnMatch = "",
+                    Error = ex.Message
+                });
+            }
+        }
+        return summaryRows;
+    }
+
+    public static List<TestSummaryRow> RunAdvancedTests(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, string searchAppSites, bool printHtmlOutput = false, bool skipDetails = false, bool enableJsonProcessing = true)
+    {
+        var summaryRows = new List<TestSummaryRow>();
+
+        if (string.IsNullOrEmpty(assemblerWebDirPath))
+        {
+            Console.WriteLine("❌ No assemblerWebDirPath passed");
+            return summaryRows;
+        }
+
+        if (string.IsNullOrEmpty(projectDirectory))
+        {
+            Console.WriteLine("❌ No projectDirectory passed");
+            return summaryRows;
+        }
+
+        if (scenarios == null || scenarios.Count == 0)
+        {
+            Console.WriteLine("❌ No scenarios passed");
+            return summaryRows;
+        }
+
+        // Group scenarios by AppSite and AppFile
+        var groupedScenarios = new Dictionary<(string AppSite, string AppFile), List<Scenario>>();
+        for (int i = 0; i < scenarios.Count; i++)
+        {
+            var scenario = scenarios[i];
+            var key = (scenario.AppSite, scenario.AppFile);
+            if (!groupedScenarios.ContainsKey(key))
+            {
+                groupedScenarios[key] = new List<Scenario>();
+            }
+            groupedScenarios[key].Add(scenario);
+        }
+
+        var outputDir = Path.Combine(projectDirectory ?? "", "Analysis", "output");
+        Directory.CreateDirectory(outputDir);
+
+        foreach (var kvp in groupedScenarios)
+        {
+            var testSite = kvp.Key.AppSite;
+            var appFileName = kvp.Key.AppFile;
+            var group = kvp.Value;
 
             if (!skipDetails)
             {
@@ -230,54 +714,87 @@ public static class TestingUtils
                 LoaderNormal.ClearCache();
                 LoaderPreProcess.ClearCache();
 
-                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, testSite);
-                var preprocessedTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, testSite).Templates;
+                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites);
+                var loaderNormalJson = new LoaderNormalJson(assemblerWebDirPath, testSite, searchAppSites);
+                var preprocessedTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites).Templates;
+                var loaderPreProcessJson = new LoaderPreProcessJson(assemblerWebDirPath, testSite, searchAppSites);
 
-                var scenarioResults = new List<(string AppView, string NormalOutput, string PreProcessOutput, string MatchStatus)>();
+                var scenarioResults = new List<(string AppView, string NormalOutput, string NormalJsonOutput, string PreProcessOutput, string PreProcessJsonOutput, string MatchStatus)>();
 
                 foreach (var scenario in group)
                 {
                     var appView = scenario.AppView;
+
                     var normalEngine = new EngineNormal();
                     normalEngine.AppViewPrefix = appFileName;
+
+                    var normalJsonEngine = new EngineNormalJson();
+                    normalJsonEngine.AppViewPrefix = appFileName;
+
                     var preProcessEngine = new EnginePreProcess();
                     preProcessEngine.AppViewPrefix = appFileName;
 
-                    var resultNormal = normalEngine.MergeTemplates(testSite, appFileName, appView, templates, enableJsonProcessing);
-                    var resultPreProcess = preProcessEngine.MergeTemplates(testSite, appFileName, appView, preprocessedTemplates, enableJsonProcessing);
+                    var preProcessJsonEngine = new EnginePreProcessJson();
+                    preProcessJsonEngine.AppViewPrefix = appFileName;
 
-                    bool outputsMatch = resultNormal == resultPreProcess;
-                    string matchStatus = outputsMatch ? "PASS" : "FAIL";
+                    var resultNormal = normalEngine.MergeTemplates(testSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
+                    var resultNormalJson = normalJsonEngine.MergeTemplates(testSite, appFileName, appView, loaderNormalJson, enableJsonProcessing);
+                    var resultPreProcess = preProcessEngine.MergeTemplates(testSite, appFileName, appView, preprocessedTemplates, searchAppSites, enableJsonProcessing);
+                    var resultPreProcessJson = preProcessJsonEngine.MergeTemplates(testSite, appFileName, appView, loaderPreProcessJson, enableJsonProcessing);
 
-                    scenarioResults.Add((appView, resultNormal ?? "", resultPreProcess ?? "", matchStatus));
+                    bool allMatch = resultNormal == resultNormalJson &&
+                                   resultNormal == resultPreProcess &&
+                                   resultNormal == resultPreProcessJson;
+                    string matchStatus = allMatch ? "PASS" : "FAIL";
+
+                    scenarioResults.Add((appView, resultNormal ?? "", resultNormalJson ?? "", resultPreProcess ?? "", resultPreProcessJson ?? "", matchStatus));
 
                     // Save HTML outputs to Analysis folder
                     var appViewSuffix = string.IsNullOrEmpty(appView) ? "" : $"_{appView}";
                     var normalOutputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_normal.html");
+                    var normalJsonOutputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_normaljson.html");
                     var preprocessOutputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_preprocess.html");
+                    var preprocessJsonOutputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_preprocessjson.html");
                     File.WriteAllText(normalOutputFile, resultNormal ?? "");
+                    File.WriteAllText(normalJsonOutputFile, resultNormalJson ?? "");
                     File.WriteAllText(preprocessOutputFile, resultPreProcess ?? "");
+                    File.WriteAllText(preprocessJsonOutputFile, resultPreProcessJson ?? "");
 
-                    if (!skipDetails || !outputsMatch)
+                    if (!skipDetails || !allMatch)
                     {
                         Console.WriteLine($"{testSite}: scenario: AppView='{appView}' - {matchStatus}");
+                        if (!allMatch)
+                        {
+                            Console.WriteLine($"  Normal: {resultNormal?.Length ?? 0} chars");
+                            Console.WriteLine($"  NormalJson: {resultNormalJson?.Length ?? 0} chars");
+                            Console.WriteLine($"  PreProcess: {resultPreProcess?.Length ?? 0} chars");
+                            Console.WriteLine($"  PreProcessJson: {resultPreProcessJson?.Length ?? 0} chars");
+                        }
                     }
 
                     if (printHtmlOutput)
                     {
                         Console.WriteLine($"\nNORMAL OUTPUT for AppView '{appView}':\n{resultNormal}\n");
+                        Console.WriteLine($"\nNORMAL JSON OUTPUT for AppView '{appView}':\n{resultNormalJson}\n");
                         Console.WriteLine($"\nPREPROCESS OUTPUT for AppView '{appView}':\n{resultPreProcess}\n");
+                        Console.WriteLine($"\nPREPROCESS JSON OUTPUT for AppView '{appView}':\n{resultPreProcessJson}\n");
                     }
                 }
 
                 // Print detailed output analysis after processing all scenarios
-                if (scenarioResults.Count > 0)
+                if (!skipDetails && scenarioResults.Count > 0)
                 {
                     var firstResult = scenarioResults[0];
                     Console.WriteLine($"\n{testSite}: 📊 DETAILED OUTPUT ANALYSIS:");
                     Console.WriteLine($"   Normal length: {firstResult.NormalOutput.Length} chars");
+                    Console.WriteLine($"   NormalJson length: {firstResult.NormalJsonOutput.Length} chars");
                     Console.WriteLine($"   PreProcess length: {firstResult.PreProcessOutput.Length} chars");
-                    Console.WriteLine($"   Difference: {Math.Abs(firstResult.NormalOutput.Length - firstResult.PreProcessOutput.Length)} chars");
+                    Console.WriteLine($"   PreProcessJson length: {firstResult.PreProcessJsonOutput.Length} chars");
+
+                    bool allSame = firstResult.NormalOutput.Length == firstResult.NormalJsonOutput.Length &&
+                                  firstResult.NormalOutput.Length == firstResult.PreProcessOutput.Length &&
+                                  firstResult.NormalOutput.Length == firstResult.PreProcessJsonOutput.Length;
+                    Console.WriteLine($"   All engines same length: {(allSame ? "YES" : "NO")}");
                 }
 
                 // Cross-view comparison
@@ -290,7 +807,9 @@ public static class TestingUtils
                         for (int j = i + 1; j < scenarioResults.Count; j++)
                         {
                             if (scenarioResults[i].NormalOutput == scenarioResults[j].NormalOutput ||
-                                scenarioResults[i].PreProcessOutput == scenarioResults[j].PreProcessOutput)
+                                scenarioResults[i].NormalJsonOutput == scenarioResults[j].NormalJsonOutput ||
+                                scenarioResults[i].PreProcessOutput == scenarioResults[j].PreProcessOutput ||
+                                scenarioResults[i].PreProcessJsonOutput == scenarioResults[j].PreProcessJsonOutput)
                             {
                                 allDiffer = false;
                                 break;
@@ -306,6 +825,9 @@ public static class TestingUtils
                 {
                     var result = scenarioResults[i];
                     var crossView = (i > 0 && scenarioResults.Count > 1) ? crossViewResult : "";
+                    bool allMatch = result.NormalOutput == result.NormalJsonOutput &&
+                                   result.NormalOutput == result.PreProcessOutput &&
+                                   result.NormalOutput == result.PreProcessJsonOutput;
 
                     summaryRows.Add(new TestSummaryRow
                     {
@@ -314,7 +836,12 @@ public static class TestingUtils
                         AppView = result.AppView,
                         NormalPreProcess = result.MatchStatus,
                         CrossViewUnMatch = crossView,
-                        Error = ""
+                        Error = "",
+                        NormalSize = result.NormalOutput.Length,
+                        NormalJsonSize = result.NormalJsonOutput.Length,
+                        PreProcessSize = result.PreProcessOutput.Length,
+                        PreProcessJsonSize = result.PreProcessJsonOutput.Length,
+                        AllEnginesMatch = allMatch
                     });
                 }
             }
@@ -338,15 +865,38 @@ public static class TestingUtils
     public static void PrintTestSummaryTable(string assemblerWebDirPath, string projectDirectory, List<TestSummaryRow> summaryRows, string testType)
     {
         Console.WriteLine($"\n==================== C# {testType} SUMMARY ====================\n");
-        Console.WriteLine($"| {"AppSite",-10} | {"AppFile",-10} | {"AppView",-10} | {"OutputMatch",-11} | {"ViewUnMatch",-11} | {"Error",-10} |");
-        Console.WriteLine($"| {new string('-', 10)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 11)} | {new string('-', 11)} | {new string('-', 10)} |");
 
-        foreach (var row in summaryRows)
+        // Check if this is an advanced test (has engine size data)
+        bool isAdvancedTest = testType.Contains("ADVANCED", StringComparison.OrdinalIgnoreCase) ||
+                             (summaryRows.Count > 0 && summaryRows[0].NormalSize > 0);
+
+        if (isAdvancedTest)
         {
-            Console.WriteLine($"| {row.AppSite,-10} | {row.AppFile,-10} | {row.AppView,-10} | {row.NormalPreProcess,-11} | {row.CrossViewUnMatch,-11} | {row.Error,-10} |");
-        }
+            // Advanced test table with engine output sizes
+            Console.WriteLine($"| {"AppSite",-15} | {"AppFile",-10} | {"AppView",-10} | {"Normal",-8} | {"NormalJ",-8} | {"PreProc",-8} | {"PreProcJ",-8} | {"Match",-6} | {"ViewUnMatch",-11} | {"Error",-10} |");
+            Console.WriteLine($"| {new string('-', 15)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 6)} | {new string('-', 11)} | {new string('-', 10)} |");
 
-        Console.WriteLine($"| {new string('-', 10)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 11)} | {new string('-', 11)} | {new string('-', 10)} |");
+            foreach (var row in summaryRows)
+            {
+                string matchIndicator = row.AllEnginesMatch ? "✓" : "✗";
+                Console.WriteLine($"| {row.AppSite,-15} | {row.AppFile,-10} | {row.AppView,-10} | {row.NormalSize,-8} | {row.NormalJsonSize,-8} | {row.PreProcessSize,-8} | {row.PreProcessJsonSize,-8} | {matchIndicator,-6} | {row.CrossViewUnMatch,-11} | {row.Error,-10} |");
+            }
+
+            Console.WriteLine($"| {new string('-', 15)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 6)} | {new string('-', 11)} | {new string('-', 10)} |");
+        }
+        else
+        {
+            // Standard test table (original format)
+            Console.WriteLine($"| {"AppSite",-15} | {"AppFile",-10} | {"AppView",-10} | {"OutputMatch",-11} | {"ViewUnMatch",-11} | {"Error",-10} |");
+            Console.WriteLine($"| {new string('-', 15)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 11)} | {new string('-', 11)} | {new string('-', 10)} |");
+
+            foreach (var row in summaryRows)
+            {
+                Console.WriteLine($"| {row.AppSite,-15} | {row.AppFile,-10} | {row.AppView,-10} | {row.NormalPreProcess,-11} | {row.CrossViewUnMatch,-11} | {row.Error,-10} |");
+            }
+
+            Console.WriteLine($"| {new string('-', 15)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 11)} | {new string('-', 11)} | {new string('-', 10)} |");
+        }
 
         string projectName = "csharp";
         string reportsDir = Path.Combine(projectDirectory, "Analysis", "Reports");
@@ -374,6 +924,10 @@ public static class TestingUtils
 
     private static string GenerateSummaryHtml(List<TestSummaryRow> summaryRows, string testType)
     {
+        // Check if this is an advanced test
+        bool isAdvancedTest = testType.Contains("ADVANCED", StringComparison.OrdinalIgnoreCase) ||
+                             (summaryRows.Count > 0 && summaryRows[0].NormalSize > 0);
+
         var html = $@"<!DOCTYPE html>
 <html>
 <head>
@@ -390,6 +944,10 @@ public static class TestingUtils
         tr:nth-child(even) {{ background-color: #f2f2f2; }}
         .pass {{ color: green; font-weight: bold; }}
         .fail {{ color: red; font-weight: bold; }}
+        .match {{ background-color: #d4edda; color: #155724; font-weight: bold; }}
+        .mismatch {{ background-color: #f8d7da; color: #721c24; font-weight: bold; }}
+        .size-match {{ background-color: #d4edda; }}
+        .size-mismatch {{ background-color: #f8d7da; }}
         @media (max-width: 768px) {{
             body {{ margin: 10px; }}
             th, td {{ padding: 8px; font-size: 14px; }}
@@ -405,18 +963,59 @@ public static class TestingUtils
         <tr>
             <th>AppSite</th>
             <th>AppFile</th>
-            <th>AppView</th>
-            <th>OutputMatch</th>
+            <th>AppView</th>";
+
+        if (isAdvancedTest)
+        {
+            html += @"
+            <th>Normal</th>
+            <th>NormalJson</th>
+            <th>PreProcess</th>
+            <th>PreProcessJson</th>
+            <th>Match</th>";
+        }
+        else
+        {
+            html += @"
+            <th>OutputMatch</th>";
+        }
+
+        html += @"
             <th>ViewUnMatch</th>
             <th>Error</th>
         </tr>";
 
         foreach (var row in summaryRows)
         {
-            var outputMatchClass = row.NormalPreProcess == "PASS" ? "pass" : (row.NormalPreProcess == "FAIL" ? "fail" : "");
-            var viewUnMatchClass = row.CrossViewUnMatch == "PASS" ? "pass" : (row.CrossViewUnMatch == "FAIL" ? "fail" : "");
+            if (isAdvancedTest)
+            {
+                // Advanced test row with size data and color coding
+                string sizeClass = row.AllEnginesMatch ? "size-match" : "size-mismatch";
+                string matchClass = row.AllEnginesMatch ? "match" : "mismatch";
+                string matchText = row.AllEnginesMatch ? "✓ PASS" : "✗ FAIL";
+                var viewUnMatchClass = row.CrossViewUnMatch == "PASS" ? "pass" : (row.CrossViewUnMatch == "FAIL" ? "fail" : "");
 
-            html += $@"
+                html += $@"
+        <tr>
+            <td>{row.AppSite}</td>
+            <td>{row.AppFile}</td>
+            <td>{row.AppView}</td>
+            <td class=""{sizeClass}"">{row.NormalSize}</td>
+            <td class=""{sizeClass}"">{row.NormalJsonSize}</td>
+            <td class=""{sizeClass}"">{row.PreProcessSize}</td>
+            <td class=""{sizeClass}"">{row.PreProcessJsonSize}</td>
+            <td class=""{matchClass}"">{matchText}</td>
+            <td class=""{viewUnMatchClass}"">{row.CrossViewUnMatch}</td>
+            <td>{row.Error}</td>
+        </tr>";
+            }
+            else
+            {
+                // Standard test row
+                var outputMatchClass = row.NormalPreProcess == "PASS" ? "pass" : (row.NormalPreProcess == "FAIL" ? "fail" : "");
+                var viewUnMatchClass = row.CrossViewUnMatch == "PASS" ? "pass" : (row.CrossViewUnMatch == "FAIL" ? "fail" : "");
+
+                html += $@"
         <tr>
             <td>{row.AppSite}</td>
             <td>{row.AppFile}</td>
@@ -425,6 +1024,7 @@ public static class TestingUtils
             <td class=""{viewUnMatchClass}"">{row.CrossViewUnMatch}</td>
             <td>{row.Error}</td>
         </tr>";
+            }
         }
 
         html += @"
@@ -436,7 +1036,7 @@ public static class TestingUtils
         return html;
     }
 
-    public static void DumpPreprocessedTemplateStructures(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, bool skipDetails = false)
+    public static void DumpPreprocessedTemplateStructures(string assemblerWebDirPath, string projectDirectory, List<Scenario> scenarios, string searchAppSites, bool skipDetails = false)
     {
         if (string.IsNullOrEmpty(assemblerWebDirPath))
         {
@@ -460,7 +1060,12 @@ public static class TestingUtils
         }
 
         // Get unique AppSites from scenarios
-        var appSites = scenarios.Select(s => s.AppSite).Distinct().ToList();
+        var appSitesSet = new HashSet<string>();
+        for (int i = 0; i < scenarios.Count; i++)
+        {
+            appSitesSet.Add(scenarios[i].AppSite);
+        }
+        var appSites = new List<string>(appSitesSet);
 
         foreach (string site in appSites)
         {
@@ -470,13 +1075,13 @@ public static class TestingUtils
                 LoaderNormal.ClearCache();
                 LoaderPreProcess.ClearCache();
 
-                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, site);
-                var preprocessedSiteTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, site);
+                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, site, searchAppSites);
+                var preprocessedSiteTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, site, searchAppSites);
 
                 var fullJson = ApiResponse.SerializePreprocessedSiteTemplates(preprocessedSiteTemplates, true);
 
-                // Save to file for easier analysis
-                var outputDir = Path.Combine(projectDirectory, "Analysis");
+                // Save to file for easier analysis in 'dump' folder inside Analysis
+                var outputDir = Path.Combine(projectDirectory, "Analysis", "dump");
                 Directory.CreateDirectory(outputDir);
 
                 var summaryFile = Path.Combine(outputDir, $"{site}_summary.json");

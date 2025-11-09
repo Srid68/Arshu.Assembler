@@ -1,0 +1,53 @@
+{
+  "Title": "Arshu Polyglot OCI Server",
+  "Description": "A high-performance, multi-language OCI Registry implementation with real-time metrics tracking and monitoring.",
+  "TitleIcon": "🚀",
+  "EngineTypeLabel": "Engine Type:",
+  "MergeModeLabel": "Merge Mode:",
+  "ButtonText": "Show Test",
+  "TargetAppSite": "Test",
+  "TargetAppView": "Main",
+  "EngineTypes": [
+    {
+      "Value": "Normal",
+      "Label": "Normal",
+      "IsDefault": true,
+      "IsVisible": true
+    },
+    {
+      "Value": "NormalJson",
+      "Label": "NormalJson",
+      "IsDefault": false,
+      "IsVisible": true
+    },
+    {
+      "Value": "PreProcess",
+      "Label": "PreProcess",
+      "IsDefault": false,
+      "IsVisible": true
+    },
+    {
+      "Value": "PreProcessJson",
+      "Label": "PreProcessJson",
+      "IsDefault": false,
+      "IsVisible": true
+    }
+  ],
+  "MergeModes": [
+    {
+      "Value": "Server",
+      "Label": "Server",
+      "IsDefault": false
+    },
+    {
+      "Value": "Client",
+      "Label": "Client",
+      "IsDefault": false
+    },
+    {
+      "Value": "Navigation",
+      "Label": "Navigation",
+      "IsDefault": true
+    }
+  ]
+}

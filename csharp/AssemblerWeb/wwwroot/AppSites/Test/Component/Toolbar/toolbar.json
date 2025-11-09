@@ -8,7 +8,7 @@
         "appView": "Main",
         "displayName": "Home → Main",
         "description": " (Main view)",
-        "totalSize": 17646
+        "totalSize": 18638
       },
       {
         "appSite": "HtmlRule1A",
@@ -128,7 +128,7 @@
         "appView": "",
         "displayName": "Rule 1C - Hierarchy Key Replacement (JSON)",
         "description": "Hierarchy placeholder replacement with JSON data",
-        "totalSize": 3997
+        "totalSize": 3999
       },
       {
         "appSite": "JsonRule1D",
@@ -176,7 +176,7 @@
         "appView": "Main",
         "displayName": "Language → Main",
         "description": " (Main view)",
-        "totalSize": 10157
+        "totalSize": 19526
       },
       {
         "appSite": "Rule1A",
@@ -199,8 +199,8 @@
         "appFile": "index",
         "appView": "Main",
         "displayName": "Test Page - Using 4 Assembly Rules",
-        "description": "Test Page using 4 Assembly Rules except AppView Context",
-        "totalSize": 109426
+        "description": "Test Page using 5 Assembly Rules with SearchAppSites",
+        "totalSize": 108002
       }
     ]
 }

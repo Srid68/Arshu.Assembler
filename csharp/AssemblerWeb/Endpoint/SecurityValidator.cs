@@ -2,7 +2,6 @@ using Assembler.Config;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 namespace AssemblerWeb
 {
@@ -23,7 +22,7 @@ namespace AssemblerWeb
         // Valid engine types allowlist
         public static readonly HashSet<string> ValidEngineTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "Normal", "PreProcess"
+            "Normal", "PreProcess", "NormalJson", "PreProcessJson"
         };
 
         // Log entry validation pattern (allows timestamps, log levels, messages, stack traces)
@@ -61,8 +60,14 @@ namespace AssemblerWeb
 
             // Check for other suspicious characters
             char[] invalidChars = Path.GetInvalidFileNameChars();
-            if (value.Any(c => invalidChars.Contains(c)))
-                return false;
+            for (int i = 0; i < value.Length; i++)
+            {
+                for (int j = 0; j < invalidChars.Length; j++)
+                {
+                    if (value[i] == invalidChars[j])
+                        return false;
+                }
+            }
 
             return true;
         }
@@ -150,24 +155,5 @@ namespace AssemblerWeb
             return true;
         }
 
-        /// <summary>
-        /// Gets the template total size for an AppSite from scenarios
-        /// </summary>
-        public static int GetTemplateTotalSize(string appSite, string appView)
-        {
-            try
-            {
-                var scenarios = ConfigUtil.GetScenarios();
-                var matchingScenario = scenarios.FirstOrDefault(s =>
-                    s.AppSite.Equals(appSite, StringComparison.OrdinalIgnoreCase) &&
-                    s.AppView.Equals(appView ?? "", StringComparison.OrdinalIgnoreCase));
-
-                return matchingScenario?.TotalSize ?? 0;
-            }
-            catch
-            {
-                return 0;
-            }
-        }
     }
 }

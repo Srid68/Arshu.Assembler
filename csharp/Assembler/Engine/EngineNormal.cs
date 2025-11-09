@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Arshu.App.Json;
 using Arshu.Common;
 using Assembler.Common;
@@ -29,11 +28,12 @@ public class EngineNormal
     /// <param name="appView">The application view name (optional)</param>
     /// <param name="appFile">The application file name</param>
     /// <param name="templates">Dictionary of available templates, where value is tuple of (HTML content, JSON content or null)</param>
+    /// <param name="searchAppSites">Comma-separated fallback AppSites to search when template not found in primary AppSite</param>
     /// <param name="enableJsonProcessing">Whether to enable JSON data processing</param>
     /// <returns>HTML with placeholders replaced</returns>
-    public string MergeTemplates(string appSite, string appFile, string? appView, Dictionary<string, (string html, string? json)> templates, bool enableJsonProcessing = true)
+    public string MergeTemplates(string appSite, string appFile, string? appView, Dictionary<string, (string html, string? json)> templates, string searchAppSites, bool enableJsonProcessing = true)
     {
-        Logger.Debug($"MergeTemplates called: appSite={appSite}, appFile={appFile}, appView={appView ?? "null"}, enableJson={enableJsonProcessing}", "EngineNormal");
+        Logger.Debug($"MergeTemplates called: appSite={appSite}, appFile={appFile}, appView={appView ?? "null"}, searchAppSites={searchAppSites}, enableJson={enableJsonProcessing}", "EngineNormal");
 
         if (templates == null || templates.Count == 0)
         {
@@ -43,8 +43,12 @@ public class EngineNormal
 
         Logger.Debug($"Using {templates.Count} templates", "EngineNormal");
 
+        // Build parent-child relationship map for JSON inheritance
+        var parentMap = JsonInheritanceUtil.BuildParentMap(appSite, templates);
+        Logger.Debug($"Built parent map with {parentMap.Count} relationships for JSON inheritance", "EngineNormal");
+
         // Direct dictionary lookup for main template
-    string mainTemplateKey = appSite.ToLowerInvariant() + "_" + appFile.ToLowerInvariant();
+        string mainTemplateKey = appSite.ToLowerInvariant() + "_" + appFile.ToLowerInvariant();
         (string html, string? json) mainTemplate;
         if (!templates.TryGetValue(mainTemplateKey, out mainTemplate))
         {
@@ -55,14 +59,62 @@ public class EngineNormal
                 var fallbackTemplateKey = appSite.ToLowerInvariant() + "_" + appKey.ToLowerInvariant();
                 if (!templates.TryGetValue(fallbackTemplateKey, out mainTemplate))
                 {
-                    Logger.Warn($"Main template not found for appSite={appSite}, appFile={appFile}", "EngineNormal");
-                    return string.Empty;
+                    // Try searchAppSites fallback
+                    bool foundInSearchAppSites = false;
+                    if (!string.IsNullOrEmpty(searchAppSites))
+                    {
+                        var searchAppSitesArray = searchAppSites.Split(',');
+                        for (int i = 0; i < searchAppSitesArray.Length; i++)
+                        {
+                            var searchAppSite = searchAppSitesArray[i].Trim();
+                            if (string.IsNullOrEmpty(searchAppSite))
+                                continue;
+
+                            var searchKey = searchAppSite.ToLowerInvariant() + "_" + appFile.ToLowerInvariant();
+                            if (templates.TryGetValue(searchKey, out mainTemplate))
+                            {
+                                Logger.Debug($"Main template '{appFile}' not found in '{appSite}', using fallback from '{searchAppSite}'", "EngineNormal");
+                                foundInSearchAppSites = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!foundInSearchAppSites)
+                    {
+                        Logger.Warn($"Main template not found for appSite={appSite}, appFile={appFile}", "EngineNormal");
+                        return string.Empty;
+                    }
                 }
             }
             else
             {
-                Logger.Warn($"Main template not found for appSite={appSite}, appFile={appFile}", "EngineNormal");
-                return string.Empty;
+                // Try searchAppSites fallback
+                bool foundInSearchAppSites = false;
+                if (!string.IsNullOrEmpty(searchAppSites))
+                {
+                    var searchAppSitesArray = searchAppSites.Split(',');
+                    for (int i = 0; i < searchAppSitesArray.Length; i++)
+                    {
+                        var searchAppSite = searchAppSitesArray[i].Trim();
+                        if (string.IsNullOrEmpty(searchAppSite))
+                            continue;
+
+                        var searchKey = searchAppSite.ToLowerInvariant() + "_" + appFile.ToLowerInvariant();
+                        if (templates.TryGetValue(searchKey, out mainTemplate))
+                        {
+                            Logger.Debug($"Main template '{appFile}' not found in '{appSite}', using fallback from '{searchAppSite}'", "EngineNormal");
+                            foundInSearchAppSites = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!foundInSearchAppSites)
+                {
+                    Logger.Warn($"Main template not found for appSite={appSite}, appFile={appFile}", "EngineNormal");
+                    return string.Empty;
+                }
             }
         }
 
@@ -72,11 +124,15 @@ public class EngineNormal
         if (enableJsonProcessing && !string.IsNullOrEmpty(mainTemplate.json))
         {
             Logger.Debug($"Merging main template with JSON (size: {mainTemplate.json.Length})", "EngineNormal");
-            contentHtml = MergeTemplateWithJson(contentHtml, mainTemplate.json);
+            contentHtml = MergeTemplateWithJson(contentHtml, mainTemplate.json, mainTemplateKey, templates, parentMap);
             Logger.Debug($"After main JSON merge: {contentHtml.Length} chars", "EngineNormal");
         }
 
-        // Pre-merge all templates and JSON values
+        // Pre-merge all component templates with their JSON
+        // ARCHITECTURE REQUIREMENT: Normal engine requires component JSON to be baked into HTML
+        // before components are inserted into the main template. This is NOT backward compatibility,
+        // but rather how the Normal engine works - it does simple string replacement without
+        // understanding context, so component {{$Key}} placeholders must already be resolved.
         var mergedTemplates = new Dictionary<string, string>(templates.Count);
         var allJsonValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         int jsonMergeCount = 0;
@@ -84,9 +140,14 @@ public class EngineNormal
         {
             var htmlContent = kvp.Value.html;
             var jsonContent = kvp.Value.json;
+
+            Logger.Debug($"Processing template: {kvp.Key}, has JSON: {!string.IsNullOrEmpty(jsonContent)}", "EngineNormal");
+
             if (enableJsonProcessing && !string.IsNullOrEmpty(jsonContent))
             {
-                htmlContent = MergeTemplateWithJson(htmlContent, jsonContent);
+                // Pre-merge component HTML with JSON so {{$Key}} placeholders are resolved
+                htmlContent = MergeTemplateWithJson(htmlContent, jsonContent, kvp.Key, templates, parentMap);
+                Logger.Debug($"Template {kvp.Key} pre-merged with JSON", "EngineNormal");
                 jsonMergeCount++;
                 try
                 {
@@ -96,6 +157,7 @@ public class EngineNormal
                         if (jsonKvp.Value is string s)
                         {
                             allJsonValues[jsonKvp.Key] = s;
+                            Logger.Debug($"Collected JSON value: {jsonKvp.Key} = {s}", "EngineNormal");
                         }
                     }
                 }
@@ -117,10 +179,10 @@ public class EngineNormal
 
             Logger.Debug($"Pass {actualPasses}, current size: {contentHtml.Length}", "EngineNormal");
 
-            contentHtml = MergeTemplateSlots(contentHtml, appSite, appView, mergedTemplates);
+            contentHtml = MergeTemplateSlots(contentHtml, appSite, appView, mergedTemplates, searchAppSites);
             Logger.Debug($"After slot merge: {contentHtml.Length} chars", "EngineNormal");
 
-            contentHtml = ReplaceTemplatePlaceholdersWithJson(contentHtml, appSite, mergedTemplates, allJsonValues, appView);
+            contentHtml = ReplaceTemplatePlaceholdersWithJson(contentHtml, appSite, mergedTemplates, allJsonValues, searchAppSites, appView);
             Logger.Debug($"After placeholder replacement: {contentHtml.Length} chars", "EngineNormal");
 
             if (contentHtml == previous)
@@ -138,13 +200,13 @@ public class EngineNormal
     /// <summary>
     /// Retrieves template HTML from the merged templates dictionary (optimized version)
     /// </summary>
-    private string? GetTemplate(string appSite, string templateName, Dictionary<string, string> mergedTemplates, string? appView = null, bool useAppViewFallback = true)
+    private string? GetTemplate(string appSite, string templateName, Dictionary<string, string> mergedTemplates, string searchAppSites, string? appView = null, bool useAppViewFallback = true)
     {
         if (mergedTemplates == null || mergedTemplates.Count == 0)
             return null;
 
         var primaryTemplateKey = $"{appSite.ToLowerInvariant()}_{templateName.ToLowerInvariant()}";
-        
+
         // FIRST: Check for AppView-specific template resolution when AppView context is provided
         if (useAppViewFallback && !string.IsNullOrEmpty(appView) && !string.IsNullOrEmpty(AppViewPrefix) &&
             templateName.Contains(AppViewPrefix, StringComparison.OrdinalIgnoreCase))
@@ -157,18 +219,37 @@ public class EngineNormal
                 return fallbackTemplate;
             }
         }
-        
+
         // SECOND: If no AppView-specific template found, try primary template
         if (mergedTemplates.TryGetValue(primaryTemplateKey, out var primaryTemplate))
         {
             return primaryTemplate;
         }
-        
+
+        // THIRD: Search in SearchAppSites as fallback
+        if (!string.IsNullOrEmpty(searchAppSites))
+        {
+            var searchAppSitesArray = searchAppSites.Split(',');
+            for (int i = 0; i < searchAppSitesArray.Length; i++)
+            {
+                var searchAppSite = searchAppSitesArray[i].Trim();
+                if (string.IsNullOrEmpty(searchAppSite))
+                    continue;
+
+                var searchKey = $"{searchAppSite.ToLowerInvariant()}_{templateName.ToLowerInvariant()}";
+                if (mergedTemplates.TryGetValue(searchKey, out var searchTemplate))
+                {
+                    Logger.Debug($"Component '{templateName}' not found in '{appSite}', using fallback from '{searchAppSite}'", "EngineNormal");
+                    return searchTemplate;
+                }
+            }
+        }
+
         return null;
     }
 
     // New helper: replaces placeholders using both templates and JSON values
-    private string ReplaceTemplatePlaceholdersWithJson(string html, string appSite, Dictionary<string, string> htmlFiles, Dictionary<string, string> jsonValues, string? appView = null)
+    private string ReplaceTemplatePlaceholdersWithJson(string html, string appSite, Dictionary<string, string> htmlFiles, Dictionary<string, string> jsonValues, string searchAppSites, string? appView = null)
     {
         var result = html;
         var searchPos = 0;
@@ -213,16 +294,16 @@ public class EngineNormal
             else if (CommonUtil.IsAlphaNumeric(placeholderName))
             {
                 // Look up replacement in templates - use GetTemplate method for optimized lookup
-                var templateContent = GetTemplate(appSite, placeholderName, htmlFiles, appView, useAppViewFallback: true);
+                var templateContent = GetTemplate(appSite, placeholderName, htmlFiles, searchAppSites, appView, useAppViewFallback: true);
 
                 if (!string.IsNullOrEmpty(templateContent))
                 {
-                    processedReplacement = ReplaceTemplatePlaceholdersWithJson(templateContent, appSite, htmlFiles, jsonValues ?? new Dictionary<string, string>(), appView);
+                    Logger.Debug($"Found template for placeholder {{{{placeholderName}}}}", "EngineNormal");
+                    processedReplacement = ReplaceTemplatePlaceholdersWithJson(templateContent, appSite, htmlFiles, jsonValues ?? new Dictionary<string, string>(), searchAppSites, appView);
                 }
-                // PRIORITY 3: If no template found, try JSON values (for backward compatibility)
-                else if (jsonValues != null && jsonValues.TryGetValue(placeholderName, out var jsonValue))
+                else
                 {
-                    processedReplacement = jsonValue;
+                    Logger.Debug($"No template found for {{{{placeholderName}}}} - use {{{{${placeholderName}}}}} for JSON values", "EngineNormal");
                 }
             }
 
@@ -252,8 +333,9 @@ public class EngineNormal
     /// <param name="contentHtml">The content HTML containing slot patterns</param>
     /// <param name="appSite">The application site name for template key generation</param>
     /// <param name="templates">Dictionary of available templates</param>
+    /// <param name="searchAppSites">Comma-separated fallback AppSites to search when template not found in primary AppSite</param>
     /// <returns>Merged HTML with slots filled</returns>
-    private string MergeTemplateSlots(string contentHtml, string appSite, string? appView, Dictionary<string, string> templates)
+    private string MergeTemplateSlots(string contentHtml, string appSite, string? appView, Dictionary<string, string> templates, string searchAppSites)
     {
         if (string.IsNullOrEmpty(contentHtml) || templates == null || templates.Count == 0)
             return contentHtml;
@@ -262,7 +344,7 @@ public class EngineNormal
         do
         {
             previous = contentHtml;
-            contentHtml = ProcessTemplateSlots(contentHtml, appSite, appView, templates);
+            contentHtml = ProcessTemplateSlots(contentHtml, appSite, appView, templates, searchAppSites);
         } while (contentHtml != previous);
         return contentHtml;
     }
@@ -270,7 +352,7 @@ public class EngineNormal
     /// <summary>
     /// Helper method to process slotted templates using IndexOf
     /// </summary>
-    private string ProcessTemplateSlots(string contentHtml, string appSite, string? appView, Dictionary<string, string> templates)
+    private string ProcessTemplateSlots(string contentHtml, string appSite, string? appView, Dictionary<string, string> templates, string searchAppSites)
     {
         var result = contentHtml;
         var searchPos = 0;
@@ -307,12 +389,12 @@ public class EngineNormal
             var innerContent = result.Substring(innerStart, closeStart - innerStart);
 
             // Process the template replacement using the optimized GetTemplate method
-            var templateHtml = GetTemplate(appSite, templateName, templates, appView, useAppViewFallback: true);
+            var templateHtml = GetTemplate(appSite, templateName, templates, searchAppSites, appView, useAppViewFallback: true);
 
             if (!string.IsNullOrEmpty(templateHtml))
             {
                 // Extract slot contents
-                var slotContents = ExtractSlotContents(innerContent, appSite, appView, templates);
+                var slotContents = ExtractSlotContents(innerContent, appSite, appView, templates, searchAppSites);
 
                 // Replace slots in template
                 var processedTemplate = templateHtml;
@@ -341,7 +423,7 @@ public class EngineNormal
     /// <summary>
     /// Extract slot contents using IndexOf approach
     /// </summary>
-    private Dictionary<string, string> ExtractSlotContents(string innerContent, string appSite, string? appView, Dictionary<string, string> templates)
+    private Dictionary<string, string> ExtractSlotContents(string innerContent, string appSite, string? appView, Dictionary<string, string> templates, string searchAppSites)
     {
         var slotContents = new Dictionary<string, string>();
         var searchPos = 0;
@@ -392,8 +474,8 @@ public class EngineNormal
 
             // FIXED: Process both slotted templates AND simple placeholders in slot content
             // This enables proper nested template processing to match the preprocessing implementation
-            var recursiveResult = MergeTemplateSlots(slotContent, appSite, appView, templates);
-            recursiveResult = ReplaceTemplatePlaceholders(recursiveResult, appSite, appView, templates);
+            var recursiveResult = MergeTemplateSlots(slotContent, appSite, appView, templates, searchAppSites);
+            recursiveResult = ReplaceTemplatePlaceholders(recursiveResult, appSite, appView, templates, searchAppSites);
             slotContents[slotKey] = recursiveResult;
 
             searchPos = closeStart + closeTag.Length;
@@ -409,7 +491,7 @@ public class EngineNormal
     /// <summary>
     /// Helper method to process simple placeholders only (without slotted template processing)
     /// </summary>
-    private string ReplaceTemplatePlaceholders(string html, string appSite, string? appView, Dictionary<string, string> htmlFiles)
+    private string ReplaceTemplatePlaceholders(string html, string appSite, string? appView, Dictionary<string, string> htmlFiles, string searchAppSites)
     {
         var result = html;
         var searchPos = 0;
@@ -419,10 +501,16 @@ public class EngineNormal
         if (htmlFiles.TryGetValue("__json_values__", out var jsonRaw) && !string.IsNullOrEmpty(jsonRaw))
         {
             // Parse as key=value pairs separated by newlines (custom format for this fix)
-            jsonValues = jsonRaw.Split('\n')
-                .Select(line => line.Split('=', 2))
-                .Where(parts => parts.Length == 2)
-                .ToDictionary(parts => parts[0].Trim(), parts => parts[1].Trim(), StringComparer.OrdinalIgnoreCase);
+            var lines = jsonRaw.Split('\n');
+            jsonValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var parts = lines[i].Split('=', 2);
+                if (parts.Length == 2)
+                {
+                    jsonValues[parts[0].Trim()] = parts[1].Trim();
+                }
+            }
         }
 
         while (searchPos < result.Length)
@@ -451,12 +539,12 @@ public class EngineNormal
             }
 
             // Look up replacement in templates using the optimized GetTemplate method
-            var templateContent2 = GetTemplate(appSite, placeholderName, htmlFiles, appView, useAppViewFallback: true);
+            var templateContent2 = GetTemplate(appSite, placeholderName, htmlFiles, searchAppSites, appView, useAppViewFallback: true);
 
             string? processedReplacement = null;
             if (!string.IsNullOrEmpty(templateContent2))
             {
-                processedReplacement = ReplaceTemplatePlaceholders(templateContent2, appSite, appView, htmlFiles);
+                processedReplacement = ReplaceTemplatePlaceholders(templateContent2, appSite, appView, htmlFiles, searchAppSites);
             }
             // If not found, try JSON value
             else if (jsonValues != null && jsonValues.TryGetValue(placeholderName, out var jsonValue))
@@ -485,21 +573,44 @@ public class EngineNormal
 
     /// <summary>
     /// Merges HTML template with JSON data using placeholder replacement
+    /// Supports JSON key inheritance: keys ending with # will inherit values from parent templates
     /// </summary>
     /// <param name="template">The HTML template content</param>
     /// <param name="jsonText">The JSON data as string</param>
+    /// <param name="templateKey">The current template key for inheritance lookup</param>
+    /// <param name="allTemplates">All templates for parent inheritance lookup</param>
+    /// <param name="parentMap">Parent-child relationship map</param>
     /// <returns>Merged HTML with JSON data populated</returns>
-    private static string MergeTemplateWithJson(string template, string jsonText)
+    private static string MergeTemplateWithJson(string template, string jsonText, string templateKey, Dictionary<string, (string html, string? json)> allTemplates, Dictionary<string, string> parentMap)
     {
         // Parse JSON using JsonConverter
         var jsonObject = JsonConverter.ParseJsonString(jsonText);
-        
+
         var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
 
-        // Convert JsonObject to dictionary
+        // Convert JsonObject to dictionary and resolve inherited keys
         foreach (var kvp in jsonObject)
         {
-            if (kvp.Value is JsonArray jsonArray)
+            var key = kvp.Key;
+            var value = kvp.Value;
+
+            // Check if this is an inheritable key (ends with #)
+            if (key.EndsWith("#") && value is string strValue)
+            {
+                // Resolve inherited value
+                var resolvedValue = JsonInheritanceUtil.ResolveJsonKeyWithInheritance(key, strValue, templateKey, allTemplates, parentMap);
+                if (resolvedValue != null)
+                {
+                    // Store with the actual key name (without #)
+                    var actualKey = key.Substring(0, key.Length - 1);
+                    dict[actualKey] = resolvedValue;
+                    Logger.Debug($"Resolved inherited key {key} -> {actualKey} = {resolvedValue}", "EngineNormal");
+                    continue;
+                }
+            }
+
+            // Normal key processing (non-inheritable keys)
+            if (value is JsonArray jsonArray)
             {
                 // Convert JsonArray to List<Dictionary<string, object?>>
                 var arr = new List<Dictionary<string, object?>>();
@@ -522,11 +633,11 @@ public class EngineNormal
                         arr.Add(simpleObj);
                     }
                 }
-                dict[kvp.Key] = arr;
+                dict[key] = arr;
             }
             else
             {
-                dict[kvp.Key] = kvp.Value;
+                dict[key] = value;
             }
         }
 

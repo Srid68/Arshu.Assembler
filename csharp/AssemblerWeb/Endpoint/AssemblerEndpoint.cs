@@ -10,12 +10,10 @@ using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace AssemblerWeb
-{
-    
+{    
     #region Model and Serialization
 
     // Model for scenario response
@@ -27,10 +25,6 @@ namespace AssemblerWeb
         public string AppFile { get; set; } = string.Empty;
         [JsonPropertyName("appView")]
         public string AppView { get; set; } = string.Empty;
-        [JsonPropertyName("displayName")]
-        public string DisplayName { get; set; } = string.Empty;
-        [JsonPropertyName("description")]
-        public string Description { get; set; } = string.Empty;
     }
 
     // Model for merge request
@@ -54,7 +48,9 @@ namespace AssemblerWeb
     {
         #region Constants
 
-        public const string DefaultAppSite = "Test";
+        public const string DefaultEngineType = "Normal";
+        public const string DefaultAppSite = "Main";
+        public const string SearchAppSites = "Common, Language";
 
         // Maximum parameter length to prevent DoS attacks
         private const int ParamMaxLength = 256;
@@ -66,7 +62,7 @@ namespace AssemblerWeb
         // Valid engine types allowlist
         private static readonly HashSet<string> ValidEngineTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "Normal", "PreProcess"
+            "Normal", "PreProcess", "NormalJson", "PreProcessJson"
         };
 
         /// <summary>
@@ -95,8 +91,14 @@ namespace AssemblerWeb
 
             // Check for other suspicious characters
             char[] invalidChars = Path.GetInvalidFileNameChars();
-            if (value.Any(c => invalidChars.Contains(c)))
-                return false;
+            for (int i = 0; i < value.Length; i++)
+            {
+                for (int j = 0; j < invalidChars.Length; j++)
+                {
+                    if (value[i] == invalidChars[j])
+                        return false;
+                }
+            }
 
             return true;
         }
@@ -112,102 +114,131 @@ namespace AssemblerWeb
 
             assemblerGroup.MapGet("/", (HttpContext context) =>
             {
-                // Get appsite from query parameter or use default
+                // Root endpoint loads the default AppSite (Home) using DefaultEngineType
+                // For other AppSites, use /{appSite} or /{appSite}/{appView} endpoints
                 string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
 
-                var requestedAppSite = context.Request.Query["appsite"].ToString();
                 string appSite = DefaultAppSite;
-                string appFile = "index";
+                string appView = "";
+                string engineType = DefaultEngineType;
 
-                // If appsite query param is provided, validate it exists in scenarios
-                if (!string.IsNullOrEmpty(requestedAppSite))
+                // Get AppFile from scenarios using ConfigUtil (same as merge endpoint)
+                var appFile = ConfigUtil.GetAppFile(appSite, appView);
+
+                // Get engine type from query parameter (default to DefaultEngineType)
+                var engineQuery = context.Request.Query["engine"].ToString();
+                if (!string.IsNullOrEmpty(engineQuery))
                 {
-                    // Validate AppSite against allowlist
-                    var validAppSites = GetValidAppSites();
-                    if (!validAppSites.Contains(requestedAppSite))
-                        return Results.BadRequest("Invalid AppSite value");
-
-                    // Validate path components for path traversal attacks
-                    if (!IsValidPathComponent(requestedAppSite))
-                        return Results.BadRequest("Invalid characters in AppSite");
-
-                    // Get AppFile from scenarios
-                    var scenarios = ConfigUtil.GetScenarios();
-                    var matchingScenario = scenarios.FirstOrDefault(s =>
-                        s.AppSite.Equals(requestedAppSite, StringComparison.OrdinalIgnoreCase) &&
-                        string.IsNullOrEmpty(s.AppView));
-
-                    if (matchingScenario == null)
-                        return Results.BadRequest($"No matching scenario found for AppSite='{requestedAppSite}' without AppView");
-
-                    appSite = requestedAppSite;
-                    appFile = matchingScenario.AppFile;
-                }
-
-                // Get engine type from query parameter (default to Normal)
-                var engineType = context.Request.Query["engine"].ToString();
-                if (string.IsNullOrEmpty(engineType))
-                {
-                    engineType = "Normal";
+                    engineType = engineQuery;
                 }
 
                 // Validate EngineType against allowlist
                 if (!ValidEngineTypes.Contains(engineType))
-                    return Results.BadRequest("Invalid engine type. Use 'Normal' or 'PreProcess'");
+                    return Results.BadRequest("Invalid engine type. Use 'Normal', 'PreProcess', 'NormalJson', or 'PreProcessJson'");
 
-                // Load templates for selected AppSite
-                var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite);
-                var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, appSite);
-
-                // Merge using selected engine (no AppView context)
+                // Merge using selected engine
                 string mergedHtml = "";
                 if (engineType.Equals("PreProcess", StringComparison.OrdinalIgnoreCase))
                 {
+                    var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
                     var engine = new EnginePreProcess();
-                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, preprocessTemplatesRaw.Templates);
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, preprocessTemplatesRaw.Templates, SearchAppSites);
+                }
+                else if (engineType.Equals("NormalJson", StringComparison.OrdinalIgnoreCase))
+                {
+                    var loader = new LoaderNormalJson(rootDirPath, appSite, SearchAppSites);
+                    var engine = new EngineNormalJson();
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, loader);
+                }
+                else if (engineType.Equals("PreProcessJson", StringComparison.OrdinalIgnoreCase))
+                {
+                    var loader = new LoaderPreProcessJson(rootDirPath, appSite, SearchAppSites);
+                    var engine = new EnginePreProcessJson();
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, loader);
                 }
                 else
                 {
+                    var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
                     var engine = new EngineNormal();
-                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, normalTemplatesRaw);
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, normalTemplatesRaw, SearchAppSites);
                 }
 
                 return Results.Content(mergedHtml, "text/html");
             })
             .WithName("GetRootUrl")
-            .WithDisplayName("Get Method to Test Merging with AppSite")
-            .WithDescription("Get Method to Test Merging - use ?appsite=AppSiteName&engine=Normal or ?engine=PreProcess")
+            .WithDisplayName("Get Method for Default Home Page")
+            .WithDescription("Get Method for Default Home Page - loads the default AppSite using DefaultEngineType")
             .WithTags("Root");
 
             #endregion
 
-            #region Get Scenarios Endpoint
+            #region AppSite Navigation Endpoint
 
-            assemblerGroup.MapGet("/api/scenarios", (HttpContext context) =>
+            assemblerGroup.MapGet("/{appSite}/{appView?}", (HttpContext context, string appSite, string? appView) =>
             {
-                try
-                {
-                    var scenarios = ConfigUtil.GetScenarios();
-                    var scenarioDtos = scenarios.Select(s => new ScenarioDto
-                    {
-                        AppSite = s.AppSite,
-                        AppFile = s.AppFile,
-                        AppView = s.AppView,
-                        DisplayName = s.DisplayName,
-                        Description = s.Description
-                    }).ToArray();
+                // Get root directory path
+                string rootDirPath = Path.Combine(context.RequestServices.GetRequiredService<IHostEnvironment>().ContentRootPath, "wwwroot");
 
-                    return Results.Json(scenarioDtos, AssemblerJsonContext.Default.ScenarioDtoArray);
-                }
-                catch (Exception ex)
+                // Validate AppSite against allowlist
+                var validAppSites = GetValidAppSites();
+                if (!validAppSites.Contains(appSite))
+                    return Results.BadRequest("Invalid AppSite value");
+
+                // Validate path components for path traversal attacks
+                if (!IsValidPathComponent(appSite))
+                    return Results.BadRequest("Invalid characters in AppSite");
+
+                if (!string.IsNullOrEmpty(appView) && !IsValidPathComponent(appView))
+                    return Results.BadRequest("Invalid characters in AppView");
+
+                // Get AppFile from scenarios using ConfigUtil
+                var appViewValue = appView ?? "";
+                var appFile = ConfigUtil.GetAppFile(appSite, appViewValue);
+
+                // Get engine type from query parameter (default to Normal)
+                var engineType = context.Request.Query["engine"].ToString();
+                if (string.IsNullOrEmpty(engineType))
                 {
-                    return Results.Problem($"Error loading scenarios: {ex.Message}");
+                    engineType = DefaultEngineType;
                 }
+
+                // Validate EngineType against allowlist
+                if (!ValidEngineTypes.Contains(engineType))
+                    return Results.BadRequest("Invalid engine type. Use 'Normal', 'PreProcess', 'NormalJson', or 'PreProcessJson'");
+
+                // Merge using selected engine with AppView context
+                string mergedHtml = "";
+                if (engineType.Equals("PreProcess", StringComparison.OrdinalIgnoreCase))
+                {
+                    var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
+                    var engine = new EnginePreProcess();
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, appViewValue, preprocessTemplatesRaw.Templates, SearchAppSites);
+                }
+                else if (engineType.Equals("NormalJson", StringComparison.OrdinalIgnoreCase))
+                {
+                    var loader = new LoaderNormalJson(rootDirPath, appSite, SearchAppSites);
+                    var engine = new EngineNormalJson();
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, appViewValue, loader);
+                }
+                else if (engineType.Equals("PreProcessJson", StringComparison.OrdinalIgnoreCase))
+                {
+                    var loader = new LoaderPreProcessJson(rootDirPath, appSite, SearchAppSites);
+                    var engine = new EnginePreProcessJson();
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, appViewValue, loader);
+                }
+                else
+                {
+                    var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
+                    var engine = new EngineNormal();
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, appViewValue, normalTemplatesRaw, SearchAppSites);
+                }
+
+                return Results.Content(mergedHtml, "text/html");
             })
-            .WithName("GetScenarios")
-            .WithDisplayName("Get Scenarios")
-            .WithDescription("Returns all available scenarios from scenarios.csv")
-            .WithTags("Scenarios");
+            .WithName("GetAppSiteNavigation")
+            .WithDisplayName("Get Method to Navigate to AppSite with Optional AppView")
+            .WithDescription("Get Method to Navigate - use /{appSite} or /{appSite}/{appView} with optional ?engine=Normal or ?engine=PreProcess")
+            .WithTags("Navigation");
 
             #endregion
 
@@ -230,7 +261,9 @@ namespace AssemblerWeb
                     { "LoaderNormal", Path.Combine(logsDir, "csharp_loadernormal.log") },
                     { "LoaderPreProcess", Path.Combine(logsDir, "csharp_loaderpreprocess.log") },
                     { "EngineNormal", Path.Combine(logsDir, "csharp_enginenormal.log") },
-                    { "EnginePreProcess", Path.Combine(logsDir, "csharp_enginepreprocess.log") }
+                    { "EnginePreProcess", Path.Combine(logsDir, "csharp_enginepreprocess.log") },
+                    { "LoaderNormalJson", Path.Combine(logsDir, "csharp_loadernormaljson.log") },
+                    { "EngineNormalJson", Path.Combine(logsDir, "csharp_enginenormaljson.log") }
                 };
 
                 Logger.Configure(Logger.LogLevel.DEBUG, consoleOutput: false, Logger.LogRotation.HOURLY);
@@ -265,30 +298,24 @@ namespace AssemblerWeb
                     if (!string.IsNullOrEmpty(input.AppView) && !IsValidPathComponent(input.AppView))
                         return Results.BadRequest("Invalid characters in AppView");
 
-                    // Get AppFile from scenarios
-                    var scenarios = ConfigUtil.GetScenarios();
+                    // Get AppFile from scenarios using ConfigUtil
                     var appView = input.AppView ?? "";
-                    var matchingScenario = scenarios.FirstOrDefault(s =>
-                        s.AppSite.Equals(input.AppSite, StringComparison.OrdinalIgnoreCase) &&
-                        s.AppView.Equals(appView, StringComparison.OrdinalIgnoreCase));
-
-                    if (matchingScenario == null)
-                        return Results.BadRequest($"No matching scenario found for AppSite='{input.AppSite}' and AppView='{appView}'");
-
-                    var appFile = matchingScenario.AppFile;
+                    var appFile = ConfigUtil.GetAppFile(input.AppSite, appView);
                     var appViewPrefix = string.IsNullOrEmpty(appView) ? "" : appFile;
 
-                    var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, input.AppSite);
-                    var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, input.AppSite);
+                    var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, input.AppSite, SearchAppSites);
+                    var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, input.AppSite, SearchAppSites);
 
-                    var normalResult = normalTemplatesRaw.ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => new TemplateData { Html = kvp.Value.html, Json = kvp.Value.json }
-                    );
+                    var normalResult = new Dictionary<string, TemplateData>();
+                    foreach (var kvp in normalTemplatesRaw)
+                    {
+                        normalResult[kvp.Key] = new TemplateData { Html = kvp.Value.html, Json = kvp.Value.json };
+                    }
 
-                    var preprocessResult = preprocessTemplatesRaw.Templates.ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => new PreProcessTemplateMetadata
+                    var preprocessResult = new Dictionary<string, PreProcessTemplateMetadata>();
+                    foreach (var kvp in preprocessTemplatesRaw.Templates)
+                    {
+                        preprocessResult[kvp.Key] = new PreProcessTemplateMetadata
                         {
                             OriginalContent = kvp.Value.OriginalContent,
                             Placeholders = kvp.Value.Placeholders,
@@ -302,8 +329,8 @@ namespace AssemblerWeb
                             HasJsonPlaceholders = kvp.Value.HasJsonPlaceholders,
                             HasReplacementMappings = kvp.Value.HasReplacementMappings,
                             RequiresProcessing = kvp.Value.RequiresProcessing
-                        }
-                    );
+                        };
+                    }
 
                     var engineStart = DateTime.UtcNow;
                     string mergedHtml = "";
@@ -312,14 +339,30 @@ namespace AssemblerWeb
                         var engine = new EnginePreProcess();
                         if (!string.IsNullOrEmpty(appViewPrefix))
                             engine.AppViewPrefix = appViewPrefix;
-                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, preprocessTemplatesRaw.Templates);
+                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, preprocessTemplatesRaw.Templates, SearchAppSites);
+                    }
+                    else if (input.EngineType.Equals("NormalJson", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        var loader = new LoaderNormalJson(rootDirPath, input.AppSite, SearchAppSites);
+                        var engine = new EngineNormalJson();
+                        if (!string.IsNullOrEmpty(appViewPrefix))
+                            engine.AppViewPrefix = appViewPrefix;
+                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, loader);
+                    }
+                    else if (input.EngineType.Equals("PreProcessJson", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        var loader = new LoaderPreProcessJson(rootDirPath, input.AppSite, SearchAppSites);
+                        var engine = new EnginePreProcessJson();
+                        if (!string.IsNullOrEmpty(appViewPrefix))
+                            engine.AppViewPrefix = appViewPrefix;
+                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, loader);
                     }
                     else
                     {
                         var engine = new EngineNormal();
                         if (!string.IsNullOrEmpty(appViewPrefix))
                             engine.AppViewPrefix = appViewPrefix;
-                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, normalTemplatesRaw);
+                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, normalTemplatesRaw, SearchAppSites);
                     }
                     var engineTimeMs = (DateTime.UtcNow - engineStart).TotalMilliseconds;
                     var serverEnd = DateTime.UtcNow;
@@ -427,21 +470,23 @@ namespace AssemblerWeb
                         return Results.Text("Invalid characters in AppSite", statusCode: 400);
                   
                     // Load Normal templates
-                    var normalTemplates = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite);
+                    var normalTemplates = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
 
                     // Load PreProcess templates
-                    var preprocessTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, appSite);
+                    var preprocessTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
 
                     // Convert Normal templates to TemplateData objects for proper JSON serialization
-                    var normalResult = normalTemplates.ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => new TemplateData { Html = kvp.Value.html, Json = kvp.Value.json }
-                    );
+                    var normalResult = new Dictionary<string, TemplateData>();
+                    foreach (var kvp in normalTemplates)
+                    {
+                        normalResult[kvp.Key] = new TemplateData { Html = kvp.Value.html, Json = kvp.Value.json };
+                    }
 
                     // Convert PreProcess templates to metadata-only objects
-                    var preprocessResult = preprocessTemplates.Templates.ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => new PreProcessTemplateMetadata
+                    var preprocessResult = new Dictionary<string, PreProcessTemplateMetadata>();
+                    foreach (var kvp in preprocessTemplates.Templates)
+                    {
+                        preprocessResult[kvp.Key] = new PreProcessTemplateMetadata
                         {
                             OriginalContent = kvp.Value.OriginalContent,
                             Placeholders = kvp.Value.Placeholders,
@@ -455,8 +500,8 @@ namespace AssemblerWeb
                             HasJsonPlaceholders = kvp.Value.HasJsonPlaceholders,
                             HasReplacementMappings = kvp.Value.HasReplacementMappings,
                             RequiresProcessing = kvp.Value.RequiresProcessing
-                        }
-                    );
+                        };
+                    }
 
                     var serverEnd = DateTime.UtcNow;
                     var serverTimeMs = (serverEnd - serverStart).TotalMilliseconds;

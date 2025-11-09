@@ -23,7 +23,7 @@ namespace AssemblerWebJs
         // Valid engine types allowlist
         public static readonly HashSet<string> ValidEngineTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "Normal", "PreProcess"
+            "Normal", "PreProcess", "NormalJson"
         };
 
         // Log entry validation pattern (allows timestamps, log levels, messages, stack traces)
@@ -150,24 +150,5 @@ namespace AssemblerWebJs
             return true;
         }
 
-        /// <summary>
-        /// Gets the template total size for an AppSite from scenarios
-        /// </summary>
-        public static int GetTemplateTotalSize(string appSite, string appView)
-        {
-            try
-            {
-                var scenarios = ConfigUtil.GetScenarios();
-                var matchingScenario = scenarios.FirstOrDefault(s =>
-                    s.AppSite.Equals(appSite, StringComparison.OrdinalIgnoreCase) &&
-                    s.AppView.Equals(appView ?? "", StringComparison.OrdinalIgnoreCase));
-
-                return matchingScenario?.TotalSize ?? 0;
-            }
-            catch
-            {
-                return 0;
-            }
-        }
     }
 }
