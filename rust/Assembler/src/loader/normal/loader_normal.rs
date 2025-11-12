@@ -22,7 +22,7 @@ pub struct LoaderNormal {
     parent_map: HashMap<String, String>,
 }
 
-pub type TemplateMap = IndexMap<String, (String, Option<String>)>;
+type TemplateMap = IndexMap<String, (String, Option<String>)>;
 
 lazy_static! {
     static ref HTML_TEMPLATES_CACHE: Mutex<IndexMap<String, TemplateMap>> =

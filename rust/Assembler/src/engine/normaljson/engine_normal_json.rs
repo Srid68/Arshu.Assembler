@@ -199,7 +199,6 @@ impl EngineNormalJson {
     }
 
     // Slot Processing
-
     /// IndexOf-based version: Recursively merges a slotted template with content
     /// Slot patterns in content: {{#TemplateName}} ... {{@HTMLPLACEHOLDER[N]}} ... {{/HTMLPLACEHOLDER[N]}} ... {{/TemplateName}}
     fn merge_template_slots(
@@ -434,7 +433,6 @@ impl EngineNormalJson {
     }
 
     // PlaceHolder Processing
-
     /// Helper method to process simple placeholders only (without slotted template processing)
     fn replace_template_placeholders(
         &self,

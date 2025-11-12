@@ -1,6 +1,6 @@
 use crate::common::common_util::CommonUtil;
 use crate::interface::ILoaderJson;
-use crate::loader::loader_preprocess_json::LoaderPreProcessJson;
+use crate::loader::preprocessjson::loader_preprocess_json::LoaderPreProcessJson;
 use crate::model::model_preprocess::{PreprocessedTemplate, ReplacementType};
 use arshu::common::Logger;
 use std::collections::HashMap;

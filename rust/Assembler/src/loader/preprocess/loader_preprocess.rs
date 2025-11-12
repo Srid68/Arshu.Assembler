@@ -1,5 +1,5 @@
 use crate::interface::i_loader_preprocess::ILoaderPreProcess;
-use super::json_merge_util::JsonMergeUtil;
+use crate::loader::json_merge_util::JsonMergeUtil;
 use crate::app::json::{JsonObject, JsonValue};
 use crate::common::common_util::CommonUtil;
 use crate::model::model_preprocess::{
