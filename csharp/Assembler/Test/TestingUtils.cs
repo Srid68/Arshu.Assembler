@@ -909,13 +909,13 @@ public static class TestingUtils
         if (isAdvancedTest)
         {
             // Advanced test table with engine output sizes
-            Console.WriteLine($"| {"AppSite",-15} | {"AppFile",-10} | {"AppView",-10} | {"Normal",-8} | {"NormalJ",-8} | {"PreProc",-8} | {"PreProcJ",-8} | {"Match",-6} | {"ViewUnMatch",-11} | {"Error",-10} |");
+            Console.WriteLine($"| {"AppSite",-15} | {"AppFile",-10} | {"AppView",-10} | {"Normal",-8} | {"PreProc",-8} | {"NormalJ",-8} | {"PreProcJ",-8} | {"Match",-6} | {"ViewUnMatch",-11} | {"Error",-10} |");
             Console.WriteLine($"| {new string('-', 15)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 6)} | {new string('-', 11)} | {new string('-', 10)} |");
 
             foreach (var row in summaryRows)
             {
                 string matchIndicator = row.AllEnginesMatch ? "✓" : "✗";
-                Console.WriteLine($"| {row.AppSite,-15} | {row.AppFile,-10} | {row.AppView,-10} | {row.NormalSize,-8} | {row.NormalJsonSize,-8} | {row.PreProcessSize,-8} | {row.PreProcessJsonSize,-8} | {matchIndicator,-6} | {row.CrossViewUnMatch,-11} | {row.Error,-10} |");
+                Console.WriteLine($"| {row.AppSite,-15} | {row.AppFile,-10} | {row.AppView,-10} | {row.NormalSize,-8} | {row.PreProcessSize,-8} | {row.NormalJsonSize,-8} | {row.PreProcessJsonSize,-8} | {matchIndicator,-6} | {row.CrossViewUnMatch,-11} | {row.Error,-10} |");
             }
 
             Console.WriteLine($"| {new string('-', 15)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 8)} | {new string('-', 6)} | {new string('-', 11)} | {new string('-', 10)} |");

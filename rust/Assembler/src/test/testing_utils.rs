@@ -1367,15 +1367,15 @@ pub fn print_test_summary_table(
     if is_advanced_test {
         // Advanced test table with engine output sizes for all 4 engines
         println!("| {:<15} | {:<10} | {:<10} | {:<8} | {:<8} | {:<8} | {:<8} | {:<6} | {:<11} | {:<10} |",
-                "AppSite", "AppFile", "AppView", "Normal", "NormalJ", "PreProc", "PreProcJ", "Match", "ViewUnMatch", "Error");
+                "AppSite", "AppFile", "AppView", "Normal", "PreProc", "NormalJ", "PreProcJ", "Match", "ViewUnMatch", "Error");
         println!("| {:<15} | {:<10} | {:<10} | {:<8} | {:<8} | {:<8} | {:<8} | {:<6} | {:<11} | {:<10} |",
                 "---------------", "----------", "----------", "--------", "--------", "--------", "--------", "------", "-----------", "----------");
 
         for row in summary_rows {
             let match_indicator = if row.all_engines_match { "✓" } else { "✗" };
             println!("| {:<15} | {:<10} | {:<10} | {:<8} | {:<8} | {:<8} | {:<8} | {:<6} | {:<11} | {:<10} |",
-                    row.app_site, row.app_file, row.app_view, row.normal_size, row.normal_json_size,
-                    row.preprocess_size, row.preprocess_json_size,
+                    row.app_site, row.app_file, row.app_view, row.normal_size, row.preprocess_size,
+                    row.normal_json_size, row.preprocess_json_size,
                     match_indicator, row.cross_view_unmatch, row.error);
         }
 
