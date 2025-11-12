@@ -186,7 +186,25 @@ func (l *LoaderNormal) buildParentMap() map[string]string {
 	parentMap := make(map[string]string)
 	Logger.Debug(fmt.Sprintf("Building parent map for appSite: %s", l.appSite), "LoaderNormal")
 
-	for templateKey, template := range l.templates {
+	// Process templates in deterministic order to ensure consistent parent relationships
+	// Sort keys: SearchAppSites first, then main AppSite (so main AppSite wins in case of conflicts)
+	mainAppSitePrefix := strings.ToLower(l.appSite) + "_"
+	var searchTemplateKeys []string
+	var mainTemplateKeys []string
+
+	for templateKey := range l.templates {
+		if strings.HasPrefix(templateKey, mainAppSitePrefix) {
+			mainTemplateKeys = append(mainTemplateKeys, templateKey)
+		} else {
+			searchTemplateKeys = append(searchTemplateKeys, templateKey)
+		}
+	}
+
+	// Process SearchAppSites templates first, then main AppSite (last wins)
+	allKeys := append(searchTemplateKeys, mainTemplateKeys...)
+
+	for _, templateKey := range allKeys {
+		template := l.templates[templateKey]
 		html := template.HTML
 
 		// Find all {{TemplateName}} placeholders in this template
@@ -217,10 +235,13 @@ func (l *LoaderNormal) buildParentMap() map[string]string {
 				// This template (templateKey) is the parent of the placeholder template
 				childTemplateKey := fmt.Sprintf("%s_%s", strings.ToLower(l.appSite), strings.ToLower(placeholderName))
 
-				if _, exists := parentMap[childTemplateKey]; !exists {
-					parentMap[childTemplateKey] = templateKey
+				// Use "last wins" strategy - later templates (main AppSite) override earlier ones (SearchAppSites)
+				if existingParent, exists := parentMap[childTemplateKey]; exists && existingParent != templateKey {
+					Logger.Debug(fmt.Sprintf("Overwriting parent relationship: %s -> parent: %s (was: %s)", childTemplateKey, templateKey, existingParent), "LoaderNormal")
+				} else if !exists {
 					Logger.Debug(fmt.Sprintf("Parent relationship: %s -> parent: %s", childTemplateKey, templateKey), "LoaderNormal")
 				}
+				parentMap[childTemplateKey] = templateKey
 			}
 
 			searchPos = closeStart + 2

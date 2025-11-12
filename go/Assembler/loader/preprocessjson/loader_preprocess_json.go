@@ -204,20 +204,44 @@ func buildParentMapForPreprocessedJson(siteTemplates *model.PreprocessedSiteTemp
 	parentMap := make(map[string]string)
 	Logger.Debug(fmt.Sprintf("Building parent map for appSite: %s", appSite), "LoaderPreProcessJson")
 
-	for templateKey, t := range siteTemplates.Templates {
+	// Process templates in deterministic order to ensure consistent parent relationships
+	// Sort keys: SearchAppSites first, then main AppSite (so main AppSite wins in case of conflicts)
+	mainAppSitePrefix := strings.ToLower(appSite) + "_"
+	var searchTemplateKeys []string
+	var mainTemplateKeys []string
+
+	for templateKey := range siteTemplates.Templates {
+		if strings.HasPrefix(templateKey, mainAppSitePrefix) {
+			mainTemplateKeys = append(mainTemplateKeys, templateKey)
+		} else {
+			searchTemplateKeys = append(searchTemplateKeys, templateKey)
+		}
+	}
+
+	// Process SearchAppSites templates first, then main AppSite (last wins)
+	allKeys := append(searchTemplateKeys, mainTemplateKeys...)
+
+	for _, templateKey := range allKeys {
+		t := siteTemplates.Templates[templateKey]
 		for _, placeholder := range t.Placeholders {
 			childKey := strings.ToLower(appSite) + "_" + strings.ToLower(placeholder.Name)
-			if _, exists := parentMap[childKey]; !exists {
-				parentMap[childKey] = templateKey
+			// Use "last wins" strategy - later templates (main AppSite) override earlier ones (SearchAppSites)
+			if existingParent, exists := parentMap[childKey]; exists && existingParent != templateKey {
+				Logger.Debug(fmt.Sprintf("Overwriting parent relationship: %s -> parent: %s (was: %s)", childKey, templateKey, existingParent), "LoaderPreProcessJson")
+			} else if !exists {
 				Logger.Debug(fmt.Sprintf("Parent relationship: %s -> parent: %s", childKey, templateKey), "LoaderPreProcessJson")
 			}
+			parentMap[childKey] = templateKey
 		}
 		for _, slotted := range t.SlottedTemplates {
 			childKey := strings.ToLower(appSite) + "_" + strings.ToLower(slotted.Name)
-			if _, exists := parentMap[childKey]; !exists {
-				parentMap[childKey] = templateKey
+			// Use "last wins" strategy
+			if existingParent, exists := parentMap[childKey]; exists && existingParent != templateKey {
+				Logger.Debug(fmt.Sprintf("Overwriting parent relationship (slotted): %s -> parent: %s (was: %s)", childKey, templateKey, existingParent), "LoaderPreProcessJson")
+			} else if !exists {
 				Logger.Debug(fmt.Sprintf("Parent relationship (slotted): %s -> parent: %s", childKey, templateKey), "LoaderPreProcessJson")
 			}
+			parentMap[childKey] = templateKey
 		}
 	}
 	Logger.Debug(fmt.Sprintf("Built parent map with %d relationships", len(parentMap)), "LoaderPreProcessJson")

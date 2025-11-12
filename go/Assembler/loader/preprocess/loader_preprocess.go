@@ -835,22 +835,47 @@ func createJsonPlaceholderReplacementMappings(template *model.PreprocessedTempla
 func buildParentMapForPreProcess(siteTemplates *model.PreprocessedSiteTemplates, appSite string) map[string]string {
 	parentMap := make(map[string]string)
 	Logger.Debug(fmt.Sprintf("Building parent map for appSite: %s", appSite), "LoaderPreProcess")
-	for templateKey, template := range siteTemplates.Templates {
+
+	// Process templates in deterministic order to ensure consistent parent relationships
+	// Sort keys: SearchAppSites first, then main AppSite (so main AppSite wins in case of conflicts)
+	mainAppSitePrefix := strings.ToLower(appSite) + "_"
+	var searchTemplateKeys []string
+	var mainTemplateKeys []string
+
+	for templateKey := range siteTemplates.Templates {
+		if strings.HasPrefix(templateKey, mainAppSitePrefix) {
+			mainTemplateKeys = append(mainTemplateKeys, templateKey)
+		} else {
+			searchTemplateKeys = append(searchTemplateKeys, templateKey)
+		}
+	}
+
+	// Process SearchAppSites templates first, then main AppSite (last wins)
+	allKeys := append(searchTemplateKeys, mainTemplateKeys...)
+
+	for _, templateKey := range allKeys {
+		template := siteTemplates.Templates[templateKey]
 		for _, placeholder := range template.Placeholders {
 			placeholderName := placeholder.Name
 			childTemplateKey := fmt.Sprintf("%s_%s", strings.ToLower(appSite), strings.ToLower(placeholderName))
-			if _, exists := parentMap[childTemplateKey]; !exists {
-				parentMap[childTemplateKey] = templateKey
+			// Use "last wins" strategy - later templates (main AppSite) override earlier ones (SearchAppSites)
+			if existingParent, exists := parentMap[childTemplateKey]; exists && existingParent != templateKey {
+				Logger.Debug(fmt.Sprintf("Overwriting parent relationship: %s -> parent: %s (was: %s)", childTemplateKey, templateKey, existingParent), "LoaderPreProcess")
+			} else if !exists {
 				Logger.Debug(fmt.Sprintf("Parent relationship: %s -> parent: %s", childTemplateKey, templateKey), "LoaderPreProcess")
 			}
+			parentMap[childTemplateKey] = templateKey
 		}
 		for _, slottedTemplate := range template.SlottedTemplates {
 			templateName := slottedTemplate.Name
 			childTemplateKey := fmt.Sprintf("%s_%s", strings.ToLower(appSite), strings.ToLower(templateName))
-			if _, exists := parentMap[childTemplateKey]; !exists {
-				parentMap[childTemplateKey] = templateKey
+			// Use "last wins" strategy - later templates (main AppSite) override earlier ones (SearchAppSites)
+			if existingParent, exists := parentMap[childTemplateKey]; exists && existingParent != templateKey {
+				Logger.Debug(fmt.Sprintf("Overwriting parent relationship (slotted): %s -> parent: %s (was: %s)", childTemplateKey, templateKey, existingParent), "LoaderPreProcess")
+			} else if !exists {
 				Logger.Debug(fmt.Sprintf("Parent relationship (slotted): %s -> parent: %s", childTemplateKey, templateKey), "LoaderPreProcess")
 			}
+			parentMap[childTemplateKey] = templateKey
 		}
 	}
 	Logger.Debug(fmt.Sprintf("Built parent map with %d relationships", len(parentMap)), "LoaderPreProcess")
