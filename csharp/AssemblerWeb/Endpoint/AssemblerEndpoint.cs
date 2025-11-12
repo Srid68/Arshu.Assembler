@@ -5,10 +5,12 @@ using Assembler.Engine.Normal;
 using Assembler.Engine.NormalJson;
 using Assembler.Engine.PreProcess;
 using Assembler.Engine.PreProcessJson;
+using Assembler.Interface;
 using Assembler.Loader.Normal;
 using Assembler.Loader.NormalJson;
 using Assembler.Loader.PreProcess;
 using Assembler.Loader.PreProcessJson;
+using Assembler.Model;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -181,25 +183,25 @@ namespace AssemblerWeb
                 string mergedHtml = "";
                 if (engineType.Equals("PreProcessJson", StringComparison.OrdinalIgnoreCase))
                 {
-                    var loader = new LoaderPreProcessJson(rootDirPath, appSite, SearchAppSites);
+                    ILoaderJson<PreprocessedTemplate> loader = new LoaderPreProcessJson(rootDirPath, appSite, SearchAppSites);
                     var engine = new EnginePreProcessJson();
                     mergedHtml = engine.MergeTemplates(appSite, appFile, null, loader);
                 }
                 else if (engineType.Equals("PreProcess", StringComparison.OrdinalIgnoreCase))
                 {
-                    var loader = new LoaderPreProcess(rootDirPath, appSite, SearchAppSites);
+                    ILoaderPreProcess loader = new LoaderPreProcess(rootDirPath, appSite, SearchAppSites);
                     var engine = new EnginePreProcess();
                     mergedHtml = engine.MergeTemplates(appSite, appFile, null, loader);
                 }
                 else if (engineType.Equals("NormalJson", StringComparison.OrdinalIgnoreCase))
                 {
-                    var loader = new LoaderNormalJson(rootDirPath, appSite, SearchAppSites);
+                    ILoaderJson<string> loader = new LoaderNormalJson(rootDirPath, appSite, SearchAppSites);
                     var engine = new EngineNormalJson();
                     mergedHtml = engine.MergeTemplates(appSite, appFile, null, loader);
                 }
                 else // Normal
                 {
-                    var loader = new LoaderNormal(rootDirPath, appSite, SearchAppSites);
+                    ILoaderNormal loader = new LoaderNormal(rootDirPath, appSite, SearchAppSites);
                     var engine = new EngineNormal();
                     mergedHtml = engine.MergeTemplates(appSite, appFile, null, loader);
                 }
@@ -348,7 +350,7 @@ namespace AssemblerWeb
                     string mergedHtml = "";
                     if (input.EngineType.Equals("PreProcessJson", System.StringComparison.OrdinalIgnoreCase))
                     {
-                        var loader = new LoaderPreProcessJson(rootDirPath, input.AppSite, SearchAppSites);
+                        ILoaderJson<PreprocessedTemplate> loader = new LoaderPreProcessJson(rootDirPath, input.AppSite, SearchAppSites);
                         var engine = new EnginePreProcessJson();
                         if (!string.IsNullOrEmpty(appViewPrefix))
                             engine.AppViewPrefix = appViewPrefix;
@@ -356,7 +358,7 @@ namespace AssemblerWeb
                     }
                     else if (input.EngineType.Equals("PreProcess", System.StringComparison.OrdinalIgnoreCase))
                     {
-                        var loader = new LoaderPreProcess(rootDirPath, input.AppSite, SearchAppSites);
+                        ILoaderPreProcess loader = new LoaderPreProcess(rootDirPath, input.AppSite, SearchAppSites);
                         var engine = new EnginePreProcess();
                         if (!string.IsNullOrEmpty(appViewPrefix))
                             engine.AppViewPrefix = appViewPrefix;
@@ -364,7 +366,7 @@ namespace AssemblerWeb
                     }
                     else if (input.EngineType.Equals("NormalJson", System.StringComparison.OrdinalIgnoreCase))
                     {
-                        var loader = new LoaderNormalJson(rootDirPath, input.AppSite, SearchAppSites);
+                        ILoaderJson<string> loader = new LoaderNormalJson(rootDirPath, input.AppSite, SearchAppSites);
                         var engine = new EngineNormalJson();
                         if (!string.IsNullOrEmpty(appViewPrefix))
                             engine.AppViewPrefix = appViewPrefix;
@@ -372,7 +374,7 @@ namespace AssemblerWeb
                     }
                     else // Normal
                     {
-                        var loader = new LoaderNormal(rootDirPath, input.AppSite, SearchAppSites);
+                        ILoaderNormal loader = new LoaderNormal(rootDirPath, input.AppSite, SearchAppSites);
                         var engine = new EngineNormal();
                         if (!string.IsNullOrEmpty(appViewPrefix))
                             engine.AppViewPrefix = appViewPrefix;
@@ -465,10 +467,10 @@ namespace AssemblerWeb
                         return Results.Text("Invalid characters in AppSite", statusCode: 400);
 
                     // Load Normal templates using new JSON loader
-                    var normalLoader = new LoaderNormalJson(rootDirPath, appSite, SearchAppSites);
+                    ILoaderJson<string> normalLoader = new LoaderNormalJson(rootDirPath, appSite, SearchAppSites);
 
                     // Load PreProcess templates using new JSON loader
-                    var preprocessLoader = new LoaderPreProcessJson(rootDirPath, appSite, SearchAppSites);
+                    ILoaderJson<PreprocessedTemplate> preprocessLoader = new LoaderPreProcessJson(rootDirPath, appSite, SearchAppSites);
 
                     // Get pre-serialized JSON from loaders
                     var normalTemplatesJson = normalLoader.GetAllTemplatesJson();

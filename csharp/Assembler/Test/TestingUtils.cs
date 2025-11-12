@@ -5,6 +5,7 @@ using Assembler.Engine.Normal;
 using Assembler.Engine.NormalJson;
 using Assembler.Engine.PreProcess;
 using Assembler.Engine.PreProcessJson;
+using Assembler.Interface;
 using Assembler.Loader.Normal;
 using Assembler.Loader.NormalJson;
 using Assembler.Loader.PreProcess;
@@ -727,10 +728,10 @@ public static class TestingUtils
                 new LoaderPreProcessJson().ClearCache();
 
                 // Create all 4 loaders
-                var loaderNormal = new LoaderNormal(assemblerWebDirPath, testSite, searchAppSites);
-                var loaderNormalJson = new LoaderNormalJson(assemblerWebDirPath, testSite, searchAppSites);
-                var loaderPreProcess = new LoaderPreProcess(assemblerWebDirPath, testSite, searchAppSites);
-                var loaderPreProcessJson = new LoaderPreProcessJson(assemblerWebDirPath, testSite, searchAppSites);
+                ILoaderNormal loaderNormal = new LoaderNormal(assemblerWebDirPath, testSite, searchAppSites);
+                ILoaderPreProcess loaderPreProcess = new LoaderPreProcess(assemblerWebDirPath, testSite, searchAppSites);
+                ILoaderJson<string> loaderNormalJson = new LoaderNormalJson(assemblerWebDirPath, testSite, searchAppSites);
+                ILoaderJson<PreprocessedTemplate> loaderPreProcessJson = new LoaderPreProcessJson(assemblerWebDirPath, testSite, searchAppSites);
 
                 var scenarioResults = new List<(string AppView, string NormalOutput, string NormalJsonOutput, string PreProcessOutput, string PreProcessJsonOutput, string MatchStatus)>();
 
