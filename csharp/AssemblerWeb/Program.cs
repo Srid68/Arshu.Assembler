@@ -16,6 +16,8 @@ namespace AssemblerWeb
 {
     public class Program
     {
+        public const string WebRootFolderName = "wwwroot";
+
         public static void Main(string[] args)
         {
             var contentRootPath = Directory.GetCurrentDirectory();
@@ -30,7 +32,7 @@ namespace AssemblerWeb
                     skipIdleTracking = true;
                 }
             }
-            
+
             #endregion
 
             #region Print Environment Info
@@ -106,17 +108,17 @@ namespace AssemblerWeb
 
             // Configure logger (no main log file - only context files)
             Logger.Configure(logLevel, consoleOutput: false, Logger.LogRotation.HOURLY);
-            
+
             // Set logs directory for clearing
             Logger.SetLogsDirectory(logsDir);
-            
+
             // Clear logs in debug mode, clear old logs in production
-            #if DEBUG
+#if DEBUG
             Logger.ClearLogs();
-            #else
+#else
             Logger.ClearOldLogs(7); // Clear logs older than 7 days
-            #endif
-            
+#endif
+
             // Configure context log files AFTER clearing (which disposes writers)
             Logger.ConfigureContextLogFiles(contextLogFiles);
 
@@ -127,6 +129,10 @@ namespace AssemblerWeb
             #region Builder Config
 
             var builder = WebApplication.CreateBuilder(args);
+
+            // Configure web root path based on WebRootFolderName
+            var webRootPath = Path.Combine(contentRootPath, WebRootFolderName);
+            builder.Environment.WebRootPath = webRootPath;
 
             builder.Services.AddOpenApi(options =>
             {
@@ -193,7 +199,7 @@ namespace AssemblerWeb
                 var appLifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
                 IdleTrackingMiddleware.StartTimer(appLifetime);
                 app.Use((context, next) => IdleTrackingMiddleware.InvokeAsync(context, next, appLifetime));
-                
+
                 // Register shutdown handler for idle tracking
                 appLifetime.ApplicationStopping.Register(() =>
                 {
@@ -223,14 +229,13 @@ namespace AssemblerWeb
 
             #region Static Files
 
-            // Serve static files from wwwroot/Resource
             app.UseStaticFiles();
 
             #endregion
 
             #region Assembler Config
 
-            var wwwrootPath = System.IO.Path.Combine(contentRootPath, "wwwroot");
+            var wwwrootPath = System.IO.Path.Combine(contentRootPath, WebRootFolderName);
             ConfigUtil.Load(wwwrootPath);
 
             #endregion
@@ -260,7 +265,7 @@ namespace AssemblerWeb
                 Logger.Info("AssemblerWeb stopped", "Main");
                 Logger.Flush();
             });
-           
+
             app.Run();
         }
 

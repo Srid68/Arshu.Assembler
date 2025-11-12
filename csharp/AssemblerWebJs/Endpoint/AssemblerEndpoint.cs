@@ -134,29 +134,17 @@ namespace AssemblerWebJs
 
                 // Merge using selected engine
                 string mergedHtml = "";
-                if (engineType.Equals("PreProcess", StringComparison.OrdinalIgnoreCase))
-                {
-                    var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
-                    var engine = new EnginePreProcess();
-                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, preprocessTemplatesRaw.Templates, SearchAppSites);
-                }
-                else if (engineType.Equals("NormalJson", StringComparison.OrdinalIgnoreCase))
-                {
-                    var loader = new LoaderNormalJson(rootDirPath, appSite, SearchAppSites);
-                    var engine = new EngineNormalJson();
-                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, loader);
-                }
-                else if (engineType.Equals("PreProcessJson", StringComparison.OrdinalIgnoreCase))
+                if (engineType.Equals("PreProcess", StringComparison.OrdinalIgnoreCase) || engineType.Equals("PreProcessJson", StringComparison.OrdinalIgnoreCase))
                 {
                     var loader = new LoaderPreProcessJson(rootDirPath, appSite, SearchAppSites);
                     var engine = new EnginePreProcessJson();
                     mergedHtml = engine.MergeTemplates(appSite, appFile, null, loader);
                 }
-                else
+                else // Normal or NormalJson
                 {
-                    var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
-                    var engine = new EngineNormal();
-                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, normalTemplatesRaw, SearchAppSites);
+                    var loader = new LoaderNormalJson(rootDirPath, appSite, SearchAppSites);
+                    var engine = new EngineNormalJson();
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, null, loader);
                 }
 
                 return Results.Content(mergedHtml, "text/html");
@@ -204,29 +192,17 @@ namespace AssemblerWebJs
 
                 // Merge using selected engine with AppView context
                 string mergedHtml = "";
-                if (engineType.Equals("PreProcess", StringComparison.OrdinalIgnoreCase))
-                {
-                    var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
-                    var engine = new EnginePreProcess();
-                    mergedHtml = engine.MergeTemplates(appSite, appFile, appViewValue, preprocessTemplatesRaw.Templates, SearchAppSites);
-                }
-                else if (engineType.Equals("NormalJson", StringComparison.OrdinalIgnoreCase))
-                {
-                    var loader = new LoaderNormalJson(rootDirPath, appSite, SearchAppSites);
-                    var engine = new EngineNormalJson();
-                    mergedHtml = engine.MergeTemplates(appSite, appFile, appViewValue, loader);
-                }
-                else if (engineType.Equals("PreProcessJson", StringComparison.OrdinalIgnoreCase))
+                if (engineType.Equals("PreProcess", StringComparison.OrdinalIgnoreCase) || engineType.Equals("PreProcessJson", StringComparison.OrdinalIgnoreCase))
                 {
                     var loader = new LoaderPreProcessJson(rootDirPath, appSite, SearchAppSites);
                     var engine = new EnginePreProcessJson();
                     mergedHtml = engine.MergeTemplates(appSite, appFile, appViewValue, loader);
                 }
-                else
+                else // Normal or NormalJson
                 {
-                    var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
-                    var engine = new EngineNormal();
-                    mergedHtml = engine.MergeTemplates(appSite, appFile, appViewValue, normalTemplatesRaw, SearchAppSites);
+                    var loader = new LoaderNormalJson(rootDirPath, appSite, SearchAppSites);
+                    var engine = new EngineNormalJson();
+                    mergedHtml = engine.MergeTemplates(appSite, appFile, appViewValue, loader);
                 }
 
                 return Results.Content(mergedHtml, "text/html");
@@ -299,53 +275,46 @@ namespace AssemblerWebJs
                     var appFile = ConfigUtil.GetAppFile(input.AppSite, appView);
                     var appViewPrefix = string.IsNullOrEmpty(appView) ? "" : appFile;
 
-                    var normalTemplatesRaw = LoaderNormal.LoadGetTemplateFiles(rootDirPath, input.AppSite, SearchAppSites);
-                    var preprocessTemplatesRaw = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, input.AppSite, SearchAppSites);
+                    // Load templates using new JSON loaders for API response
+                    var normalLoader = new LoaderNormalJson(rootDirPath, input.AppSite, SearchAppSites);
+                    var preprocessLoader = new LoaderPreProcessJson(rootDirPath, input.AppSite, SearchAppSites);
 
                     var normalResult = new Dictionary<string, TemplateData>();
-                    foreach (var kvp in normalTemplatesRaw)
+                    var normalTemplates = normalLoader.GetAllTemplatesForSerialization();
+                    foreach (var kvp in normalTemplates)
                     {
-                        normalResult[kvp.Key] = new TemplateData { Html = kvp.Value.html, Json = kvp.Value.json };
+                        normalResult[kvp.Key] = new TemplateData
+                        {
+                            Html = kvp.Value.html,
+                            Json = kvp.Value.jsonString
+                        };
                     }
 
                     var preprocessResult = new Dictionary<string, PreProcessTemplateMetadata>();
-                    foreach (var kvp in preprocessTemplatesRaw.Templates)
+                    var preprocessTemplates = preprocessLoader.GetAllTemplatesForSerialization();
+                    foreach (var kvp in preprocessTemplates)
                     {
+                        var template = kvp.Value;
                         preprocessResult[kvp.Key] = new PreProcessTemplateMetadata
                         {
-                            OriginalContent = kvp.Value.OriginalContent,
-                            Placeholders = kvp.Value.Placeholders,
-                            SlottedTemplates = kvp.Value.SlottedTemplates,
-                            JsonData = kvp.Value.JsonData,
-                            JsonPlaceholders = kvp.Value.JsonPlaceholders,
-                            ReplacementMappings = kvp.Value.ReplacementMappings,
-                            HasPlaceholders = kvp.Value.HasPlaceholders,
-                            HasSlottedTemplates = kvp.Value.HasSlottedTemplates,
-                            HasJsonData = kvp.Value.HasJsonData,
-                            HasJsonPlaceholders = kvp.Value.HasJsonPlaceholders,
-                            HasReplacementMappings = kvp.Value.HasReplacementMappings,
-                            RequiresProcessing = kvp.Value.RequiresProcessing
+                            OriginalContent = template.OriginalContent,
+                            Placeholders = template.Placeholders,
+                            SlottedTemplates = template.SlottedTemplates,
+                            JsonData = template.JsonData,
+                            JsonPlaceholders = template.JsonPlaceholders,
+                            ReplacementMappings = template.ReplacementMappings,
+                            HasPlaceholders = template.HasPlaceholders,
+                            HasSlottedTemplates = template.HasSlottedTemplates,
+                            HasJsonData = template.HasJsonData,
+                            HasJsonPlaceholders = template.HasJsonPlaceholders,
+                            HasReplacementMappings = template.HasReplacementMappings,
+                            RequiresProcessing = template.RequiresProcessing
                         };
                     }
 
                     var engineStart = DateTime.UtcNow;
                     string mergedHtml = "";
-                    if (input.EngineType.Equals("PreProcess", System.StringComparison.OrdinalIgnoreCase))
-                    {
-                        var engine = new EnginePreProcess();
-                        if (!string.IsNullOrEmpty(appViewPrefix))
-                            engine.AppViewPrefix = appViewPrefix;
-                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, preprocessTemplatesRaw.Templates, SearchAppSites);
-                    }
-                    else if (input.EngineType.Equals("NormalJson", System.StringComparison.OrdinalIgnoreCase))
-                    {
-                        var loader = new LoaderNormalJson(rootDirPath, input.AppSite, SearchAppSites);
-                        var engine = new EngineNormalJson();
-                        if (!string.IsNullOrEmpty(appViewPrefix))
-                            engine.AppViewPrefix = appViewPrefix;
-                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, loader);
-                    }
-                    else if (input.EngineType.Equals("PreProcessJson", System.StringComparison.OrdinalIgnoreCase))
+                    if (input.EngineType.Equals("PreProcess", System.StringComparison.OrdinalIgnoreCase) || input.EngineType.Equals("PreProcessJson", System.StringComparison.OrdinalIgnoreCase))
                     {
                         var loader = new LoaderPreProcessJson(rootDirPath, input.AppSite, SearchAppSites);
                         var engine = new EnginePreProcessJson();
@@ -353,12 +322,13 @@ namespace AssemblerWebJs
                             engine.AppViewPrefix = appViewPrefix;
                         mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, loader);
                     }
-                    else
+                    else // Normal or NormalJson
                     {
-                        var engine = new EngineNormal();
+                        var loader = new LoaderNormalJson(rootDirPath, input.AppSite, SearchAppSites);
+                        var engine = new EngineNormalJson();
                         if (!string.IsNullOrEmpty(appViewPrefix))
                             engine.AppViewPrefix = appViewPrefix;
-                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, normalTemplatesRaw, SearchAppSites);
+                        mergedHtml = engine.MergeTemplates(input.AppSite, appFile, appView, loader);
                     }
                     var engineTimeMs = (DateTime.UtcNow - engineStart).TotalMilliseconds;
                     var serverEnd = DateTime.UtcNow;
@@ -465,37 +435,44 @@ namespace AssemblerWebJs
                     if (!IsValidPathComponent(appSite))
                         return Results.Text("Invalid characters in AppSite", statusCode: 400);
 
-                    // Load Normal templates
-                    var normalTemplates = LoaderNormal.LoadGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
+                    // Load Normal templates using new JSON loader
+                    var normalLoader = new LoaderNormalJson(rootDirPath, appSite, SearchAppSites);
 
-                    // Load PreProcess templates
-                    var preprocessTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(rootDirPath, appSite, SearchAppSites);
+                    // Load PreProcess templates using new JSON loader
+                    var preprocessLoader = new LoaderPreProcessJson(rootDirPath, appSite, SearchAppSites);
 
                     // Convert Normal templates to TemplateData objects for proper JSON serialization
                     var normalResult = new Dictionary<string, TemplateData>();
+                    var normalTemplates = normalLoader.GetAllTemplatesForSerialization();
                     foreach (var kvp in normalTemplates)
                     {
-                        normalResult[kvp.Key] = new TemplateData { Html = kvp.Value.html, Json = kvp.Value.json };
+                        normalResult[kvp.Key] = new TemplateData
+                        {
+                            Html = kvp.Value.html,
+                            Json = kvp.Value.jsonString
+                        };
                     }
 
                     // Convert PreProcess templates to metadata-only objects
                     var preprocessResult = new Dictionary<string, PreProcessTemplateMetadata>();
-                    foreach (var kvp in preprocessTemplates.Templates)
+                    var preprocessTemplates = preprocessLoader.GetAllTemplatesForSerialization();
+                    foreach (var kvp in preprocessTemplates)
                     {
+                        var template = kvp.Value;
                         preprocessResult[kvp.Key] = new PreProcessTemplateMetadata
                         {
-                            OriginalContent = kvp.Value.OriginalContent,
-                            Placeholders = kvp.Value.Placeholders,
-                            SlottedTemplates = kvp.Value.SlottedTemplates,
-                            JsonData = kvp.Value.JsonData,
-                            JsonPlaceholders = kvp.Value.JsonPlaceholders,
-                            ReplacementMappings = kvp.Value.ReplacementMappings,
-                            HasPlaceholders = kvp.Value.HasPlaceholders,
-                            HasSlottedTemplates = kvp.Value.HasSlottedTemplates,
-                            HasJsonData = kvp.Value.HasJsonData,
-                            HasJsonPlaceholders = kvp.Value.HasJsonPlaceholders,
-                            HasReplacementMappings = kvp.Value.HasReplacementMappings,
-                            RequiresProcessing = kvp.Value.RequiresProcessing
+                            OriginalContent = template.OriginalContent,
+                            Placeholders = template.Placeholders,
+                            SlottedTemplates = template.SlottedTemplates,
+                            JsonData = template.JsonData,
+                            JsonPlaceholders = template.JsonPlaceholders,
+                            ReplacementMappings = template.ReplacementMappings,
+                            HasPlaceholders = template.HasPlaceholders,
+                            HasSlottedTemplates = template.HasSlottedTemplates,
+                            HasJsonData = template.HasJsonData,
+                            HasJsonPlaceholders = template.HasJsonPlaceholders,
+                            HasReplacementMappings = template.HasReplacementMappings,
+                            RequiresProcessing = template.RequiresProcessing
                         };
                     }
 

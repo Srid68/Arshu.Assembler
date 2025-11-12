@@ -28,8 +28,6 @@ namespace Assembler.Api
 
     public class ApiResponse
     {
-        public Dictionary<string, TemplateData> Templates { get; set; } = new();
-        public Dictionary<string, PreProcessTemplateMetadata> PreProcessTemplates { get; set; } = new();
         public string AppSite { get; set; } = string.Empty;
         public string? AppFile { get; set; }
         public string? AppView { get; set; }
@@ -43,18 +41,8 @@ namespace Assembler.Api
         {
             var sb = new StringBuilder();
             int indent = 0;
-            
+
             AppendLine(sb, "{", ref indent, indented, true);
-
-            // Serialize Templates dictionary
-            Append(sb, "\"Templates\":", indent, indented);
-            SerializeDictionary(sb, Templates, SerializeTemplateData, indent, indented);
-            AppendLine(sb, ",", ref indent, indented, false);
-
-            // Serialize PreProcessTemplates dictionary  
-            Append(sb, "\"PreProcessTemplates\":", indent, indented);
-            SerializeDictionary(sb, PreProcessTemplates, SerializePreProcessMetadata, indent, indented);
-            AppendLine(sb, ",", ref indent, indented, false);
 
             // Serialize AppSite
             Append(sb, "\"AppSite\":\"", indent, indented);
@@ -151,200 +139,6 @@ namespace Assembler.Api
                 .Replace("\t", "\\t");
         }
 
-        private static void SerializeDictionary<T>(StringBuilder sb, Dictionary<string, T> dict, System.Action<StringBuilder, T, int, bool> serializeValue, int indent, bool indented)
-        {
-            sb.Append('{');
-            if (indented) sb.Append('\n');
-            
-            bool first = true;
-            foreach (var kvp in dict)
-            {
-                if (!first)
-                {
-                    sb.Append(',');
-                    if (indented) sb.Append('\n');
-                }
-                
-                if (indented) sb.Append(new string(' ', (indent + 1) * 2));
-                sb.Append("\"");
-                sb.Append(EscapeJsonString(kvp.Key));
-                sb.Append("\":");
-                if (indented) sb.Append(' ');
-                
-                serializeValue(sb, kvp.Value, indent + 1, indented);
-                first = false;
-            }
-            
-            if (indented)
-            {
-                sb.Append('\n');
-                sb.Append(new string(' ', indent * 2));
-            }
-            sb.Append('}');
-        }
-        
-        private static void SerializeTemplateData(StringBuilder sb, TemplateData data, int indent, bool indented)
-        {
-            sb.Append('{');
-            if (indented)
-            {
-                sb.Append('\n');
-                sb.Append(new string(' ', indent * 2));
-            }
-            sb.Append("\"Html\":");
-            if (indented) sb.Append(' ');
-            sb.Append("\"");
-            sb.Append(EscapeJsonString(data.Html));
-            sb.Append("\"");
-            sb.Append(',');
-            if (indented)
-            {
-                sb.Append('\n');
-                sb.Append(new string(' ', indent * 2));
-            }
-            sb.Append("\"Json\":");
-            if (indented) sb.Append(' ');
-            if (data.Json != null)
-            {
-                sb.Append("\"");
-                sb.Append(EscapeJsonString(data.Json));
-                sb.Append("\"");
-            }
-            else
-            {
-                sb.Append("null");
-            }
-            if (indented)
-            {
-                sb.Append('\n');
-                sb.Append(new string(' ', (indent - 1) * 2));
-            }
-            sb.Append('}');
-        }
-
-        private static void SerializePreProcessMetadata(StringBuilder sb, PreProcessTemplateMetadata metadata, int indent, bool indented)
-        {
-            sb.Append('{');
-            if (indented) sb.Append('\n');
-            
-            // OriginalContent
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"OriginalContent\":");
-            if (indented) sb.Append(' ');
-            sb.Append("\"");
-            sb.Append(EscapeHtmlString(metadata.OriginalContent));
-            sb.Append("\"");
-            sb.Append(",");
-            if (indented) sb.Append('\n');
-            
-            // Placeholders
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"Placeholders\":");
-            if (indented) sb.Append(' ');
-            SerializePlaceholdersList(sb, metadata.Placeholders, indent, indented);
-            sb.Append(",");
-            if (indented) sb.Append('\n');
-            
-            // SlottedTemplates
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"SlottedTemplates\":");
-            if (indented) sb.Append(' ');
-            SerializeSlottedTemplatesList(sb, metadata.SlottedTemplates, indent, indented);
-            sb.Append(",");
-            if (indented) sb.Append('\n');
-            
-            // JsonData
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"JsonData\":");
-            if (indented) sb.Append(' ');
-            if (metadata.JsonData != null)
-            {
-                // Safely serialize JsonData - if it's already a JSON string, don't double-escape
-                var jsonDataStr = metadata.JsonData.ToString() ?? "";
-                if (jsonDataStr.StartsWith("{") || jsonDataStr.StartsWith("["))
-                {
-                    // Appears to be JSON already, include as-is
-                    sb.Append(jsonDataStr);
-                }
-                else
-                {
-                    // Treat as string value
-                    sb.Append("\"");
-                    sb.Append(EscapeJsonString(jsonDataStr));
-                    sb.Append("\"");
-                }
-            }
-            else
-            {
-                sb.Append("null");
-            }
-            sb.Append(",");
-            if (indented) sb.Append('\n');
-            
-            // JsonPlaceholders
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"JsonPlaceholders\":");
-            if (indented) sb.Append(' ');
-            SerializeJsonPlaceholdersList(sb, metadata.JsonPlaceholders, indent, indented);
-            sb.Append(",");
-            if (indented) sb.Append('\n');
-            
-            // ReplacementMappings
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"ReplacementMappings\":");
-            if (indented) sb.Append(' ');
-            SerializeReplacementMappingsList(sb, metadata.ReplacementMappings, indent, indented);
-            sb.Append(",");
-            if (indented) sb.Append('\n');
-            
-            // Boolean properties
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"HasPlaceholders\":");
-            if (indented) sb.Append(' ');
-            sb.Append(metadata.HasPlaceholders.ToString().ToLower());
-            sb.Append(",");
-            if (indented) sb.Append('\n');
-            
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"HasSlottedTemplates\":");
-            if (indented) sb.Append(' ');
-            sb.Append(metadata.HasSlottedTemplates.ToString().ToLower());
-            sb.Append(",");
-            if (indented) sb.Append('\n');
-            
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"HasJsonData\":");
-            if (indented) sb.Append(' ');
-            sb.Append(metadata.HasJsonData.ToString().ToLower());
-            sb.Append(",");
-            if (indented) sb.Append('\n');
-            
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"HasJsonPlaceholders\":");
-            if (indented) sb.Append(' ');
-            sb.Append(metadata.HasJsonPlaceholders.ToString().ToLower());
-            sb.Append(",");
-            if (indented) sb.Append('\n');
-            
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"HasReplacementMappings\":");
-            if (indented) sb.Append(' ');
-            sb.Append(metadata.HasReplacementMappings.ToString().ToLower());
-            sb.Append(",");
-            if (indented) sb.Append('\n');
-            
-            if (indented) sb.Append(new string(' ', indent * 2));
-            sb.Append("\"RequiresProcessing\":");
-            if (indented) sb.Append(' ');
-            sb.Append(metadata.RequiresProcessing.ToString().ToLower());
-            
-            if (indented)
-            {
-                sb.Append('\n');
-                sb.Append(new string(' ', (indent - 1) * 2));
-            }
-            sb.Append('}');
-        }
 
         private static void SerializePlaceholdersList(StringBuilder sb, List<TemplatePlaceholder> placeholders, int indent, bool indented)
         {

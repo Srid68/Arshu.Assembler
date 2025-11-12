@@ -1,18 +1,12 @@
-using System;
-using System.Collections.Generic;
-using Arshu.App.Json;
 using Arshu.Common;
 using Assembler.Common;
-using Assembler.Loader;
+using Assembler.Interface;
+using System.Collections.Generic;
 
 namespace Assembler.Engine;
-
 // Always use Base JsonObject/JsonArray types for consistent processing
-using JsonObject = Arshu.App.Json.JsonObject;
-using JsonArray = Arshu.App.Json.JsonArray;
-
 /// <summary>
-/// NEW Normal engine that uses ILoader interface and JsonObject
+/// NEW Normal engine that uses ILoaderJson interface and JsonObject
 /// Based on EngineNormal but with improved architecture and type safety
 /// </summary>
 public class EngineNormalJson
@@ -29,10 +23,10 @@ public class EngineNormalJson
     /// <param name="appSite">The application site name for template key generation</param>
     /// <param name="appView">The application view name (optional)</param>
     /// <param name="appFile">The application file name</param>
-    /// <param name="loader">ILoader instance providing templates and JSON merging</param>
+    /// <param name="loader">ILoaderJson instance providing templates and JSON merging</param>
     /// <param name="enableJsonProcessing">Whether to enable JSON data processing</param>
     /// <returns>HTML with placeholders replaced</returns>
-    public string MergeTemplates(string appSite, string appFile, string? appView, ILoader<string> loader, bool enableJsonProcessing = true)
+    public string MergeTemplates(string appSite, string appFile, string? appView, ILoaderJson<string> loader, bool enableJsonProcessing = true)
     {
         Logger.Debug($"MergeTemplates called: appSite={appSite}, appFile={appFile}, appView={appView ?? "null"}, enableJson={enableJsonProcessing}", "EngineNormalJson");
 
@@ -42,7 +36,7 @@ public class EngineNormalJson
             return "";
         }
 
-        // Get main template using ILoader (includes AppView fallback logic)
+        // Get main template using ILoaderJson (includes AppView fallback logic)
         var contentHtml = loader.GetTemplateHtml(appSite, appFile, appView, AppViewPrefix);
         if (string.IsNullOrEmpty(contentHtml))
         {
@@ -89,10 +83,14 @@ public class EngineNormalJson
 
     }
 
+    #endregion
+
+    #region Get Template (Private)
+
     /// <summary>
-    /// Gets a template with on-demand loading and JSON merging from ILoader
+    /// Gets a template with on-demand loading and JSON merging from ILoaderJson
     /// </summary>
-    private string? GetTemplateWithJson(string appSite, string templateName, ILoader<string> loader, string? appView, bool enableJsonProcessing)
+    private string? GetTemplateWithJson(string appSite, string templateName, ILoaderJson<string> loader, string? appView, bool enableJsonProcessing)
     {
         // Get HTML template
         var html = loader.GetTemplateHtml(appSite, templateName, appView, AppViewPrefix);
@@ -114,7 +112,7 @@ public class EngineNormalJson
 
     #endregion
 
-    #region Slot Processing
+    #region Slot Processing (Private)
 
     /// <summary>
     /// IndexOf-based version: Recursively merges a slotted template (e.g., center.html, columns.html) with content.html
@@ -123,10 +121,10 @@ public class EngineNormalJson
     /// <param name="contentHtml">The content HTML containing slot patterns</param>
     /// <param name="appSite">The application site name for template key generation</param>
     /// <param name="appView">Optional AppView for fallback logic</param>
-    /// <param name="loader">ILoader instance for on-demand template loading</param>
+    /// <param name="loader">ILoaderJson instance for on-demand template loading</param>
     /// <param name="enableJsonProcessing">Whether to enable JSON data processing</param>
     /// <returns>Merged HTML with slots filled</returns>
-    private string MergeTemplateSlots(string contentHtml, string appSite, string? appView, ILoader<string> loader, bool enableJsonProcessing)
+    private string MergeTemplateSlots(string contentHtml, string appSite, string? appView, ILoaderJson<string> loader, bool enableJsonProcessing)
     {
         if (string.IsNullOrEmpty(contentHtml))
             return contentHtml;
@@ -143,7 +141,7 @@ public class EngineNormalJson
     /// <summary>
     /// Helper method to process slotted templates using IndexOf
     /// </summary>
-    private string ProcessTemplateSlots(string contentHtml, string appSite, string? appView, ILoader<string> loader, bool enableJsonProcessing)
+    private string ProcessTemplateSlots(string contentHtml, string appSite, string? appView, ILoaderJson<string> loader, bool enableJsonProcessing)
     {
         var result = contentHtml;
         var searchPos = 0;
@@ -214,7 +212,7 @@ public class EngineNormalJson
     /// <summary>
     /// Extract slot contents using IndexOf approach
     /// </summary>
-    private Dictionary<string, string> ExtractSlotContents(string innerContent, string appSite, string? appView, ILoader<string> loader, bool enableJsonProcessing)
+    private Dictionary<string, string> ExtractSlotContents(string innerContent, string appSite, string? appView, ILoaderJson<string> loader, bool enableJsonProcessing)
     {
         var slotContents = new Dictionary<string, string>();
         var searchPos = 0;
@@ -277,12 +275,12 @@ public class EngineNormalJson
 
     #endregion
 
-    #region PlaceHolder Processing
+    #region PlaceHolder Processing (Private)
 
     /// <summary>
     /// Helper method to process simple placeholders only (without slotted template processing)
     /// </summary>
-    private string ReplaceTemplatePlaceholders(string html, string appSite, string? appView, ILoader<string> loader, bool enableJsonProcessing)
+    private string ReplaceTemplatePlaceholders(string html, string appSite, string? appView, ILoaderJson<string> loader, bool enableJsonProcessing)
     {
         var result = html;
         var searchPos = 0;

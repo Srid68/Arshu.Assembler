@@ -1,6 +1,7 @@
 using Arshu.App.Json;
 using Arshu.Common;
 using Assembler.Common;
+using Assembler.Interface;
 using Assembler.Model;
 using System;
 using System.Collections.Concurrent;
@@ -14,78 +15,97 @@ using JsonArray = Arshu.App.Json.JsonArray;
 using JsonObject = Arshu.App.Json.JsonObject;
 
 /// <summary>
-/// Loader that implements ILoader<PreprocessedTemplate> for PreProcess engine
+/// Loader that implements ILoaderJson<PreprocessedTemplate> for PreProcess engine
 /// Loads and preprocesses templates with JsonObject for type safety
 /// </summary>
-public class LoaderPreProcessJson : ILoader<PreprocessedTemplate>
+public class LoaderPreProcessJson : ILoaderJson<PreprocessedTemplate>
 {
     private static readonly ConcurrentDictionary<string, PreprocessedSiteTemplates> _preprocessedTemplatesCache = new();
-    private readonly Dictionary<string, PreprocessedTemplate> _templates;
+    private Dictionary<string, PreprocessedTemplate> _templates;
+
+    /// <summary>
+    /// Flag to disable caching for testing/debugging purposes. Default is false (caching enabled).
+    /// Set to true to disable caching and ensure fresh template loading for each request.
+    /// </summary>
+    public static bool DisableCache { get; set; } = false;
+
+    #region Constructor
+
+    /// <summary>
+    /// Creates a new loader instance (use Load() method to load templates)
+    /// </summary>
+    public LoaderPreProcessJson()
+    {
+        _templates = new Dictionary<string, PreprocessedTemplate>();
+        SearchAppSites = string.Empty;
+    }
+
+    /// <summary>
+    /// Convenience constructor that automatically loads and preprocesses templates
+    /// </summary>
+    /// <param name="rootDirPath">Root directory path containing AppSites folder</param>
+    /// <param name="appSite">Primary AppSite name to load</param>
+    /// <param name="searchAppSites">Comma-delimited string of AppSite names to search for fallback templates (can be empty string)</param>
+    public LoaderPreProcessJson(string rootDirPath, string appSite, string searchAppSites) : this()
+    {
+        Load(rootDirPath, appSite, searchAppSites);
+    }
+
+    #endregion
+
+    #region ILoaderJson Interface
+
+    #region Loading Related
 
     /// <summary>
     /// Gets the search AppSites for template fallback resolution
     /// Comma-delimited string of AppSite names
     /// </summary>
-    public string SearchAppSites { get; }
+    public string SearchAppSites { get; private set; }
 
     /// <summary>
-    /// Gets all preprocessed templates (needed for PreProcess engine to apply replacement mappings from all templates)
+    /// Loads and preprocesses all templates from the specified directory
+    /// Returns true if loading and preprocessing succeeded, false otherwise
     /// </summary>
-    public Dictionary<string, PreprocessedTemplate> AllTemplates => _templates;
-
-    /// <summary>
-    /// Creates a new loader instance by loading and preprocessing templates from the specified root directory
-    /// </summary>
-    /// <param name="rootDirPath">Root directory path containing AppSites folder</param>
-    /// <param name="appSite">Primary AppSite name to load</param>
-    /// <param name="searchAppSites">Comma-delimited string of AppSite names to search for fallback templates (can be empty string)</param>
-    public LoaderPreProcessJson(string rootDirPath, string appSite, string searchAppSites)
+    public bool Load(string rootDirPath, string appSite, string searchAppSites)
     {
-        SearchAppSites = searchAppSites;
-
-        // Load templates from primary appSite
-        var siteTemplates = LoadProcessGetTemplateFiles(rootDirPath, appSite);
-        _templates = siteTemplates.Templates;
-
-        // Load templates from searchAppSites for fallback
-        if (!string.IsNullOrEmpty(SearchAppSites))
+        try
         {
-            var searchAppSitesArray = SearchAppSites.Split(',');
-            for (int i = 0; i < searchAppSitesArray.Length; i++)
-            {
-                var searchAppSite = searchAppSitesArray[i].Trim();
-                if (string.IsNullOrEmpty(searchAppSite))
-                    continue;
+            SearchAppSites = searchAppSites;
 
-                var searchSiteTemplates = LoadProcessGetTemplateFiles(rootDirPath, searchAppSite);
-                foreach (var kvp in searchSiteTemplates.Templates)
+            // Load templates from primary appSite
+            var siteTemplates = LoadProcessGetTemplateFiles(rootDirPath, appSite);
+            _templates = siteTemplates.Templates;
+
+            // Load templates from searchAppSites for fallback
+            if (!string.IsNullOrEmpty(SearchAppSites))
+            {
+                var searchAppSitesArray = SearchAppSites.Split(',');
+                for (int i = 0; i < searchAppSitesArray.Length; i++)
                 {
-                    // Only add if not already present (primary appSite takes precedence)
-                    if (!_templates.ContainsKey(kvp.Key))
+                    var searchAppSiteItem = searchAppSitesArray[i].Trim();
+                    if (string.IsNullOrEmpty(searchAppSiteItem))
+                        continue;
+
+                    var searchSiteTemplates = LoadProcessGetTemplateFiles(rootDirPath, searchAppSiteItem);
+                    foreach (var kvp in searchSiteTemplates.Templates)
                     {
-                        _templates[kvp.Key] = kvp.Value;
+                        // Only add if not already present (primary appSite takes precedence)
+                        if (!_templates.ContainsKey(kvp.Key))
+                        {
+                            _templates[kvp.Key] = kvp.Value;
+                        }
                     }
                 }
             }
+
+            return true;
         }
-    }
-
-    /// <summary>
-    /// Gets a preprocessed template by appSite and name with AppView fallback
-    /// Returns the PreprocessedTemplate object
-    /// </summary>
-    public PreprocessedTemplate? GetTemplateHtml(string appSite, string templateName, string? appView = null, string? appViewPrefix = null)
-    {
-        return GetTemplateInternal(appSite, templateName, appView, appViewPrefix);
-    }
-
-    /// <summary>
-    /// Gets parsed JSON data for a template (already included in PreprocessedTemplate)
-    /// </summary>
-    public JsonObject? GetTemplateJson(string appSite, string templateName)
-    {
-        var template = GetTemplateInternal(appSite, templateName, null, null);
-        return template?.JsonData;
+        catch (Exception ex)
+        {
+            Logger.Error($"Failed to load and preprocess templates: {ex.Message}", "LoaderPreProcessJson");
+            return false;
+        }
     }
 
     /// <summary>
@@ -103,6 +123,47 @@ public class LoaderPreProcessJson : ILoader<PreprocessedTemplate>
     public void ClearCache()
     {
         _preprocessedTemplatesCache.Clear();
+    }
+
+    /// <summary>
+    /// Gets all templates as a serialized JSON string for client-side template engine
+    /// This is specifically for /api/templates endpoint
+    /// Returns a JSON string - templates remain immutable (no references to internal state)
+    /// </summary>
+    public string GetAllTemplatesJson()
+    {
+        var templatesData = new Dictionary<string, object>();
+
+        foreach (var kvp in _templates)
+        {
+            var templateKey = kvp.Key;
+            var template = kvp.Value;
+
+            // Create a serializable structure for this template
+            var templateData = new Dictionary<string, object?>
+            {
+                ["html"] = template.OriginalContent,
+                ["json"] = template.JsonData // JsonObject is already serializable
+            };
+
+            templatesData[templateKey] = templateData;
+        }
+
+        // Serialize to JSON string using Arshu.App.Json
+        return Arshu.App.Json.JsonConverter.SerializeObject(templatesData);
+    }
+
+    #endregion
+
+    #region Merging Related
+
+    /// <summary>
+    /// Gets a preprocessed template by appSite and name with AppView fallback
+    /// Returns the PreprocessedTemplate object
+    /// </summary>
+    public PreprocessedTemplate? GetTemplateHtml(string appSite, string templateName, string? appView = null, string? appViewPrefix = null)
+    {
+        return GetTemplateInternal(appSite, templateName, appView, appViewPrefix);
     }
 
     /// <summary>
@@ -125,8 +186,149 @@ public class LoaderPreProcessJson : ILoader<PreprocessedTemplate>
         }
 
         Logger.Debug($"Merging HTML with JSON for {templateName}", "LoaderPreProcessJson");
-        return Engine.JsonMergeUtil.MergeTemplateWithJson(html, template.JsonData);
+        return JsonMergeUtil.MergeTemplateWithJson(html, template.JsonData);
     }
+
+    /// <summary>
+    /// Applies all replacement mappings from all templates to the given content
+    /// This is the core PreProcess engine logic - loader applies all mappings internally
+    /// </summary>
+    public string ApplyAllReplacementMappings(string content, string appSite, PreprocessedTemplate? mainTemplate, string? appView, string? appViewPrefix, bool enableJsonProcessing)
+    {
+        var result = content;
+
+        Logger.Debug($"Starting ApplyAllReplacementMappings, initial size: {content.Length}", "LoaderPreProcessJson");
+
+        // Apply replacement mappings from all templates in multiple passes until no more changes
+        string previous;
+        int maxPasses = 10; // Prevent infinite loops
+        int currentPass = 0;
+
+        do
+        {
+            previous = result;
+            currentPass++;
+
+            Logger.Debug($"Replacement pass {currentPass}, current size: {result.Length}", "LoaderPreProcessJson");
+
+            int slottedCount = 0, simpleCount = 0, jsonPlaceholderCount = 0;
+
+            // FIRST: Apply JSON placeholder mappings ONLY from the main template
+            if (mainTemplate != null && currentPass == 1 && enableJsonProcessing)
+            {
+                for (int i = 0; i < mainTemplate.ReplacementMappings.Count; i++)
+                {
+                    var mapping = mainTemplate.ReplacementMappings[i];
+                    if (mapping.Type != ReplacementType.JsonPlaceholder)
+                        continue;
+
+                    if (result.Contains(mapping.OriginalText))
+                    {
+                        Logger.Debug($"Applying main template JSON placeholder: {mapping.OriginalText} -> {mapping.ReplacementText}", "LoaderPreProcessJson");
+                        result = result.Replace(mapping.OriginalText, mapping.ReplacementText);
+                        jsonPlaceholderCount++;
+                    }
+                }
+            }
+
+            // Apply replacement mappings from all templates
+            foreach (var template in _templates.Values)
+            {
+                // Apply slotted template mappings - engine retrieves and merges JSON
+                for (int i = 0; i < template.ReplacementMappings.Count; i++)
+                {
+                    var mapping = template.ReplacementMappings[i];
+                    if (mapping.Type != ReplacementType.SlottedTemplate)
+                        continue;
+
+                    if (result.Contains(mapping.OriginalText))
+                    {
+                        // Get replacement text and merge JSON using loader's centralized method
+                        var replacementText = mapping.ReplacementText;
+                        if (enableJsonProcessing && !string.IsNullOrEmpty(mapping.TargetTemplateName))
+                        {
+                            replacementText = this.MergeHtmlWithJson(replacementText, appSite, mapping.TargetTemplateName);
+                            Logger.Debug($"After merging JSON for slotted template {mapping.TargetTemplateName}: {replacementText.Length} chars", "LoaderPreProcessJson");
+                        }
+
+                        Logger.Debug($"Applying slotted template: {mapping.OriginalText.Substring(0, Math.Min(50, mapping.OriginalText.Length))}... -> {replacementText.Length} chars", "LoaderPreProcessJson");
+                        result = result.Replace(mapping.OriginalText, replacementText);
+                        slottedCount++;
+                    }
+                }
+
+                // Apply simple template mappings (components) - engine retrieves and merges JSON
+                for (int j = 0; j < template.ReplacementMappings.Count; j++)
+                {
+                    var mapping = template.ReplacementMappings[j];
+                    if (mapping.Type != ReplacementType.SimpleTemplate)
+                        continue;
+
+                    if (result.Contains(mapping.OriginalText))
+                    {
+                        // Get replacement text and merge JSON using loader's centralized method
+                        var replacementText = mapping.ReplacementText;
+
+                        // Handle AppView logic if needed
+                        if (!string.IsNullOrEmpty(appView) && !string.IsNullOrEmpty(mapping.TargetTemplateName))
+                        {
+                            var appViewTemplate = GetTemplate(appSite, mapping.TargetTemplateName, appView, appViewPrefix, useAppViewFallback: true);
+                            if (appViewTemplate != null)
+                            {
+                                replacementText = appViewTemplate.OriginalContent;
+                            }
+                        }
+
+                        // Merge JSON using loader's centralized method
+                        if (enableJsonProcessing && !string.IsNullOrEmpty(mapping.TargetTemplateName))
+                        {
+                            replacementText = this.MergeHtmlWithJson(replacementText, appSite, mapping.TargetTemplateName);
+                            Logger.Debug($"After merging JSON for simple template {mapping.TargetTemplateName}: {replacementText.Length} chars", "LoaderPreProcessJson");
+                        }
+
+                        Logger.Debug($"Applying simple template: {mapping.OriginalText} -> {replacementText.Length} chars", "LoaderPreProcessJson");
+                        result = result.Replace(mapping.OriginalText, replacementText);
+                        simpleCount++;
+                    }
+                }
+            }
+
+            Logger.Debug($"Pass {currentPass} applied: {jsonPlaceholderCount} main JSON placeholders, {slottedCount} slotted, {simpleCount} simple", "LoaderPreProcessJson");
+
+        } while (result != previous && currentPass < maxPasses);
+
+        Logger.Debug($"Replacement complete after {currentPass} passes, final size: {result.Length}", "LoaderPreProcessJson");
+
+        return result;
+    }
+
+    #endregion
+
+    #region To Check
+
+    /// <summary>
+    /// Gets all preprocessed templates for API serialization
+    /// Returns a NEW dictionary with copies of template data - does not expose internal state
+    /// This is for API endpoints that need to build complex responses
+    /// </summary>
+    public Dictionary<string, PreprocessedTemplate> GetAllTemplatesForSerialization()
+    {
+        var result = new Dictionary<string, PreprocessedTemplate>();
+
+        // Return copies of all templates
+        foreach (var kvp in _templates)
+        {
+            result[kvp.Key] = kvp.Value;
+        }
+
+        return result;
+    }
+
+    #endregion
+
+    #endregion
+
+    #region Loading Templates
 
     /// <summary>
     /// Internal helper method with AppView fallback logic and SearchAppSites support
@@ -172,7 +374,43 @@ public class LoaderPreProcessJson : ILoader<PreprocessedTemplate>
         return null;
     }
 
-    #region Loading Templates
+    /// <summary>
+    /// Retrieves a template from the preprocessed templates dictionary based on various scenarios including AppView fallback logic
+    /// This is a helper method for internal use
+    /// </summary>
+    /// <param name="appSite">The application site name</param>
+    /// <param name="templateName">The template name (can be appFile or placeholderName)</param>
+    /// <param name="appView">The application view name (optional)</param>
+    /// <param name="appViewPrefix">The application view prefix (optional)</param>
+    /// <param name="useAppViewFallback">Whether to apply AppView fallback logic</param>
+    /// <returns>The template's original content if found, null otherwise</returns>
+    private PreprocessedTemplate? GetTemplate(string appSite, string templateName, string? appView = null, string? appViewPrefix = null, bool useAppViewFallback = true)
+    {
+        if (_templates == null || _templates.Count == 0)
+            return null;
+
+        // FIRST: Check for AppView-specific template resolution when AppView context is provided
+        if (useAppViewFallback && !string.IsNullOrEmpty(appView) && !string.IsNullOrEmpty(appViewPrefix) && templateName.Contains(appViewPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            // Direct replacement: Replace the AppViewPrefix with the AppView value
+            // For example: Html3AContent with AppViewPrefix=Html3A and AppView=html3B becomes html3BContent
+            var appKey = CommonUtil.ReplaceCaseInsensitive(templateName, appViewPrefix, appView);
+            var fallbackTemplateKey = $"{appSite.ToLowerInvariant()}_{appKey.ToLowerInvariant()}";
+            if (_templates.TryGetValue(fallbackTemplateKey, out var fallbackTemplate))
+            {
+                return fallbackTemplate; // Found AppView-specific template, use it
+            }
+        }
+
+        // SECOND: If no AppView-specific template found, try primary template
+        var primaryTemplateKey = $"{appSite.ToLowerInvariant()}_{templateName.ToLowerInvariant()}";
+        if (_templates.TryGetValue(primaryTemplateKey, out var primaryTemplate))
+        {
+            return primaryTemplate;
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Loads and preprocesses HTML files from the specified application site directory into structured templates, caching the output per appSite and rootDirName
@@ -183,10 +421,10 @@ public class LoaderPreProcessJson : ILoader<PreprocessedTemplate>
     /// <returns>PreprocessedSiteTemplates containing structured template data with JsonObject</returns>
     private static PreprocessedSiteTemplates LoadProcessGetTemplateFiles(string rootDirPath, string appSite)
     {
-        Logger.Debug($"LoadProcessGetTemplateFiles called for appSite: {appSite}", "LoaderPreProcessJson");
+        Logger.Debug($"LoadProcessGetTemplateFiles called for appSite: {appSite}, DisableCache: {DisableCache}", "LoaderPreProcessJson");
 
         var cacheKey = Path.GetDirectoryName(rootDirPath) + "|" + appSite;
-        if (_preprocessedTemplatesCache.TryGetValue(cacheKey, out var cached))
+        if (!DisableCache && _preprocessedTemplatesCache.TryGetValue(cacheKey, out var cached))
         {
             Logger.Debug($"Returning cached templates for {appSite} ({cached.Templates.Count} templates)", "LoaderPreProcessJson");
             return cached;
@@ -202,7 +440,10 @@ public class LoaderPreProcessJson : ILoader<PreprocessedTemplate>
         if (!Directory.Exists(appSitesPath))
         {
             Logger.Warn($"AppSites directory not found: {appSitesPath}", "LoaderPreProcessJson");
-            _preprocessedTemplatesCache.TryAdd(cacheKey, result);
+            if (!DisableCache)
+            {
+                _preprocessedTemplatesCache.TryAdd(cacheKey, result);
+            }
             return result;
         }
 
@@ -273,7 +514,11 @@ public class LoaderPreProcessJson : ILoader<PreprocessedTemplate>
 
         Logger.Debug($"Created all replacement mappings for {appSite}", "LoaderPreProcessJson");
 
-        _preprocessedTemplatesCache.TryAdd(cacheKey, result);
+        if (!DisableCache)
+        {
+            _preprocessedTemplatesCache.TryAdd(cacheKey, result);
+            Logger.Debug($"Cached templates for {appSite}", "LoaderPreProcessJson");
+        }
         return result;
     }
 
@@ -1161,6 +1406,7 @@ public class LoaderPreProcessJson : ILoader<PreprocessedTemplate>
     #endregion
 
     #region JSON Inheritance Support
+
     // NOTE: The following methods are INTENTIONAL COPIES used across all loaders for architectural separation.
     // Each loader/engine pair is independent to allow individual evolution without shared dependencies.
     // DO NOT extract these to shared utilities - that would create tight coupling.

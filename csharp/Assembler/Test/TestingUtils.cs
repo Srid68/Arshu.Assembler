@@ -121,14 +121,14 @@ public static class TestingUtils
             try
             {
                 var scenarioOutputs = new List<string>();
-                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites);
+                var loaderNormal = new LoaderNormal(assemblerWebDirPath, testSite, searchAppSites);
 
                 foreach (var scenario in group)
                 {
                     var appView = scenario.AppView;
                     var normalEngine = new EngineNormal();
                     normalEngine.AppViewPrefix = appFileName;
-                    var resultNormal = normalEngine.MergeTemplates(testSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
+                    var resultNormal = normalEngine.MergeTemplates(testSite, appFileName, appView, loaderNormal, enableJsonProcessing);
                     scenarioOutputs.Add(resultNormal ?? "");
 
                     // Save HTML output to Analysis folder
@@ -195,7 +195,8 @@ public static class TestingUtils
                         AppView = scenario.AppView,
                         NormalPreProcess = normalPreProcess,
                         CrossViewUnMatch = crossView,
-                        Error = error ?? ""
+                        Error = error ?? "",
+                        NormalJsonSize = scenarioOutputs[i].Length
                     });
                 }
             }
@@ -343,7 +344,8 @@ public static class TestingUtils
                         AppView = scenario.AppView,
                         NormalPreProcess = normalPreProcess,
                         CrossViewUnMatch = crossView,
-                        Error = error ?? ""
+                        Error = error ?? "",
+                        NormalJsonSize = scenarioOutputs[i].Length
                     });
                 }
             }
@@ -417,14 +419,14 @@ public static class TestingUtils
             try
             {
                 var scenarioOutputs = new List<string>();
-                var preprocessedTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites).Templates;
+                var loaderPreProcess = new LoaderPreProcessJson(assemblerWebDirPath, testSite, searchAppSites);
 
                 foreach (var scenario in group)
                 {
                     var appView = scenario.AppView;
-                    var preProcessEngine = new EnginePreProcess();
+                    var preProcessEngine = new EnginePreProcessJson();
                     preProcessEngine.AppViewPrefix = appFileName;
-                    var resultPreProcess = preProcessEngine.MergeTemplates(testSite, appFileName, appView, preprocessedTemplates, searchAppSites, enableJsonProcessing);
+                    var resultPreProcess = preProcessEngine.MergeTemplates(testSite, appFileName, appView, loaderPreProcess, enableJsonProcessing);
                     scenarioOutputs.Add(resultPreProcess ?? "");
 
                     // Save HTML output to Analysis folder
@@ -491,7 +493,8 @@ public static class TestingUtils
                         AppView = scenario.AppView,
                         NormalPreProcess = normalPreProcess,
                         CrossViewUnMatch = crossView,
-                        Error = error ?? ""
+                        Error = error ?? "",
+                        NormalJsonSize = scenarioOutputs[i].Length
                     });
                 }
             }
@@ -639,7 +642,8 @@ public static class TestingUtils
                         AppView = scenario.AppView,
                         NormalPreProcess = normalPreProcess,
                         CrossViewUnMatch = crossView,
-                        Error = error ?? ""
+                        Error = error ?? "",
+                        NormalJsonSize = scenarioOutputs[i].Length
                     });
                 }
             }
@@ -711,12 +715,14 @@ public static class TestingUtils
 
             try
             {
-                LoaderNormal.ClearCache();
-                LoaderPreProcess.ClearCache();
+                // Clear global caches before loading new templates
+                new LoaderNormal().ClearCache();
+                new LoaderPreProcess().ClearCache();
 
-                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites);
+                // Create all 4 loaders
+                var loaderNormal = new LoaderNormal(assemblerWebDirPath, testSite, searchAppSites);
                 var loaderNormalJson = new LoaderNormalJson(assemblerWebDirPath, testSite, searchAppSites);
-                var preprocessedTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites).Templates;
+                var loaderPreProcess = new LoaderPreProcess(assemblerWebDirPath, testSite, searchAppSites);
                 var loaderPreProcessJson = new LoaderPreProcessJson(assemblerWebDirPath, testSite, searchAppSites);
 
                 var scenarioResults = new List<(string AppView, string NormalOutput, string NormalJsonOutput, string PreProcessOutput, string PreProcessJsonOutput, string MatchStatus)>();
@@ -725,6 +731,7 @@ public static class TestingUtils
                 {
                     var appView = scenario.AppView;
 
+                    // Run all 4 engines
                     var normalEngine = new EngineNormal();
                     normalEngine.AppViewPrefix = appFileName;
 
@@ -737,19 +744,34 @@ public static class TestingUtils
                     var preProcessJsonEngine = new EnginePreProcessJson();
                     preProcessJsonEngine.AppViewPrefix = appFileName;
 
-                    var resultNormal = normalEngine.MergeTemplates(testSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
+                    var resultNormal = normalEngine.MergeTemplates(testSite, appFileName, appView, loaderNormal, enableJsonProcessing);
                     var resultNormalJson = normalJsonEngine.MergeTemplates(testSite, appFileName, appView, loaderNormalJson, enableJsonProcessing);
-                    var resultPreProcess = preProcessEngine.MergeTemplates(testSite, appFileName, appView, preprocessedTemplates, searchAppSites, enableJsonProcessing);
+                    var resultPreProcess = preProcessEngine.MergeTemplates(testSite, appFileName, appView, loaderPreProcess, enableJsonProcessing);
                     var resultPreProcessJson = preProcessJsonEngine.MergeTemplates(testSite, appFileName, appView, loaderPreProcessJson, enableJsonProcessing);
 
-                    bool allMatch = resultNormal == resultNormalJson &&
+                    // Check if all results are valid (non-empty)
+                    bool normalValid = !string.IsNullOrEmpty(resultNormal);
+                    bool normalJsonValid = !string.IsNullOrEmpty(resultNormalJson);
+                    bool preProcessValid = !string.IsNullOrEmpty(resultPreProcess);
+                    bool preProcessJsonValid = !string.IsNullOrEmpty(resultPreProcessJson);
+
+                    // Match only if ALL 4 are valid AND equal
+                    bool allMatch = normalValid && normalJsonValid && preProcessValid && preProcessJsonValid &&
+                                   resultNormal == resultNormalJson &&
                                    resultNormal == resultPreProcess &&
                                    resultNormal == resultPreProcessJson;
-                    string matchStatus = allMatch ? "PASS" : "FAIL";
+
+                    string matchStatus = allMatch ? "✓" : "✗";
+
+                    // If any engine returned empty output, that's an error
+                    if (!normalValid || !normalJsonValid || !preProcessValid || !preProcessJsonValid)
+                    {
+                        matchStatus = "✗ (EMPTY)";
+                    }
 
                     scenarioResults.Add((appView, resultNormal ?? "", resultNormalJson ?? "", resultPreProcess ?? "", resultPreProcessJson ?? "", matchStatus));
 
-                    // Save HTML outputs to Analysis folder
+                    // Save all 4 HTML outputs to Analysis folder
                     var appViewSuffix = string.IsNullOrEmpty(appView) ? "" : $"_{appView}";
                     var normalOutputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_normal.html");
                     var normalJsonOutputFile = Path.Combine(outputDir, $"{testSite}{appViewSuffix}_normaljson.html");
@@ -765,10 +787,10 @@ public static class TestingUtils
                         Console.WriteLine($"{testSite}: scenario: AppView='{appView}' - {matchStatus}");
                         if (!allMatch)
                         {
-                            Console.WriteLine($"  Normal: {resultNormal?.Length ?? 0} chars");
-                            Console.WriteLine($"  NormalJson: {resultNormalJson?.Length ?? 0} chars");
-                            Console.WriteLine($"  PreProcess: {resultPreProcess?.Length ?? 0} chars");
-                            Console.WriteLine($"  PreProcessJson: {resultPreProcessJson?.Length ?? 0} chars");
+                            Console.WriteLine($"  Normal: {resultNormal?.Length ?? 0} chars (Valid: {normalValid})");
+                            Console.WriteLine($"  NormalJson: {resultNormalJson?.Length ?? 0} chars (Valid: {normalJsonValid})");
+                            Console.WriteLine($"  PreProcess: {resultPreProcess?.Length ?? 0} chars (Valid: {preProcessValid})");
+                            Console.WriteLine($"  PreProcessJson: {resultPreProcessJson?.Length ?? 0} chars (Valid: {preProcessJsonValid})");
                         }
                     }
 
@@ -794,7 +816,7 @@ public static class TestingUtils
                     bool allSame = firstResult.NormalOutput.Length == firstResult.NormalJsonOutput.Length &&
                                   firstResult.NormalOutput.Length == firstResult.PreProcessOutput.Length &&
                                   firstResult.NormalOutput.Length == firstResult.PreProcessJsonOutput.Length;
-                    Console.WriteLine($"   All engines same length: {(allSame ? "YES" : "NO")}");
+                    Console.WriteLine($"   All 4 engines same length: {(allSame ? "YES" : "NO")}");
                 }
 
                 // Cross-view comparison
@@ -802,7 +824,7 @@ public static class TestingUtils
                 if (scenarioResults.Count > 1)
                 {
                     bool allDiffer = true;
-                    for (int i = 1; i < scenarioResults.Count; i++)
+                    for (int i = 0; i < scenarioResults.Count; i++)
                     {
                         for (int j = i + 1; j < scenarioResults.Count; j++)
                         {
@@ -825,7 +847,13 @@ public static class TestingUtils
                 {
                     var result = scenarioResults[i];
                     var crossView = (i > 0 && scenarioResults.Count > 1) ? crossViewResult : "";
-                    bool allMatch = result.NormalOutput == result.NormalJsonOutput &&
+
+                    // Check that ALL outputs are non-empty AND equal
+                    bool allMatch = !string.IsNullOrEmpty(result.NormalOutput) &&
+                                   !string.IsNullOrEmpty(result.NormalJsonOutput) &&
+                                   !string.IsNullOrEmpty(result.PreProcessOutput) &&
+                                   !string.IsNullOrEmpty(result.PreProcessJsonOutput) &&
+                                   result.NormalOutput == result.NormalJsonOutput &&
                                    result.NormalOutput == result.PreProcessOutput &&
                                    result.NormalOutput == result.PreProcessJsonOutput;
 
@@ -886,16 +914,16 @@ public static class TestingUtils
         }
         else
         {
-            // Standard test table (original format)
-            Console.WriteLine($"| {"AppSite",-15} | {"AppFile",-10} | {"AppView",-10} | {"OutputMatch",-11} | {"ViewUnMatch",-11} | {"Error",-10} |");
-            Console.WriteLine($"| {new string('-', 15)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 11)} | {new string('-', 11)} | {new string('-', 10)} |");
+            // Standard test table with Size column
+            Console.WriteLine($"| {"AppSite",-15} | {"AppFile",-10} | {"AppView",-10} | {"Size",-8} | {"OutputMatch",-11} | {"ViewUnMatch",-11} | {"Error",-10} |");
+            Console.WriteLine($"| {new string('-', 15)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 8)} | {new string('-', 11)} | {new string('-', 11)} | {new string('-', 10)} |");
 
             foreach (var row in summaryRows)
             {
-                Console.WriteLine($"| {row.AppSite,-15} | {row.AppFile,-10} | {row.AppView,-10} | {row.NormalPreProcess,-11} | {row.CrossViewUnMatch,-11} | {row.Error,-10} |");
+                Console.WriteLine($"| {row.AppSite,-15} | {row.AppFile,-10} | {row.AppView,-10} | {row.NormalJsonSize,-8} | {row.NormalPreProcess,-11} | {row.CrossViewUnMatch,-11} | {row.Error,-10} |");
             }
 
-            Console.WriteLine($"| {new string('-', 15)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 11)} | {new string('-', 11)} | {new string('-', 10)} |");
+            Console.WriteLine($"| {new string('-', 15)} | {new string('-', 10)} | {new string('-', 10)} | {new string('-', 8)} | {new string('-', 11)} | {new string('-', 11)} | {new string('-', 10)} |");
         }
 
         string projectName = "csharp";
@@ -977,6 +1005,7 @@ public static class TestingUtils
         else
         {
             html += @"
+            <th>Size</th>
             <th>OutputMatch</th>";
         }
 
@@ -1011,7 +1040,7 @@ public static class TestingUtils
             }
             else
             {
-                // Standard test row
+                // Standard test row with Size column
                 var outputMatchClass = row.NormalPreProcess == "PASS" ? "pass" : (row.NormalPreProcess == "FAIL" ? "fail" : "");
                 var viewUnMatchClass = row.CrossViewUnMatch == "PASS" ? "pass" : (row.CrossViewUnMatch == "FAIL" ? "fail" : "");
 
@@ -1020,6 +1049,7 @@ public static class TestingUtils
             <td>{row.AppSite}</td>
             <td>{row.AppFile}</td>
             <td>{row.AppView}</td>
+            <td>{row.NormalJsonSize}</td>
             <td class=""{outputMatchClass}"">{row.NormalPreProcess}</td>
             <td class=""{viewUnMatchClass}"">{row.CrossViewUnMatch}</td>
             <td>{row.Error}</td>
@@ -1072,11 +1102,17 @@ public static class TestingUtils
 
             try
             {
-                LoaderNormal.ClearCache();
-                LoaderPreProcess.ClearCache();
+                // Clear global caches before loading new templates
+                new LoaderNormal().ClearCache();
+                new LoaderPreProcess().ClearCache();
 
-                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, site, searchAppSites);
-                var preprocessedSiteTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, site, searchAppSites);
+                var loaderPreProcess = new LoaderPreProcessJson(assemblerWebDirPath, site, searchAppSites);
+                // Note: Need to create PreprocessedSiteTemplates for serialization
+                var preprocessedSiteTemplates = new PreprocessedSiteTemplates
+                {
+                    SiteName = site,
+                    Templates = loaderPreProcess.GetAllTemplatesForSerialization()
+                };
 
                 var fullJson = ApiResponse.SerializePreprocessedSiteTemplates(preprocessedSiteTemplates, true);
 

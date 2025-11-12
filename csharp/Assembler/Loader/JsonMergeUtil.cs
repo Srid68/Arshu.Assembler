@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Arshu.App.Json;
 
-namespace Assembler.Engine;
+namespace Assembler.Loader;
 
 /// <summary>
 /// Shared JSON merging utilities for all loaders

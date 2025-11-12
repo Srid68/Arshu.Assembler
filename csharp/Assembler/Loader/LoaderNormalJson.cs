@@ -5,85 +5,103 @@ using System.IO;
 using Arshu.App.Json;
 using Arshu.Common;
 using Assembler.Common;
+using Assembler.Interface;
 
 namespace Assembler.Loader;
 
 /// <summary>
-/// Loader that implements ILoader<string> for Normal engine
+/// Loader that implements ILoaderJson<string> for Normal engine
 /// Loads templates with JsonObject for type safety
 /// </summary>
-public class LoaderNormalJson : ILoader<string>
+public class LoaderNormalJson : ILoaderJson<string>
 {
     private static readonly ConcurrentDictionary<string, Dictionary<string, (string html, JsonObject? json)>> _htmlTemplatesCache = new();
-    private readonly Dictionary<string, (string html, JsonObject? json)> _templates;
-    private readonly Dictionary<string, string> _parentMap;
-    private readonly string _appSite;
+    private Dictionary<string, (string html, JsonObject? json)> _templates;
+    private Dictionary<string, string> _parentMap;
+    private string _appSite;
+
+    #region Constructor
+
+    /// <summary>
+    /// Creates a new loader instance (use Load() method to load templates)
+    /// </summary>
+    public LoaderNormalJson()
+    {
+        _templates = new Dictionary<string, (string html, JsonObject? json)>();
+        _parentMap = new Dictionary<string, string>();
+        _appSite = string.Empty;
+        SearchAppSites = string.Empty;
+    }
+
+    /// <summary>
+    /// Convenience constructor that automatically loads templates
+    /// </summary>
+    /// <param name="rootDirPath">Root directory path containing AppSites folder</param>
+    /// <param name="appSites">Primary AppSite name to load</param>
+    /// <param name="searchAppSites">Comma-delimited string of AppSite names to search for fallback templates (can be empty string)</param>
+    public LoaderNormalJson(string rootDirPath, string appSites, string searchAppSites) : this()
+    {
+        Load(rootDirPath, appSites, searchAppSites);
+    }
+
+    #endregion
+
+    #region ILoaderJson Interface
+
+    #region Loading Related
 
     /// <summary>
     /// Gets the search AppSites for template fallback resolution
     /// Comma-delimited string of AppSite names
     /// </summary>
-    public string SearchAppSites { get; }
+    public string SearchAppSites { get; private set; }
 
     /// <summary>
-    /// Creates a new loader instance by loading templates from the specified root directory
+    /// Loads and caches all templates from the specified directory
+    /// Returns true if loading succeeded, false otherwise
     /// </summary>
-    /// <param name="rootDirPath">Root directory path containing AppSites folder</param>
-    /// <param name="appSites">Primary AppSite name to load</param>
-    /// <param name="searchAppSites">Comma-delimited string of AppSite names to search for fallback templates (can be empty string)</param>
-    public LoaderNormalJson(string rootDirPath, string appSites, string searchAppSites)
+    public bool Load(string rootDirPath, string appSite, string searchAppSites)
     {
-        SearchAppSites = searchAppSites;
-        _appSite = appSites;
-
-        // Load templates from primary appSite
-        _templates = LoadGetTemplateFiles(rootDirPath, appSites);
-
-        // Load templates from searchAppSites for fallback
-        if (!string.IsNullOrEmpty(SearchAppSites))
+        try
         {
-            var searchAppSitesArray = SearchAppSites.Split(',');
-            for (int i = 0; i < searchAppSitesArray.Length; i++)
-            {
-                var searchAppSite = searchAppSitesArray[i].Trim();
-                if (string.IsNullOrEmpty(searchAppSite))
-                    continue;
+            SearchAppSites = searchAppSites;
+            _appSite = appSite;
 
-                var searchTemplates = LoadGetTemplateFiles(rootDirPath, searchAppSite);
-                foreach (var kvp in searchTemplates)
+            // Load templates from primary appSite
+            _templates = LoadGetTemplateFiles(rootDirPath, appSite);
+
+            // Load templates from searchAppSites for fallback
+            if (!string.IsNullOrEmpty(SearchAppSites))
+            {
+                var searchAppSitesArray = SearchAppSites.Split(',');
+                for (int i = 0; i < searchAppSitesArray.Length; i++)
                 {
-                    // Only add if not already present (primary appSite takes precedence)
-                    if (!_templates.ContainsKey(kvp.Key))
+                    var searchAppSiteItem = searchAppSitesArray[i].Trim();
+                    if (string.IsNullOrEmpty(searchAppSiteItem))
+                        continue;
+
+                    var searchTemplates = LoadGetTemplateFiles(rootDirPath, searchAppSiteItem);
+                    foreach (var kvp in searchTemplates)
                     {
-                        _templates[kvp.Key] = kvp.Value;
+                        // Only add if not already present (primary appSite takes precedence)
+                        if (!_templates.ContainsKey(kvp.Key))
+                        {
+                            _templates[kvp.Key] = kvp.Value;
+                        }
                     }
                 }
             }
+
+            // Build parent-child relationship map for JSON inheritance
+            _parentMap = BuildParentMap();
+            Logger.Debug($"Built parent map with {_parentMap.Count} relationships for JSON inheritance", "LoaderNormalJson");
+            return true;
         }
-
-        // Build parent-child relationship map for JSON inheritance
-        _parentMap = BuildParentMap();
-        Logger.Debug($"Built parent map with {_parentMap.Count} relationships for JSON inheritance", "LoaderNormalJson");
-    }
-
-    /// <summary>
-    /// Gets a template's HTML content by appSite and name with AppView fallback
-    /// Returns HTML only (no JSON)
-    /// </summary>
-    public string? GetTemplateHtml(string appSite, string templateName, string? appView = null, string? appViewPrefix = null)
-    {
-        var template = GetTemplateInternal(appSite, templateName, appView, appViewPrefix);
-        return template?.html;
-    }
-
-    /// <summary>
-    /// Gets parsed JSON data for a template
-    /// Returns null if no JSON file exists
-    /// </summary>
-    public JsonObject? GetTemplateJson(string appSite, string templateName)
-    {
-        var template = GetTemplateInternal(appSite, templateName, null, null);
-        return template?.json;
+        catch (Exception ex)
+        {
+            Logger.Error($"Failed to load templates: {ex.Message}", "LoaderNormalJson");
+            return false;
+        }
     }
 
     /// <summary>
@@ -104,11 +122,55 @@ public class LoaderNormalJson : ILoader<string>
     }
 
     /// <summary>
+    /// Gets all templates as a serialized JSON string for client-side template engine
+    /// This is specifically for /api/templates endpoint
+    /// Returns a JSON string - templates remain immutable (no references to internal state)
+    /// </summary>
+    public string GetAllTemplatesJson()
+    {
+        var templatesData = new Dictionary<string, object>();
+
+        foreach (var kvp in _templates)
+        {
+            var templateKey = kvp.Key;
+            var template = kvp.Value;
+
+            // Create a serializable structure for this template
+            var templateData = new Dictionary<string, object?>
+            {
+                ["html"] = template.html,
+                ["json"] = template.json // JsonObject is already serializable
+            };
+
+            templatesData[templateKey] = templateData;
+        }
+
+        // Serialize to JSON string using Arshu.App.Json
+        return Arshu.App.Json.JsonConverter.SerializeObject(templatesData);
+    }
+
+    #endregion
+
+    #region Merging Related
+
+    /// <summary>
+    /// Gets a template's HTML content by appSite and name with AppView fallback
+    /// Returns HTML only (no JSON)
+    /// </summary>
+    public string? GetTemplateHtml(string appSite, string templateName, string? appView = null, string? appViewPrefix = null)
+    {
+        var template = GetTemplateInternal(appSite, templateName, appView, appViewPrefix);
+        return template?.html;
+    }
+
+    /// <summary>
     /// Merges HTML string with JSON data using inheritance-aware JSON retrieval
     /// This centralizes JSON merging logic in the loader for clean architecture
     /// </summary>
     public string MergeHtmlWithJson(string html, string appSite, string templateName)
     {
+        Logger.Debug($"MergeHtmlWithJson called: appSite={appSite}, templateName={templateName}", "LoaderNormalJson");
+
         if (string.IsNullOrEmpty(html))
             return html;
 
@@ -121,9 +183,53 @@ public class LoaderNormalJson : ILoader<string>
             return html;
         }
 
-        Logger.Debug($"Merging HTML with JSON for {templateName}", "LoaderNormalJson");
-        return Engine.JsonMergeUtil.MergeTemplateWithJson(html, jsonData);
+        var jsonKeys = string.Join(", ", jsonData.Keys);
+        Logger.Debug($"Merging HTML with JSON for {templateName} (keys: {jsonKeys})", "LoaderNormalJson");
+        return JsonMergeUtil.MergeTemplateWithJson(html, jsonData);
     }
+
+    #endregion
+
+    #endregion
+
+    #region To Check
+
+    /// <summary>
+    /// Gets all templates for API serialization
+    /// Returns a NEW dictionary with copies of template data - does not expose internal state
+    /// This is for API endpoints that need to build complex responses
+    /// </summary>
+    public Dictionary<string, (string html, string? jsonString)> GetAllTemplatesForSerialization()
+    {
+        var result = new Dictionary<string, (string html, string? jsonString)>();
+
+        foreach (var kvp in _templates)
+        {
+            var html = kvp.Value.html;
+            var jsonString = kvp.Value.json != null
+                ? Arshu.App.Json.JsonConverter.SerializeObject(kvp.Value.json)
+                : null;
+
+            result[kvp.Key] = (html, jsonString);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Applies all replacement mappings from all templates to the given content
+    /// This method is NOT supported for Normal loaders - only for PreProcess architecture
+    /// Normal loaders use on-demand template loading during the engine merge process
+    /// </summary>
+    /// <exception cref="NotSupportedException">Always thrown - method not supported for Normal loaders</exception>
+    public string ApplyAllReplacementMappings(string content, string appSite, string? mainTemplate, string? appView, string? appViewPrefix, bool enableJsonProcessing)
+    {
+        throw new NotSupportedException("ApplyAllReplacementMappings is only supported for PreProcess loaders. NormalJson loader uses on-demand template loading during the engine merge process.");
+    }
+
+    #endregion
+
+    #region Loading Templates (Private)
 
     /// <summary>
     /// Internal helper method with AppView fallback logic and SearchAppSites support
@@ -271,7 +377,10 @@ public class LoaderNormalJson : ILoader<string>
         return result;
     }
 
-    #region JSON Inheritance Support
+    #endregion
+
+    #region JSON Inheritance Support (Private)
+
     // NOTE: The following methods are INTENTIONAL COPIES used across all loaders for architectural separation.
     // Each loader/engine pair is independent to allow individual evolution without shared dependencies.
     // DO NOT extract these to shared utilities - that would create tight coupling.
@@ -337,14 +446,22 @@ public class LoaderNormalJson : ILoader<string>
     /// Gets parsed JSON with inheritance resolution
     /// Resolves keys ending with # by searching up the parent tree
     /// </summary>
-    public JsonObject? GetTemplateJsonWithInheritance(string appSite, string templateName)
+    private JsonObject? GetTemplateJsonWithInheritance(string appSite, string templateName)
     {
         var templateKey = $"{appSite.ToLowerInvariant()}_{templateName.ToLowerInvariant()}";
+        Logger.Debug($"GetTemplateJsonWithInheritance: templateKey={templateKey}", "LoaderNormalJson");
+
         var template = GetTemplateInternal(appSite, templateName, null, null);
         if (template?.json == null)
+        {
+            Logger.Debug($"No JSON found for templateKey={templateKey}", "LoaderNormalJson");
             return null;
+        }
 
         var jsonObj = template.Value.json;
+        var rawKeys = string.Join(", ", jsonObj.Keys);
+        Logger.Debug($"Raw JSON keys for {templateKey}: {rawKeys}", "LoaderNormalJson");
+
         var resolvedJson = new JsonObject();
 
         // Process each JSON key and resolve inheritance
@@ -358,6 +475,7 @@ public class LoaderNormalJson : ILoader<string>
             {
                 // Resolve inherited value
                 var actualKey = key.Substring(0, key.Length - 1);
+                Logger.Debug($"Found inheritance key: {key}, defaultValue={strValue}, resolving for actualKey={actualKey}", "LoaderNormalJson");
                 var resolvedValue = ResolveJsonKeyWithInheritance(actualKey, strValue, templateKey);
                 if (resolvedValue != null)
                 {

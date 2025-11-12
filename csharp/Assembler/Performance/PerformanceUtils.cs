@@ -97,17 +97,12 @@ public static class PerformanceUtils
 
             try
             {
-                LoaderNormal.ClearCache();
-                LoaderPreProcess.ClearCache();
-                var templates = LoaderNormal.LoadGetTemplateFiles(assemblerWebDirPath, testAppSite, searchAppSites);
-                var siteTemplates = LoaderPreProcess.LoadProcessGetTemplateFiles(assemblerWebDirPath, testAppSite, searchAppSites);
+                // Clear global caches before loading new templates
+                new LoaderNormal().ClearCache();
+                new LoaderPreProcess().ClearCache();
+
                 var loaderNormalJson = new LoaderNormalJson(assemblerWebDirPath, testAppSite, searchAppSites);
                 var loaderPreProcessJson = new LoaderPreProcessJson(assemblerWebDirPath, testAppSite, searchAppSites);
-                if (templates == null || templates.Count == 0)
-                    continue;
-                var mainTemplateKey = (testAppSite + "_" + appFileName).ToLowerInvariant();
-                if (!templates.TryGetValue(mainTemplateKey, out var mainTemplate))
-                    continue;
 
                 if (!skipDetails)
                 {
@@ -115,67 +110,16 @@ public static class PerformanceUtils
                     Console.WriteLine($"[C#] Testing: AppSite={testAppSite}, AppFile={appFileName}, AppView={appView}");
                     Console.WriteLine($"[C#] Iterations: {iterations:N0}");
                 }
-                var normalEngine = new EngineNormal();
-                normalEngine.AppViewPrefix = appViewPrefix;
-
-                // JIT Warmup - run a few iterations first to warm up the JIT
-                for (int warmup = 0; warmup < 100; warmup++)
-                {
-                    normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
-                }
-
-                var sw = Stopwatch.StartNew();
-                string resultNormal = "";
-                for (int i = 0; i < iterations; i++)
-                {
-                    resultNormal = normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
-                }
-                sw.Stop();
-                var normalTime = sw.ElapsedMilliseconds;
-                var normalTicks = sw.ElapsedTicks;
-                if (!skipDetails)
-                {
-                    Console.WriteLine($"[C#] Normal Engine:     {normalTime}ms | Avg: {(double)normalTime / iterations:F3}ms/op | Size: {resultNormal.Length} chars");
-                }
-                LoaderNormal.ClearCache();
-                LoaderPreProcess.ClearCache();
-                var preProcessEngine = new EnginePreProcess();
-                preProcessEngine.AppViewPrefix = appViewPrefix;
-
-                // JIT Warmup for PreProcess engine
-                for (int warmup = 0; warmup < 100; warmup++)
-                {
-                    preProcessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, searchAppSites, enableJsonProcessing);
-                }
-
-                sw.Restart();
-                string resultPreProcess = "";
-                for (int i = 0; i < iterations; i++)
-                {
-                    resultPreProcess = preProcessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, searchAppSites, enableJsonProcessing);
-                }
-                sw.Stop();
-                var preProcessTime = sw.ElapsedMilliseconds;
-                var preProcessTicks = sw.ElapsedTicks;
-                if (!skipDetails)
-                {
-                    Console.WriteLine($"[C#] PreProcess Engine: {preProcessTime}ms | Avg: {(double)preProcessTime / iterations:F3}ms/op | Size: {resultPreProcess.Length} chars");
-                    var difference = preProcessTime - normalTime;
-                    var differencePercent = normalTime > 0 ? ((double)difference / normalTime) * 100 : 0;
-                    Console.WriteLine($"[C#] Performance: {(difference >= 0 ? "+" : "")}{difference}ms ({(differencePercent >= 0 ? "+" : "")}{differencePercent:F1}%) | Match: {(resultNormal == resultPreProcess ? "YES" : "NO")}");
-                }
-
-                // Test NormalJson engine
                 var normalJsonEngine = new EngineNormalJson();
                 normalJsonEngine.AppViewPrefix = appViewPrefix;
 
-                // JIT Warmup for NormalJson engine
+                // JIT Warmup - run a few iterations first to warm up the JIT
                 for (int warmup = 0; warmup < 100; warmup++)
                 {
                     normalJsonEngine.MergeTemplates(testAppSite, appFileName, appView, loaderNormalJson, enableJsonProcessing);
                 }
 
-                sw.Restart();
+                var sw = Stopwatch.StartNew();
                 string resultNormalJson = "";
                 for (int i = 0; i < iterations; i++)
                 {
@@ -186,10 +130,11 @@ public static class PerformanceUtils
                 var normalJsonTicks = sw.ElapsedTicks;
                 if (!skipDetails)
                 {
-                    Console.WriteLine($"[C#] NormalJson Engine: {normalJsonTime}ms | Avg: {(double)normalJsonTime / iterations:F3}ms/op | Size: {resultNormalJson.Length} chars");
+                    Console.WriteLine($"[C#] NormalJson Engine:     {normalJsonTime}ms | Avg: {(double)normalJsonTime / iterations:F3}ms/op | Size: {resultNormalJson.Length} chars");
                 }
-
-                // Test PreProcessJson engine
+                // Clear global caches before loading new templates
+                new LoaderNormal().ClearCache();
+                new LoaderPreProcess().ClearCache();
                 var preProcessJsonEngine = new EnginePreProcessJson();
                 preProcessJsonEngine.AppViewPrefix = appViewPrefix;
 
@@ -211,13 +156,16 @@ public static class PerformanceUtils
                 if (!skipDetails)
                 {
                     Console.WriteLine($"[C#] PreProcessJson Engine: {preProcessJsonTime}ms | Avg: {(double)preProcessJsonTime / iterations:F3}ms/op | Size: {resultPreProcessJson.Length} chars");
+                    var difference = preProcessJsonTime - normalJsonTime;
+                    var differencePercent = normalJsonTime > 0 ? ((double)difference / normalJsonTime) * 100 : 0;
+                    Console.WriteLine($"[C#] Performance: {(difference >= 0 ? "+" : "")}{difference}ms ({(differencePercent >= 0 ? "+" : "")}{differencePercent:F1}%) | Match: {(resultNormalJson == resultPreProcessJson ? "YES" : "NO")}");
                 }
 
-                // Verify all engines match
-                bool allMatch = resultNormal == resultNormalJson && resultNormal == resultPreProcess && resultNormal == resultPreProcessJson;
+                // Verify both engines match
+                bool allMatch = resultNormalJson == resultPreProcessJson;
                 if (!skipDetails)
                 {
-                    Console.WriteLine($"[C#] All Engines Match: {(allMatch ? "YES" : "NO")}");
+                    Console.WriteLine($"[C#] Both Engines Match: {(allMatch ? "YES" : "NO")}");
                 }
 
                 scenarioStartTime.Stop();
@@ -235,13 +183,13 @@ public static class PerformanceUtils
                     AppFile = appFileName,
                     AppView = appView,
                     Iterations = iterations,
-                    NormalTimeTicks = normalTicks,
+                    NormalTimeTicks = 0, // Old engine removed
                     NormalJsonTimeTicks = normalJsonTicks,
-                    PreProcessTimeTicks = preProcessTicks,
+                    PreProcessTimeTicks = 0, // Old engine removed
                     PreProcessJsonTimeTicks = preProcessJsonTicks,
-                    OutputSize = resultNormal.Length,
+                    OutputSize = resultNormalJson.Length,
                     ResultsMatch = allMatch ? "YES" : "NO",
-                    PerfDifference = normalTicks > 0 ? $"{((double)(preProcessTicks - normalTicks) / normalTicks * 100):F1}%" : "0%",
+                    PerfDifference = normalJsonTicks > 0 ? $"{((double)(preProcessJsonTicks - normalJsonTicks) / normalJsonTicks * 100):F1}%" : "0%",
                     ScenarioTotalTimeMs = scenarioTotalTime,
                     ElapsedTimeMs = elapsedTime
                 });

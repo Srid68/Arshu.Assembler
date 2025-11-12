@@ -8,6 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.10.3" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Arshu\Arshu.csproj" />
     <ProjectReference Include="..\Assembler\Assembler.csproj" />
   </ItemGroup>
