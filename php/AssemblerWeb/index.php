@@ -27,10 +27,12 @@ use Assembler\Api\PreProcessTemplateMetadata;
 use Arshu\Common\Logger;
 use Assembler\Config\ConfigUtil;
 
+const WEB_ROOT_FOLDER_NAME = 'wwwroot';
+
 // Configure logger with context-specific log files
 $logRotation = Logger::ROTATION_HOURLY;
 $projectDirectory = __DIR__;
-$assemblerWebDirPath = __DIR__ . DIRECTORY_SEPARATOR . 'wwwroot';
+$assemblerWebDirPath = __DIR__ . DIRECTORY_SEPARATOR . WEB_ROOT_FOLDER_NAME;
 
 $templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis';
 $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
@@ -189,7 +191,7 @@ $app->get('/scalar', function (ServerRequest $request, Response $response) {
 // Serve static files from wwwroot/scalar
 $app->get('/scalar/{file}', function (ServerRequest $request, Response $response, array $args) {
     $file = $args['file'];
-    $filePath = __DIR__ . '/wwwroot/scalar/' . $file;
+    $filePath = __DIR__ . DIRECTORY_SEPARATOR . WEB_ROOT_FOLDER_NAME . DIRECTORY_SEPARATOR . 'scalar' . DIRECTORY_SEPARATOR . $file;
 
     if (file_exists($filePath) && is_file($filePath)) {
         $content = file_get_contents($filePath);
@@ -210,11 +212,11 @@ $app->get('/scalar/{file}', function (ServerRequest $request, Response $response
 // Serve static files from wwwroot/Resource
 $app->get('/Resource/{path:.+}', function (ServerRequest $request, Response $response, array $args) {
     $path = $args['path'];
-    $filePath = __DIR__ . '/wwwroot/Resource/' . $path;
+    $filePath = __DIR__ . DIRECTORY_SEPARATOR . WEB_ROOT_FOLDER_NAME . DIRECTORY_SEPARATOR . 'Resource' . DIRECTORY_SEPARATOR . $path;
 
     // Security check - prevent directory traversal
     $realPath = realpath($filePath);
-    $basePath = realpath(__DIR__ . '/wwwroot/Resource');
+    $basePath = realpath(__DIR__ . DIRECTORY_SEPARATOR . WEB_ROOT_FOLDER_NAME . DIRECTORY_SEPARATOR . 'Resource');
 
     if ($realPath && $basePath && strpos($realPath, $basePath) === 0 && is_file($realPath)) {
         $content = file_get_contents($realPath);
@@ -330,7 +332,7 @@ $app->get('/openapi.json', function (ServerRequest $request, Response $response)
 // This must be last to avoid shadowing other routes
 $app->get('/{file:(?:php|csharp|rust|go|nodejs|node|all)_.+\.(?:html|json)}', function (ServerRequest $request, Response $response, array $args) {
     $file = $args['file'];
-    $filePath = __DIR__ . '/wwwroot/' . basename($file);  // basename to prevent directory traversal
+    $filePath = __DIR__ . DIRECTORY_SEPARATOR . WEB_ROOT_FOLDER_NAME . DIRECTORY_SEPARATOR . basename($file);  // basename to prevent directory traversal
 
     if (file_exists($filePath) && is_file($filePath)) {
         $content = file_get_contents($filePath);

@@ -3,9 +3,13 @@
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as ServerRequest;
 use Assembler\Engine\EngineNormal;
+use Assembler\Engine\EngineNormalJson;
 use Assembler\Engine\EnginePreProcess;
+use Assembler\Engine\EnginePreProcessJson;
 use Assembler\Loader\LoaderNormal;
+use Assembler\Loader\LoaderNormalJson;
 use Assembler\Loader\LoaderPreProcess;
+use Assembler\Loader\LoaderPreProcessJson;
 use Assembler\Api\ApiResponse;
 use Assembler\Api\TemplateData;
 use Assembler\Api\PreProcessTemplateMetadata;
@@ -15,10 +19,11 @@ use Assembler\Config\ConfigUtil;
 class AssemblerEndpoint
 {
     const DEFAULT_APP_SITE = 'Main';
-    const SEARCH_APP_SITES = "Common, Language";
+    const DEFAULT_ENGINE_TYPE = 'Normal';
+    const SEARCH_APP_SITES = "Main, Language";
 
     private const PARAM_MAX_LENGTH = 256;
-    private static array $validEngineTypes = ['normal', 'preprocess'];
+    private static array $validEngineTypes = ['normal', 'preprocess', 'normaljson', 'preprocessjson'];
     private static ?array $cachedValidAppSites = null;
 
     private static function getValidAppSites(): array
@@ -135,28 +140,31 @@ class AssemblerEndpoint
                 $appFile = $matchingScenario->appFile;
             }
 
-            $engineType = $queryParams['engine'] ?? 'Normal';
+            $engineType = $queryParams['engine'] ?? self::DEFAULT_ENGINE_TYPE;
 
             if (!self::isValidEngineType($engineType)) {
-                $response->getBody()->write('Invalid engine type. Use \'Normal\' or \'PreProcess\'');
+                $response->getBody()->write('Invalid engine type. Use \'Normal\', \'PreProcess\', \'NormalJson\', or \'PreProcessJson\'');
                 return $response->withStatus(400);
             }
 
-            LoaderNormal::clearCache();
-            LoaderPreProcess::clearCache();
-
-            // Load templates for requested AppSite
-            $normalTemplatesRaw = LoaderNormal::loadGetTemplateFiles($rootDirPath, $appSite);
-            $preprocessTemplatesRaw = LoaderPreProcess::loadProcessGetTemplateFiles($rootDirPath, $appSite);
-
             // Merge using selected engine (no AppView context)
             $mergedHtml = '';
-            if (strcasecmp($engineType, 'PreProcess') === 0) {
+            if (strcasecmp($engineType, 'PreProcessJson') === 0) {
+                $loader = new LoaderPreProcessJson($rootDirPath, $appSite, self::SEARCH_APP_SITES);
+                $engine = new EnginePreProcessJson();
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, null, $loader);
+            } elseif (strcasecmp($engineType, 'PreProcess') === 0) {
+                $loader = new LoaderPreProcess($rootDirPath, $appSite, self::SEARCH_APP_SITES);
                 $engine = new EnginePreProcess();
-                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, null, $preprocessTemplatesRaw->templates);
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, null, $loader);
+            } elseif (strcasecmp($engineType, 'NormalJson') === 0) {
+                $loader = new LoaderNormalJson($rootDirPath, $appSite, self::SEARCH_APP_SITES);
+                $engine = new EngineNormalJson();
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, null, $loader);
             } else {
+                $loader = new LoaderNormal($rootDirPath, $appSite, self::SEARCH_APP_SITES);
                 $engine = new EngineNormal();
-                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, null, $normalTemplatesRaw);
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, null, $loader);
             }
 
             $response->getBody()->write($mergedHtml);
@@ -208,12 +216,12 @@ class AssemblerEndpoint
 
             $appFile = $matchingScenario->appFile;
 
-            // Get engine type from query parameter (default to Normal)
+            // Get engine type from query parameter (default to DEFAULT_ENGINE_TYPE)
             $queryParams = $request->getQueryParams();
-            $engineType = $queryParams['engine'] ?? 'Normal';
+            $engineType = $queryParams['engine'] ?? self::DEFAULT_ENGINE_TYPE;
 
             // Validate EngineType against allowlist
-            if (!SecurityValidator::isValidEngineType($engineType)) {
+            if (!self::isValidEngineType($engineType)) {
                 $response->getBody()->write("Invalid engine type. Use 'Normal', 'PreProcess', 'NormalJson', or 'PreProcessJson'");
                 return $response->withStatus(400);
             }
@@ -223,24 +231,22 @@ class AssemblerEndpoint
 
             // Merge using selected engine
             $mergedHtml = '';
-            if (strcasecmp($engineType, 'PreProcess') === 0) {
-                $loader = new \Assembler\Loader\LoaderPreProcess();
-                $templates = $loader->loadProcessGetTemplateFiles($wwwrootPath, $appSite);
-                $engine = new \Assembler\Engine\EnginePreProcess();
-                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, $appView, $templates->templates);
-            } elseif (strcasecmp($engineType, 'NormalJson') === 0) {
-                $loader = new \Assembler\Loader\LoaderNormalJson($wwwrootPath, $appSite);
-                $engine = new \Assembler\Engine\EngineNormalJson();
+            if (strcasecmp($engineType, 'PreProcessJson') === 0) {
+                $loader = new LoaderPreProcessJson($wwwrootPath, $appSite, self::SEARCH_APP_SITES);
+                $engine = new EnginePreProcessJson();
                 $mergedHtml = $engine->mergeTemplates($appSite, $appFile, $appView, $loader);
-            } elseif (strcasecmp($engineType, 'PreProcessJson') === 0) {
-                $loader = new \Assembler\Loader\LoaderPreProcessJson($wwwrootPath, $appSite);
-                $engine = new \Assembler\Engine\EnginePreProcessJson();
+            } elseif (strcasecmp($engineType, 'PreProcess') === 0) {
+                $loader = new LoaderPreProcess($wwwrootPath, $appSite, self::SEARCH_APP_SITES);
+                $engine = new EnginePreProcess();
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, $appView, $loader);
+            } elseif (strcasecmp($engineType, 'NormalJson') === 0) {
+                $loader = new LoaderNormalJson($wwwrootPath, $appSite, self::SEARCH_APP_SITES);
+                $engine = new EngineNormalJson();
                 $mergedHtml = $engine->mergeTemplates($appSite, $appFile, $appView, $loader);
             } else {
-                $loader = new \Assembler\Loader\LoaderNormal();
-                $templates = $loader->loadGetTemplateFiles($wwwrootPath, $appSite);
-                $engine = new \Assembler\Engine\EngineNormal();
-                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, $appView, $templates);
+                $loader = new LoaderNormal($wwwrootPath, $appSite, self::SEARCH_APP_SITES);
+                $engine = new EngineNormal();
+                $mergedHtml = $engine->mergeTemplates($appSite, $appFile, $appView, $loader);
             }
 
             $response->getBody()->write($mergedHtml);
@@ -255,7 +261,6 @@ class AssemblerEndpoint
     public static function mergeEndpoint(ServerRequest $request, Response $response, string $projectRootPath): Response
     {
         // Enable logging for merge operations
-        $originalLogLevel = Logger::getLogLevel();
         $templateAnalysisDir = $projectRootPath . DIRECTORY_SEPARATOR . 'Analysis';
         $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
         if (!is_dir($logsDir)) {
@@ -278,7 +283,6 @@ class AssemblerEndpoint
             $data = json_decode($body, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid JSON']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
@@ -288,7 +292,6 @@ class AssemblerEndpoint
             $engineType = $data['engineType'] ?? null;
 
             if (empty($appSite) || empty($engineType)) {
-                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Missing required fields: appSite, engineType']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
@@ -306,7 +309,6 @@ class AssemblerEndpoint
             }
 
             if ($matchingScenario === null) {
-                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => "No matching scenario found for AppSite='$appSite' and AppView='$appViewValue'"]));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
@@ -330,7 +332,6 @@ class AssemblerEndpoint
             $rootDirPath = $projectRootPath . DIRECTORY_SEPARATOR . 'wwwroot';
 
             if (!self::isValidEngineType($engineType)) {
-                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid EngineType value']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
@@ -339,31 +340,26 @@ class AssemblerEndpoint
             try {
                 $validAppSites = self::getValidAppSites();
             } catch (Exception $error) {
-                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Failed to load AppSites: ' . $error->getMessage()]));
                 return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
             }
 
             if (!self::isValidAppSite($appSite, $validAppSites)) {
-                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid AppSite value']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
 
             if (!self::isValidPathComponent($appSite)) {
-                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid characters in AppSite']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
 
             if (!self::isValidPathComponent($appFile)) {
-                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid characters in AppFile']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
 
             if ($appView !== null && $appView !== '' && !self::isValidPathComponent($appView)) {
-                Logger::setLogLevel($originalLogLevel);
                 $response->getBody()->write(json_encode(['error' => 'Invalid characters in AppView']));
                 return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
             }
@@ -426,28 +422,9 @@ class AssemblerEndpoint
             $apiResponse->serverTimeMs = (microtime(true) * 1000) - $serverStart;
             $apiResponse->html = $mergedHtml;
 
-            // Save HTML output only if save query parameter is present
-            $queryParams = $request->getQueryParams();
-            $saveParam = $queryParams['save'] ?? '';
-            if (strcasecmp($saveParam, 'true') === 0) {
-                $outputDir = $projectRootPath . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'output';
-                if (!is_dir($outputDir)) {
-                    mkdir($outputDir, 0755, true);
-                }
-
-                $appViewSuffix = (!empty($appView)) ? "_{$appView}" : '';
-                $engineSuffix = strtolower($engineType);
-                $outputFile = $outputDir . DIRECTORY_SEPARATOR . "{$appSite}{$appViewSuffix}_{$engineSuffix}.html";
-                file_put_contents($outputFile, $mergedHtml);
-            }
-
-            // Restore original log level
-            Logger::setLogLevel($originalLogLevel);
-
             $response->getBody()->write($apiResponse->serializeToJson());
             return $response->withHeader('Content-Type', 'application/json');
         } catch (Exception $error) {
-            Logger::setLogLevel($originalLogLevel);
             error_log('Error in merge endpoint: ' . $error->getMessage());
             $response->getBody()->write(json_encode(['error' => 'Internal server error']));
             return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
@@ -456,6 +433,20 @@ class AssemblerEndpoint
 
 	public static function getTemplatesEndpoint(ServerRequest $request, Response $response, string $projectDirectory): Response
     {
+        // Enable logging for template operations
+        $templateAnalysisDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis';
+        $logsDir = $templateAnalysisDir . DIRECTORY_SEPARATOR . 'logs';
+        if (!is_dir($logsDir)) {
+            mkdir($logsDir, 0755, true);
+        }
+
+        $contextLogFiles = [
+            'LoaderNormalJson' => $logsDir . DIRECTORY_SEPARATOR . 'php_loadernormaljson.log',
+            'LoaderPreProcessJson' => $logsDir . DIRECTORY_SEPARATOR . 'php_loaderpreprocessjson.log'
+        ];
+
+        Logger::addContextLogFiles($contextLogFiles);
+
         try {
             $rootDirPath = $projectDirectory . DIRECTORY_SEPARATOR . 'wwwroot';
 
@@ -547,19 +538,6 @@ class AssemblerEndpoint
             $apiResponse->serverTimeMs = $serverTimeMs;
 
             $jsonResult = $apiResponse->serializeToJson(false);
-
-            // Check if save query parameter is present
-            $queryParams = $request->getQueryParams();
-            $saveParam = $queryParams['save'] ?? '';
-            if (strcasecmp($saveParam, 'true') === 0) {
-                $templatesDir = $projectDirectory . DIRECTORY_SEPARATOR . 'Analysis' . DIRECTORY_SEPARATOR . 'templates';
-                if (!is_dir($templatesDir)) {
-                    mkdir($templatesDir, 0755, true);
-                }
-
-                $saveFile = $templatesDir . DIRECTORY_SEPARATOR . "php_{$appSite}_templates.json";
-                file_put_contents($saveFile, $jsonResult);
-            }
 
             $response->getBody()->write($jsonResult);
             return $response->withHeader('Content-Type', 'application/json');

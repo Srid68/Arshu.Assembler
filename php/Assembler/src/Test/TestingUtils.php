@@ -123,7 +123,7 @@ class TestingUtils
                     file_put_contents($outputDir . DIRECTORY_SEPARATOR . "{$testSite}{$appViewSuffix}_normalJson.html", $resultNormalJson ?? '');
                     file_put_contents($outputDir . DIRECTORY_SEPARATOR . "{$testSite}{$appViewSuffix}_preProcessJson.html", $resultPreProcessJson ?? '');
 
-                    $outputsMatch = ($resultNormal === $resultPreProcess) && ($resultNormal === $resultNormalJson) && ($resultNormal === $resultPreProcessJson);
+                    $outputsMatch = ($resultNormal === $resultPreProcess) && ($resultNormal === $resultNormalJson) && ($resultNormal === $resultPreProcessJson) && strlen($resultNormal ?? '') > 0;
                     $matchStatus = $outputsMatch ? "PASS" : "FAIL";
 
                     if (!$skipDetails) {
@@ -225,7 +225,7 @@ Exception $e) {
                     $resultNormalJson = $normalJsonEngine->mergeTemplates($testSite, $appFileName, $appView, $loaderNormalJson, $enableJsonProcessing);
                     $resultPreProcessJson = $preProcessJsonEngine->mergeTemplates($testSite, $appFileName, $appView, $loaderPreProcessJson, $enableJsonProcessing);
 
-                    $outputsMatch = ($resultNormal === $resultPreProcess) && ($resultNormal === $resultNormalJson) && ($resultNormal === $resultPreProcessJson);
+                    $outputsMatch = ($resultNormal === $resultPreProcess) && ($resultNormal === $resultNormalJson) && ($resultNormal === $resultPreProcessJson) && strlen($resultNormal ?? '') > 0;
                     $matchStatus = $outputsMatch ? "PASS" : "FAIL";
 
                     $scenarioResults[] = [
@@ -243,8 +243,22 @@ Exception $e) {
                     file_put_contents($outputDir . DIRECTORY_SEPARATOR . "{$testSite}{$appViewSuffix}_normalJson.html", $resultNormalJson ?? '');
                     file_put_contents($outputDir . DIRECTORY_SEPARATOR . "{$testSite}{$appViewSuffix}_preProcessJson.html", $resultPreProcessJson ?? '');
 
+                    // Display failure information even with --skipdetails (matching C# behavior)
+                    $normalValid = strlen($resultNormal ?? '') > 0;
+                    $normalJsonValid = strlen($resultNormalJson ?? '') > 0;
+                    $preprocessValid = strlen($resultPreProcess ?? '') > 0;
+                    $preprocessJsonValid = strlen($resultPreProcessJson ?? '') > 0;
+
+                    $matchStatusDisplay = $outputsMatch ? "✓" : "✗ (EMPTY)";
+
                     if (!$skipDetails || !$outputsMatch) {
-                        echo "$testSite: scenario: AppView='$appView' - $matchStatus\n";
+                        echo "$testSite: scenario: AppView='$appView' - $matchStatusDisplay\n";
+                        if (!$outputsMatch) {
+                            echo "  Normal: " . strlen($resultNormal ?? '') . " chars (Valid: " . ($normalValid ? 'true' : 'false') . ")\n";
+                            echo "  NormalJson: " . strlen($resultNormalJson ?? '') . " chars (Valid: " . ($normalJsonValid ? 'true' : 'false') . ")\n";
+                            echo "  PreProcess: " . strlen($resultPreProcess ?? '') . " chars (Valid: " . ($preprocessValid ? 'true' : 'false') . ")\n";
+                            echo "  PreProcessJson: " . strlen($resultPreProcessJson ?? '') . " chars (Valid: " . ($preprocessJsonValid ? 'true' : 'false') . ")\n";
+                        }
                     }
 
                     if ($printHtmlOutput) {
@@ -377,7 +391,7 @@ Exception $ex) {
             echo "| " . str_repeat("-", 15) . " | " . str_repeat("-", 10) . " | " . str_repeat("-", 10) . " | " . str_repeat("-", 8) . " | " . str_repeat("-", 8) . " | " . str_repeat("-", 8) . " | " . str_repeat("-", 11) . " | " . str_repeat("-", 9) . " | " . str_repeat("-", 11) . " | " . str_repeat("-", 10) . " |\n";
 
             foreach ($summaryRows as $row) {
-                $allMatch = ($row->NormalSize === $row->PreProcessSize) && ($row->NormalSize === $row->NormalJsonSize) && ($row->NormalSize === $row->PreProcessJsonSize);
+                $allMatch = ($row->NormalSize === $row->PreProcessSize) && ($row->NormalSize === $row->NormalJsonSize) && ($row->NormalSize === $row->PreProcessJsonSize) && $row->NormalSize > 0;
                 $matchIndicator = $allMatch ? "✓" : "✗";
                 echo "| " . str_pad($row->AppSite ?? "", 15) . " | " . str_pad($row->AppFile ?? "", 10) . " | " . str_pad($row->AppView ?? "", 10) . " | " . str_pad(strval($row->NormalSize ?? 0), 8) . " | " . str_pad(strval($row->PreProcessSize ?? 0), 8) . " | " . str_pad(strval($row->NormalJsonSize ?? 0), 8) . " | " . str_pad(strval($row->PreProcessJsonSize ?? 0), 11) . " | " . str_pad($matchIndicator, 9) . " | " . str_pad($row->CrossViewUnMatch ?? "", 11) . " | " . str_pad($row->Error ?? "", 10) . " |\n";
             }
@@ -435,6 +449,10 @@ Exception $ex) {
         $html .= "        tr:nth-child(even) { background-color: #f2f2f2; }\n";
         $html .= "        .pass { color: green; font-weight: bold; }\n";
         $html .= "        .fail { color: red; font-weight: bold; }\n";
+        $html .= "        .match { background-color: #d4edda; color: #155724; font-weight: bold; }\n";
+        $html .= "        .mismatch { background-color: #f8d7da; color: #721c24; font-weight: bold; }\n";
+        $html .= "        .size-match { background-color: #d4edda; }\n";
+        $html .= "        .size-mismatch { background-color: #f8d7da; }\n";
         $html .= "    </style>\n";
         $html .= "</head>\n<body>\n";
         $html .= "    <h1>PHP " . strtoupper($testType) . " Summary</h1>\n";
@@ -442,19 +460,21 @@ Exception $ex) {
         $html .= "    <div class=\"table-container\">\n    <table>\n";
 
         if ($isAdvancedTest) {
-            $html .= "<tr><th>AppSite</th><th>AppFile</th><th>AppView</th><th>Normal</th><th>PreProc</th><th>NormJson</th><th>PreProcJson</th><th>Match All</th><th>ViewUnMatch</th><th>Error</th></tr>\n";
+            $html .= "<tr><th>AppSite</th><th>AppFile</th><th>AppView</th><th>Normal</th><th>NormalJson</th><th>PreProcess</th><th>PreProcessJson</th><th>Match</th><th>ViewUnMatch</th><th>Error</th></tr>\n";
             foreach ($summaryRows as $row) {
-                $allMatch = ($row->NormalSize === $row->PreProcessSize) && ($row->NormalSize === $row->NormalJsonSize) && ($row->NormalSize === $row->PreProcessJsonSize);
-                $matchIndicator = $allMatch ? "✓" : "✗";
-                $matchClass = $allMatch ? "pass" : "fail";
+                $allMatch = ($row->NormalSize === $row->PreProcessSize) && ($row->NormalSize === $row->NormalJsonSize) && ($row->NormalSize === $row->PreProcessJsonSize) && ($row->NormalSize > 0);
+                $sizeClass = $allMatch ? "size-match" : "size-mismatch";
+                $matchClass = $allMatch ? "match" : "mismatch";
+                $matchText = $allMatch ? "✓ PASS" : "✗ FAIL";
                 $viewUnMatchClass = ($row->CrossViewUnMatch === "PASS") ? "pass" : (($row->CrossViewUnMatch === "FAIL") ? "fail" : "");
-                $html .= "<tr><td>{$row->AppSite}</td><td>{$row->AppFile}</td><td>{$row->AppView}</td><td>{$row->NormalSize}</td><td>{$row->PreProcessSize}</td><td>{$row->NormalJsonSize}</td><td>{$row->PreProcessJsonSize}</td><td class=\"{$matchClass}\">{$matchIndicator}</td><td class=\"{$viewUnMatchClass}\">{$row->CrossViewUnMatch}</td><td>{$row->Error}</td></tr>\n";
+                $html .= "<tr><td>{$row->AppSite}</td><td>{$row->AppFile}</td><td>{$row->AppView}</td><td class=\"{$sizeClass}\">{$row->NormalSize}</td><td class=\"{$sizeClass}\">{$row->NormalJsonSize}</td><td class=\"{$sizeClass}\">{$row->PreProcessSize}</td><td class=\"{$sizeClass}\">{$row->PreProcessJsonSize}</td><td class=\"{$matchClass}\">{$matchText}</td><td class=\"{$viewUnMatchClass}\">{$row->CrossViewUnMatch}</td><td>{$row->Error}</td></tr>\n";
             }
         } elseif ($isStandardTest) {
-            $html .= "<tr><th>AppSite</th><th>AppFile</th><th>AppView</th><th>Normal</th><th>PreProc</th><th>NormJson</th><th>PreProcJson</th><th>All Match</th><th>Error</th></tr>\n";
+            $html .= "<tr><th>AppSite</th><th>AppFile</th><th>AppView</th><th>Size</th><th>OutputMatch</th><th>ViewUnMatch</th><th>Error</th></tr>\n";
             foreach ($summaryRows as $row) {
-                $allMatchClass = ($row->AllMatch === "PASS") ? "pass" : "fail";
-                $html .= "<tr><td>{$row->AppSite}</td><td>{$row->AppFile}</td><td>{$row->AppView}</td><td>{$row->NormalSize}</td><td>{$row->PreProcessSize}</td><td>{$row->NormalJsonSize}</td><td>{$row->PreProcessJsonSize}</td><td class=\"{$allMatchClass}\">{$row->AllMatch}</td><td>{$row->Error}</td></tr>\n";
+                $outputMatchClass = ($row->NormalPreProcess === "PASS") ? "pass" : (($row->NormalPreProcess === "FAIL") ? "fail" : "");
+                $viewUnMatchClass = ($row->CrossViewUnMatch === "PASS") ? "pass" : (($row->CrossViewUnMatch === "FAIL") ? "fail" : "");
+                $html .= "<tr><td>{$row->AppSite}</td><td>{$row->AppFile}</td><td>{$row->AppView}</td><td>{$row->NormalSize}</td><td class=\"{$outputMatchClass}\">{$row->NormalPreProcess}</td><td class=\"{$viewUnMatchClass}\">{$row->CrossViewUnMatch}</td><td>{$row->Error}</td></tr>\n";
             }
         }
 

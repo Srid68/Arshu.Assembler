@@ -3,9 +3,7 @@
 namespace Assembler\Engine;
 
 use Arshu\Common\Logger;
-use Assembler\Common\CommonUtil;
 use Assembler\Loader\LoaderPreProcessJson;
-use Assembler\Model\ReplacementType;
 
 class EnginePreProcessJson
 {
@@ -25,14 +23,7 @@ class EnginePreProcessJson
             return '';
         }
 
-        $preprocessedTemplates = $loader->getAllTemplates();
-        if (empty($preprocessedTemplates)) {
-            Logger::warn('No preprocessed templates available', 'EnginePreProcessJson');
-            return '';
-        }
-
-        Logger::debug('Using ' . count($preprocessedTemplates) . ' preprocessed templates', 'EnginePreProcessJson');
-
+        // Use ILoaderJson to retrieve the main template
         $mainPreprocessed = $loader->getTemplateHtml($appSite, $appFile, $appView, $this->appViewPrefix);
         if (!$mainPreprocessed) {
             Logger::warn("Main template not found for appSite=$appSite, appFile=$appFile", 'EnginePreProcessJson');
@@ -41,150 +32,19 @@ class EnginePreProcessJson
 
         Logger::debug('Main template found, original size: ' . strlen($mainPreprocessed->getOriginalContent()), 'EnginePreProcessJson');
 
+        // Start with original content
         $contentHtml = $mainPreprocessed->getOriginalContent();
 
-        if ($enableJsonProcessing && $mainPreprocessed->getJsonData()) {
-            Logger::debug('Merging main template JSON', 'EnginePreProcessJson');
-            $contentHtml = JsonMergeUtil::mergeTemplateWithJson($contentHtml, $mainPreprocessed->getJsonData());
+        // Merge JSON into main template first using loader's centralized method
+        if ($enableJsonProcessing) {
+            $contentHtml = $loader->mergeHtmlWithJson($contentHtml, $appSite, $appFile);
+            Logger::debug('After main template JSON merge: ' . strlen($contentHtml) . ' chars', 'EnginePreProcessJson');
         }
 
-        $contentHtml = $this->applyTemplateReplacements($contentHtml, $preprocessedTemplates, $enableJsonProcessing, $appView, $mainPreprocessed, $loader, $appSite);
+        // Apply ALL replacement mappings from ALL templates using loader's method
+        $contentHtml = $loader->applyAllReplacementMappings($contentHtml, $appSite, $mainPreprocessed, $appView, $this->appViewPrefix, $enableJsonProcessing);
 
         Logger::debug('MergeTemplates complete: output size=' . strlen($contentHtml), 'EnginePreProcessJson');
         return $contentHtml;
-    }
-
-    private function getTemplate(string $appSite, string $templateName, array $preprocessedTemplates, ?string $appView = null, ?string $appViewPrefix = null, bool $useAppViewFallback = true)
-    {
-        if (empty($preprocessedTemplates)) {
-            return null;
-        }
-
-        $viewPrefix = $appViewPrefix ?? $this->appViewPrefix;
-
-        if ($useAppViewFallback && $appView && $viewPrefix && stripos($templateName, $viewPrefix) !== false) {
-            $appKey = CommonUtil::replaceCaseInsensitive($templateName, $viewPrefix, $appView);
-            $fallbackTemplateKey = strtolower($appSite) . '_' . strtolower($appKey);
-            if (isset($preprocessedTemplates[$fallbackTemplateKey])) {
-                return $preprocessedTemplates[$fallbackTemplateKey];
-            }
-        }
-
-        $primaryTemplateKey = strtolower($appSite) . '_' . strtolower($templateName);
-        if (isset($preprocessedTemplates[$primaryTemplateKey])) {
-            return $preprocessedTemplates[$primaryTemplateKey];
-        }
-
-        return null;
-    }
-
-    private function applyTemplateReplacements(string $content, array $preprocessedTemplates, bool $enableJsonProcessing, ?string $appView, $mainTemplate, LoaderPreProcessJson $loader, string $appSite): string
-    {
-        $result = $content;
-        Logger::debug('Starting ApplyTemplateReplacements, initial size: ' . strlen($content), 'EnginePreProcessJson');
-
-        $previous = '';
-        $maxPasses = 10;
-        $currentPass = 0;
-
-        do {
-            $previous = $result;
-            $currentPass++;
-            Logger::debug("Replacement pass $currentPass, current size: " . strlen($result), 'EnginePreProcessJson');
-
-            $slottedCount = 0;
-            $simpleCount = 0;
-            $jsonPlaceholderCount = 0;
-
-            if ($mainTemplate && $currentPass === 1 && $enableJsonProcessing) {
-                foreach ($mainTemplate->getReplacementMappings() as $i => $mapping) {
-                    Logger::debug("[Main JSON Placeholder] Mapping #$i: " . json_encode($mapping), 'EnginePreProcessJson');
-                    if (method_exists($mapping, 'getType') && $mapping->getType() !== ReplacementType::JSON_PLACEHOLDER) continue;
-                    if (method_exists($mapping, 'getOriginalText') && strpos($result, $mapping->getOriginalText()) !== false) {
-                        Logger::debug('Applying main template JSON placeholder: ' . $mapping->getOriginalText() . ' -> ' . $mapping->getReplacementText(), 'EnginePreProcessJson');
-                        $result = str_replace($mapping->getOriginalText(), $mapping->getReplacementText(), $result);
-                        $jsonPlaceholderCount++;
-                    }
-                }
-            }
-
-            foreach ($preprocessedTemplates as $tidx => $template) {
-                Logger::debug("[Template #$tidx] Processing template: " . (method_exists($template, 'getOriginalContent') ? $template->getOriginalContent() : 'N/A'), 'EnginePreProcessJson');
-                foreach ($template->getReplacementMappings() as $mid => $mapping) {
-                    Logger::debug("[Slotted/Simple] Mapping #$mid: " . json_encode($mapping), 'EnginePreProcessJson');
-                    if (method_exists($mapping, 'getType') && $mapping->getType() === ReplacementType::SLOTTED_TEMPLATE) {
-                        $originalText = $mapping->getOriginalText();
-                        $matchFound = false;
-                        
-                        // First try exact match
-                        if (strpos($result, $originalText) !== false) {
-                            $matchFound = true;
-                        } else {
-                            // Try matching with flexible whitespace for slotted templates
-                            // Extract the slot tag pattern (e.g., {{#Center}})
-                            if (preg_match('/^\{\{#(\w+)\}\}/', $originalText, $matches)) {
-                                $slotName = $matches[1];
-                                $openTag = '{{#' . $slotName . '}}';
-                                $closeTag = '{{/' . $slotName . '}}';
-                                
-                                // Find the slot block in result, accounting for whitespace variations
-                                $openPos = strpos($result, $openTag);
-                                if ($openPos !== false) {
-                                    // Find matching close tag
-                                    $searchStart = $openPos + strlen($openTag);
-                                    $closePos = strpos($result, $closeTag, $searchStart);
-                                    if ($closePos !== false) {
-                                        // Extract the actual text from result (including tags)
-                                        $actualText = substr($result, $openPos, $closePos + strlen($closeTag) - $openPos);
-                                        $originalText = $actualText;
-                                        $matchFound = true;
-                                        Logger::debug("Slotted template: Using flexible whitespace match for $slotName", 'EnginePreProcessJson');
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if ($matchFound && method_exists($mapping, 'getOriginalText')) {
-                            $replacementText = $mapping->getReplacementText();
-                            if ($enableJsonProcessing && method_exists($mapping, 'getTargetTemplateName') && $mapping->getTargetTemplateName()) {
-                                $targetJson = $loader->getTemplateJson($appSite, $mapping->getTargetTemplateName());
-                                if ($targetJson) {
-                                    Logger::debug('Merging JSON for slotted template ' . $mapping->getTargetTemplateName(), 'EnginePreProcessJson');
-                                    $replacementText = JsonMergeUtil::mergeTemplateWithJson($replacementText, $targetJson);
-                                }
-                            }
-                            Logger::debug('Applying slotted template: ' . substr($originalText, 0, 50) . '... -> ' . strlen($replacementText) . ' chars', 'EnginePreProcessJson');
-                            $result = str_replace($originalText, $replacementText, $result);
-                            $slottedCount++;
-                        }
-                    } elseif (method_exists($mapping, 'getType') && $mapping->getType() === ReplacementType::SIMPLE_TEMPLATE) {
-                        if (method_exists($mapping, 'getOriginalText') && strpos($result, $mapping->getOriginalText()) !== false) {
-                            $replacementText = $mapping->getReplacementText();
-                            if ($appView && method_exists($mapping, 'getTargetTemplateName') && $mapping->getTargetTemplateName()) {
-                                $appViewTemplate = $this->getTemplate($appSite, $mapping->getTargetTemplateName(), $preprocessedTemplates, $appView, $this->appViewPrefix, true);
-                                if ($appViewTemplate) {
-                                    $replacementText = $appViewTemplate->getOriginalContent();
-                                }
-                            }
-
-                            if ($enableJsonProcessing && method_exists($mapping, 'getTargetTemplateName') && $mapping->getTargetTemplateName()) {
-                                $targetJson = $loader->getTemplateJson($appSite, $mapping->getTargetTemplateName());
-                                if ($targetJson) {
-                                    Logger::debug('Merging JSON for simple template ' . $mapping->getTargetTemplateName(), 'EnginePreProcessJson');
-                                    $replacementText = JsonMergeUtil::mergeTemplateWithJson($replacementText, $targetJson);
-                                }
-                            }
-                            Logger::debug('Applying simple template: ' . $mapping->getOriginalText() . ' -> ' . strlen($replacementText) . ' chars', 'EnginePreProcessJson');
-                            $result = str_replace($mapping->getOriginalText(), $replacementText, $result);
-                            $simpleCount++;
-                        }
-                    }
-                }
-            }
-            Logger::debug("Pass $currentPass applied: $jsonPlaceholderCount main JSON placeholders, $slottedCount slotted, $simpleCount simple", 'EnginePreProcessJson');
-        } while ($result !== $previous && $currentPass < $maxPasses);
-
-        Logger::debug("Replacement complete after $currentPass passes, final size: " . strlen($result), 'EnginePreProcessJson');
-        return $result;
     }
 }

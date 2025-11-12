@@ -177,6 +177,7 @@ class EnginePreProcess
                 foreach ($template->replacementMappings as $mapping) {
                     if ($mapping->type === ReplacementType::SLOTTED_TEMPLATE) {
                         if (strpos($result, $mapping->originalText) !== false) {
+                            Logger::debug('Applying slotted template (original size: ' . strlen($mapping->originalText) . ', replacement size: ' . strlen($mapping->replacementText) . ')', 'EnginePreProcess');
                             $result = str_replace($mapping->originalText, $mapping->replacementText, $result);
                             $slottedCount++;
                         }
@@ -187,9 +188,12 @@ class EnginePreProcess
                 // Replacement text already has JSON values baked in by LoaderPreProcess
                 foreach ($template->replacementMappings as $mapping) {
                     if ($mapping->type === ReplacementType::SIMPLE_TEMPLATE) {
+                        Logger::debug('Checking simple template mapping: ' . $mapping->originalText . ', contained in result: ' . (strpos($result, $mapping->originalText) !== false ? 'true' : 'false'), 'EnginePreProcess');
+                        
                         if (strpos($result, $mapping->originalText) !== false) {
                             // Apply AppView logic before replacement
                             $replacementText = $this->applyAppViewLogicToReplacement($mapping->originalText, $mapping->replacementText, $preprocessedTemplates, $searchAppSites, $appView);
+                            Logger::debug('Applying simple template: ' . $mapping->originalText . ' (replacement size: ' . strlen($replacementText) . ')', 'EnginePreProcess');
                             $result = str_replace($mapping->originalText, $replacementText, $result);
                             $simpleCount++;
                         }

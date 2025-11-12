@@ -83,8 +83,13 @@ class JsonInheritanceUtil
             return self::searchParentTreeForKey($key, $parentKey, $allTemplates, $parentMap);
         }
 
-        // Parse parent's JSON
-        $parentJsonObj = JsonConverter::parseJsonString($parentTemplate['json']);
+        // Handle both JsonObject and string JSON formats
+        $parentJsonObj = $parentTemplate['json'];
+        if (is_string($parentJsonObj)) {
+            // Parse parent's JSON if it's a string
+            $parentJsonObj = JsonConverter::parseJsonString($parentJsonObj);
+        }
+        // If it's already a JsonObject, use it directly
 
         // Look for the key (case-insensitive)
         foreach ($parentJsonObj as $jsonKey => $jsonValue) {

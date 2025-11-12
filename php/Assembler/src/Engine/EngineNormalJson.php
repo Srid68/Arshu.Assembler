@@ -68,18 +68,14 @@ class EngineNormalJson
 
     /**
      * Merges HTML with JSON using loader's centralized method (C# style)
+     * The loader handles JSON inheritance internally
      */
     private function mergeHtmlWithJson(string $html, string $appSite, string $templateName, LoaderNormalJson $loader): string
     {
-        $jsonData = $loader->getTemplateJson($appSite, $templateName);
-        if ($jsonData) {
-            Logger::debug("Merging JSON for template $templateName", "EngineNormalJson");
-            $originalSize = strlen($html);
-            $html = JsonMergeUtil::mergeTemplateWithJson($html, $jsonData);
-            Logger::debug("After JSON merge for $templateName: size $originalSize -> " . strlen($html), "EngineNormalJson");
-        } else {
-            Logger::debug("No JSON data found for template $templateName", "EngineNormalJson");
-        }
+        Logger::debug("Calling loader->mergeHtmlWithJson for template $templateName", "EngineNormalJson");
+        $originalSize = strlen($html);
+        $html = $loader->mergeHtmlWithJson($html, $appSite, $templateName);
+        Logger::debug("After JSON merge for $templateName: size $originalSize -> " . strlen($html), "EngineNormalJson");
         return $html;
     }
 
@@ -93,15 +89,10 @@ class EngineNormalJson
         Logger::debug("GetTemplateWithJson: template=$templateName, html size=" . strlen($html), 'EngineNormalJson');
 
         if ($enableJsonProcessing) {
-            $jsonData = $loader->getTemplateJson($appSite, $templateName);
-            if ($jsonData) {
-                Logger::debug("Merging JSON for template $templateName", 'EngineNormalJson');
-                $originalSize = strlen($html);
-                $html = JsonMergeUtil::mergeTemplateWithJson($html, $jsonData);
-                Logger::debug("After JSON merge for $templateName: size $originalSize -> " . strlen($html), 'EngineNormalJson');
-            } else {
-                Logger::debug("No JSON data found for template $templateName", 'EngineNormalJson');
-            }
+            Logger::debug("Calling loader->mergeHtmlWithJson for template $templateName", 'EngineNormalJson');
+            $originalSize = strlen($html);
+            $html = $loader->mergeHtmlWithJson($html, $appSite, $templateName);
+            Logger::debug("After JSON merge for $templateName: size $originalSize -> " . strlen($html), 'EngineNormalJson');
         }
 
         return $html;

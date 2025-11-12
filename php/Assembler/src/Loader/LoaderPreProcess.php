@@ -1237,7 +1237,12 @@ class LoaderPreProcess
 
             // Replace JsonData with resolved version if any inheritance was found
             if ($hasInheritance) {
-                $template->jsonData = JsonConverter::parseJsonString(json_encode($resolvedJson));
+                // Create a new JsonObject with the resolved values
+                $newJsonData = new \Assembler\App\Json\JsonObject();
+                foreach ($resolvedJson as $key => $val) {
+                    $newJsonData->setValue($key, $val);
+                }
+                $template->jsonData = $newJsonData;
                 Logger::debug("Updated JsonData for template $templateKey with resolved inheritance", "LoaderPreProcess");
             }
         }

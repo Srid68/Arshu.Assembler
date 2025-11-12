@@ -10,10 +10,10 @@ use Exception;
 use Assembler\Engine\JsonInheritanceUtil; // Import the new utility
 
 /// <summary>
-/// Loader that implements ILoader<string> for Normal engine
+/// Loader that implements ILoaderJson for Normal engine
 /// Loads templates with JsonObject for type safety
 /// </summary>
-class LoaderNormalJson implements ILoader
+class LoaderNormalJson implements ILoaderJson
 {
     private static array $_htmlTemplatesCache = [];
     private array $_templates;
@@ -83,7 +83,7 @@ class LoaderNormalJson implements ILoader
     /// <param name="appView">Optional AppView for fallback logic</param>
     /// <param name="appViewPrefix">Optional AppView prefix for fallback logic</param>
     /// <returns>Template HTML content or null if not found</returns>
-    public function getTemplateHtml(string $appSite, string $templateName, ?string $appView = null, ?string $appViewPrefix = null): ?string
+    public function getTemplateHtml(string $appSite, string $templateName, ?string $appView = null, ?string $appViewPrefix = null): mixed
     {
         $template = $this->getTemplateInternal($appSite, $templateName, $appView, $appViewPrefix);
         return $template['html'] ?? null;
@@ -144,11 +144,31 @@ class LoaderNormalJson implements ILoader
     }
 
     /// <summary>
+    /// Gets all templates as a serialized JSON string
+    /// For LoaderNormalJson, this is not typically used, but required by interface
+    /// </summary>
+    public function getAllTemplatesJson(): string
+    {
+        // Not implemented for normal loader
+        return '{}';
+    }
+
+    /// <summary>
     /// Clears the template cache (for testing/hot reload)
     /// </summary>
     public static function clearCache(): void
     {
         self::$_htmlTemplatesCache = [];
+    }
+
+    /// <summary>
+    /// Applies all replacement mappings from all templates to the given content
+    /// For LoaderNormalJson, just returns content as-is since this is only relevant for PreProcess loaders
+    /// </summary>
+    public function applyAllReplacementMappings(string $content, string $appSite, mixed $mainTemplate, ?string $appView, ?string $appViewPrefix, bool $enableJsonProcessing): string
+    {
+        // Not applicable for normal loader - just return content unchanged
+        return $content;
     }
 
     /// <summary>
@@ -295,7 +315,7 @@ class LoaderNormalJson implements ILoader
         $resolvedJson = new JsonObject();
 
         // Process each JSON key and resolve inheritance
-        foreach ($jsonObj->getIterator() as $key => $value) {
+        foreach ($jsonObj as $key => $value) {
             // Check if this is an inheritable key (ends with #)
             if (str_ends_with($key, '#') && is_string($value)) {
                 // Resolve inherited value
@@ -308,14 +328,14 @@ class LoaderNormalJson implements ILoader
                     $this->_parentMap
                 );
                 if ($resolvedValue !== null) {
-                    $resolvedJson->add($actualKey, $resolvedValue);
+                    $resolvedJson->setValue($actualKey, $resolvedValue);
                     Logger::debug("Resolved inherited key {$key} -> {$actualKey} = {$resolvedValue}", "LoaderNormalJson");
                     continue;
                 }
             }
 
             // Normal key - keep as is
-            $resolvedJson->add($key, $value);
+            $resolvedJson->setValue($key, $value);
         }
 
         return $resolvedJson;

@@ -109,6 +109,174 @@ class LoaderPreProcessJson
         return null;
     }
 
+    public function mergeHtmlWithJson(string $html, string $appSite, string $templateName): string
+    {
+        if (empty($html)) {
+            return $html;
+        }
+
+        // Get the preprocessed template which has JSON with inheritance already resolved
+        $template = $this->getTemplateInternal($appSite, $templateName, null, null);
+
+        if (!$template || !$template->getJsonData()) {
+            Logger::debug("No JSON data found for $templateName, returning original HTML", 'LoaderPreProcessJson');
+            return $html;
+        }
+
+        Logger::debug("Merging HTML with JSON for $templateName", 'LoaderPreProcessJson');
+        return \Assembler\Engine\JsonMergeUtil::mergeTemplateWithJson($html, $template->getJsonData());
+    }
+
+    public function applyAllReplacementMappings(string $content, string $appSite, mixed $mainTemplate, ?string $appView, ?string $appViewPrefix, bool $enableJsonProcessing): string
+    {
+        $result = $content;
+
+        Logger::debug("Starting ApplyAllReplacementMappings, initial size: " . strlen($content), 'LoaderPreProcessJson');
+
+        // Cast mainTemplate to PreprocessedTemplate
+        $mainPreprocessed = null;
+        if ($mainTemplate instanceof PreprocessedTemplate) {
+            $mainPreprocessed = $mainTemplate;
+        }
+
+        // Apply replacement mappings from all templates in multiple passes until no more changes
+        $maxPasses = 10; // Prevent infinite loops
+        $currentPass = 0;
+
+        do {
+            $previous = $result;
+            $currentPass++;
+
+            Logger::debug("Replacement pass $currentPass, current size: " . strlen($result), 'LoaderPreProcessJson');
+
+            $slottedCount = 0;
+            $simpleCount = 0;
+            $jsonPlaceholderCount = 0;
+
+            // FIRST: Apply JSON placeholder mappings ONLY from the main template
+            if ($mainPreprocessed && $currentPass == 1 && $enableJsonProcessing) {
+                foreach ($mainPreprocessed->getReplacementMappings() as $mapping) {
+                    if ($mapping->getType() !== ReplacementType::JSON_PLACEHOLDER) {
+                        continue;
+                    }
+
+                    if (strpos($result, $mapping->getOriginalText()) !== false) {
+                        Logger::debug("Applying main template JSON placeholder: " . $mapping->getOriginalText() . " -> " . $mapping->getReplacementText(), 'LoaderPreProcessJson');
+                        $result = str_replace($mapping->getOriginalText(), $mapping->getReplacementText(), $result);
+                        $jsonPlaceholderCount++;
+                    }
+                }
+            }
+
+            // Apply replacement mappings from all templates
+            foreach ($this->templates as $template) {
+                // Apply slotted template mappings - engine retrieves and merges JSON
+                foreach ($template->getReplacementMappings() as $mapping) {
+                    if ($mapping->getType() !== ReplacementType::SLOTTED_TEMPLATE) {
+                        continue;
+                    }
+
+                    if (strpos($result, $mapping->getOriginalText()) !== false) {
+                        // Get replacement text and merge JSON using loader's centralized method
+                        $replacementText = $mapping->getReplacementText();
+                        if ($enableJsonProcessing && !empty($mapping->getTargetTemplateName())) {
+                            $replacementText = $this->mergeHtmlWithJson($replacementText, $appSite, $mapping->getTargetTemplateName());
+                            Logger::debug("After merging JSON for slotted template " . $mapping->getTargetTemplateName() . ": " . strlen($replacementText) . " chars", 'LoaderPreProcessJson');
+                        }
+
+                        $originalTextSubstr = substr($mapping->getOriginalText(), 0, min(50, strlen($mapping->getOriginalText())));
+                        Logger::debug("Applying slotted template: $originalTextSubstr... -> " . strlen($replacementText) . " chars", 'LoaderPreProcessJson');
+                        $result = str_replace($mapping->getOriginalText(), $replacementText, $result);
+                        $slottedCount++;
+                    }
+                }
+
+                // Apply simple template mappings (components) - engine retrieves and merges JSON
+                foreach ($template->getReplacementMappings() as $mapping) {
+                    if ($mapping->getType() !== ReplacementType::SIMPLE_TEMPLATE) {
+                        continue;
+                    }
+
+                    if (strpos($result, $mapping->getOriginalText()) !== false) {
+                        // Get replacement text and merge JSON using loader's centralized method
+                        $replacementText = $mapping->getReplacementText();
+
+                        // Handle AppView logic if needed
+                        if (!empty($appView) && !empty($mapping->getTargetTemplateName())) {
+                            $appViewTemplate = $this->getTemplate($appSite, $mapping->getTargetTemplateName(), $appView, $appViewPrefix, true);
+                            if ($appViewTemplate) {
+                                $replacementText = $appViewTemplate->getOriginalContent();
+                            }
+                        }
+
+                        // Merge JSON using loader's centralized method
+                        if ($enableJsonProcessing && !empty($mapping->getTargetTemplateName())) {
+                            $replacementText = $this->mergeHtmlWithJson($replacementText, $appSite, $mapping->getTargetTemplateName());
+                            Logger::debug("After merging JSON for simple template " . $mapping->getTargetTemplateName() . ": " . strlen($replacementText) . " chars", 'LoaderPreProcessJson');
+                        }
+
+                        Logger::debug("Applying simple template: " . $mapping->getOriginalText() . " -> " . strlen($replacementText) . " chars", 'LoaderPreProcessJson');
+                        $result = str_replace($mapping->getOriginalText(), $replacementText, $result);
+                        $simpleCount++;
+                    }
+                }
+            }
+
+            Logger::debug("Pass $currentPass applied: $jsonPlaceholderCount main JSON placeholders, $slottedCount slotted, $simpleCount simple", 'LoaderPreProcessJson');
+
+        } while ($result !== $previous && $currentPass < $maxPasses);
+
+        Logger::debug("Replacement complete after $currentPass passes, final size: " . strlen($result), 'LoaderPreProcessJson');
+
+        return $result;
+    }
+
+    private function getTemplate(string $appSite, string $templateName, ?string $appView = null, ?string $appViewPrefix = null, bool $useAppViewFallback = true): ?PreprocessedTemplate
+    {
+        if (empty($this->templates)) {
+            return null;
+        }
+
+        // FIRST: Check for AppView-specific template resolution when AppView context is provided
+        if ($useAppViewFallback && !empty($appView) && !empty($appViewPrefix) && stripos($templateName, $appViewPrefix) !== false) {
+            // Direct replacement: Replace the AppViewPrefix with the AppView value
+            $appKey = CommonUtil::replaceCaseInsensitive($templateName, $appViewPrefix, $appView);
+            $fallbackTemplateKey = strtolower($appSite) . '_' . strtolower($appKey);
+            if (isset($this->templates[$fallbackTemplateKey])) {
+                return $this->templates[$fallbackTemplateKey]; // Found AppView-specific template, use it
+            }
+        }
+
+        // SECOND: If no AppView-specific template found, try primary template
+        $primaryTemplateKey = strtolower($appSite) . '_' . strtolower($templateName);
+        if (isset($this->templates[$primaryTemplateKey])) {
+            return $this->templates[$primaryTemplateKey];
+        }
+
+        return null;
+    }
+
+    public function getSearchAppSites(): string
+    {
+        return $this->searchAppSites;
+    }
+
+    public function getAllTemplatesJson(): string
+    {
+        // Create a map for all template data
+        $templatesData = [];
+
+        foreach ($this->templates as $key => $template) {
+            $templatesData[$key] = [
+                'html' => $template->getOriginalContent(),
+                'json' => $template->getJsonData()
+            ];
+        }
+
+        // Serialize to JSON
+        return json_encode($templatesData);
+    }
+
     private function loadProcessGetTemplateFiles(string $rootDirPath, string $appSite): array
     {
         Logger::debug("LoadProcessGetTemplateFiles called for appSite: $appSite", 'LoaderPreProcessJson');
@@ -766,7 +934,12 @@ class LoaderPreProcessJson
             }
 
             if ($hasInheritance) {
-                $template->setJsonData(JsonConverter::parseJsonString(json_encode($resolvedJson)));
+                // Create a new JsonObject with the resolved values
+                $newJsonData = new \Assembler\App\Json\JsonObject();
+                foreach ($resolvedJson as $key => $val) {
+                    $newJsonData->setValue($key, $val);
+                }
+                $template->setJsonData($newJsonData);
                 Logger::debug("Updated JsonData for template $templateKey with resolved inheritance", "LoaderPreProcessJson");
             }
         }
