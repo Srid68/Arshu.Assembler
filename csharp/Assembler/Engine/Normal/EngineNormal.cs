@@ -6,7 +6,7 @@ using Assembler.Common;
 using Assembler.Loader;
 using Assembler.Interface;
 
-namespace Assembler.Engine;
+namespace Assembler.Engine.Normal;
 
 // Always use Base JsonObject/JsonArray types for consistent processing
 using JsonObject = Arshu.App.Json.JsonObject;

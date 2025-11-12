@@ -3,7 +3,8 @@ using Assembler.Common;
 using Assembler.Interface;
 using System.Collections.Generic;
 
-namespace Assembler.Engine;
+namespace Assembler.Engine.NormalJson;
+
 // Always use Base JsonObject/JsonArray types for consistent processing
 /// <summary>
 /// NEW Normal engine that uses ILoaderJson interface and JsonObject

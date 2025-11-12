@@ -1,12 +1,15 @@
-﻿using System;
+﻿using Assembler.Config;
+using Assembler.Engine.NormalJson;
+using Assembler.Engine.PreProcessJson;
+using Assembler.Loader.Normal;
+using Assembler.Loader.NormalJson;
+using Assembler.Loader.PreProcess;
+using Assembler.Loader.PreProcessJson;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using Arshu.App.Json;
-using Assembler.Engine;
-using Assembler.Loader;
-using Assembler.Config;
 using System.Text.Json.Serialization;
 
 namespace Assembler.Performance;
@@ -100,6 +103,8 @@ public static class PerformanceUtils
                 // Clear global caches before loading new templates
                 new LoaderNormal().ClearCache();
                 new LoaderPreProcess().ClearCache();
+                new LoaderNormalJson().ClearCache();
+                new LoaderPreProcessJson().ClearCache();
 
                 var loaderNormalJson = new LoaderNormalJson(assemblerWebDirPath, testAppSite, searchAppSites);
                 var loaderPreProcessJson = new LoaderPreProcessJson(assemblerWebDirPath, testAppSite, searchAppSites);

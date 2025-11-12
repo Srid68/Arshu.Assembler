@@ -1,13 +1,18 @@
+using Arshu.App.Json;
+using Assembler.Api;
+using Assembler.Config;
+using Assembler.Engine.Normal;
+using Assembler.Engine.NormalJson;
+using Assembler.Engine.PreProcess;
+using Assembler.Engine.PreProcessJson;
+using Assembler.Loader.Normal;
+using Assembler.Loader.NormalJson;
+using Assembler.Loader.PreProcess;
+using Assembler.Loader.PreProcessJson;
+using Assembler.Model;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using Arshu.App.Json;
-using Assembler.Engine;
-using Assembler.Loader;
-using Assembler.Config;
-using Assembler.Model;
-using Assembler.Api;
 
 namespace Assembler.Test;
 
@@ -718,6 +723,8 @@ public static class TestingUtils
                 // Clear global caches before loading new templates
                 new LoaderNormal().ClearCache();
                 new LoaderPreProcess().ClearCache();
+                new LoaderNormalJson().ClearCache();
+                new LoaderPreProcessJson().ClearCache();
 
                 // Create all 4 loaders
                 var loaderNormal = new LoaderNormal(assemblerWebDirPath, testSite, searchAppSites);

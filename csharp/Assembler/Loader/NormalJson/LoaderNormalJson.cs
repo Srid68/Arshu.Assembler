@@ -7,7 +7,7 @@ using Arshu.Common;
 using Assembler.Common;
 using Assembler.Interface;
 
-namespace Assembler.Loader;
+namespace Assembler.Loader.NormalJson;
 
 /// <summary>
 /// Loader that implements ILoaderJson<string> for Normal engine

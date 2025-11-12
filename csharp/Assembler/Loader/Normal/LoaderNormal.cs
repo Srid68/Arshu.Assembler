@@ -7,7 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Assembler.Loader;
+namespace Assembler.Loader.Normal;
 
 /// <summary>
 /// Loader implementation for EngineNormal

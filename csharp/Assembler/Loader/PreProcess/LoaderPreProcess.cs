@@ -10,7 +10,7 @@ using System.IO;
 using JsonArray = Arshu.App.Json.JsonArray;
 using JsonObject = Arshu.App.Json.JsonObject;
 
-namespace Assembler.Loader;
+namespace Assembler.Loader.PreProcess;
 
 /// <summary>
 /// Loader implementation for EnginePreProcess

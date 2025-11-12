@@ -8,7 +8,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Assembler.Loader;
+namespace Assembler.Loader.PreProcessJson;
 
 using JsonArray = Arshu.App.Json.JsonArray;
 // Always use Base JsonObject/JsonArray types for consistent processing
