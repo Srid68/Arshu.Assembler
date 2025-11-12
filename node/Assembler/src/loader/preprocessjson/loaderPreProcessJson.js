@@ -139,15 +139,11 @@ export class LoaderPreProcessJson {
 
                     let replacementText = mapping.replacementText;
 
-                    // AppView fallback if available
+                    // AppView fallback if available - use getTemplate (no SearchAppSites fallback)
                     if (appView && mapping.targetTemplateName) {
-                        const viewPrefix = appViewPrefix || '';
-                        if (viewPrefix && mapping.targetTemplateName.toLowerCase().includes(viewPrefix.toLowerCase())) {
-                            const appKey = replaceCaseInsensitive(mapping.targetTemplateName, viewPrefix, appView);
-                            const appViewTpl = this.getTemplateInternal(appSite, appKey, null, null);
-                            if (appViewTpl) {
-                                replacementText = appViewTpl.originalContent;
-                            }
+                        const appViewTemplate = this.getTemplate(appSite, mapping.targetTemplateName, appView, appViewPrefix, true);
+                        if (appViewTemplate) {
+                            replacementText = appViewTemplate.originalContent;
                         }
                     }
 
@@ -168,6 +164,8 @@ export class LoaderPreProcessJson {
         return result;
     }
 
+    // Get template with SearchAppSites fallback (used for main template retrieval)
+    // Matches C# GetTemplateInternal()
     getTemplateInternal(appSite, templateName, appView, appViewPrefix) {
         if (appView && appViewPrefix && templateName.toLowerCase().includes(appViewPrefix.toLowerCase())) {
             const appKey = replaceCaseInsensitive(templateName, appViewPrefix, appView);
@@ -195,6 +193,32 @@ export class LoaderPreProcessJson {
                 }
             }
         }
+        return null;
+    }
+
+    // Get template WITHOUT SearchAppSites fallback (used for AppView fallback in replacements)
+    // Matches C# GetTemplate()
+    getTemplate(appSite, templateName, appView = null, appViewPrefix = null, useAppViewFallback = true) {
+        if (!this._templates || this._templates.size === 0) {
+            return null;
+        }
+
+        // FIRST: Check for AppView-specific template resolution when AppView context is provided
+        if (useAppViewFallback && appView && appViewPrefix && templateName.toLowerCase().includes(appViewPrefix.toLowerCase())) {
+            // Direct replacement: Replace the AppViewPrefix with the AppView value
+            const appKey = replaceCaseInsensitive(templateName, appViewPrefix, appView);
+            const fallbackTemplateKey = `${appSite.toLowerCase()}_${appKey.toLowerCase()}`;
+            if (this._templates.has(fallbackTemplateKey)) {
+                return this._templates.get(fallbackTemplateKey); // Found AppView-specific template, use it
+            }
+        }
+
+        // SECOND: If no AppView-specific template found, try primary template
+        const primaryTemplateKey = `${appSite.toLowerCase()}_${templateName.toLowerCase()}`;
+        if (this._templates.has(primaryTemplateKey)) {
+            return this._templates.get(primaryTemplateKey);
+        }
+
         return null;
     }
 
