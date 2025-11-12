@@ -131,14 +131,16 @@ func (l *LoaderNormalJson) ApplyAllReplacementMappings(content, appSite string, 
 // GetTemplateHtml returns interface{} for compatibility with ILoaderJson
 // The actual return type is string for LoaderNormalJson
 func (l *LoaderNormalJson) GetTemplateHtml(appSite, appFile, appView, appViewPrefix string) interface{} {
-	if appView != "" && appViewPrefix != "" {
-		appKey := strings.Replace(appFile, appViewPrefix, appView, 1)
+	// Try AppView fallback first if provided
+	if appView != "" && appViewPrefix != "" && strings.Contains(strings.ToLower(appFile), strings.ToLower(appViewPrefix)) {
+		appKey := common.ReplaceCaseInsensitive(appFile, appViewPrefix, appView)
 		key := fmt.Sprintf("%s_%s", strings.ToLower(appSite), strings.ToLower(appKey))
 		if t, ok := l.templates[key]; ok {
 			return t.HTML
 		}
 	}
 
+	// Try primary template key
 	key := fmt.Sprintf("%s_%s", strings.ToLower(appSite), strings.ToLower(appFile))
 	if t, ok := l.templates[key]; ok {
 		return t.HTML

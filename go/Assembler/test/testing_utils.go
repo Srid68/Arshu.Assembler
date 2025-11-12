@@ -99,7 +99,7 @@ grouped := make(map[groupKey][]*config.Scenario)
 		appFileName := key.appFile
 		if !skipDetails {
 			fmt.Printf("%s: STANDARD TEST : appsite: %s appfile: %s\n", testSite, testSite, appFileName)
-			fmt.Printf("%s: AppSite: %s, AppViewPrefix: Html3A\n", testSite, testSite)
+			fmt.Printf("%s: AppSite: %s, AppViewPrefix: %s\n", testSite, testSite, appFileName)
 			fmt.Printf("%s: %s\n", testSite, strings.Repeat("=", 50))
 		}
 
@@ -124,12 +124,12 @@ grouped := make(map[groupKey][]*config.Scenario)
 			scenarioOutputsPreProcess = append(scenarioOutputsPreProcess, resultPreProcess)
 			scenarioUnresolvedPreProcess = append(scenarioUnresolvedPreProcess, hasUnresolvedPlaceholders(resultPreProcess, appView, "PreProcess", testSite, skipDetails, printHtmlOutput))
 
-			normalJsonEngine := &enginenormaljson.EngineNormalJson{AppViewPrefix: "Html3A"}
+			normalJsonEngine := &enginenormaljson.EngineNormalJson{AppViewPrefix: appFileName}
 			resultNormalJson := normalJsonEngine.MergeTemplates(testSite, appFileName, appView, loaderNormalJson, enableJsonProcessing)
 			scenarioOutputsNormalJson = append(scenarioOutputsNormalJson, resultNormalJson)
 			scenarioUnresolvedNormalJson = append(scenarioUnresolvedNormalJson, hasUnresolvedPlaceholders(resultNormalJson, appView, "NormalJson", testSite, skipDetails, printHtmlOutput))
 
-			preProcessJsonEngine := &enginepreprocessjson.EnginePreProcessJson{AppViewPrefix: "Html3A"}
+			preProcessJsonEngine := &enginepreprocessjson.EnginePreProcessJson{AppViewPrefix: appFileName}
 			resultPreProcessJson := preProcessJsonEngine.MergeTemplates(testSite, appFileName, appView, loaderPreProcessJson, enableJsonProcessing)
 			scenarioOutputsPreProcessJson = append(scenarioOutputsPreProcessJson, resultPreProcessJson)
 			scenarioUnresolvedPreProcessJson = append(scenarioUnresolvedPreProcessJson, hasUnresolvedPlaceholders(resultPreProcessJson, appView, "PreProcessJson", testSite, skipDetails, printHtmlOutput))
