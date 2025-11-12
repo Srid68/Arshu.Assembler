@@ -706,6 +706,10 @@ class LoaderPreProcessJson implements ILoaderJson
         if (!$template->getJsonData()) return;
 
         foreach ($template->getJsonData() as $key => $value) {
+            // Convert JsonArray to plain array if needed
+            if ($value instanceof \Assembler\App\Json\JsonArray) {
+                $value = $value->toArray();
+            }
             if (is_array($value) && isset($value[0])) { // is list
                 $dataList = $value;
                 $keyNorm = strtolower($key);
@@ -794,7 +798,13 @@ class LoaderPreProcessJson implements ILoaderJson
                     $itemBlock = $blockContent;
                     foreach ($item as $key => $value) {
                         $placeholder = '{{$' . $key . '}}';
-                        $itemBlock = str_ireplace($placeholder, (string)$value, $itemBlock);
+                        // Handle boolean values explicitly to get lowercase "true"/"false"
+                        if (is_bool($value)) {
+                            $valueStr = $value ? 'true' : 'false';
+                        } else {
+                            $valueStr = $value !== null ? (string)$value : '';
+                        }
+                        $itemBlock = str_ireplace($placeholder, $valueStr, $itemBlock);
                     }
                     $itemBlock = $this->processConditionalBlocksSafely($itemBlock, $item);
                     $mergedBlock .= $itemBlock;

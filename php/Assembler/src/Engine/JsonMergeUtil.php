@@ -49,7 +49,13 @@ class JsonMergeUtil
                             if (is_array($item)) {
                                 foreach ($item as $itemKey => $itemValue) {
                                     $placeholder = '{{$' . $itemKey . '}}';
-                                    $itemBlock = self::replaceAllCaseInsensitive($itemBlock, $placeholder, (string)$itemValue);
+                                    // Handle boolean values explicitly to get lowercase "true"/"false"
+                                    if (is_bool($itemValue)) {
+                                        $valueStr = $itemValue ? 'true' : 'false';
+                                    } else {
+                                        $valueStr = $itemValue !== null ? (string)$itemValue : '';
+                                    }
+                                    $itemBlock = self::replaceAllCaseInsensitive($itemBlock, $placeholder, $valueStr);
                                 }
                                 foreach ($conditionalKeys as $condKey) {
                                     $condValue = false;
@@ -99,7 +105,13 @@ class JsonMergeUtil
         foreach ($jsonObject as $key => $value) {
             if (!is_array($value)) {
                 $placeholder = '{{$' . $key . '}}';
-                $result = self::replaceAllCaseInsensitive($result, $placeholder, (string)$value);
+                // Handle boolean values explicitly to get lowercase "true"/"false"
+                if (is_bool($value)) {
+                    $valueStr = $value ? 'true' : 'false';
+                } else {
+                    $valueStr = $value !== null ? (string)$value : '';
+                }
+                $result = self::replaceAllCaseInsensitive($result, $placeholder, $valueStr);
                 Logger::debug("Replaced simple placeholder for key '$key'", 'JsonMergeUtil');
             }
         }
