@@ -15,13 +15,15 @@ process.on('unhandledRejection', (reason, promise) => {
   process.exit(1);
 });
 
+const WebRootFolderName = 'wwwroot';
+
 // Import Assembler modules - conditional path based on environment
 let EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess;
 let ApiResponse, TemplateData, PreProcessTemplateMetadata;
 let Logger, LogRotation, ConfigUtil;
 
 console.log('[DEBUG] Starting imports...');
-const assemblerBasePath = fsSync.existsSync('/app/wwwroot') ? './Assembler/src' : '../Assembler/src';
+const assemblerBasePath = fsSync.existsSync(path.join('/app', WebRootFolderName)) ? './Assembler/src' : '../Assembler/src';
 console.log('[DEBUG] Assembler base path:', assemblerBasePath);
 console.log('[DEBUG] Assembler base path:', assemblerBasePath);
 
@@ -61,7 +63,7 @@ const logRotation = LogRotation.HOURLY;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectDirectory = __dirname;
-const assemblerWebDirPath = path.join(__dirname, 'wwwroot');
+const assemblerWebDirPath = path.join(__dirname, WebRootFolderName);
 
 // Load ConfigUtil with wwwroot path
 await ConfigUtil.load(assemblerWebDirPath);
@@ -114,7 +116,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'wwwroot')));
+app.use(express.static(path.join(__dirname, WebRootFolderName)));
 
 // Check if running in debug mode
 console.log('[DEBUG] process.env.DEBUG:', process.env.DEBUG);

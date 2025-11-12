@@ -2,19 +2,20 @@
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil } from '@arshu/assembler';
+import { EngineNormal, EnginePreProcess, EngineNormalJson, EnginePreProcessJson, LoaderNormal, LoaderPreProcess, LoaderNormalJson, LoaderPreProcessJson, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil } from '@arshu/assembler';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DEFAULT_APP_SITE = 'Main';
-const SEARCH_APP_SITE = 'Common, Language'
+const DEFAULT_ENGINE_TYPE = 'Normal';
+const SEARCH_APP_SITE = 'Main, Language'
 
 // Maximum parameter length to prevent DoS attacks
 const PARAM_MAX_LENGTH = 256;
 
 // Valid engine types allowlist
-const VALID_ENGINE_TYPES = new Set(['normal', 'preprocess']);
+const VALID_ENGINE_TYPES = new Set(['normal', 'preprocess', 'normaljson', 'preprocessjson']);
 
 // Cached ValidAppSites - loaded on first request
 let cachedValidAppSites = null;
@@ -95,7 +96,7 @@ import { Logger } from '@arshu/assembler';
 /**
  * GET / - Index endpoint (root page)
  */
-export async function indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ConfigUtil) {
+export async function indexEndpoint(req, res, EngineNormal, EnginePreProcess, EngineNormalJson, EnginePreProcessJson, LoaderNormal, LoaderPreProcess, LoaderNormalJson, LoaderPreProcessJson, ConfigUtil) {
   try {
     // Get appsite from query parameter or use default
     const projectDirectory = process.cwd();
@@ -134,26 +135,36 @@ export async function indexEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
       appFile = matchingScenario.appFile;
     }
 
-    // Get engine type from query parameter (default to Normal)
-    const engineType = req.query.engine || 'Normal';
+    // Get engine type from query parameter (default to DEFAULT_ENGINE_TYPE)
+    const engineType = req.query.engine || DEFAULT_ENGINE_TYPE;
 
     // Validate EngineType against allowlist
     if (!isValidEngineType(engineType)) {
-      return res.status(400).send('Invalid engine type. Use \'Normal\' or \'PreProcess\'');
+      return res.status(400).send('Invalid engine type. Use \'Normal\', \'PreProcess\', \'NormalJson\', or \'PreProcessJson\'');
     }
 
-    // Load templates for requested AppSite
-    const normalTemplatesRaw = LoaderNormal.loadGetTemplateFiles(rootDirPath, appSite);
-    const preprocessTemplatesRaw = LoaderPreProcess.loadProcessGetTemplateFiles(rootDirPath, appSite);
-
-    // Merge using selected engine (no AppView context)
+    // Merge using selected engine (no AppView context) using loader-based interfaces
     let mergedHtml;
-    if (engineType.toLowerCase() === 'preprocess') {
+    if (engineType.toLowerCase() === 'preprocessjson') {
+      const loader = new LoaderPreProcessJson(rootDirPath, appSite, SEARCH_APP_SITE);
+      await loader.load();
+      const engine = new EnginePreProcessJson();
+      mergedHtml = engine.mergeTemplates(appSite, appFile, null, loader);
+    } else if (engineType.toLowerCase() === 'preprocess') {
+      const loader = new LoaderPreProcess(rootDirPath, appSite, SEARCH_APP_SITE);
+      await loader.load();
       const engine = new EnginePreProcess();
-      mergedHtml = engine.mergeTemplates(appSite, appFile, null, preprocessTemplatesRaw.templates);
+      mergedHtml = engine.mergeTemplates(appSite, appFile, null, loader);
+    } else if (engineType.toLowerCase() === 'normaljson') {
+      const loader = new LoaderNormalJson(rootDirPath, appSite, SEARCH_APP_SITE);
+      await loader.load();
+      const engine = new EngineNormalJson();
+      mergedHtml = engine.mergeTemplates(appSite, appFile, null, loader);
     } else {
+      const loader = new LoaderNormal(rootDirPath, appSite, SEARCH_APP_SITE);
+      await loader.load();
       const engine = new EngineNormal();
-      mergedHtml = engine.mergeTemplates(appSite, appFile, null, normalTemplatesRaw);
+      mergedHtml = engine.mergeTemplates(appSite, appFile, null, loader);
     }
 
     res.setHeader('Content-Type', 'text/html');
@@ -200,8 +211,8 @@ export async function navigationEndpoint(req, res, EngineNormal, EnginePreProces
 
     const appFile = matchingScenario.appFile;
 
-    // Get engine type from query parameter (default to Normal)
-    const engineType = req.query.engine || 'Normal';
+    // Get engine type from query parameter (default to DEFAULT_ENGINE_TYPE)
+    const engineType = req.query.engine || DEFAULT_ENGINE_TYPE;
 
     // Validate EngineType against allowlist
     if (!isValidEngineType(engineType)) {
@@ -213,22 +224,26 @@ export async function navigationEndpoint(req, res, EngineNormal, EnginePreProces
 
     // Merge using selected engine
     let mergedHtml;
-    if (engineType.toLowerCase() === 'preprocess') {
-      const templates = LoaderPreProcess.loadProcessGetTemplateFiles(wwwrootPath, appSite);
-      const engine = new EnginePreProcess();
-      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, templates.templates);
-    } else if (engineType.toLowerCase() === 'normaljson') {
-      const loader = new LoaderNormalJson(wwwrootPath, appSite);
-      const engine = new EngineNormalJson();
-      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, loader);
-    } else if (engineType.toLowerCase() === 'preprocessjson') {
-      const loader = new LoaderPreProcessJson(wwwrootPath, appSite);
+    if (engineType.toLowerCase() === 'preprocessjson') {
+      const loader = new LoaderPreProcessJson(wwwrootPath, appSite, SEARCH_APP_SITE);
+      await loader.load();
       const engine = new EnginePreProcessJson();
       mergedHtml = engine.mergeTemplates(appSite, appFile, appView, loader);
+    } else if (engineType.toLowerCase() === 'preprocess') {
+      const loader = new LoaderPreProcess(wwwrootPath, appSite, SEARCH_APP_SITE);
+      await loader.load();
+      const engine = new EnginePreProcess();
+      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, loader);
+    } else if (engineType.toLowerCase() === 'normaljson') {
+      const loader = new LoaderNormalJson(wwwrootPath, appSite, SEARCH_APP_SITE);
+      await loader.load();
+      const engine = new EngineNormalJson();
+      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, loader);
     } else {
-      const templates = LoaderNormal.loadGetTemplateFiles(wwwrootPath, appSite);
+      const loader = new LoaderNormal(wwwrootPath, appSite, SEARCH_APP_SITE);
+      await loader.load();
       const engine = new EngineNormal();
-      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, templates);
+      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, loader);
     }
 
     res.setHeader('Content-Type', 'text/html');
@@ -242,12 +257,10 @@ export async function navigationEndpoint(req, res, EngineNormal, EnginePreProces
 /**
  * POST /merge - Merge templates endpoint
  */
-export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil) {
+export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, EngineNormalJson, EnginePreProcessJson, LoaderNormal, LoaderPreProcess, LoaderNormalJson, LoaderPreProcessJson, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil) {
   const serverStart = Date.now();
 
   // Enable logging for merge operations
-  const originalLogLevel = Logger.getLogLevel();
-
   const projectDirectory = process.cwd();
   const templateAnalysisDir = path.join(projectDirectory, 'Analysis');
   const logsDir = path.join(templateAnalysisDir, 'logs');
@@ -256,11 +269,14 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
   const contextLogFiles = {
     'LoaderNormal': path.join(logsDir, 'nodejs_loadernormal.log'),
     'LoaderPreProcess': path.join(logsDir, 'nodejs_loaderpreprocess.log'),
+    'LoaderNormalJson': path.join(logsDir, 'nodejs_loadernormaljson.log'),
+    'LoaderPreProcessJson': path.join(logsDir, 'nodejs_loaderpreprocessjson.log'),
     'EngineNormal': path.join(logsDir, 'nodejs_enginenormal.log'),
-    'EnginePreProcess': path.join(logsDir, 'nodejs_enginepreprocess.log')
+    'EnginePreProcess': path.join(logsDir, 'nodejs_enginepreprocess.log'),
+    'EngineNormalJson': path.join(logsDir, 'nodejs_enginenormaljson.log'),
+    'EnginePreProcessJson': path.join(logsDir, 'nodejs_enginepreprocessjson.log')
   };
 
-  Logger.configure(0, false); // DEBUG level
   Logger.addContextLogFiles(contextLogFiles);
 
   try {
@@ -328,9 +344,10 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
       return res.status(400).json({ error: 'Invalid characters in AppView' });
     }
 
-    // Load templates based on engine type
-    const templatesMap = LoaderNormal.loadGetTemplateFiles(rootDirPath, appSite);
-    const preTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(rootDirPath, appSite);
+    // Prepare loaders (interface-based)
+    const normalLoader = new LoaderNormalJson(rootDirPath, appSite, SEARCH_APP_SITE);
+    const preprocLoader = new LoaderPreProcessJson(rootDirPath, appSite, SEARCH_APP_SITE);
+    await Promise.all([normalLoader.load(), preprocLoader.load()]);
 
     // Convert to TemplateData for ApiResponse
     const apiResponse = new ApiResponse();
@@ -338,7 +355,7 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
     apiResponse.appFile = appFile || null;
     apiResponse.appView = appView || null;
 
-    for (const [key, value] of Object.entries(templatesMap)) {
+    for (const [key, value] of (normalLoader._templates || new Map())) {
       const templateData = new TemplateData();
       templateData.html = value.html;
       templateData.json = value.json || null;
@@ -346,7 +363,7 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
     }
 
     // Convert PreprocessedTemplate to PreProcessTemplateMetadata for ApiResponse
-    for (const [key, value] of Object.entries(preTemplates.templates)) {
+    for (const [key, value] of (preprocLoader._templates || new Map())) {
       const metadata = new PreProcessTemplateMetadata();
       metadata.originalContent = value.originalContent;
       metadata.placeholders = value.placeholders;
@@ -368,19 +385,13 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
     let mergedHtml = '';
     if (engineType.toLowerCase() === 'preprocess') {
       const engine = new EnginePreProcess();
-      if (appViewPrefix) {
-        engine.appViewPrefix = appViewPrefix;
-      }
-      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, preTemplates.templates);
-      // Clear normal templates for PreProcess engine
+      if (appViewPrefix) engine.appViewPrefix = appViewPrefix;
+      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, preprocLoader);
       apiResponse.templates.clear();
     } else {
       const engine = new EngineNormal();
-      if (appViewPrefix) {
-        engine.appViewPrefix = appViewPrefix;
-      }
-      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, templatesMap);
-      // Clear preprocess templates for Normal engine
+      if (appViewPrefix) engine.appViewPrefix = appViewPrefix;
+      mergedHtml = engine.mergeTemplates(appSite, appFile, appView, normalLoader);
       apiResponse.preProcessTemplates.clear();
     }
 
@@ -388,29 +399,12 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
     apiResponse.serverTimeMs = Date.now() - serverStart;
     apiResponse.html = mergedHtml;
 
-    // Save HTML output only if save query parameter is present
-    const saveParam = req.query.save;
-    if (saveParam && saveParam.toLowerCase() === 'true') {
-      const outputDir = path.join(projectDirectory, 'Analysis', 'output');
-      await fs.promises.mkdir(outputDir, { recursive: true }).catch(() => {});
-
-      const appViewSuffix = appView && appView !== '' ? `_${appView}` : '';
-      const engineSuffix = engineType.toLowerCase();
-      const outputFile = path.join(outputDir, `${appSite}${appViewSuffix}_${engineSuffix}.html`);
-      await fs.promises.writeFile(outputFile, mergedHtml, 'utf8').catch(err => {
-        console.error('Error saving output file:', err);
-      });
-    }
-
     // Use manual JSON serialization
     res.setHeader('Content-Type', 'application/json');
     res.send(apiResponse.serializeToJson());
   } catch (error) {
     console.error('Error in merge endpoint:', error);
     res.status(500).json({ error: 'Internal server error' });
-  } finally {
-    // Restore original log level
-    Logger.setLogLevel(originalLogLevel);
   }
 }
 
@@ -418,13 +412,21 @@ export async function mergeEndpoint(req, res, EngineNormal, EnginePreProcess, Lo
  * POST /api/templates - Get templates for an AppSite
  */
 export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil) {
-    console.log('[DEBUG] getTemplatesEndpoint called');
-    console.log('[DEBUG] req.body:', req.body);
+    // Enable logging for template operations
     const projectDirectory = process.cwd();
-    console.log('[DEBUG] projectDirectory:', projectDirectory);
+    const templateAnalysisDir = path.join(projectDirectory, 'Analysis');
+    const logsDir = path.join(templateAnalysisDir, 'logs');
+    await fs.promises.mkdir(logsDir, { recursive: true }).catch(() => {});
+
+    const contextLogFiles = {
+        'LoaderNormalJson': path.join(logsDir, 'nodejs_loadernormaljson.log'),
+        'LoaderPreProcessJson': path.join(logsDir, 'nodejs_loaderpreprocessjson.log')
+    };
+
+    Logger.addContextLogFiles(contextLogFiles);
+
     try {
-        const rootDirPath = path.join(projectDirectory, 'wwwroot')
-        console.log('[DEBUG] rootDirPath:', rootDirPath);
+        const rootDirPath = path.join(projectDirectory, 'wwwroot');
 
         // Read request body
         const { appsite } = req.body
@@ -447,15 +449,16 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
 
         const serverStart = Date.now()
 
-        // Load Normal templates
-        const normalTemplates = LoaderNormal.loadGetTemplateFiles(rootDirPath, appSite)
+        // Load Normal templates using loader instance
+        const normalLoader = new LoaderNormal(rootDirPath, appSite, '')
 
-        // Load PreProcess templates
-        const preprocessTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(rootDirPath, appSite)
+        // Load PreProcess templates using loader instance
+        const preprocessLoader = new LoaderPreProcess(rootDirPath, appSite, '')
 
         // Convert Normal templates to TemplateData objects for proper JSON serialization
         const normalResult = new Map()
-        for (const [key, value] of normalTemplates.entries()) {
+        // Access templates from loader's internal structure
+        for (const [key, value] of (normalLoader._templates || new Map()).entries()) {
             const templateData = new TemplateData()
             templateData.html = value.html
             templateData.json = value.json
@@ -464,10 +467,12 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
 
         // Convert PreProcess templates to metadata-only objects
         const preprocessResult = new Map()
-        for (const [key, value] of preprocessTemplates.templates.entries()) {
+        // Access templates from loader's internal structure
+        const preprocessedSiteTemplates = preprocessLoader._preprocessedSiteTemplates || { templates: new Map() }
+        for (const [key, value] of preprocessedSiteTemplates.templates.entries()) {
             // Use toObject() to properly convert Maps and other structures
             const plainObject = value.toObject()
-            
+
             const metadata = new PreProcessTemplateMetadata()
             metadata.originalContent = plainObject.originalContent
             metadata.placeholders = plainObject.placeholders
@@ -498,18 +503,6 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
 
         const jsonResult = response.serializeToJson(false)
 
-        // Check if save query parameter is present
-        const saveParam = req.query.save
-        if (saveParam && saveParam.toLowerCase() === 'true') {
-            const templatesDir = path.join(projectDirectory, 'Analysis', 'templates')
-            await fs.promises.mkdir(templatesDir, { recursive: true }).catch(() => { })
-
-            const saveFile = path.join(templatesDir, `nodejs_${appSite}_templates.json`)
-            await fs.promises.writeFile(saveFile, jsonResult, 'utf8').catch(err => {
-                console.error('Error saving templates file:', err)
-            })
-        }
-
         res.setHeader('Content-Type', 'application/json')
         res.send(jsonResult)
     } catch (error) {
@@ -524,9 +517,9 @@ export async function getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProc
  * Usage: mapAssemblerEndpoints(app)
  */
 export function mapAssemblerEndpoints(app) {
-    app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ConfigUtil));
+    app.get('/', (req, res) => indexEndpoint(req, res, EngineNormal, EnginePreProcess, EngineNormalJson, EnginePreProcessJson, LoaderNormal, LoaderPreProcess, LoaderNormalJson, LoaderPreProcessJson, ConfigUtil));
     app.get('/:appSite', (req, res) => navigationEndpoint(req, res, EngineNormal, EnginePreProcess, EngineNormalJson, EnginePreProcessJson, LoaderNormal, LoaderPreProcess, LoaderNormalJson, LoaderPreProcessJson, ConfigUtil));
     app.get('/:appSite/:appView', (req, res) => navigationEndpoint(req, res, EngineNormal, EnginePreProcess, EngineNormalJson, EnginePreProcessJson, LoaderNormal, LoaderPreProcess, LoaderNormalJson, LoaderPreProcessJson, ConfigUtil));
-    app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil));
+    app.post('/merge', (req, res) => mergeEndpoint(req, res, EngineNormal, EnginePreProcess, EngineNormalJson, EnginePreProcessJson, LoaderNormal, LoaderPreProcess, LoaderNormalJson, LoaderPreProcessJson, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil));
     app.post('/api/templates', (req, res) => getTemplatesEndpoint(req, res, LoaderNormal, LoaderPreProcess, ApiResponse, TemplateData, PreProcessTemplateMetadata, ConfigUtil));
 }
