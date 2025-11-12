@@ -424,8 +424,9 @@ export class LoaderPreProcess {
         if (ctorName === 'JsonObject') {
             const normalized = new value.constructor();
             for (const [key, subValue] of value) {
-                const normalizedKey = key.endsWith('#') ? key.slice(0, -1) : key;
-                normalized.set(normalizedKey, this.#normalizeJsonStructure(subValue));
+                // DO NOT strip the '#' suffix here - it's needed for inheritance resolution
+                // Inheritance resolution happens in Phase 0 of createAllReplacementMappingsForSite
+                normalized.set(key, this.#normalizeJsonStructure(subValue));
             }
             return normalized;
         }
@@ -483,6 +484,14 @@ export class LoaderPreProcess {
      * @param {string} appSite - The application site name
      */
     #createAllReplacementMappingsForSite(siteTemplates, appSite) {
+        // Phase 0: Build parent map and resolve JSON inheritance BEFORE creating any mappings
+        Logger.debug(`Creating replacement mappings for ${appSite} - Phase 0: JSON inheritance`, 'LoaderPreProcess');
+        const parentMap = this.#buildParentMapForPreProcess(siteTemplates, appSite);
+        this.#resolveJsonInheritanceForAllTemplates(siteTemplates, parentMap);
+
+        // After resolving inheritance, recreate JSON placeholder mappings with the resolved values
+        this.#recreateJsonPlaceholderMappingsAfterInheritance(siteTemplates);
+
         Logger.debug(`Creating replacement mappings for ${appSite} - Phase 1: JSON arrays`, 'LoaderPreProcess');
         // Phase 1: Create JSON replacement mappings for all templates first (no dependencies)
         for (const template of siteTemplates.templates.values()) {
@@ -1349,6 +1358,192 @@ export class LoaderPreProcess {
         } catch (error) {
             // If processing fails, return original input
             return input;
+        }
+    }
+
+    /**
+     * Builds a parent-child relationship map by analyzing template placeholders
+     * Tracks which template is the parent of another based on {{TemplateName}} references
+     * Uses deterministic ordering to ensure consistent parent relationships
+     * @param {PreprocessedSiteTemplates} siteTemplates - All templates for the site
+     * @param {string} appSite - Application site name
+     * @returns {Map<string, string>} Parent map where key is child template, value is parent template
+     */
+    #buildParentMapForPreProcess(siteTemplates, appSite) {
+        const parentMap = new Map();
+
+        Logger.debug(`Building parent map for appSite: ${appSite}`, 'LoaderPreProcess');
+
+        // Process templates in deterministic order to ensure consistent parent relationships
+        // Sort keys: SearchAppSites first, then main AppSite (so main AppSite wins in case of conflicts)
+        const mainAppSitePrefix = `${appSite.toLowerCase()}_`;
+        const searchTemplateKeys = [];
+        const mainTemplateKeys = [];
+
+        for (const templateKey of siteTemplates.templates.keys()) {
+            if (templateKey.startsWith(mainAppSitePrefix)) {
+                mainTemplateKeys.push(templateKey);
+            } else {
+                searchTemplateKeys.push(templateKey);
+            }
+        }
+
+        // Process SearchAppSites templates first, then main AppSite (last wins)
+        const allKeys = [...searchTemplateKeys, ...mainTemplateKeys];
+
+        for (const templateKey of allKeys) {
+            const template = siteTemplates.templates.get(templateKey);
+
+            // Find all {{TemplateName}} placeholders in this template
+            for (const placeholder of template.placeholders) {
+                const placeholderName = placeholder.name;
+
+                // This template (templateKey) is the parent of the placeholder template
+                const childTemplateKey = `${appSite.toLowerCase()}_${placeholderName.toLowerCase()}`;
+
+                const existingParent = parentMap.get(childTemplateKey);
+                if (existingParent && existingParent !== templateKey) {
+                    Logger.debug(`Overwriting parent relationship: ${childTemplateKey} -> parent: ${templateKey} (was: ${existingParent})`, 'LoaderPreProcess');
+                } else if (!existingParent) {
+                    Logger.debug(`Parent relationship: ${childTemplateKey} -> parent: ${templateKey}`, 'LoaderPreProcess');
+                }
+                parentMap.set(childTemplateKey, templateKey);
+            }
+
+            // Also check slotted templates
+            for (const slottedTemplate of template.slottedTemplates) {
+                const templateName = slottedTemplate.name;
+                const childTemplateKey = `${appSite.toLowerCase()}_${templateName.toLowerCase()}`;
+
+                const existingParent = parentMap.get(childTemplateKey);
+                if (existingParent && existingParent !== templateKey) {
+                    Logger.debug(`Overwriting parent relationship (slotted): ${childTemplateKey} -> parent: ${templateKey} (was: ${existingParent})`, 'LoaderPreProcess');
+                } else if (!existingParent) {
+                    Logger.debug(`Parent relationship (slotted): ${childTemplateKey} -> parent: ${templateKey}`, 'LoaderPreProcess');
+                }
+                parentMap.set(childTemplateKey, templateKey);
+            }
+        }
+
+        Logger.debug(`Built parent map with ${parentMap.size} relationships`, 'LoaderPreProcess');
+        return parentMap;
+    }
+
+    /**
+     * Resolves JSON inheritance for all templates by modifying their jsonData in place
+     * Keys ending with '#' trigger inheritance lookup up the parent template tree
+     * @param {PreprocessedSiteTemplates} siteTemplates - All templates for the site
+     * @param {Map<string, string>} parentMap - Parent-child relationship map
+     */
+    #resolveJsonInheritanceForAllTemplates(siteTemplates, parentMap) {
+        for (const [templateKey, template] of siteTemplates.templates) {
+            if (!template.jsonData) continue;
+
+            // Resolve inheritance for this template
+            const JsonObject = template.jsonData.constructor; // Get the JsonObject constructor
+            const resolvedJson = new JsonObject();
+            let hasInheritance = false;
+
+            for (const [key, value] of template.jsonData) {
+                // Check if this is an inheritable key (ends with #)
+                if (key.endsWith('#') && typeof value === 'string') {
+                    hasInheritance = true;
+                    const actualKey = key.substring(0, key.length - 1);
+                    const resolvedValue = this.#searchParentTreeForKey(actualKey, templateKey, siteTemplates.templates, parentMap);
+
+                    if (resolvedValue !== null) {
+                        resolvedJson.set(actualKey, resolvedValue);
+                        Logger.debug(`Resolved inherited key ${key} -> ${actualKey} = ${resolvedValue} for template ${templateKey}`, 'LoaderPreProcess');
+                    } else {
+                        // Use default value if not found in parents
+                        resolvedJson.set(actualKey, value);
+                        Logger.debug(`No inherited value found for ${actualKey}, using default: ${value}`, 'LoaderPreProcess');
+                    }
+                } else {
+                    // Normal key - keep as is
+                    resolvedJson.set(key, value);
+                }
+            }
+
+            // Replace jsonData with resolved version if any inheritance was found
+            if (hasInheritance) {
+                template.jsonData = resolvedJson;
+                Logger.debug(`Updated jsonData for template ${templateKey} with resolved inheritance`, 'LoaderPreProcess');
+            }
+        }
+    }
+
+    /**
+     * Searches up the parent tree to find a JSON key value
+     * @param {string} key - Key to search for
+     * @param {string} currentTemplateKey - Current template key
+     * @param {Map<string, PreprocessedTemplate>} allTemplates - All templates
+     * @param {Map<string, string>} parentMap - Parent-child relationship map
+     * @returns {string|null} Value found in parent tree, or null if not found
+     */
+    #searchParentTreeForKey(key, currentTemplateKey, allTemplates, parentMap) {
+        // Get parent template key
+        const parentKey = parentMap.get(currentTemplateKey);
+        if (!parentKey) {
+            Logger.debug(`No parent found for ${currentTemplateKey}`, 'LoaderPreProcess');
+            return null;
+        }
+
+        Logger.debug(`Checking parent ${parentKey} for key ${key}`, 'LoaderPreProcess');
+
+        // Get parent's template
+        const parentTemplate = allTemplates.get(parentKey);
+        if (!parentTemplate) {
+            Logger.debug(`Parent template ${parentKey} not found in templates`, 'LoaderPreProcess');
+            return null;
+        }
+
+        if (!parentTemplate.jsonData) {
+            Logger.debug(`Parent template ${parentKey} has no JSON data, searching further up`, 'LoaderPreProcess');
+            // Parent has no JSON, search further up the tree
+            return this.#searchParentTreeForKey(key, parentKey, allTemplates, parentMap);
+        }
+
+        // Look for the key (case-insensitive)
+        for (const [jsonKey, jsonValue] of parentTemplate.jsonData) {
+            if (jsonKey.toLowerCase() === key.toLowerCase()) {
+                if (typeof jsonValue === 'string') {
+                    Logger.debug(`Found key ${key} in parent ${parentKey}: ${jsonValue}`, 'LoaderPreProcess');
+                    return jsonValue;
+                }
+            }
+        }
+
+        Logger.debug(`Key ${key} not found in parent ${parentKey}, searching further up`, 'LoaderPreProcess');
+        // Not found in this parent, search further up the tree
+        return this.#searchParentTreeForKey(key, parentKey, allTemplates, parentMap);
+    }
+
+    /**
+     * Recreates JSON placeholder replacement mappings after inheritance resolution
+     * This is needed because mappings were created during preprocessing before inheritance was resolved
+     * @param {PreprocessedSiteTemplates} siteTemplates - All templates for the site
+     */
+    #recreateJsonPlaceholderMappingsAfterInheritance(siteTemplates) {
+        for (const [templateKey, template] of siteTemplates.templates) {
+            if (!template.jsonData) continue;
+
+            // Remove old JSON placeholder mappings (both simple placeholders AND array blocks use JsonPlaceholder type)
+            const newMappings = [];
+            for (const mapping of template.replacementMappings) {
+                if (mapping.type !== ReplacementType.JsonPlaceholder) {
+                    newMappings.push(mapping);
+                }
+            }
+            template.replacementMappings = newMappings;
+
+            // Clear jsonPlaceholders array
+            template.jsonPlaceholders = [];
+
+            // Recreate JSON placeholder mappings with resolved values
+            this.#createJsonPlaceholderReplacementMappings(template, template.originalContent);
+
+            Logger.debug(`Recreated JSON placeholder mappings for template ${templateKey} after inheritance resolution`, 'LoaderPreProcess');
         }
     }
 }

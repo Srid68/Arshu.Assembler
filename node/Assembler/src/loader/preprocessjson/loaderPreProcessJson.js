@@ -394,26 +394,21 @@ export class LoaderPreProcessJson {
             let hasInheritance = false;
 
             for (const [key, value] of Object.entries(template.jsonData)) {
-                if (key.endsWith('#')) {
+                if (key.endsWith('#') && typeof value === 'string') {
                     hasInheritance = true;
                     const actualKey = key.slice(0, -1);
-                    const hasExplicitValue = this.hasExplicitJsonValue(value);
+                    const resolvedValue = this.SearchParentTreeForKeyPreProcessJson(actualKey, templateKey, siteTemplates.templates, parentMap);
 
-                    if (hasExplicitValue) {
-                        resolvedJson[actualKey] = value;
-                        Logger.debug(`Using explicit value for inherited key ${key} -> ${actualKey} = ${value} for template ${templateKey}`, 'LoaderPreProcessJson');
+                    if (resolvedValue !== null) {
+                        resolvedJson[actualKey] = resolvedValue;
+                        Logger.debug(`Resolved inherited key ${key} -> ${actualKey} = ${resolvedValue} for template ${templateKey}`, 'LoaderPreProcessJson');
                     } else {
-                        const resolvedValue = this.SearchParentTreeForKeyPreProcessJson(actualKey, templateKey, siteTemplates.templates, parentMap);
-
-                        if (resolvedValue !== null) {
-                            resolvedJson[actualKey] = resolvedValue;
-                            Logger.debug(`Resolved inherited key ${key} -> ${actualKey} = ${resolvedValue} for template ${templateKey}`, 'LoaderPreProcessJson');
-                        } else {
-                            resolvedJson[actualKey] = value;
-                            Logger.debug(`No inherited value found for ${actualKey}, using default: ${value}`, 'LoaderPreProcessJson');
-                        }
+                        // Use default value if not found in parents
+                        resolvedJson[actualKey] = value;
+                        Logger.debug(`No inherited value found for ${actualKey}, using default: ${value}`, 'LoaderPreProcessJson');
                     }
                 } else {
+                    // Normal key - keep as is
                     resolvedJson[key] = value;
                 }
             }
