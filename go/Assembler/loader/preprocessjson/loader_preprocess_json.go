@@ -350,9 +350,10 @@ func createPlaceholderReplacementMappingsJson(template *model.PreprocessedTempla
 
 			Logger.Debug(fmt.Sprintf("Creating replacement mapping: %s -> processed template (size: %d)", placeholder.FullMatch, len(processedTemplate)), "LoaderPreProcessJson")
 			mapping := model.ReplacementMapping{
-				OriginalText:    placeholder.FullMatch,
-				ReplacementText: processedTemplate,
-				Type:            model.SimpleTemplateType,
+				OriginalText:       placeholder.FullMatch,
+				ReplacementText:    processedTemplate,
+				Type:               model.SimpleTemplateType,
+				TargetTemplateName: placeholder.TemplateKey,
 			}
 			template.ReplacementMappings = append(template.ReplacementMappings, mapping)
 		}
@@ -403,9 +404,10 @@ func createSlottedTemplateReplacementMappingsJson(template *model.PreprocessedTe
 			processedTemplate = common.RemoveRemainingSlotPlaceholders(processedTemplate)
 
 			mapping := model.ReplacementMapping{
-				OriginalText:    fullMatch,
-				ReplacementText: processedTemplate,
-				Type:            model.SlottedTemplateType,
+				OriginalText:       fullMatch,
+				ReplacementText:    processedTemplate,
+				Type:               model.SlottedTemplateType,
+				TargetTemplateName: slottedTemplate.TemplateKey,
 			}
 			template.ReplacementMappings = append(template.ReplacementMappings, mapping)
 		}
@@ -1250,19 +1252,25 @@ func (l *LoaderPreprocessJson) ApplyAllReplacementMappings(content, appSite stri
 				}
 				if strings.Contains(result, mapping.OriginalText) {
 					replacementText := mapping.ReplacementText
+					actualTemplateName := mapping.TargetTemplateName
 
 					// Handle AppView logic if needed
 					if appView != "" && mapping.TargetTemplateName != "" {
 						appViewTemplate := l.getTemplate(appSite, mapping.TargetTemplateName, appView, appViewPrefix, true)
 						if appViewTemplate != nil {
 							replacementText = appViewTemplate.OriginalContent
+							// Update the template name to the actual one used (with AppView fallback applied by getTemplate)
+							// If getTemplate found a fallback, we need to use the fallback template name for JSON merging
+							if appViewPrefix != "" && strings.Contains(strings.ToLower(mapping.TargetTemplateName), strings.ToLower(appViewPrefix)) {
+								actualTemplateName = common.ReplaceCaseInsensitive(mapping.TargetTemplateName, appViewPrefix, appView)
+							}
 						}
 					}
 
-					// Merge JSON using loader's centralized method
-					if enableJsonProcessing && mapping.TargetTemplateName != "" {
-						replacementText = l.MergeHtmlWithJson(replacementText, appSite, mapping.TargetTemplateName)
-						Logger.Debug(fmt.Sprintf("After merging JSON for simple template %s: %d chars", mapping.TargetTemplateName, len(replacementText)), "LoaderPreprocessJson")
+					// Merge JSON using loader's centralized method with the actual template name
+					if enableJsonProcessing && actualTemplateName != "" {
+						replacementText = l.MergeHtmlWithJson(replacementText, appSite, actualTemplateName)
+						Logger.Debug(fmt.Sprintf("After merging JSON for simple template %s: %d chars", actualTemplateName, len(replacementText)), "LoaderPreprocessJson")
 					}
 
 					Logger.Debug(fmt.Sprintf("Applying simple template: %s -> %d chars", mapping.OriginalText, len(replacementText)), "LoaderPreprocessJson")
@@ -1289,7 +1297,7 @@ func (l *LoaderPreprocessJson) getTemplate(appSite, templateName, appView, appVi
 		return nil
 	}
 
-	if useAppViewFallback && appView != "" && appViewPrefix != "" && strings.Contains(templateName, appViewPrefix) {
+	if useAppViewFallback && appView != "" && appViewPrefix != "" && strings.Contains(strings.ToLower(templateName), strings.ToLower(appViewPrefix)) {
 		appKey := common.ReplaceCaseInsensitive(templateName, appViewPrefix, appView)
 		fallbackTemplateKey := strings.ToLower(appSite) + "_" + strings.ToLower(appKey)
 		if fallbackTemplate, ok := l.allTemplates[fallbackTemplateKey]; ok {
