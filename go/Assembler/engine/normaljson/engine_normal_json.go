@@ -1,44 +1,46 @@
-package engine
+package engine_normaljson
 
 import (
 	Logger "arshu/common"
 	"assembler/common"
+	interfaces "assembler/interface"
 	"fmt"
 	"strings"
 )
-
-type ILoaderJson interface {
-	GetTemplateHtml(appSite, appFile, appView, appViewPrefix string) string
-	GetTemplateJson(appSite, appFile string) map[string]interface{}
-}
 
 type EngineNormalJson struct {
 	AppViewPrefix string
 }
 
-func (e *EngineNormalJson) MergeTemplates(appSite, appFile, appView string, loader ILoaderJson, enableJsonProcessing bool) string {
+func NewEngineNormalJson(prefix string) *EngineNormalJson {
+	return &EngineNormalJson{AppViewPrefix: prefix}
+}
+
+func (e *EngineNormalJson) MergeTemplates(appSite, appFile, appView string, loader interfaces.ILoaderJson, enableJsonProcessing bool) string {
 	Logger.Debug(fmt.Sprintf("MergeTemplates called: appSite=%s, appFile=%s, appView=%s, enableJson=%t", appSite, appFile, appView, enableJsonProcessing), "EngineNormalJson")
 
 	if loader == nil {
-		Logger.Debug("No loader provided", "EngineNormalJson")
+		Logger.Warn("No loader provided", "EngineNormalJson")
 		return ""
 	}
 
-	contentHtml := loader.GetTemplateHtml(appSite, appFile, appView, e.AppViewPrefix)
-	if contentHtml == "" {
-		Logger.Debug(fmt.Sprintf("Main template not found for appSite=%s, appFile=%s", appSite, appFile), "EngineNormalJson")
+	result := loader.GetTemplateHtml(appSite, appFile, appView, e.AppViewPrefix)
+	if result == nil {
+		Logger.Warn(fmt.Sprintf("Main template not found for appSite=%s, appFile=%s", appSite, appFile), "EngineNormalJson")
+		return ""
+	}
+
+	contentHtml, ok := result.(string)
+	if !ok || contentHtml == "" {
+		Logger.Warn(fmt.Sprintf("Main template not found or invalid type for appSite=%s, appFile=%s", appSite, appFile), "EngineNormalJson")
 		return ""
 	}
 
 	Logger.Debug(fmt.Sprintf("Main template found, html size: %d", len(contentHtml)), "EngineNormalJson")
 
 	if enableJsonProcessing {
-		jsonData := loader.GetTemplateJson(appSite, appFile)
-		if jsonData != nil {
-			Logger.Debug("Merging main template with JSON", "EngineNormalJson")
-			contentHtml = common.MergeTemplateWithJson(contentHtml, jsonData)
-			Logger.Debug(fmt.Sprintf("After main JSON merge: %d chars", len(contentHtml)), "EngineNormalJson")
-		}
+		contentHtml = loader.MergeHtmlWithJson(contentHtml, appSite, appFile)
+		Logger.Debug(fmt.Sprintf("After main JSON merge: %d chars", len(contentHtml)), "EngineNormalJson")
 	}
 
 	previous := ""
@@ -66,30 +68,29 @@ func (e *EngineNormalJson) MergeTemplates(appSite, appFile, appView string, load
 	return contentHtml
 }
 
-func (e *EngineNormalJson) getTemplateWithJson(appSite, templateName, appView string, loader ILoaderJson, enableJsonProcessing bool) string {
-	html := loader.GetTemplateHtml(appSite, templateName, appView, e.AppViewPrefix)
-	if html == "" {
+func (e *EngineNormalJson) getTemplateWithJson(appSite, templateName, appView string, loader interfaces.ILoaderJson, enableJsonProcessing bool) string {
+	result := loader.GetTemplateHtml(appSite, templateName, appView, e.AppViewPrefix)
+	if result == nil {
+		return ""
+	}
+
+	html, ok := result.(string)
+	if !ok || html == "" {
 		return ""
 	}
 
 	Logger.Debug(fmt.Sprintf("GetTemplateWithJson: template=%s, html size=%d", templateName, len(html)), "EngineNormalJson")
 
 	if enableJsonProcessing {
-		jsonData := loader.GetTemplateJson(appSite, templateName)
-		if jsonData != nil {
-			Logger.Debug(fmt.Sprintf("Merging JSON for template %s", templateName), "EngineNormalJson")
-			originalSize := len(html)
-			html = common.MergeTemplateWithJson(html, jsonData)
-			Logger.Debug(fmt.Sprintf("After JSON merge for %s: size %d -> %d", templateName, originalSize, len(html)), "EngineNormalJson")
-		} else {
-			Logger.Debug(fmt.Sprintf("No JSON data found for template %s", templateName), "EngineNormalJson")
-		}
+		originalSize := len(html)
+		html = loader.MergeHtmlWithJson(html, appSite, templateName)
+		Logger.Debug(fmt.Sprintf("After JSON merge for %s: size %d -> %d", templateName, originalSize, len(html)), "EngineNormalJson")
 	}
 
 	return html
 }
 
-func (e *EngineNormalJson) mergeTemplateSlots(contentHtml, appSite, appView string, loader ILoaderJson, enableJsonProcessing bool) string {
+func (e *EngineNormalJson) mergeTemplateSlots(contentHtml, appSite, appView string, loader interfaces.ILoaderJson, enableJsonProcessing bool) string {
 	if contentHtml == "" {
 		return contentHtml
 	}
@@ -105,7 +106,7 @@ func (e *EngineNormalJson) mergeTemplateSlots(contentHtml, appSite, appView stri
 	return contentHtml
 }
 
-func (e *EngineNormalJson) processTemplateSlots(contentHtml, appSite, appView string, loader ILoaderJson, enableJsonProcessing bool) string {
+func (e *EngineNormalJson) processTemplateSlots(contentHtml, appSite, appView string, loader interfaces.ILoaderJson, enableJsonProcessing bool) string {
 	result := contentHtml
 	searchPos := 0
 
@@ -151,7 +152,7 @@ func (e *EngineNormalJson) processTemplateSlots(contentHtml, appSite, appView st
 			processedTemplate = common.RemoveRemainingSlotPlaceholders(processedTemplate)
 
 			fullMatch := result[openStart : closeStart+len(closeTag)]
-			result = strings.Replace(result, fullMatch, processedTemplate, 1)
+			result = strings.ReplaceAll(result, fullMatch, processedTemplate)
 			searchPos = openStart + len(processedTemplate)
 		} else {
 			searchPos = openStart + 1
@@ -161,7 +162,7 @@ func (e *EngineNormalJson) processTemplateSlots(contentHtml, appSite, appView st
 	return result
 }
 
-func (e *EngineNormalJson) extractSlotContents(innerContent, appSite, appView string, loader ILoaderJson, enableJsonProcessing bool) map[string]string {
+func (e *EngineNormalJson) extractSlotContents(innerContent, appSite, appView string, loader interfaces.ILoaderJson, enableJsonProcessing bool) map[string]string {
 	slotContents := make(map[string]string)
 	searchPos := 0
 
@@ -220,7 +221,7 @@ func (e *EngineNormalJson) extractSlotContents(innerContent, appSite, appView st
 	return slotContents
 }
 
-func (e *EngineNormalJson) replaceTemplatePlaceholders(html, appSite, appView string, loader ILoaderJson, enableJsonProcessing bool) string {
+func (e *EngineNormalJson) replaceTemplatePlaceholders(html, appSite, appView string, loader interfaces.ILoaderJson, enableJsonProcessing bool) string {
 	result := html
 	searchPos := 0
 
@@ -253,7 +254,7 @@ func (e *EngineNormalJson) replaceTemplatePlaceholders(html, appSite, appView st
 		if templateContent != "" {
 			processedReplacement := e.replaceTemplatePlaceholders(templateContent, appSite, appView, loader, enableJsonProcessing)
 			placeholder := result[openStart : closeStart+2]
-			result = strings.Replace(result, placeholder, processedReplacement, 1)
+			result = strings.ReplaceAll(result, placeholder, processedReplacement)
 			searchPos = openStart + len(processedReplacement)
 		} else {
 			searchPos = closeStart + 2

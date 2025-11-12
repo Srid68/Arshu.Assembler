@@ -24,6 +24,8 @@ import (
 // Global variable to store project directory path (similar to C#'s ContentRootPath)
 var projectDirectory string
 
+const WebRootFolderName = "wwwroot"
+
 // openapi handles the GET /openapi.json endpoint to serve OpenAPI specification
 func openapi(c *gin.Context) {
 	spec := map[string]interface{}{
@@ -109,7 +111,7 @@ func openapi(c *gin.Context) {
 func main() {
 	// Set projectDirectory to current working directory (same as C#/Rust)
 	projectDirectory, _ = os.Getwd()
-	wwwrootPath := filepath.Join(projectDirectory, "wwwroot")
+	wwwrootPath := filepath.Join(projectDirectory, WebRootFolderName)
 
 	// Configure Logger
 	templateAnalysisDir := filepath.Join(projectDirectory, "Analysis")
@@ -241,7 +243,7 @@ func main() {
 	}
 
 	// Serve Scalar UI static files
-	r.Static("/scalar", "./wwwroot/scalar")
+	r.Static("/scalar", filepath.Join(".", WebRootFolderName, "scalar"))
 
 	// Map assembler endpoints using the centralized function
 	endpoint.MapAssemblerEndpoints(r)
@@ -253,7 +255,7 @@ func main() {
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
 		// Try to serve from wwwroot
-		filePath := "./wwwroot" + path
+		filePath := filepath.Join(".", WebRootFolderName) + path
 		if _, err := os.Stat(filePath); err == nil {
 			c.File(filePath)
 			return

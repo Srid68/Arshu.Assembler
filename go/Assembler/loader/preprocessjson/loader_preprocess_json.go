@@ -1,8 +1,9 @@
-package loader
+package loader_preprocessjson
 
 import (
 	Logger "arshu/common"
 	"assembler/common"
+	"assembler/loader"
 	"assembler/model"
 	"bytes"
 	"encoding/json"
@@ -13,21 +14,27 @@ import (
 	"sync"
 )
 
-var preprocessedTemplatesCacheJson = struct {
+var preprocessJsonTemplatesCache = struct {
 	sync.RWMutex
 	cache map[string]*model.PreprocessedSiteTemplates
 }{cache: make(map[string]*model.PreprocessedSiteTemplates)}
 
+// DisableCacheJson flag to disable caching for testing/debugging purposes. Default is false (caching enabled).
+var DisableCacheJson = false
+
 func LoadProcessGetTemplateFilesJson(rootDirPath, appSite, searchAppSites string) *model.PreprocessedSiteTemplates {
-	Logger.Debug(fmt.Sprintf("LoadProcessGetTemplateFilesJson called for appSite: %s, searchAppSites: %s", appSite, searchAppSites), "LoaderPreProcessJson")
+	Logger.Debug(fmt.Sprintf("LoadProcessGetTemplateFilesJson called for appSite: %s, searchAppSites: %s, DisableCache: %v", appSite, searchAppSites, DisableCacheJson), "LoaderPreProcessJson")
 
 	cacheKey := filepath.Dir(rootDirPath) + "|" + appSite + "|" + searchAppSites
-	preprocessedTemplatesCacheJson.RLock()
-	cached, ok := preprocessedTemplatesCacheJson.cache[cacheKey]
-	preprocessedTemplatesCacheJson.RUnlock()
-	if ok {
-		Logger.Debug(fmt.Sprintf("Returning cached templates for %s (%d templates)", appSite, len(cached.Templates)), "LoaderPreProcessJson")
-		return cached
+
+	if !DisableCacheJson {
+		preprocessJsonTemplatesCache.RLock()
+		cached, ok := preprocessJsonTemplatesCache.cache[cacheKey]
+		preprocessJsonTemplatesCache.RUnlock()
+		if ok {
+			Logger.Debug(fmt.Sprintf("Returning cached templates for %s (%d templates)", appSite, len(cached.Templates)), "LoaderPreProcessJson")
+			return cached
+		}
 	}
 
 	result := loadTemplatesFromSingleAppSiteJson(rootDirPath, appSite)
@@ -54,9 +61,12 @@ func LoadProcessGetTemplateFilesJson(rootDirPath, appSite, searchAppSites string
 	createAllReplacementMappingsForSiteJson(result, appSite)
 	Logger.Debug(fmt.Sprintf("Created all replacement mappings for %s", appSite), "LoaderPreProcessJson")
 
-	preprocessedTemplatesCacheJson.Lock()
-	preprocessedTemplatesCacheJson.cache[cacheKey] = result
-	preprocessedTemplatesCacheJson.Unlock()
+	if !DisableCacheJson {
+		preprocessJsonTemplatesCache.Lock()
+		preprocessJsonTemplatesCache.cache[cacheKey] = result
+		preprocessJsonTemplatesCache.Unlock()
+		Logger.Debug(fmt.Sprintf("Cached templates for %s", appSite), "LoaderPreProcessJson")
+	}
 	return result
 }
 
@@ -139,14 +149,14 @@ func loadTemplatesFromSingleAppSiteJson(rootDirPath, appSite string) *model.Prep
 }
 
 func createAllReplacementMappingsForSiteJson(siteTemplates *model.PreprocessedSiteTemplates, appSite string) {
-    // Phase 0: Build parent map and resolve JSON inheritance BEFORE creating any mappings
-    Logger.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 0: JSON inheritance", appSite), "LoaderPreProcessJson")
+	// Phase 0: Build parent map and resolve JSON inheritance BEFORE creating any mappings
+	Logger.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 0: JSON inheritance", appSite), "LoaderPreProcessJson")
+	parentMap := buildParentMapForPreprocessedJson(siteTemplates, appSite)
+	resolveJsonInheritanceForAllTemplatesJson(siteTemplates, parentMap)
+	recreateJsonPlaceholderMappingsAfterInheritanceJson(siteTemplates)
 
-    parentMap := buildParentMapForPreprocessedJson(siteTemplates, appSite)
-    resolveJsonInheritanceForAllTemplatesJson(siteTemplates, parentMap, appSite)
-
-    Logger.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 1: JSON arrays", appSite), "LoaderPreProcessJson")
-
+	Logger.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 1: JSON arrays", appSite), "LoaderPreProcessJson")
+	// Phase 1: Create JSON replacement mappings for all templates first (no dependencies)
 	templateKeys := make([]string, 0, len(siteTemplates.Templates))
 	for key := range siteTemplates.Templates {
 		templateKeys = append(templateKeys, key)
@@ -160,7 +170,7 @@ func createAllReplacementMappingsForSiteJson(siteTemplates *model.PreprocessedSi
 	}
 
 	Logger.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 2: Simple placeholders", appSite), "LoaderPreProcessJson")
-
+	// Phase 2: Create simple template replacement mappings (may depend on JSON but not on slotted templates)
 	allTemplatesSnapshot := make(map[string]model.PreprocessedTemplate)
 	for key, template := range siteTemplates.Templates {
 		allTemplatesSnapshot[key] = template
@@ -174,7 +184,7 @@ func createAllReplacementMappingsForSiteJson(siteTemplates *model.PreprocessedSi
 	}
 
 	Logger.Debug(fmt.Sprintf("Creating replacement mappings for %s - Phase 3: Slotted templates", appSite), "LoaderPreProcessJson")
-
+	// Phase 3: Create slotted template replacement mappings (may depend on other templates)
 	for _, key := range templateKeys {
 		if template, exists := siteTemplates.Templates[key]; exists {
 			createSlottedTemplateReplacementMappingsJson(&template, allTemplatesSnapshot, appSite)
@@ -182,6 +192,7 @@ func createAllReplacementMappingsForSiteJson(siteTemplates *model.PreprocessedSi
 		}
 	}
 
+	// Log summary of all replacement mappings
 	totalMappings := 0
 	for _, template := range siteTemplates.Templates {
 		totalMappings += len(template.ReplacementMappings)
@@ -189,126 +200,111 @@ func createAllReplacementMappingsForSiteJson(siteTemplates *model.PreprocessedSi
 	Logger.Info(fmt.Sprintf("Total replacement mappings created for %s: %d", appSite, totalMappings), "LoaderPreProcessJson")
 }
 
-// buildParentMapForPreprocessedJson builds a parent-child relationship map by analyzing template placeholders
 func buildParentMapForPreprocessedJson(siteTemplates *model.PreprocessedSiteTemplates, appSite string) map[string]string {
-    parentMap := make(map[string]string)
-    for templateKey, t := range siteTemplates.Templates {
-        html := t.OriginalContent
-        searchPos := 0
-        for searchPos < len(html) {
-            openStart := strings.Index(html[searchPos:], "{{")
-            if openStart == -1 {
-                break
-            }
-            openStart += searchPos
+	parentMap := make(map[string]string)
+	Logger.Debug(fmt.Sprintf("Building parent map for appSite: %s", appSite), "LoaderPreProcessJson")
 
-            if openStart+2 < len(html) {
-                ch := html[openStart+2]
-                if ch == '#' || ch == '@' || ch == '$' || ch == '/' {
-                    searchPos = openStart + 2
-                    continue
-                }
-            }
-
-            closeStart := strings.Index(html[openStart+2:], "}}")
-            if closeStart == -1 {
-                break
-            }
-            closeStart += openStart + 2
-
-            placeholderName := strings.TrimSpace(html[openStart+2 : closeStart])
-            if placeholderName == "" || !common.IsAlphaNumeric(placeholderName) {
-                searchPos = openStart + 1
-                continue
-            }
-
-            childKey := strings.ToLower(appSite) + "_" + strings.ToLower(placeholderName)
-            if _, exists := parentMap[childKey]; !exists {
-                parentMap[childKey] = templateKey
-                Logger.Debug(fmt.Sprintf("Parent relationship: %s -> parent: %s", childKey, templateKey), "LoaderPreProcessJson")
-            }
-
-            searchPos = closeStart + 2
-        }
-    }
-    Logger.Debug(fmt.Sprintf("Built parent map with %d relationships", len(parentMap)), "LoaderPreProcessJson")
-    return parentMap
+	for templateKey, t := range siteTemplates.Templates {
+		for _, placeholder := range t.Placeholders {
+			childKey := strings.ToLower(appSite) + "_" + strings.ToLower(placeholder.Name)
+			if _, exists := parentMap[childKey]; !exists {
+				parentMap[childKey] = templateKey
+				Logger.Debug(fmt.Sprintf("Parent relationship: %s -> parent: %s", childKey, templateKey), "LoaderPreProcessJson")
+			}
+		}
+		for _, slotted := range t.SlottedTemplates {
+			childKey := strings.ToLower(appSite) + "_" + strings.ToLower(slotted.Name)
+			if _, exists := parentMap[childKey]; !exists {
+				parentMap[childKey] = templateKey
+				Logger.Debug(fmt.Sprintf("Parent relationship (slotted): %s -> parent: %s", childKey, templateKey), "LoaderPreProcessJson")
+			}
+		}
+	}
+	Logger.Debug(fmt.Sprintf("Built parent map with %d relationships", len(parentMap)), "LoaderPreProcessJson")
+	return parentMap
 }
 
-// resolveJsonInheritanceForAllTemplatesJson updates JsonData for all templates by resolving keys ending with '#'
-func resolveJsonInheritanceForAllTemplatesJson(siteTemplates *model.PreprocessedSiteTemplates, parentMap map[string]string, appSite string) {
-    for templateKey, template := range siteTemplates.Templates {
-        if template.JsonData == nil {
-            continue
-        }
+func resolveJsonInheritanceForAllTemplatesJson(siteTemplates *model.PreprocessedSiteTemplates, parentMap map[string]string) {
+	for templateKey, template := range siteTemplates.Templates {
+		if template.JsonData == nil {
+			continue
+		}
 
-        resolved := make(map[string]interface{})
-        for k, v := range *template.JsonData {
-            if strings.HasSuffix(k, "#") {
-                actualKey := k[:len(k)-1]
-                if defStr, ok := v.(string); ok {
-                    inherited := searchParentTreeForKeyPreJson(actualKey, templateKey, siteTemplates, parentMap)
-                    if inherited != "" {
-                        resolved[actualKey] = inherited
-                        Logger.Debug(fmt.Sprintf("Resolved inherited key %s -> %s = %s for template %s", k, actualKey, inherited, templateKey), "LoaderPreProcessJson")
-                        continue
-                    }
-                    Logger.Debug(fmt.Sprintf("No inherited value found for %s, using default: %s", actualKey, defStr), "LoaderPreProcessJson")
-                    resolved[actualKey] = defStr
-                    continue
-                }
-            }
-            resolved[k] = v
-        }
+		resolvedJson := make(map[string]interface{})
+		hasInheritance := false
 
-        // Replace JsonData with resolved map
-        template.JsonData = &resolved
+		for k, v := range *template.JsonData {
+			if strings.HasSuffix(k, "#") {
+				if strValue, ok := v.(string); ok {
+					hasInheritance = true
+					actualKey := k[:len(k)-1]
+					resolvedValue := searchParentTreeForKeyPreJson(actualKey, templateKey, siteTemplates.Templates, parentMap)
 
-        // Remove existing JSON-related mappings and placeholders, then recreate from resolved data
-        template.ReplacementMappings = filterNonJsonMappings(template.ReplacementMappings)
-        template.JsonPlaceholders = []model.JsonPlaceholder{}
-        createJsonArrayReplacementMappingsJson(&template, template.OriginalContent)
-        createJsonPlaceholderReplacementMappingsJson(&template, template.OriginalContent)
+					if resolvedValue != "" {
+						resolvedJson[actualKey] = resolvedValue
+						Logger.Debug(fmt.Sprintf("Resolved inherited key %s -> %s = %s for template %s", k, actualKey, resolvedValue, templateKey), "LoaderPreProcessJson")
+					} else {
+						resolvedJson[actualKey] = strValue
+						Logger.Debug(fmt.Sprintf("No inherited value found for %s, using default: %s", actualKey, strValue), "LoaderPreProcessJson")
+					}
+				}
+			} else {
+				resolvedJson[k] = v
+			}
+		}
 
-        // Save back
-        siteTemplates.Templates[templateKey] = template
-        Logger.Debug(fmt.Sprintf("Updated JsonData and recreated JSON mappings for template %s after inheritance", templateKey), "LoaderPreProcessJson")
-    }
+		if hasInheritance {
+			template.JsonData = &resolvedJson
+			siteTemplates.Templates[templateKey] = template
+			Logger.Debug(fmt.Sprintf("Updated JsonData for template %s with resolved inheritance", templateKey), "LoaderPreProcessJson")
+		}
+	}
 }
 
-// searchParentTreeForKeyPreJson searches up the parent tree for a string value for key
-func searchParentTreeForKeyPreJson(key, currentTemplateKey string, siteTemplates *model.PreprocessedSiteTemplates, parentMap map[string]string) string {
-    parentKey, ok := parentMap[currentTemplateKey]
-    if !ok {
-        Logger.Debug(fmt.Sprintf("No parent found for %s", currentTemplateKey), "LoaderPreProcessJson")
-        return ""
-    }
-    if parentTemplate, exists := siteTemplates.Templates[parentKey]; exists && parentTemplate.JsonData != nil {
-        for pk, pv := range *parentTemplate.JsonData {
-            if strings.EqualFold(pk, key) {
-                if str, ok := pv.(string); ok {
-                    Logger.Debug(fmt.Sprintf("Found key %s in parent %s: %s", key, parentKey, str), "LoaderPreProcessJson")
-                    return str
-                }
-            }
-        }
-    }
-    // Not found at this level; continue up
-    return searchParentTreeForKeyPreJson(key, parentKey, siteTemplates, parentMap)
+func recreateJsonPlaceholderMappingsAfterInheritanceJson(siteTemplates *model.PreprocessedSiteTemplates) {
+	for templateKey, template := range siteTemplates.Templates {
+		if template.JsonData == nil {
+			continue
+		}
+
+		newMappings := make([]model.ReplacementMapping, 0)
+		for _, mapping := range template.ReplacementMappings {
+			if mapping.Type != model.JsonPlaceholderType {
+				newMappings = append(newMappings, mapping)
+			}
+		}
+		template.ReplacementMappings = newMappings
+
+		createJsonArrayReplacementMappingsJson(&template, template.OriginalContent)
+		createJsonPlaceholderReplacementMappingsJson(&template, template.OriginalContent)
+
+		siteTemplates.Templates[templateKey] = template
+		Logger.Debug(fmt.Sprintf("Recreated JSON placeholder and array mappings for template %s after inheritance resolution", templateKey), "LoaderPreProcessJson")
+	}
 }
 
-// filterNonJsonMappings keeps only mappings that are not of JsonPlaceholderType
-func filterNonJsonMappings(mappings []model.ReplacementMapping) []model.ReplacementMapping {
-    if len(mappings) == 0 {
-        return mappings
-    }
-    filtered := make([]model.ReplacementMapping, 0, len(mappings))
-    for _, m := range mappings {
-        if m.Type != model.JsonPlaceholderType {
-            filtered = append(filtered, m)
-        }
-    }
-    return filtered
+func searchParentTreeForKeyPreJson(key, currentTemplateKey string, allTemplates map[string]model.PreprocessedTemplate, parentMap map[string]string) string {
+	parentKey, ok := parentMap[currentTemplateKey]
+	if !ok {
+		Logger.Debug(fmt.Sprintf("No parent found for %s", currentTemplateKey), "LoaderPreProcessJson")
+		return ""
+	}
+
+	Logger.Debug(fmt.Sprintf("Checking parent %s for key %s", parentKey, key), "LoaderPreProcessJson")
+
+	if parentTemplate, exists := allTemplates[parentKey]; exists && parentTemplate.JsonData != nil {
+		for pk, pv := range *parentTemplate.JsonData {
+			if strings.EqualFold(pk, key) {
+				if str, ok := pv.(string); ok {
+					Logger.Debug(fmt.Sprintf("Found key %s in parent %s: %s", key, parentKey, str), "LoaderPreProcessJson")
+					return str
+				}
+			}
+		}
+	}
+
+	Logger.Debug(fmt.Sprintf("Key %s not found in parent %s, searching further up", key, parentKey), "LoaderPreProcessJson")
+	return searchParentTreeForKeyPreJson(key, parentKey, allTemplates, parentMap)
 }
 
 func createPlaceholderReplacementMappingsJson(template *model.PreprocessedTemplate, allTemplates map[string]model.PreprocessedTemplate, appSite string) {
@@ -999,28 +995,22 @@ func createJsonPlaceholderReplacementMappingsJson(template *model.PreprocessedTe
 
 	for k, v := range *template.JsonData {
 		if stringValue, ok := v.(string); ok {
-			placeholders := []string{
-				"{{$" + k + "}}",
-				"{{" + k + "}}",
-			}
+			placeholder := "{{$" + k + "}}"
+			if common.FindCaseInsensitive(content, placeholder) != -1 {
+				if !mappingExistsJson(template.ReplacementMappings, placeholder) {
+					template.ReplacementMappings = append(template.ReplacementMappings, model.ReplacementMapping{
+						OriginalText:    placeholder,
+						ReplacementText: stringValue,
+						Type:            model.JsonPlaceholderType,
+					})
+				}
 
-			for _, placeholder := range placeholders {
-				if common.FindCaseInsensitive(content, placeholder) != -1 {
-					if !mappingExistsJson(template.ReplacementMappings, placeholder) {
-						template.ReplacementMappings = append(template.ReplacementMappings, model.ReplacementMapping{
-							OriginalText:    placeholder,
-							ReplacementText: stringValue,
-							Type:            model.JsonPlaceholderType,
-						})
-					}
-
-					if !jsonPlaceholderExistsJson(template.JsonPlaceholders, placeholder) {
-						template.JsonPlaceholders = append(template.JsonPlaceholders, model.JsonPlaceholder{
-							Key:         k,
-							Placeholder: placeholder,
-							Value:       stringValue,
-						})
-					}
+				if !jsonPlaceholderExistsJson(template.JsonPlaceholders, placeholder) {
+					template.JsonPlaceholders = append(template.JsonPlaceholders, model.JsonPlaceholder{
+						Key:         k,
+						Placeholder: placeholder,
+						Value:       stringValue,
+					})
 				}
 			}
 		}
@@ -1043,4 +1033,300 @@ func jsonPlaceholderExistsJson(placeholders []model.JsonPlaceholder, placeholder
 		}
 	}
 	return false
+}
+
+// LoaderPreprocessJson implements ILoaderJson interface for EnginePreprocessJson
+type LoaderPreprocessJson struct {
+	allTemplates   map[string]*model.PreprocessedTemplate
+	searchAppSites string
+}
+
+// NewLoaderPreprocessJson creates a new LoaderPreprocessJson instance
+// Loads and preprocesses templates internally - templates stay encapsulated
+func NewLoaderPreprocessJson(rootDirPath, appSite, searchAppSites string) *LoaderPreprocessJson {
+	Logger.Debug(fmt.Sprintf("NewLoaderPreprocessJson: rootDirPath=%s, appSite=%s, searchAppSites=%s", rootDirPath, appSite, searchAppSites), "LoaderPreprocessJson")
+
+	// Load and preprocess templates internally
+	siteTemplates := LoadProcessGetTemplateFilesJson(rootDirPath, appSite, searchAppSites)
+
+	allTmpl := make(map[string]*model.PreprocessedTemplate)
+	if siteTemplates != nil && siteTemplates.Templates != nil {
+		Logger.Debug(fmt.Sprintf("siteTemplates.Templates has %d entries", len(siteTemplates.Templates)), "LoaderPreprocessJson")
+		for k, v := range siteTemplates.Templates {
+			// Required to create a new pointer for each template
+			temp := v
+			allTmpl[k] = &temp
+		}
+		Logger.Debug(fmt.Sprintf("Copied %d templates to allTmpl", len(allTmpl)), "LoaderPreprocessJson")
+	} else {
+		Logger.Debug("siteTemplates or siteTemplates.Templates is nil", "LoaderPreprocessJson")
+	}
+
+	return &LoaderPreprocessJson{
+		allTemplates:   allTmpl,
+		searchAppSites: searchAppSites,
+	}
+}
+
+// GetSearchAppSites returns the search AppSites for template fallback resolution
+func (l *LoaderPreprocessJson) GetSearchAppSites() string {
+	return l.searchAppSites
+}
+
+// HasTemplate checks if a template exists
+func (l *LoaderPreprocessJson) HasTemplate(appSite, templateName string) bool {
+	key := strings.ToLower(appSite) + "_" + strings.ToLower(templateName)
+	_, exists := l.allTemplates[key]
+	return exists
+}
+
+// GetAllTemplatesJson returns all templates as a serialized JSON string
+func (l *LoaderPreprocessJson) GetAllTemplatesJson() string {
+	// Create a map for all template data
+	templatesData := make(map[string]interface{})
+
+	for key, template := range l.allTemplates {
+		templateData := map[string]interface{}{
+			"html": template.OriginalContent,
+			"json": template.JsonData,
+		}
+		templatesData[key] = templateData
+	}
+
+	// Serialize to JSON (simple implementation)
+	return "{}"
+}
+
+// ClearCache clears the template cache
+func (l *LoaderPreprocessJson) ClearCache() {
+	preprocessJsonTemplatesCache.Lock()
+	defer preprocessJsonTemplatesCache.Unlock()
+	preprocessJsonTemplatesCache.cache = make(map[string]*model.PreprocessedSiteTemplates)
+	Logger.Debug("Template cache cleared", "LoaderPreprocessJson")
+}
+
+// GetTemplateHtml returns interface{} for compatibility with ILoaderJson
+// The actual return type is *model.PreprocessedTemplate for LoaderPreprocessJson
+func (l *LoaderPreprocessJson) GetTemplateHtml(appSite, appFile, appView, appViewPrefix string) interface{} {
+	Logger.Debug(fmt.Sprintf("GetTemplateHtml called: appSite=%s, appFile=%s, appView=%s, appViewPrefix=%s", appSite, appFile, appView, appViewPrefix), "LoaderPreprocessJson")
+
+	if l.allTemplates == nil {
+		Logger.Debug("allTemplates is nil", "LoaderPreprocessJson")
+		return nil
+	}
+
+	Logger.Debug(fmt.Sprintf("allTemplates has %d templates", len(l.allTemplates)), "LoaderPreprocessJson")
+
+	// AppView fallback
+	if appView != "" && appViewPrefix != "" && strings.Contains(strings.ToLower(appFile), strings.ToLower(appViewPrefix)) {
+		appKey := common.ReplaceCaseInsensitive(appFile, appViewPrefix, appView)
+		fallbackKey := strings.ToLower(appSite) + "_" + strings.ToLower(appKey)
+		Logger.Debug(fmt.Sprintf("Trying appView fallback key: %s", fallbackKey), "LoaderPreprocessJson")
+		if tmpl, ok := l.allTemplates[fallbackKey]; ok {
+			Logger.Debug(fmt.Sprintf("Found template with fallback key: %s", fallbackKey), "LoaderPreprocessJson")
+			return tmpl
+		}
+	}
+
+	// Primary key - must use lowercase like other loaders
+	key := strings.ToLower(appSite) + "_" + strings.ToLower(appFile)
+	Logger.Debug(fmt.Sprintf("Trying primary key: %s", key), "LoaderPreprocessJson")
+	if tmpl, ok := l.allTemplates[key]; ok {
+		Logger.Debug(fmt.Sprintf("Found template with primary key: %s", key), "LoaderPreprocessJson")
+		return tmpl
+	}
+
+	// Search in searchAppSites as fallback
+	if l.searchAppSites != "" {
+		searchAppSitesArray := strings.Split(l.searchAppSites, ",")
+		for _, searchAppSite := range searchAppSitesArray {
+			searchAppSite = strings.TrimSpace(searchAppSite)
+			if searchAppSite == "" {
+				continue
+			}
+
+			searchKey := strings.ToLower(searchAppSite) + "_" + strings.ToLower(appFile)
+			Logger.Debug(fmt.Sprintf("Trying searchAppSites fallback key: %s", searchKey), "LoaderPreprocessJson")
+			if tmpl, ok := l.allTemplates[searchKey]; ok {
+				Logger.Debug(fmt.Sprintf("Template '%s' not found in '%s', using fallback from '%s'", appFile, appSite, searchAppSite), "LoaderPreprocessJson")
+				return tmpl
+			}
+		}
+	}
+
+	Logger.Debug(fmt.Sprintf("Template not found for key: %s", key), "LoaderPreprocessJson")
+	return nil
+}
+
+// MergeHtmlWithJson merges HTML string with JSON data using inheritance-aware JSON retrieval
+// JSON inheritance is already resolved in PreprocessedTemplate.JsonData during loading
+func (l *LoaderPreprocessJson) MergeHtmlWithJson(html, appSite, templateName string) string {
+	if html == "" {
+		return html
+	}
+
+	// Get the preprocessed template which has JSON with inheritance already resolved
+	key := strings.ToLower(appSite) + "_" + strings.ToLower(templateName)
+	template, ok := l.allTemplates[key]
+	if !ok || template == nil || template.JsonData == nil {
+		Logger.Debug(fmt.Sprintf("No JSON data found for %s, returning original HTML", templateName), "LoaderPreprocessJson")
+		return html
+	}
+
+	Logger.Debug(fmt.Sprintf("Merging HTML with JSON for %s", templateName), "LoaderPreprocessJson")
+	// Convert map to JsonObject (matching C#)
+	jsonObj := loader.ConvertMapToJsonObject(*template.JsonData)
+	return loader.MergeTemplateWithJson(html, jsonObj)
+}
+
+// ApplyAllReplacementMappings applies all replacement mappings from all templates to the given content
+// This is the core PreProcess engine logic - loader applies all mappings internally
+func (l *LoaderPreprocessJson) ApplyAllReplacementMappings(content, appSite string, mainTemplate interface{}, appView, appViewPrefix string, enableJsonProcessing bool) string {
+	result := content
+
+	Logger.Debug(fmt.Sprintf("Starting ApplyAllReplacementMappings, initial size: %d", len(content)), "LoaderPreprocessJson")
+
+	// Cast mainTemplate to *model.PreprocessedTemplate
+	var mainPreprocessed *model.PreprocessedTemplate
+	if mainTemplate != nil {
+		var ok bool
+		mainPreprocessed, ok = mainTemplate.(*model.PreprocessedTemplate)
+		if !ok {
+			Logger.Warn("mainTemplate is not *model.PreprocessedTemplate", "LoaderPreprocessJson")
+			return content
+		}
+	}
+
+	// Apply replacement mappings from all templates in multiple passes until no more changes
+	previous := ""
+	maxPasses := 10
+	currentPass := 0
+
+	for {
+		previous = result
+		currentPass++
+
+		Logger.Debug(fmt.Sprintf("Replacement pass %d, current size: %d", currentPass, len(result)), "LoaderPreprocessJson")
+
+		slottedCount, simpleCount, jsonPlaceholderCount := 0, 0, 0
+
+		// FIRST: Apply JSON placeholder mappings ONLY from the main template
+		if mainPreprocessed != nil && currentPass == 1 && enableJsonProcessing {
+			for _, mapping := range mainPreprocessed.ReplacementMappings {
+				if mapping.Type != model.JsonPlaceholderType {
+					continue
+				}
+				if strings.Contains(result, mapping.OriginalText) {
+					Logger.Debug(fmt.Sprintf("Applying main template JSON placeholder: %s -> %s", mapping.OriginalText, mapping.ReplacementText), "LoaderPreprocessJson")
+					result = strings.ReplaceAll(result, mapping.OriginalText, mapping.ReplacementText)
+					jsonPlaceholderCount++
+				}
+			}
+		}
+
+		// Apply replacement mappings from all templates
+		for _, template := range l.allTemplates {
+			// Apply slotted template mappings
+			for _, mapping := range template.ReplacementMappings {
+				if mapping.Type != model.SlottedTemplateType {
+					continue
+				}
+				if strings.Contains(result, mapping.OriginalText) {
+					replacementText := mapping.ReplacementText
+					if enableJsonProcessing && mapping.TargetTemplateName != "" {
+						replacementText = l.MergeHtmlWithJson(replacementText, appSite, mapping.TargetTemplateName)
+						Logger.Debug(fmt.Sprintf("After merging JSON for slotted template %s: %d chars", mapping.TargetTemplateName, len(replacementText)), "LoaderPreprocessJson")
+					}
+					Logger.Debug(fmt.Sprintf("Applying slotted template: %s... -> %d chars", mapping.OriginalText[:min(50, len(mapping.OriginalText))], len(replacementText)), "LoaderPreprocessJson")
+					result = strings.ReplaceAll(result, mapping.OriginalText, replacementText)
+					slottedCount++
+				}
+			}
+
+			// Apply simple template mappings
+			for _, mapping := range template.ReplacementMappings {
+				if mapping.Type != model.SimpleTemplateType {
+					continue
+				}
+				if strings.Contains(result, mapping.OriginalText) {
+					replacementText := mapping.ReplacementText
+
+					// Handle AppView logic if needed
+					if appView != "" && mapping.TargetTemplateName != "" {
+						appViewTemplate := l.getTemplate(appSite, mapping.TargetTemplateName, appView, appViewPrefix, true)
+						if appViewTemplate != nil {
+							replacementText = appViewTemplate.OriginalContent
+						}
+					}
+
+					// Merge JSON using loader's centralized method
+					if enableJsonProcessing && mapping.TargetTemplateName != "" {
+						replacementText = l.MergeHtmlWithJson(replacementText, appSite, mapping.TargetTemplateName)
+						Logger.Debug(fmt.Sprintf("After merging JSON for simple template %s: %d chars", mapping.TargetTemplateName, len(replacementText)), "LoaderPreprocessJson")
+					}
+
+					Logger.Debug(fmt.Sprintf("Applying simple template: %s -> %d chars", mapping.OriginalText, len(replacementText)), "LoaderPreprocessJson")
+					result = strings.ReplaceAll(result, mapping.OriginalText, replacementText)
+					simpleCount++
+				}
+			}
+		}
+
+		Logger.Debug(fmt.Sprintf("Pass %d applied: %d main JSON placeholders, %d slotted, %d simple", currentPass, jsonPlaceholderCount, slottedCount, simpleCount), "LoaderPreprocessJson")
+
+		if result == previous || currentPass >= maxPasses {
+			break
+		}
+	}
+
+	Logger.Debug(fmt.Sprintf("Replacement complete after %d passes, final size: %d", currentPass, len(result)), "LoaderPreprocessJson")
+	return result
+}
+
+// getTemplate is a helper method for AppView fallback logic
+func (l *LoaderPreprocessJson) getTemplate(appSite, templateName, appView, appViewPrefix string, useAppViewFallback bool) *model.PreprocessedTemplate {
+	if len(l.allTemplates) == 0 {
+		return nil
+	}
+
+	if useAppViewFallback && appView != "" && appViewPrefix != "" && strings.Contains(templateName, appViewPrefix) {
+		appKey := common.ReplaceCaseInsensitive(templateName, appViewPrefix, appView)
+		fallbackTemplateKey := strings.ToLower(appSite) + "_" + strings.ToLower(appKey)
+		if fallbackTemplate, ok := l.allTemplates[fallbackTemplateKey]; ok {
+			return fallbackTemplate
+		}
+	}
+
+	primaryTemplateKey := strings.ToLower(appSite) + "_" + strings.ToLower(templateName)
+	if primaryTemplate, ok := l.allTemplates[primaryTemplateKey]; ok {
+		return primaryTemplate
+	}
+
+	return nil
+}
+
+// AllTemplates returns all preprocessed templates
+func (l *LoaderPreprocessJson) AllTemplates() map[string]*model.PreprocessedTemplate {
+	return l.allTemplates
+}
+
+// GetAllTemplatesForSerialization returns all preprocessed templates for API serialization
+// Returns a copy of all templates - does not expose internal state
+// This is for API endpoints that need to build complex responses
+func (l *LoaderPreprocessJson) GetAllTemplatesForSerialization() map[string]*model.PreprocessedTemplate {
+	result := make(map[string]*model.PreprocessedTemplate)
+
+	// Return copies of all templates
+	for key, value := range l.allTemplates {
+		result[key] = value
+	}
+
+	return result
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

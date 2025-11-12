@@ -27,14 +27,12 @@ type PreProcessTemplateMetadata struct {
 }
 
 type ApiResponse struct {
-	Templates           map[string]TemplateData
-	PreProcessTemplates map[string]PreProcessTemplateMetadata
-	AppSite             string
-	AppFile             string
-	AppView             string
-	ServerTimeMs        float64
-	Html                string
-	EngineTimeMs        float64
+	AppSite      string
+	AppFile      string
+	AppView      string
+	ServerTimeMs float64
+	Html         string
+	EngineTimeMs float64
 }
 
 func (ar ApiResponse) SerializeToJson(indented bool) string {
@@ -47,11 +45,7 @@ func (ar ApiResponse) SerializeToJson(indented bool) string {
 func (ar ApiResponse) serializeToJsonCompact() string {
 	var sb strings.Builder
 	sb.WriteString("{")
-	sb.WriteString("\"Templates\":")
-	sb.WriteString(ar.serializeTemplates(0, false))
-	sb.WriteString(",\"PreProcessTemplates\":")
-	sb.WriteString(ar.serializePreProcessTemplates(0, false))
-	sb.WriteString(",\"AppSite\":\"")
+	sb.WriteString("\"AppSite\":\"")
 	sb.WriteString(ApiResponse_EscapeJsonString(ar.AppSite))
 	sb.WriteString("\"")
 	if ar.AppFile != "" {
@@ -79,12 +73,6 @@ func (ar ApiResponse) serializeToJsonCompact() string {
 func (ar ApiResponse) serializeToJsonPretty() string {
 	var sb strings.Builder
 	sb.WriteString("{\n  ")
-	sb.WriteString("\"Templates\": ")
-	sb.WriteString(ar.serializeTemplates(1, true))
-	sb.WriteString(",\n  ")
-	sb.WriteString("\"PreProcessTemplates\": ")
-	sb.WriteString(ar.serializePreProcessTemplates(1, true))
-	sb.WriteString(",\n  ")
 	sb.WriteString("\"AppSite\": \"")
 	sb.WriteString(ApiResponse_EscapeJsonString(ar.AppSite))
 	sb.WriteString("\"")

@@ -6,8 +6,10 @@ package performance
 import (
 	"assembler/common"
 	"assembler/config"
-	"assembler/engine"
-	"assembler/loader"
+	enginenormal "assembler/engine/normal"
+	enginepreprocess "assembler/engine/preprocess"
+	loadernormal "assembler/loader/normal"
+	loaderpreprocess "assembler/loader/preprocess"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -79,32 +81,26 @@ func RunPerformanceComparison(assemblerWebDir, projectDirectory string, scenario
 			fmt.Printf("[Go] Iterations: %d\n", iterations)
 		}
 
-		loader.ClearNormalCache()
-		loader.ClearPreProcessCache()
-		templates := loader.LoadGetTemplateFiles(assemblerWebDir, testAppSite, searchAppSites)
-		siteTemplates := loader.LoadProcessGetTemplateFiles(assemblerWebDir, testAppSite, searchAppSites)
+		loaderNormal := loadernormal.NewLoaderNormal(assemblerWebDir, testAppSite, searchAppSites)
+		loaderNormal.ClearCache()
+		loaderPreProcess := loaderpreprocess.NewLoaderPreProcess(assemblerWebDir, testAppSite, searchAppSites)
 
-		if len(templates) == 0 {
+		if !loaderNormal.HasTemplate(testAppSite, appFileName) {
 			continue
 		}
 
-		mainTemplateKey := strings.ToLower(fmt.Sprintf("%s_%s", testAppSite, appFileName))
-		if _, ok := templates[mainTemplateKey]; !ok {
-			continue
-		}
-
-		normalEngine := engine.NewEngineNormal(appFileName)
+		normalEngine := enginenormal.NewEngineNormal(appFileName)
 		normalEngine.SetAppViewPrefix(appViewPrefix)
 
 		// Warmup - run a few iterations first to ensure consistent performance
 		for warmup := 0; warmup < 100; warmup++ {
-			normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing)
+			normalEngine.MergeTemplates(testAppSite, appFileName, appView, loaderNormal, enableJsonProcessing)
 		}
 
 		start := time.Now()
 		var resultNormal string
 		for i := 0; i < iterations; i++ {
-			resultNormal = normalEngine.MergeTemplates(testAppSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing)
+			resultNormal = normalEngine.MergeTemplates(testAppSite, appFileName, appView, loaderNormal, enableJsonProcessing)
 		}
 		normalTimeNanos := time.Since(start).Nanoseconds()
 		if !skipDetails {
@@ -113,20 +109,20 @@ func RunPerformanceComparison(assemblerWebDir, projectDirectory string, scenario
 			fmt.Printf("[Go] Normal Engine:     %.0fms | Avg: %.3fms/op | Size: %d chars\n", normalTimeMs, avg, common.Utf16Len(resultNormal))
 		}
 
-		loader.ClearNormalCache()
-		loader.ClearPreProcessCache()
-		preprocessEngine := engine.NewEnginePreProcess(appFileName)
+		loaderNormal.ClearCache()
+		loaderPreProcess.ClearCache()
+		preprocessEngine := enginepreprocess.NewEnginePreProcess(appFileName)
 		preprocessEngine.SetAppViewPrefix(appViewPrefix)
 
 		// Warmup for PreProcess engine
 		for warmup := 0; warmup < 100; warmup++ {
-			preprocessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, searchAppSites, enableJsonProcessing)
+			preprocessEngine.MergeTemplates(testAppSite, appFileName, appView, loaderPreProcess, enableJsonProcessing)
 		}
 
 		start = time.Now()
 		var resultPreprocess string
 		for i := 0; i < iterations; i++ {
-			resultPreprocess = preprocessEngine.MergeTemplates(testAppSite, appFileName, appView, siteTemplates.Templates, searchAppSites, enableJsonProcessing)
+			resultPreprocess = preprocessEngine.MergeTemplates(testAppSite, appFileName, appView, loaderPreProcess, enableJsonProcessing)
 		}
 		preprocessTimeNanos := time.Since(start).Nanoseconds()
 		resultsMatch := resultNormal == resultPreprocess

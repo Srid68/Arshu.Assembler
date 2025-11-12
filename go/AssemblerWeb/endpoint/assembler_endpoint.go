@@ -12,24 +12,31 @@ import (
 
 	"assembler/api"
 	"assembler/config"
-	"assembler/engine"
-	"assembler/loader"
+	enginenormal "assembler/engine/normal"
+	enginenormaljson "assembler/engine/normaljson"
+	enginepreprocess "assembler/engine/preprocess"
+	enginepreprocessjson "assembler/engine/preprocessjson"
+	loadernormal "assembler/loader/normal"
+	loadernormaljson "assembler/loader/normaljson"
+	loaderpreprocess "assembler/loader/preprocess"
+	loaderpreprocessjson "assembler/loader/preprocessjson"
 
 	Logger "arshu/common"
 )
 
 const DefaultAppSite = "Main"
-
-// SearchAppSites is the default search AppSites for template loading
-const SearchAppSites = "Common, Language"
+const DefaultEngineType = "Normal"
+const SearchAppSites = "Main, Language"
 
 // Maximum parameter length to prevent DoS attacks
 const paramMaxLength = 256
 
 // ValidEngineTypes is the allowlist of valid engine types
 var validEngineTypes = map[string]bool{
-	"Normal":     true,
-	"PreProcess": true,
+	"Normal":         true,
+	"PreProcess":     true,
+	"NormalJson":     true,
+	"PreProcessJson": true,
 }
 
 // GetProjectDirectory returns the current project directory
@@ -87,6 +94,32 @@ func isValidPathComponent(value *string) bool {
 	}
 
 	return true
+}
+
+// buildTemplatesApiResponse builds the JSON response for /api/templates endpoint using pre-serialized template JSON
+func buildTemplatesApiResponse(normalTemplatesJson, preprocessTemplatesJson, appSite string, serverTimeMs float64) string {
+	return fmt.Sprintf(`{"Templates":%s,"PreProcessTemplates":%s,"AppSite":"%s","AppFile":null,"AppView":null,"ServerTimeMs":%f}`,
+		normalTemplatesJson,
+		preprocessTemplatesJson,
+		escapeJsonString(appSite),
+		serverTimeMs)
+}
+
+// escapeJsonString escapes a string for safe inclusion in JSON
+func escapeJsonString(input string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\",
+		"\"", "\\\"",
+		"\r", "\\r",
+		"\n", "\\n",
+		"\t", "\\t",
+		"<", "\\u003C",
+		">", "\\u003E",
+		"&", "\\u0026",
+		"'", "\\u0027",
+		"+", "\\u002B",
+	)
+	return replacer.Replace(input)
 }
 
 // IsValidEngineType validates engine type against allowlist (case-insensitive)
@@ -178,27 +211,33 @@ func Index(c *gin.Context) {
 		appFile = matchingScenario.AppFile
 	}
 
-	// Get engine type from query parameter (default to Normal)
-	engineType := c.DefaultQuery("engine", "Normal")
+	// Get engine type from query parameter (default to DefaultEngineType)
+	engineType := c.DefaultQuery("engine", DefaultEngineType)
 
 	// Validate EngineType against allowlist
 	if !isValidEngineType(engineType) {
-		c.String(http.StatusBadRequest, "Invalid engine type. Use 'Normal' or 'PreProcess'")
+		c.String(http.StatusBadRequest, "Invalid engine type. Use 'Normal', 'PreProcess', 'NormalJson', or 'PreProcessJson'")
 		return
 	}
 
-	// Load templates for requested AppSite
-	normalTemplatesRaw := loader.LoadGetTemplateFiles(rootDirPath, appSite, SearchAppSites)
-	preprocessTemplatesRaw := loader.LoadProcessGetTemplateFiles(rootDirPath, appSite, SearchAppSites)
-
 	// Merge using selected engine (no AppView context)
 	var mergedHtml string
-	if strings.EqualFold(engineType, "PreProcess") {
+	if strings.EqualFold(engineType, "PreProcessJson") {
+		loaderPreprocessJson := loader.NewLoaderPreprocessJson(rootDirPath, appSite, SearchAppSites)
+		engine := engine.NewEnginePreProcessJson("")
+		mergedHtml = engine.MergeTemplates(appSite, appFile, "", loaderPreprocessJson, true)
+	} else if strings.EqualFold(engineType, "PreProcess") {
+		loaderPreProcess := loader.NewLoaderPreProcess(rootDirPath, appSite, SearchAppSites)
 		engine := engine.NewEnginePreProcess("")
-		mergedHtml = engine.MergeTemplates(appSite, appFile, "", preprocessTemplatesRaw.Templates, "", true)
+		mergedHtml = engine.MergeTemplates(appSite, appFile, "", loaderPreProcess, true)
+	} else if strings.EqualFold(engineType, "NormalJson") {
+		loaderNormalJson := loader.NewLoaderNormalJson(rootDirPath, appSite, SearchAppSites)
+		engine := engine.NewEngineNormalJson("")
+		mergedHtml = engine.MergeTemplates(appSite, appFile, "", loaderNormalJson, true)
 	} else {
+		loaderNormal := loader.NewLoaderNormal(rootDirPath, appSite, SearchAppSites)
 		engine := engine.NewEngineNormal("")
-		mergedHtml = engine.MergeTemplates(appSite, appFile, "", normalTemplatesRaw, "", true)
+		mergedHtml = engine.MergeTemplates(appSite, appFile, "", loaderNormal, true)
 	}
 
 	c.Header("Content-Type", "text/html")
@@ -257,15 +296,15 @@ func NavigationEndpoint(c *gin.Context) {
 
 	appFile := matchingScenario.AppFile
 
-	// Get engine type from query parameter (default to Normal)
+	// Get engine type from query parameter (default to DefaultEngineType)
 	engineType := c.Query("engine")
 	if engineType == "" {
-		engineType = "Normal"
+		engineType = DefaultEngineType
 	}
 
 	// Validate EngineType against allowlist
-	if !validEngineTypes[engineType] {
-		c.String(http.StatusBadRequest, "Invalid engine type. Use 'Normal' or 'PreProcess'")
+	if !isValidEngineType(engineType) {
+		c.String(http.StatusBadRequest, "Invalid engine type. Use 'Normal', 'PreProcess', 'NormalJson', or 'PreProcessJson'")
 		return
 	}
 
@@ -274,14 +313,22 @@ func NavigationEndpoint(c *gin.Context) {
 
 	// Merge using selected engine
 	var mergedHtml string
-	if strings.EqualFold(engineType, "PreProcess") {
-		templates := loader.LoadProcessGetTemplateFiles(wwwrootPath, appSite, SearchAppSites)
+	if strings.EqualFold(engineType, "PreProcessJson") {
+		loaderPreprocessJson := loader.NewLoaderPreprocessJson(wwwrootPath, appSite, SearchAppSites)
+		eng := engine.NewEnginePreProcessJson("")
+		mergedHtml = eng.MergeTemplates(appSite, appFile, appViewValue, loaderPreprocessJson, false)
+	} else if strings.EqualFold(engineType, "PreProcess") {
+		loaderPreProcess := loader.NewLoaderPreProcess(wwwrootPath, appSite, SearchAppSites)
 		eng := engine.NewEnginePreProcess("")
-		mergedHtml = eng.MergeTemplates(appSite, appFile, appViewValue, templates.Templates, SearchAppSites, false)
+		mergedHtml = eng.MergeTemplates(appSite, appFile, appViewValue, loaderPreProcess, false)
+	} else if strings.EqualFold(engineType, "NormalJson") {
+		loaderNormalJson := loader.NewLoaderNormalJson(wwwrootPath, appSite, SearchAppSites)
+		eng := engine.NewEngineNormalJson("")
+		mergedHtml = eng.MergeTemplates(appSite, appFile, appViewValue, loaderNormalJson, false)
 	} else {
-		templates := loader.LoadGetTemplateFiles(wwwrootPath, appSite, SearchAppSites)
+		loaderNormal := loader.NewLoaderNormal(wwwrootPath, appSite, SearchAppSites)
 		eng := engine.NewEngineNormal("")
-		mergedHtml = eng.MergeTemplates(appSite, appFile, appViewValue, templates, SearchAppSites, false)
+		mergedHtml = eng.MergeTemplates(appSite, appFile, appViewValue, loaderNormal, false)
 	}
 
 	c.Header("Content-Type", "text/html")
@@ -291,38 +338,36 @@ func NavigationEndpoint(c *gin.Context) {
 // MergeTemplates handles the POST /merge endpoint
 func MergeTemplates(c *gin.Context) {
 	// Enable logging for merge operations
-	originalLogLevel := Logger.GetLogLevel()
-
 	projectDirectory := getProjectDirectory()
 	templateAnalysisDir := filepath.Join(projectDirectory, "Analysis")
 	logsDir := filepath.Join(templateAnalysisDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 
 	contextLogFiles := map[string]string{
-		"LoaderNormal":     filepath.Join(logsDir, "go_loadernormal.log"),
-		"LoaderPreProcess": filepath.Join(logsDir, "go_loaderpreprocess.log"),
-		"EngineNormal":     filepath.Join(logsDir, "go_enginenormal.log"),
-		"EnginePreProcess": filepath.Join(logsDir, "go_enginepreprocess.log"),
+		"LoaderNormal":         filepath.Join(logsDir, "go_loadernormal.log"),
+		"LoaderPreProcess":     filepath.Join(logsDir, "go_loaderpreprocess.log"),
+		"LoaderNormalJson":     filepath.Join(logsDir, "go_loadernormaljson.log"),
+		"LoaderPreProcessJson": filepath.Join(logsDir, "go_loaderpreprocessjson.log"),
+		"EngineNormal":         filepath.Join(logsDir, "go_enginenormal.log"),
+		"EnginePreProcess":     filepath.Join(logsDir, "go_enginepreprocess.log"),
+		"EngineNormalJson":     filepath.Join(logsDir, "go_enginenormaljson.log"),
+		"EnginePreProcessJson": filepath.Join(logsDir, "go_enginepreprocessjson.log"),
 	}
 
-	Logger.Configure(Logger.DEBUG, false, Logger.ROTATION_NONE)
 	Logger.AddContextLogFiles(contextLogFiles)
 
 	var req MergeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Validate required fields
 	if req.AppSite == nil || *req.AppSite == "" {
-		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required field: appSite"})
 		return
 	}
 	if req.EngineType == nil || *req.EngineType == "" {
-		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required field: engineType"})
 		return
 	}
@@ -330,7 +375,6 @@ func MergeTemplates(c *gin.Context) {
 	// Get AppFile from scenarios
 	allScenarios, err := config.GetScenarios()
 	if err != nil {
-		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load scenarios: " + err.Error()})
 		return
 	}
@@ -346,7 +390,6 @@ func MergeTemplates(c *gin.Context) {
 	}
 
 	if matchingScenario == nil {
-		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("No matching scenario found for AppSite='%s' and AppView='%s'", *req.AppSite, appViewValue)})
 		return
 	}
@@ -369,7 +412,6 @@ func MergeTemplates(c *gin.Context) {
 
 	// Validate EngineType against allowlist
 	if !isValidEngineType(*req.EngineType) {
-		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid EngineType value"})
 		return
 	}
@@ -377,33 +419,28 @@ func MergeTemplates(c *gin.Context) {
 	// Validate AppSite against allowlist from ConfigUtil
 	validAppSites, err := getValidAppSites()
 	if err != nil {
-		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get AppSites: " + err.Error()})
 		return
 	}
 
 	if !isValidAppSite(*req.AppSite, validAppSites) {
-		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid AppSite value"})
 		return
 	}
 
 	// Validate path components for path traversal attacks
 	if !isValidPathComponent(req.AppSite) {
-		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in AppSite"})
 		return
 	}
 
 	// Validate appFile from scenario
 	if !isValidPathComponent(&appFile) {
-		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in AppFile"})
 		return
 	}
 
 	if req.AppView != nil && *req.AppView != "" && !isValidPathComponent(req.AppView) {
-		Logger.SetLogLevel(originalLogLevel)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid characters in AppView"})
 		return
 	}
@@ -411,14 +448,22 @@ func MergeTemplates(c *gin.Context) {
 	serverStart := time.Now()
 	engineStart := time.Now()
 	var mergedHTML string
-	if strings.EqualFold(*req.EngineType, "PreProcess") {
-		templates := loader.LoadProcessGetTemplateFiles(rootDirPath, *req.AppSite, SearchAppSites)
+	if strings.EqualFold(*req.EngineType, "PreProcessJson") {
+		loaderPreprocessJson := loader.NewLoaderPreprocessJson(rootDirPath, *req.AppSite, SearchAppSites)
+		engine := engine.NewEnginePreProcessJson(appViewPrefix)
+		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, loaderPreprocessJson, true)
+	} else if strings.EqualFold(*req.EngineType, "PreProcess") {
+		loaderPreProcess := loader.NewLoaderPreProcess(rootDirPath, *req.AppSite, SearchAppSites)
 		engine := engine.NewEnginePreProcess(appViewPrefix)
-		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, templates.Templates, SearchAppSites, true)
+		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, loaderPreProcess, true)
+	} else if strings.EqualFold(*req.EngineType, "NormalJson") {
+		loaderNormalJson := loader.NewLoaderNormalJson(rootDirPath, *req.AppSite, SearchAppSites)
+		engine := engine.NewEngineNormalJson(appViewPrefix)
+		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, loaderNormalJson, true)
 	} else {
-		templates := loader.LoadGetTemplateFiles(rootDirPath, *req.AppSite, SearchAppSites)
+		loaderNormal := loader.NewLoaderNormal(rootDirPath, *req.AppSite, SearchAppSites)
 		engine := engine.NewEngineNormal(appViewPrefix)
-		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, templates, SearchAppSites, true)
+		mergedHTML = engine.MergeTemplates(*req.AppSite, appFile, appViewValue, loaderNormal, true)
 	}
 	engineTimeMs := float64(time.Since(engineStart).Microseconds()) / 1000.0
 	serverTimeMs := float64(time.Since(serverStart).Microseconds()) / 1000.0
@@ -439,11 +484,12 @@ func MergeTemplates(c *gin.Context) {
 	}
 
 	responseObj := map[string]interface{}{
-		"Html":                mergedHTML,
-		"ServerTimeMs":        serverTimeMs,
-		"EngineTimeMs":        engineTimeMs,
-		"Templates":           make(map[string]interface{}),
-		"PreProcessTemplates": make(map[string]interface{}),
+		"AppSite":      *req.AppSite,
+		"AppFile":      appFile,
+		"AppView":      appViewValue,
+		"Html":         mergedHTML,
+		"ServerTimeMs": serverTimeMs,
+		"EngineTimeMs": engineTimeMs,
 	}
 
 	// Restore original log level
@@ -455,7 +501,19 @@ func MergeTemplates(c *gin.Context) {
 
 // GetTemplates handles the POST /api/templates endpoint
 func GetTemplates(c *gin.Context) {
+	// Enable logging for template operations
 	projectDirectory := getProjectDirectory()
+
+	templateAnalysisDir := filepath.Join(projectDirectory, "Analysis")
+	logsDir := filepath.Join(templateAnalysisDir, "logs")
+	os.MkdirAll(logsDir, 0755)
+
+	contextLogFiles := map[string]string{
+		"LoaderNormalJson":     filepath.Join(logsDir, "go_loadernormaljson.log"),
+		"LoaderPreProcessJson": filepath.Join(logsDir, "go_loaderpreprocessjson.log"),
+	}
+
+	Logger.AddContextLogFiles(contextLogFiles)
 
 	var req struct {
 		AppSite string `json:"appSite"`
@@ -486,68 +544,21 @@ func GetTemplates(c *gin.Context) {
 
 	rootDirPath := getWwwrootPath()
 
-	// Load Normal templates
-	normalTemplates := loader.LoadGetTemplateFiles(rootDirPath, req.AppSite, SearchAppSites)
+	// Load Normal templates using JSON loader
+	normalLoader := loader.NewLoaderNormalJson(rootDirPath, req.AppSite, SearchAppSites)
 
-	// Load PreProcess templates
-	preprocessTemplates := loader.LoadProcessGetTemplateFiles(rootDirPath, req.AppSite, SearchAppSites)
+	// Load PreProcess templates using JSON loader
+	preprocessLoader := loader.NewLoaderPreprocessJson(rootDirPath, req.AppSite, SearchAppSites)
 
-	// Convert Normal templates to TemplateData objects for proper JSON serialization
-	normalResult := make(map[string]api.TemplateData)
-	for key, value := range normalTemplates {
-		jsonValue := ""
-		if value.JSON != nil {
-			jsonValue = *value.JSON
-		}
-		normalResult[key] = api.TemplateData{
-			Html: value.HTML,
-			Json: jsonValue,
-		}
-	}
-
-	// Convert PreProcess templates to metadata-only objects
-	preprocessResult := make(map[string]api.PreProcessTemplateMetadata)
-	for key, value := range preprocessTemplates.Templates {
-		preprocessResult[key] = api.PreProcessTemplateMetadata{
-			OriginalContent:        value.OriginalContent,
-			Placeholders:           value.Placeholders,
-			SlottedTemplates:       value.SlottedTemplates,
-			JsonData:               value.JsonData,
-			JsonPlaceholders:       value.JsonPlaceholders,
-			ReplacementMappings:    value.ReplacementMappings,
-			HasPlaceholders:        value.HasPlaceholders,
-			HasSlottedTemplates:    value.HasSlottedTemplates,
-			HasJsonData:            value.HasJsonData,
-			HasJsonPlaceholders:    value.HasJsonPlaceholders,
-			HasReplacementMappings: value.HasReplacementMappings,
-			RequiresProcessing:     value.RequiresProcessing,
-		}
-	}
+	// Get pre-serialized JSON from loaders
+	normalTemplatesJson := normalLoader.GetAllTemplatesJson()
+	preprocessTemplatesJson := preprocessLoader.GetAllTemplatesJson()
 
 	serverEnd := time.Now()
 	serverTimeMs := float64(serverEnd.Sub(serverStart).Milliseconds())
 
-	// Use proper ApiResponse structure
-	response := api.ApiResponse{
-		Templates:           normalResult,
-		PreProcessTemplates: preprocessResult,
-		AppSite:             req.AppSite,
-		AppFile:             "",
-		AppView:             "",
-		ServerTimeMs:        serverTimeMs,
-	}
-
-	jsonResult := response.SerializeToJson(false)
-
-	// Check if save query parameter is present
-	saveParam := c.Query("save")
-	if strings.EqualFold(saveParam, "true") {
-		templatesDir := filepath.Join(projectDirectory, "Analysis", "templates")
-		os.MkdirAll(templatesDir, 0755)
-
-		saveFile := filepath.Join(templatesDir, fmt.Sprintf("go_%s_templates.json", req.AppSite))
-		os.WriteFile(saveFile, []byte(jsonResult), 0644)
-	}
+	// Build JSON response manually using pre-serialized template JSON
+	jsonResult := buildTemplatesApiResponse(normalTemplatesJson, preprocessTemplatesJson, req.AppSite, serverTimeMs)
 
 	c.Header("Content-Type", "application/json")
 	c.String(http.StatusOK, jsonResult)
