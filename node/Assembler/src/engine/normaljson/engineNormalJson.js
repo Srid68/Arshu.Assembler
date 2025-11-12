@@ -1,6 +1,6 @@
-import { Logger } from '@arshu/arshu/logger';
-import { isAlphaNumeric, findMatchingCloseTag, removeRemainingSlotPlaceholders } from '../common/commonUtil.js';
-import { mergeTemplateWithJson } from './jsonMergeUtil.js';
+import { Logger } from '../../../../Arshu/src/common/Logger.js';
+import { isAlphaNumeric, findMatchingCloseTag, removeRemainingSlotPlaceholders } from '../../common/commonUtil.js';
+import { mergeTemplateWithJson } from '../../loader/jsonMergeUtil.js';
 
 class EngineNormalJson {
     constructor() {

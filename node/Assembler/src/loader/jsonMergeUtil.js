@@ -1,4 +1,4 @@
-import { Logger } from '@arshu/arshu/logger';
+import { Logger } from '../../../Arshu/src/common/Logger.js';
 
 /**
  * Replaces all occurrences of a search string with a replacement string, case-insensitively.
@@ -80,9 +80,17 @@ function normalizeJsonValue(value) {
     }
     if (value && typeof value === 'object') {
         const normalized = {};
-        for (const key in value) {
-            const normalizedKey = key.endsWith('#') ? key.slice(0, -1) : key;
-            normalized[normalizedKey] = normalizeJsonValue(value[key]);
+        // Handle both Map/JsonObject and plain objects
+        if (value instanceof Map) {
+            for (const [key, val] of value.entries()) {
+                const normalizedKey = key.endsWith('#') ? key.slice(0, -1) : key;
+                normalized[normalizedKey] = normalizeJsonValue(val);
+            }
+        } else {
+            for (const key in value) {
+                const normalizedKey = key.endsWith('#') ? key.slice(0, -1) : key;
+                normalized[normalizedKey] = normalizeJsonValue(value[key]);
+            }
         }
         return normalized;
     }
@@ -97,10 +105,13 @@ function mergeTemplateWithJson(template, jsonObject) {
     let result = template;
     const normalizedJson = normalizeJsonValue(jsonObject);
 
+    // Get entries - works for both plain objects and Maps/JsonObject
+    const entries = normalizedJson instanceof Map ? Array.from(normalizedJson.entries()) : Object.entries(normalizedJson);
+
     // Process arrays: {{@array}}...{{/array}}
-    for (const key in normalizedJson) {
-        if (Array.isArray(normalizedJson[key])) {
-            const dataList = normalizedJson[key];
+    for (const [key, value] of entries) {
+        if (Array.isArray(value)) {
+            const dataList = value;
             const blockStartTag = `{{@${key}}}`;
             const blockEndTag = `{{/${key}}}`;
             const emptyBlockStartTag = `{{^${key}}}`;
@@ -166,11 +177,11 @@ function mergeTemplateWithJson(template, jsonObject) {
     }
 
     // Replace simple placeholders: {{$key}}
-    for (const key in normalizedJson) {
-        if (!Array.isArray(normalizedJson[key])) {
+    for (const [key, value] of entries) {
+        if (!Array.isArray(value)) {
             const placeholder = `{{$${key}}}`;
-            const value = normalizedJson[key] === null || normalizedJson[key] === undefined ? '' : normalizedJson[key];
-            result = replaceAllCaseInsensitive(result, placeholder, String(value));
+            const actualValue = value === null || value === undefined ? '' : value;
+            result = replaceAllCaseInsensitive(result, placeholder, String(actualValue));
         }
     }
 

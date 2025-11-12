@@ -2,9 +2,9 @@
 
 import fs from 'fs';
 import path from 'path';
-import { JsonConverter } from '../app/jsonConverter.js';
-import { isAlphaNumeric, findMatchingCloseTag, removeRemainingSlotPlaceholders, normalizeFileContent } from '../common/commonUtil.js';
-import { Logger } from '@arshu/arshu/logger';
+import { JsonConverter } from '../../app/jsonConverter.js';
+import { isAlphaNumeric, findMatchingCloseTag, removeRemainingSlotPlaceholders, normalizeFileContent, replaceCaseInsensitive } from '../../common/commonUtil.js';
+import { Logger } from '../../../../Arshu/src/common/Logger.js';
 import {
     PreprocessedSiteTemplates,
     PreprocessedTemplate,
@@ -14,42 +14,71 @@ import {
     JsonPlaceholder,
     ReplacementMapping,
     ReplacementType
-} from '../model/modelPreProcess.js';
+} from '../../model/modelPreProcess.js';
+
+// Module-level cache for performance (shared across all instances)
+const _preprocessedTemplatesCache = new Map();
 
 export class LoaderPreProcess {
-    static #preprocessedTemplatesCache = new Map();
+    #rootDirPath;
+    #appSite;
+    #preprocessedSiteTemplates;
 
     /**
-     * Loads and preprocesses HTML files from the specified application site directory into structured templates, caching the output per appSite and rootDirName
+     * Creates a new LoaderPreProcess instance and loads templates
+     * Implements ILoaderPreProcess interface
      * @param {string} rootDirPath - Root directory path
      * @param {string} appSite - Primary AppSite name to load
-     * @param {string} searchAppSites - Comma-delimited string of AppSite names to search for fallback templates (can be empty string)
-     * @returns {PreprocessedSiteTemplates} PreprocessedSiteTemplates containing structured template data
+     * @param {string} searchAppSites - Comma-delimited string of AppSite names for fallback templates
      */
-    static loadProcessGetTemplateFiles(rootDirPath, appSite, searchAppSites = '') {
-        Logger.debug(`LoadProcessGetTemplateFiles called for appSite: ${appSite}, searchAppSites: ${searchAppSites}`, 'LoaderPreProcess');
+    constructor(rootDirPath, appSite, searchAppSites = '') {
+        this.#rootDirPath = rootDirPath || '';
+        this.#appSite = appSite || '';
+        this.searchAppSites = searchAppSites || '';
+        this.#preprocessedSiteTemplates = null;
 
-        const cacheKey = `${path.dirname(rootDirPath)}|${appSite}|${searchAppSites}`;
+        // Auto-load if parameters are provided (matching C# pattern)
+        if (rootDirPath && appSite !== undefined) {
+            this.load(rootDirPath, appSite, searchAppSites);
+        }
+    }
 
-        if (this.#preprocessedTemplatesCache.has(cacheKey)) {
-            const cached = this.#preprocessedTemplatesCache.get(cacheKey);
-            Logger.debug(`Returning cached templates for ${appSite} (${cached.templates.size} templates)`, 'LoaderPreProcess');
-            return cached;
+    /**
+     * ILoaderPreProcess: load
+     * Loads and preprocesses all templates from the specified directory
+     * @param {string} rootDirPath - Root directory path containing AppSites folder
+     * @param {string} appSite - Primary AppSite name to load
+     * @param {string} searchAppSites - Comma-delimited string of AppSite names for fallback templates
+     * @returns {boolean} True if templates loaded successfully
+     */
+    load(rootDirPath, appSite, searchAppSites) {
+        if (rootDirPath) this.#rootDirPath = rootDirPath;
+        if (appSite) this.#appSite = appSite;
+        if (typeof searchAppSites === 'string') this.searchAppSites = searchAppSites;
+
+        Logger.debug(`Load called for appSite: ${this.#appSite}, searchAppSites: ${this.searchAppSites}`, 'LoaderPreProcess');
+
+        const cacheKey = `${path.dirname(this.#rootDirPath)}|${this.#appSite}|${this.searchAppSites}`;
+
+        if (_preprocessedTemplatesCache.has(cacheKey)) {
+            this.#preprocessedSiteTemplates = _preprocessedTemplatesCache.get(cacheKey);
+            Logger.debug(`Returning cached templates for ${this.#appSite} (${this.#preprocessedSiteTemplates.templates.size} templates)`, 'LoaderPreProcess');
+            return true;
         }
 
         // Load templates from primary appSite
-        const result = this.#loadTemplatesFromSingleAppSite(rootDirPath, appSite);
+        const result = this.#loadTemplatesFromSingleAppSite(this.#rootDirPath, this.#appSite);
 
         // Load templates from searchAppSites for fallback
-        if (searchAppSites) {
-            const searchAppSitesArray = searchAppSites.split(',');
+        if (this.searchAppSites) {
+            const searchAppSitesArray = this.searchAppSites.split(',');
             for (const searchAppSite of searchAppSitesArray) {
                 const trimmedSearchAppSite = searchAppSite.trim();
                 if (!trimmedSearchAppSite) {
                     continue;
                 }
 
-                const searchResult = this.#loadTemplatesFromSingleAppSite(rootDirPath, trimmedSearchAppSite);
+                const searchResult = this.#loadTemplatesFromSingleAppSite(this.#rootDirPath, trimmedSearchAppSite);
 
                 // Merge templates (primary appSite takes precedence)
                 for (const [key, value] of searchResult.templates) {
@@ -65,12 +94,246 @@ export class LoaderPreProcess {
 
         // CRITICAL: Create ALL replacement mappings after all templates are loaded
         // This ensures PreProcess engine does ONLY merging, no processing logic
-        this.#createAllReplacementMappingsForSite(result, appSite);
+        this.#createAllReplacementMappingsForSite(result, this.#appSite);
 
-        Logger.debug(`Created all replacement mappings for ${appSite}`, 'LoaderPreProcess');
+        Logger.debug(`Created all replacement mappings for ${this.#appSite}`, 'LoaderPreProcess');
 
-        this.#preprocessedTemplatesCache.set(cacheKey, result);
+        this.#preprocessedSiteTemplates = result;
+        _preprocessedTemplatesCache.set(cacheKey, result);
+        return true;
+    }
+
+    /**
+     * ILoaderPreProcess: hasTemplate
+     * Checks if a template exists
+     * @param {string} appSite - The application site name
+     * @param {string} templateName - The template name
+     * @returns {boolean} True if template exists
+     */
+    hasTemplate(appSite, templateName) {
+        if (!this.#preprocessedSiteTemplates) return false;
+        const key = `${appSite.toLowerCase()}_${templateName.toLowerCase()}`;
+        return this.#preprocessedSiteTemplates.templates.has(key);
+    }
+
+    /**
+     * ILoaderPreProcess: clearCache (static)
+     * Clears the template cache
+     */
+    static clearCache() {
+        _preprocessedTemplatesCache.clear();
+    }
+
+    /**
+     * ILoaderPreProcess: clearCache (instance)
+     * Clears the template cache
+     */
+    clearCache() {
+        _preprocessedTemplatesCache.clear();
+    }
+
+    /**
+     * ILoaderPreProcess: getTemplateHtml
+     * Gets a preprocessed template by appSite and name with optional AppView fallback
+     * @param {string} appSite - The application site name
+     * @param {string} templateName - The template name
+     * @param {string|null} appView - Optional AppView for fallback logic
+     * @param {string|null} appViewPrefix - Optional AppView prefix for fallback logic
+     * @returns {PreprocessedTemplate|null} PreprocessedTemplate or null if not found
+     */
+    getTemplateHtml(appSite, templateName, appView = null, appViewPrefix = null) {
+        if (!this.#preprocessedSiteTemplates) return null;
+        return this.#getTemplate(appSite, templateName, appView, appViewPrefix, true);
+    }
+
+    /**
+     * ILoaderPreProcess: mergeHtmlWithJson
+     * Merges HTML string with JSON data for the specified template
+     * @param {string} html - The HTML string content to merge
+     * @param {string} appSite - The application site name
+     * @param {string} templateName - The template name
+     * @returns {string} HTML string with JSON data merged
+     */
+    mergeHtmlWithJson(html, appSite, templateName) {
+        // PreProcess loader doesn't have separate JSON files - JSON is already baked into replacement mappings
+        // Return HTML as-is (JSON merging happens via replacement mappings)
+        return html;
+    }
+
+    /**
+     * ILoaderPreProcess: applyAllReplacementMappings
+     * Applies all replacement mappings from all templates to the given content
+     * This is the core PreProcess engine logic moved into the loader
+     * @param {string} content - The content HTML to apply replacements to
+     * @param {string} appSite - The application site name
+     * @param {PreprocessedTemplate|null} mainTemplate - The main template
+     * @param {string|null} appView - Optional AppView for fallback logic
+     * @param {string|null} appViewPrefix - Optional AppView prefix for fallback logic
+     * @param {boolean} enableJsonProcessing - Whether to enable JSON data processing
+     * @returns {string} Content with all replacement mappings applied
+     */
+    applyAllReplacementMappings(content, appSite, mainTemplate, appView, appViewPrefix, enableJsonProcessing) {
+        if (!this.#preprocessedSiteTemplates) return content;
+
+        let result = content;
+        Logger.debug(`Starting ApplyAllReplacementMappings, initial size: ${content.length}`, 'LoaderPreProcess');
+
+        const maxPasses = 10;
+        let currentPass = 0;
+
+        do {
+            const previous = result;
+            currentPass++;
+            Logger.debug(`Replacement pass ${currentPass}, current size: ${result.length}`, 'LoaderPreProcess');
+
+            let slottedCount = 0;
+            let simpleCount = 0;
+            let jsonPlaceholderCount = 0;
+
+            // FIRST: Apply JSON placeholder mappings ONLY from the main template
+            if (mainTemplate && currentPass === 1 && enableJsonProcessing) {
+                for (const mapping of mainTemplate.replacementMappings) {
+                    if ((mapping.type === 0 || mapping.type === ReplacementType.JsonPlaceholder) && result.includes(mapping.originalText)) {
+                        Logger.debug(`Applying main template JSON placeholder (original size: ${mapping.originalText.length}, replacement size: ${mapping.replacementText.length})`, 'LoaderPreProcess');
+                        result = result.split(mapping.originalText).join(mapping.replacementText);
+                        jsonPlaceholderCount++;
+                    }
+                }
+            }
+
+            // Apply replacement mappings from all templates
+            for (const template of this.#preprocessedSiteTemplates.templates.values()) {
+                // Apply slotted template mappings FIRST
+                for (const mapping of template.replacementMappings) {
+                    if ((mapping.type === 2 || mapping.type === ReplacementType.SlottedTemplate) && result.includes(mapping.originalText)) {
+                        result = result.split(mapping.originalText).join(mapping.replacementText);
+                        slottedCount++;
+                    }
+                }
+
+                // Then apply simple template mappings with AppView logic
+                for (const mapping of template.replacementMappings) {
+                    if ((mapping.type === 1 || mapping.type === ReplacementType.SimpleTemplate) && result.includes(mapping.originalText)) {
+                        let replacementText = mapping.replacementText;
+
+                        // Apply AppView logic if appView is provided
+                        if (appView) {
+                            replacementText = this.#applyAppViewLogicToReplacement(mapping.originalText, replacementText, appView, appViewPrefix || '');
+                        }
+
+                        Logger.debug(`Applying simple template: ${mapping.originalText} -> replacement text (first 200 chars): ${replacementText.substring(0, Math.min(200, replacementText.length))}`, 'LoaderPreProcess');
+                        result = result.split(mapping.originalText).join(replacementText);
+                        simpleCount++;
+                    }
+                }
+            }
+
+            Logger.debug(`Pass ${currentPass} applied: ${jsonPlaceholderCount} main JSON placeholders, ${slottedCount} slotted, ${simpleCount} simple`, 'LoaderPreProcess');
+
+            if (result === previous || currentPass >= maxPasses) {
+                break;
+            }
+        } while (true);
+
+        Logger.debug(`Replacement complete after ${currentPass} passes, final size: ${result.length}`, 'LoaderPreProcess');
         return result;
+    }
+
+    /**
+     * Gets a template from the preprocessed templates with AppView fallback logic
+     * @param {string} appSite - The application site name
+     * @param {string} templateName - The template name
+     * @param {string|null} appView - Optional AppView for fallback logic
+     * @param {string|null} appViewPrefix - Optional AppView prefix for fallback logic
+     * @param {boolean} useAppViewFallback - Whether to use AppView fallback
+     * @returns {PreprocessedTemplate|null} Template or null
+     */
+    #getTemplate(appSite, templateName, appView, appViewPrefix, useAppViewFallback) {
+        if (!this.#preprocessedSiteTemplates) return null;
+
+        const viewPrefix = appViewPrefix || '';
+
+        // FIRST: Check for AppView-specific template
+        if (useAppViewFallback && appView && viewPrefix && templateName.toLowerCase().includes(viewPrefix.toLowerCase())) {
+            const appKey = replaceCaseInsensitive(templateName, viewPrefix, appView);
+            const fallbackTemplateKey = `${appSite.toLowerCase()}_${appKey.toLowerCase()}`;
+            if (this.#preprocessedSiteTemplates.templates.has(fallbackTemplateKey)) {
+                return this.#preprocessedSiteTemplates.templates.get(fallbackTemplateKey);
+            }
+        }
+
+        // SECOND: Try primary template
+        const primaryTemplateKey = `${appSite.toLowerCase()}_${templateName.toLowerCase()}`;
+        if (this.#preprocessedSiteTemplates.templates.has(primaryTemplateKey)) {
+            return this.#preprocessedSiteTemplates.templates.get(primaryTemplateKey);
+        }
+
+        // THIRD: Search in SearchAppSites
+        if (this.searchAppSites) {
+            for (const searchAppSite of this.searchAppSites.split(',')) {
+                const site = searchAppSite.trim();
+                if (!site) continue;
+
+                const searchKey = `${site.toLowerCase()}_${templateName.toLowerCase()}`;
+                if (this.#preprocessedSiteTemplates.templates.has(searchKey)) {
+                    Logger.debug(`Template '${templateName}' not found in '${appSite}', using fallback from '${site}'`, 'LoaderPreProcess');
+                    return this.#preprocessedSiteTemplates.templates.get(searchKey);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Applies AppView fallback logic to template replacement text
+     * @param {string} originalText - Original placeholder text
+     * @param {string} replacementText - Current replacement text
+     * @param {string} appView - The application view name
+     * @param {string} appViewPrefix - The application view prefix
+     * @returns {string} Updated replacement text with AppView logic applied
+     */
+    #applyAppViewLogicToReplacement(originalText, replacementText, appView, appViewPrefix) {
+        if (!appView) return replacementText;
+
+        // Extract placeholder name from {{PlaceholderName}} format
+        const placeholderName = this.#extractPlaceholderName(originalText);
+        if (!placeholderName) return replacementText;
+
+        // Get the appSite from the template key pattern
+        const sampleKey = this.#preprocessedSiteTemplates.templates.keys().next().value;
+        if (!sampleKey) return replacementText;
+
+        const parts = sampleKey.split('_');
+        if (parts.length < 2) return replacementText;
+
+        const appSite = parts[0];
+
+        // Try to find AppView-specific template
+        const appViewTemplate = this.#getTemplate(appSite, placeholderName, appView, appViewPrefix, true);
+        if (!appViewTemplate) return replacementText;
+
+        // Apply JSON placeholder replacements before returning
+        let processedContent = appViewTemplate.originalContent;
+        for (const mapping of appViewTemplate.replacementMappings) {
+            if ((mapping.type === 0 || mapping.type === ReplacementType.JsonPlaceholder) && processedContent.includes(mapping.originalText)) {
+                processedContent = processedContent.split(mapping.originalText).join(mapping.replacementText);
+            }
+        }
+
+        return processedContent;
+    }
+
+    /**
+     * Extracts placeholder name from {{PlaceholderName}} format
+     * @param {string} originalText - Original placeholder text
+     * @returns {string} Extracted placeholder name or empty string
+     */
+    #extractPlaceholderName(originalText) {
+        if (!originalText || !originalText.startsWith('{{') || !originalText.endsWith('}}')) {
+            return '';
+        }
+        return originalText.substring(2, originalText.length - 2).trim();
     }
 
     /**
@@ -79,7 +342,7 @@ export class LoaderPreProcess {
      * @param {string} appSite - Application site name
      * @returns {PreprocessedSiteTemplates} PreprocessedSiteTemplates containing structured template data
      */
-    static #loadTemplatesFromSingleAppSite(rootDirPath, appSite) {
+    #loadTemplatesFromSingleAppSite(rootDirPath, appSite) {
         const result = new PreprocessedSiteTemplates();
         result.siteName = appSite;
 
@@ -148,12 +411,12 @@ export class LoaderPreProcess {
      * @param {string} jsonContent - The JSON content to preprocess
      * @returns {JsonObject} JsonObject containing preprocessed JSON data
      */
-    static preprocessJsonData(jsonContent) {
+    preprocessJsonData(jsonContent) {
         const parsed = JsonConverter.parseJsonString(jsonContent);
         return this.#normalizeJsonStructure(parsed);
     }
 
-    static #normalizeJsonStructure(value) {
+    #normalizeJsonStructure(value) {
         if (!value) return value;
 
         const ctorName = value?.constructor?.name;
@@ -179,13 +442,6 @@ export class LoaderPreProcess {
     }
 
     /**
-     * Clear all cached templates (useful for testing or when templates change)
-     */
-    static clearCache() {
-        this.#preprocessedTemplatesCache.clear();
-    }
-
-    /**
      * Creates a preprocessed template by parsing its structure and any associated JSON data.
      * This method handles parsing and JSON preprocessing, leaving only merging to the template engine.
      * @param {string} content - The template content to parse
@@ -194,7 +450,7 @@ export class LoaderPreProcess {
      * @param {string} templateKey - The template key for reference
      * @returns {PreprocessedTemplate} PreprocessedTemplate containing parsed structure and preprocessed JSON
      */
-    static #preprocessTemplate(content, jsonContent, appSite, templateKey) {
+    #preprocessTemplate(content, jsonContent, appSite, templateKey) {
         const template = new PreprocessedTemplate();
         template.originalContent = content;
 
@@ -226,7 +482,7 @@ export class LoaderPreProcess {
      * @param {PreprocessedSiteTemplates} siteTemplates - All templates for the site
      * @param {string} appSite - The application site name
      */
-    static #createAllReplacementMappingsForSite(siteTemplates, appSite) {
+    #createAllReplacementMappingsForSite(siteTemplates, appSite) {
         Logger.debug(`Creating replacement mappings for ${appSite} - Phase 1: JSON arrays`, 'LoaderPreProcess');
         // Phase 1: Create JSON replacement mappings for all templates first (no dependencies)
         for (const template of siteTemplates.templates.values()) {
@@ -262,7 +518,7 @@ export class LoaderPreProcess {
      * @param {string} appSite - Application site
      * @param {PreprocessedTemplate} template - Template to populate
      */
-    static #parseSlottedTemplates(content, appSite, template) {
+    #parseSlottedTemplates(content, appSite, template) {
         let searchPos = 0;
 
         while (searchPos < content.length) {
@@ -322,7 +578,7 @@ export class LoaderPreProcess {
      * @param {string} appSite - Application site
      * @param {PreprocessedTemplate} template - Template to populate
      */
-    static #parsePlaceholderTemplates(content, appSite, template) {
+    #parsePlaceholderTemplates(content, appSite, template) {
         let searchPos = 0;
 
         while (searchPos < content.length) {
@@ -369,7 +625,7 @@ export class LoaderPreProcess {
      * @param {SlottedTemplate} slottedTemplate - Slotted template to populate
      * @param {string} appSite - Application site
      */
-    static #parseSlots(innerContent, slottedTemplate, appSite) {
+    #parseSlots(innerContent, slottedTemplate, appSite) {
         let searchPos = 0;
 
         while (searchPos < innerContent.length) {
@@ -437,7 +693,7 @@ export class LoaderPreProcess {
      * @param {JsonObject|null} jsonData - JSON data for the slot
      * @param {string} appSite - Application site
      */
-    static #parseNestedTemplatesInSlot(slot, jsonData, appSite) {
+    #parseNestedTemplatesInSlot(slot, jsonData, appSite) {
         if (!slot.content) {
             return;
         }
@@ -519,7 +775,7 @@ export class LoaderPreProcess {
      * This creates structured data that the PreProcess engine can apply directly without any processing
      * @param {PreprocessedTemplate} template - Template to process
      */
-    static #preprocessJsonTemplates(template) {
+    #preprocessJsonTemplates(template) {
         if (!template.jsonData) return;
 
         const content = template.originalContent;
@@ -537,7 +793,7 @@ export class LoaderPreProcess {
      * @param {PreprocessedTemplate} template - Template to process
      * @param {string} content - Template content
      */
-    static #createJsonPlaceholderReplacementMappings(template, content) {
+    #createJsonPlaceholderReplacementMappings(template, content) {
         if (!template.jsonData) return;
 
         for (const [key, value] of template.jsonData) {
@@ -578,7 +834,7 @@ export class LoaderPreProcess {
      * @param {Map<string, PreprocessedTemplate>} allTemplates - All templates
      * @param {string} appSite - Application site
      */
-    static #createPlaceholderReplacementMappings(template, allTemplates, appSite) {
+    #createPlaceholderReplacementMappings(template, allTemplates, appSite) {
         if (!template.hasPlaceholders) return;
 
         for (const placeholder of template.placeholders) {
@@ -633,7 +889,7 @@ export class LoaderPreProcess {
      * @param {string} string - String to escape
      * @returns {string} Escaped string
      */
-    static #escapeRegExp(string) {
+    #escapeRegExp(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
@@ -644,7 +900,7 @@ export class LoaderPreProcess {
      * @param {Map<string, PreprocessedTemplate>} allTemplates - All templates
      * @param {string} appSite - Application site
      */
-    static #createSlottedTemplateReplacementMappings(template, allTemplates, appSite) {
+    #createSlottedTemplateReplacementMappings(template, allTemplates, appSite) {
         if (!template.hasSlottedTemplates) return;
 
         for (const slottedTemplate of template.slottedTemplates) {
@@ -706,7 +962,7 @@ export class LoaderPreProcess {
      * @param {string} appSite - Application site
      * @returns {string} Processed slot content
      */
-    static #processSlotContentForReplacementMapping(slot, allTemplates, appSite) {
+    #processSlotContentForReplacementMapping(slot, allTemplates, appSite) {
         let result = slot.content;
 
         // Process nested slotted templates recursively
@@ -789,7 +1045,7 @@ export class LoaderPreProcess {
      * @param {PreprocessedTemplate} template - Template to process
      * @param {string} content - Template content
      */
-    static #createJsonArrayReplacementMappings(template, content) {
+    #createJsonArrayReplacementMappings(template, content) {
         if (!template.jsonData) return;
 
         // First, create a case-insensitive lookup map for JSON keys
@@ -877,7 +1133,7 @@ export class LoaderPreProcess {
      * @param {Array} dataArray - JSON array data
      * @returns {string} Processed array content
      */
-    static #processArrayBlockContent(blockContent, dataArray) {
+    #processArrayBlockContent(blockContent, dataArray) {
         let result = '';
 
         for (let i = 0; i < dataArray.length; i++) {
@@ -914,7 +1170,7 @@ export class LoaderPreProcess {
      * @param {*} value - JSON value to convert
      * @returns {string} String representation without HTML escaping
      */
-    static #jsonValueToStringWithoutHtmlEscape(value) {
+    #jsonValueToStringWithoutHtmlEscape(value) {
         if (value === null || value === undefined) {
             return '';
         }
@@ -944,7 +1200,7 @@ export class LoaderPreProcess {
      * @param {string} dir - Directory to walk
      * @param {Function} callback - Callback function for each file/directory
      */
-    static #walkDirectory(dir, callback) {
+    #walkDirectory(dir, callback) {
         const files = fs.readdirSync(dir);
         
         for (const file of files) {
@@ -966,7 +1222,7 @@ export class LoaderPreProcess {
      * @param {Object} jsonItem - JSON object with conditional values
      * @returns {string} Content with conditional blocks processed
      */
-    static #processConditionalBlocks(content, jsonItem) {
+    #processConditionalBlocks(content, jsonItem) {
         try {
             let result = content;
             
@@ -990,7 +1246,7 @@ export class LoaderPreProcess {
      * @param {string} content - Content to search
      * @returns {Array<string>} Array of conditional keys found
      */
-    static #findConditionalKeysInContent(content) {
+    #findConditionalKeysInContent(content) {
         const keys = new Set();
         const regex = /\{\{@(\w+)\}\}/gi;
         let match;
@@ -1008,7 +1264,7 @@ export class LoaderPreProcess {
      * @param {string} key - Key to look for
      * @returns {boolean} Condition value
      */
-    static #getConditionValue(jsonItem, key) {
+    #getConditionValue(jsonItem, key) {
         // Handle both Map (JsonObject) and plain object structures
         let entries;
         if (jsonItem instanceof Map) {
@@ -1038,7 +1294,7 @@ export class LoaderPreProcess {
      * @param {string} replacement - Replacement string
      * @returns {string} String with all occurrences replaced
      */
-    static #replaceAllCaseInsensitive(input, search, replacement) {
+    #replaceAllCaseInsensitive(input, search, replacement) {
         let idx = 0;
         while (true) {
             const found = input.toLowerCase().indexOf(search.toLowerCase(), idx);
@@ -1057,7 +1313,7 @@ export class LoaderPreProcess {
      * @param {boolean} condition - Whether to include or remove the conditional content
      * @returns {string} String with conditional block processed
      */
-    static #processConditionalBlockSafely(input, key, condition) {
+    #processConditionalBlockSafely(input, key, condition) {
         try {
             // Support both space variants: {{ /Key}} and {{/Key}}
             const conditionTags = [

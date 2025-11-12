@@ -44,8 +44,8 @@ export async function runStandardTests(assemblerWebDirPath, projectDirectory, sc
         }
 
         try {
-            const templates = LoaderNormal.loadGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites);
-            const preprocessedSiteTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites);
+            const loaderNormal = new LoaderNormal(assemblerWebDirPath, testSite, searchAppSites);
+            const loaderPreProcess = new LoaderPreProcess(assemblerWebDirPath, testSite, searchAppSites);
             
             const loaderNormalJson = new LoaderNormalJson(assemblerWebDirPath, testSite, searchAppSites);
             await loaderNormalJson.load();
@@ -58,11 +58,11 @@ export async function runStandardTests(assemblerWebDirPath, projectDirectory, sc
 
                 const normalEngine = new EngineNormal();
                 normalEngine.appViewPrefix = appFileName;
-                const resultNormal = normalEngine.mergeTemplates(testSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
+                const resultNormal = normalEngine.mergeTemplates(testSite, appFileName, appView, loaderNormal, enableJsonProcessing);
 
                 const preProcessEngine = new EnginePreProcess();
                 preProcessEngine.appViewPrefix = appFileName;
-                const resultPreProcess = preProcessEngine.mergeTemplates(testSite, appFileName, appView, preprocessedSiteTemplates.templates, searchAppSites, enableJsonProcessing);
+                const resultPreProcess = preProcessEngine.mergeTemplates(testSite, appFileName, appView, loaderPreProcess, enableJsonProcessing);
 
                 const normalJsonEngine = new EngineNormalJson();
                 normalJsonEngine.appViewPrefix = appFileName;
@@ -162,8 +162,8 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
             const loaderPreProcessJson = new LoaderPreProcessJson(assemblerWebDirPath, testSite, searchAppSites);
             await loaderPreProcessJson.load();
 
-            const templates = LoaderNormal.loadGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites);
-            const preprocessedTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, testSite, searchAppSites).templates;
+            const loaderNormal = new LoaderNormal(assemblerWebDirPath, testSite, searchAppSites);
+            const loaderPreProcess = new LoaderPreProcess(assemblerWebDirPath, testSite, searchAppSites);
 
             const scenarioResults = [];
 
@@ -178,9 +178,8 @@ export async function runAdvancedTests(assemblerWebDirPath, projectDirectory, sc
                 const preProcessJsonEngine = new EnginePreProcessJson();
                 preProcessJsonEngine.appViewPrefix = appFileName;
 
-                const resultNormal = normalEngine.mergeTemplates(testSite, appFileName, appView, templates, searchAppSites, enableJsonProcessing);
-                const preprocessedTemplatesObj = Object.fromEntries(preprocessedTemplates);
-                const resultPreProcess = preProcessEngine.mergeTemplates(testSite, appFileName, appView, preprocessedTemplatesObj, searchAppSites, enableJsonProcessing);
+                const resultNormal = normalEngine.mergeTemplates(testSite, appFileName, appView, loaderNormal, enableJsonProcessing);
+                const resultPreProcess = preProcessEngine.mergeTemplates(testSite, appFileName, appView, loaderPreProcess, enableJsonProcessing);
                 const resultNormalJson = normalJsonEngine.mergeTemplates(testSite, appFileName, appView, loaderNormalJson, enableJsonProcessing);
                 const resultPreProcessJson = preProcessJsonEngine.mergeTemplates(testSite, appFileName, appView, loaderPreProcessJson, enableJsonProcessing);
 
@@ -455,8 +454,8 @@ export async function dumpPreprocessedTemplateStructures(assemblerWebDirPath, pr
             LoaderNormal.clearCache();
             LoaderPreProcess.clearCache();
 
-            const preprocessedSiteTemplates = LoaderPreProcess.loadProcessGetTemplateFiles(assemblerWebDirPath, site, searchAppSites);
-            const fullJson = Assembler.ApiResponse.serializePreprocessedSiteTemplates(preprocessedSiteTemplates, true);
+            const loaderPreProcess = new LoaderPreProcess(assemblerWebDirPath, site, searchAppSites);
+            const fullJson = Assembler.ApiResponse.serializePreprocessedSiteTemplates(loaderPreProcess, true);
 
 			const outputDir = path.join(projectDirectory, 'Analysis', 'dump');
 			await fs.mkdir(outputDir, { recursive: true });

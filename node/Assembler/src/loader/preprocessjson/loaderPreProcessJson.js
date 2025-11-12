@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { Logger } from '@arshu/arshu/logger';
-import { normalizeFileContent, isAlphaNumeric, findMatchingCloseTag, removeRemainingSlotPlaceholders, replaceCaseInsensitive } from '../common/commonUtil.js';
+import { Logger } from '../../../../Arshu/src/common/Logger.js';
+import { normalizeFileContent, isAlphaNumeric, findMatchingCloseTag, removeRemainingSlotPlaceholders, replaceCaseInsensitive } from '../../common/commonUtil.js';
 import {
     PreprocessedTemplate,
     SlottedTemplate,
@@ -10,8 +10,8 @@ import {
     ReplacementMapping,
     ReplacementType,
     JsonPlaceholder
-} from '../model/modelPreProcess.js';
-import { mergeTemplateWithJson } from '../engine/jsonMergeUtil.js';
+} from '../../model/modelPreProcess.js';
+import { mergeTemplateWithJson } from '../jsonMergeUtil.js';
 
 const _preprocessedTemplatesCache = new Map();
 
@@ -69,6 +69,11 @@ export class LoaderPreProcessJson {
         return this._templates.has(key);
     }
 
+    static clearCache() {
+        _preprocessedTemplatesCache.clear();
+    }
+
+    // Instance clearCache for interface compatibility
     clearCache() {
         _preprocessedTemplatesCache.clear();
     }
@@ -79,6 +84,88 @@ export class LoaderPreProcessJson {
             allTemplates[key] = value;
         });
         return allTemplates;
+    }
+
+    // Applies all replacement mappings from all templates to the given content
+    // Mirrors C# ILoaderJson<PreprocessedTemplate>.ApplyAllReplacementMappings
+    applyAllReplacementMappings(content, appSite, mainTemplate, appView, appViewPrefix, enableJsonProcessing) {
+        let result = content || '';
+
+        Logger.debug(`Starting ApplyTemplateReplacements, initial size: ${result.length}`, 'LoaderPreProcessJson');
+
+        let previous;
+        const maxPasses = 10;
+        let currentPass = 0;
+
+        do {
+            previous = result;
+            currentPass++;
+            Logger.debug(`Replacement pass ${currentPass}, current size: ${result.length}`, 'LoaderPreProcessJson');
+
+            let slottedCount = 0, simpleCount = 0, jsonPlaceholderCount = 0;
+
+            // FIRST: Apply JSON placeholder mappings ONLY from the main template in the first pass
+            if (mainTemplate && currentPass === 1 && enableJsonProcessing) {
+                for (const mapping of mainTemplate.replacementMappings) {
+                    if (mapping.type !== ReplacementType.JsonPlaceholder) continue;
+                    if (result.includes(mapping.originalText)) {
+                        Logger.debug(`Applying main template JSON placeholder: ${mapping.originalText} -> ${mapping.replacementText}`, 'LoaderPreProcessJson');
+                        result = result.split(mapping.originalText).join(mapping.replacementText);
+                        jsonPlaceholderCount++;
+                    }
+                }
+            }
+
+            // Apply mappings from every template currently loaded in this loader
+            for (const [_, template] of this._templates) {
+                // Slotted templates first
+                for (const mapping of template.replacementMappings) {
+                    if (mapping.type !== ReplacementType.SlottedTemplate) continue;
+                    if (result.includes(mapping.originalText)) {
+                        let replacementText = mapping.replacementText;
+                        if (enableJsonProcessing && mapping.targetTemplateName) {
+                            replacementText = this.mergeHtmlWithJson(replacementText, appSite, mapping.targetTemplateName);
+                            Logger.debug(`After merging JSON for slotted template ${mapping.targetTemplateName}: ${replacementText.length} chars`, 'LoaderPreProcessJson');
+                        }
+                        result = result.split(mapping.originalText).join(replacementText);
+                        slottedCount++;
+                    }
+                }
+
+                // Simple templates next with AppView logic
+                for (const mapping of template.replacementMappings) {
+                    if (mapping.type !== ReplacementType.SimpleTemplate) continue;
+                    if (!result.includes(mapping.originalText)) continue;
+
+                    let replacementText = mapping.replacementText;
+
+                    // AppView fallback if available
+                    if (appView && mapping.targetTemplateName) {
+                        const viewPrefix = appViewPrefix || '';
+                        if (viewPrefix && mapping.targetTemplateName.toLowerCase().includes(viewPrefix.toLowerCase())) {
+                            const appKey = replaceCaseInsensitive(mapping.targetTemplateName, viewPrefix, appView);
+                            const appViewTpl = this.getTemplateInternal(appSite, appKey, null, null);
+                            if (appViewTpl) {
+                                replacementText = appViewTpl.originalContent;
+                            }
+                        }
+                    }
+
+                    if (enableJsonProcessing && mapping.targetTemplateName) {
+                        replacementText = this.mergeHtmlWithJson(replacementText, appSite, mapping.targetTemplateName);
+                        Logger.debug(`After merging JSON for simple template ${mapping.targetTemplateName}: ${replacementText.length} chars`, 'LoaderPreProcessJson');
+                    }
+
+                    result = result.split(mapping.originalText).join(replacementText);
+                    simpleCount++;
+                }
+            }
+
+            Logger.debug(`Pass ${currentPass} applied: ${jsonPlaceholderCount} main JSON placeholders, ${slottedCount} slotted, ${simpleCount} simple`, 'LoaderPreProcessJson');
+        } while (result !== previous && currentPass < maxPasses);
+
+        Logger.debug(`Replacement complete after ${currentPass} passes, final size: ${result.length}`, 'LoaderPreProcessJson');
+        return result;
     }
 
     getTemplateInternal(appSite, templateName, appView, appViewPrefix) {
