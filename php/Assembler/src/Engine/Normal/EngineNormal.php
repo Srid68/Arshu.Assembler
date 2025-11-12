@@ -1,6 +1,6 @@
 <?php
 
-namespace Assembler\Engine;
+namespace Assembler\Engine\Normal;
 
 use Assembler\App\JsonConverter;
 use Assembler\App\Json\JsonObject;

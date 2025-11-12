@@ -1,6 +1,8 @@
 <?php
 
-namespace Assembler\Loader;
+namespace Assembler\Loader\PreProcessJson;
+
+use Assembler\Interface\ILoaderJson;
 
 use Arshu\Common\Logger;
 use Assembler\Common\CommonUtil;
@@ -13,7 +15,7 @@ use Assembler\Model\ReplacementType;
 use Assembler\Model\JsonPlaceholder;
 use Assembler\App\JsonConverter;
 
-class LoaderPreProcessJson
+class LoaderPreProcessJson implements ILoaderJson
 {
     private static array $preprocessedTemplatesCache = [];
     private array $templates;

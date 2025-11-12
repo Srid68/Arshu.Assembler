@@ -1,6 +1,8 @@
 <?php
 
-namespace Assembler\Loader;
+namespace Assembler\Loader\NormalJson;
+
+use Assembler\Interface\ILoaderJson;
 
 use Assembler\App\Json\JsonObject;
 use Arshu\Common\Logger;

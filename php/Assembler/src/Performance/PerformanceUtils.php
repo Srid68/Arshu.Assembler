@@ -2,10 +2,10 @@
 
 namespace Assembler\Performance;
 
-use Assembler\Loader\LoaderNormal;
-use Assembler\Loader\LoaderPreProcess;
-use Assembler\Engine\EngineNormal;
-use Assembler\Engine\EnginePreProcess;
+use Assembler\Loader\Normal\LoaderNormal;
+use Assembler\Loader\PreProcess\LoaderPreProcess;
+use Assembler\Engine\Normal\EngineNormal;
+use Assembler\Engine\PreProcess\EnginePreProcess;
 use Assembler\Common\CommonUtil;
 
 class PerfSummaryRow

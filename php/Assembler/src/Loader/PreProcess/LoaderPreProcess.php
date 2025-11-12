@@ -1,6 +1,8 @@
 <?php
 
-namespace Assembler\Loader;
+namespace Assembler\Loader\PreProcess;
+
+use Assembler\Loader\TemplateResult;
 
 use Assembler\App\Json\JsonArray;
 use Assembler\App\Json\JsonObject;

@@ -2,14 +2,14 @@
 
 namespace Assembler\Test;
 
-use Assembler\Loader\LoaderNormal;
-use Assembler\Loader\LoaderPreProcess;
-use Assembler\Loader\LoaderNormalJson;
-use Assembler\Loader\LoaderPreProcessJson;
-use Assembler\Engine\EngineNormal;
-use Assembler\Engine\EnginePreProcess;
-use Assembler\Engine\EngineNormalJson;
-use Assembler\Engine\EnginePreProcessJson;
+use Assembler\Loader\Normal\LoaderNormal;
+use Assembler\Loader\PreProcess\LoaderPreProcess;
+use Assembler\Loader\NormalJson\LoaderNormalJson;
+use Assembler\Loader\PreProcessJson\LoaderPreProcessJson;
+use Assembler\Engine\Normal\EngineNormal;
+use Assembler\Engine\PreProcess\EnginePreProcess;
+use Assembler\Engine\NormalJson\EngineNormalJson;
+use Assembler\Engine\PreProcessJson\EnginePreProcessJson;
 use Assembler\Common\CommonUtil;
 use Assembler\Api\ApiResponse;
 

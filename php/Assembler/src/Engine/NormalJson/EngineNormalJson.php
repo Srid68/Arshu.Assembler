@@ -1,6 +1,8 @@
 <?php
 
-namespace Assembler\Engine;
+namespace Assembler\Engine\NormalJson;
+
+use Assembler\Interface\ILoaderJson;
 
 use Arshu\Common\Logger;
 use Assembler\Common\CommonUtil;
@@ -19,7 +21,7 @@ class EngineNormalJson
      * Merges templates by replacing placeholders with corresponding HTML
      * Strictly follows C# structure and logging.
      */
-    public function mergeTemplates(string $appSite, string $appFile, ?string $appView, LoaderNormalJson $loader, bool $enableJsonProcessing = true): string
+    public function mergeTemplates(string $appSite, string $appFile, ?string $appView, ILoaderJson $loader, bool $enableJsonProcessing = true): string
     {
         Logger::debug("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? "null") . ", enableJson=$enableJsonProcessing", "EngineNormalJson");
 
@@ -70,7 +72,7 @@ class EngineNormalJson
      * Merges HTML with JSON using loader's centralized method (C# style)
      * The loader handles JSON inheritance internally
      */
-    private function mergeHtmlWithJson(string $html, string $appSite, string $templateName, LoaderNormalJson $loader): string
+    private function mergeHtmlWithJson(string $html, string $appSite, string $templateName, ILoaderJson $loader): string
     {
         Logger::debug("Calling loader->mergeHtmlWithJson for template $templateName", "EngineNormalJson");
         $originalSize = strlen($html);
@@ -79,7 +81,7 @@ class EngineNormalJson
         return $html;
     }
 
-    private function getTemplateWithJson(string $appSite, string $templateName, LoaderNormalJson $loader, ?string $appView, bool $enableJsonProcessing): ?string
+    private function getTemplateWithJson(string $appSite, string $templateName, ILoaderJson $loader, ?string $appView, bool $enableJsonProcessing): ?string
     {
         $html = $loader->getTemplateHtml($appSite, $templateName, $appView, $this->appViewPrefix);
         if (!$html) {
@@ -98,7 +100,7 @@ class EngineNormalJson
         return $html;
     }
 
-    private function mergeTemplateSlots(string $contentHtml, string $appSite, ?string $appView, LoaderNormalJson $loader, bool $enableJsonProcessing): string
+    private function mergeTemplateSlots(string $contentHtml, string $appSite, ?string $appView, ILoaderJson $loader, bool $enableJsonProcessing): string
     {
         if (empty($contentHtml)) {
             return $contentHtml;
@@ -112,7 +114,7 @@ class EngineNormalJson
         return $contentHtml;
     }
 
-    private function processTemplateSlots(string $contentHtml, string $appSite, ?string $appView, LoaderNormalJson $loader, bool $enableJsonProcessing): string
+    private function processTemplateSlots(string $contentHtml, string $appSite, ?string $appView, ILoaderJson $loader, bool $enableJsonProcessing): string
     {
         $result = $contentHtml;
         $searchPos = 0;
@@ -162,7 +164,7 @@ class EngineNormalJson
         return $result;
     }
 
-    private function extractSlotContents(string $innerContent, string $appSite, ?string $appView, LoaderNormalJson $loader, bool $enableJsonProcessing): array
+    private function extractSlotContents(string $innerContent, string $appSite, ?string $appView, ILoaderJson $loader, bool $enableJsonProcessing): array
     {
         $slotContents = [];
         $searchPos = 0;
@@ -208,7 +210,7 @@ class EngineNormalJson
         return $slotContents;
     }
 
-    private function replaceTemplatePlaceholders(string $html, string $appSite, ?string $appView, LoaderNormalJson $loader, bool $enableJsonProcessing): string
+    private function replaceTemplatePlaceholders(string $html, string $appSite, ?string $appView, ILoaderJson $loader, bool $enableJsonProcessing): string
     {
         $result = $html;
         $searchPos = 0;

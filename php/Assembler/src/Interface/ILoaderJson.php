@@ -1,6 +1,6 @@
 <?php
 
-namespace Assembler\Loader;
+namespace Assembler\Interface;
 
 use Assembler\App\Json\JsonObject;
 use Assembler\Model\PreprocessedTemplate;

@@ -1,6 +1,8 @@
 <?php
 
-namespace Assembler\Engine;
+namespace Assembler\Engine\PreProcessJson;
+
+use Assembler\Interface\ILoaderJson;
 
 use Arshu\Common\Logger;
 use Assembler\Loader\LoaderPreProcessJson;
@@ -14,7 +16,7 @@ class EnginePreProcessJson
         $this->appViewPrefix = $prefix;
     }
 
-    public function mergeTemplates(string $appSite, string $appFile, ?string $appView, LoaderPreProcessJson $loader, bool $enableJsonProcessing = true): string
+    public function mergeTemplates(string $appSite, string $appFile, ?string $appView, ILoaderJson $loader, bool $enableJsonProcessing = true): string
     {
         Logger::debug("MergeTemplates called: appSite=$appSite, appFile=$appFile, appView=" . ($appView ?? 'null') . ", enableJson=$enableJsonProcessing", 'EnginePreProcessJson');
 

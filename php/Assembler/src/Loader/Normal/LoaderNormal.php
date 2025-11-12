@@ -1,6 +1,8 @@
 <?php
 
-namespace Assembler\Loader;
+namespace Assembler\Loader\Normal;
+
+use Assembler\Loader\TemplateResult;
 
 use Arshu\Common\Logger;
 use Assembler\Common\CommonUtil;
