@@ -183,7 +183,25 @@ class LoaderNormalJson {
 
         Logger.debug(`Building parent map for appSites: ${this.appSites}`, 'LoaderNormalJson');
 
-        for (const [templateKey, template] of this._templates) {
+        // Process templates in deterministic order to ensure consistent parent relationships
+        // Sort keys: SearchAppSites first, then main AppSite (so main AppSite wins in case of conflicts)
+        const mainAppSitePrefix = `${this.appSites.toLowerCase()}_`;
+        const searchTemplateKeys = [];
+        const mainTemplateKeys = [];
+
+        for (const templateKey of this._templates.keys()) {
+            if (templateKey.startsWith(mainAppSitePrefix)) {
+                mainTemplateKeys.push(templateKey);
+            } else {
+                searchTemplateKeys.push(templateKey);
+            }
+        }
+
+        // Process SearchAppSites templates first, then main AppSite (last wins)
+        const allKeys = [...searchTemplateKeys, ...mainTemplateKeys];
+
+        for (const templateKey of allKeys) {
+            const template = this._templates.get(templateKey);
             const html = template.html;
 
             // Find all {{TemplateName}} placeholders in this template
@@ -212,10 +230,14 @@ class LoaderNormalJson {
                     const templateAppSite = templateKey.split('_')[0]; // Extract appSite from key
                     const childTemplateKey = `${templateAppSite.toLowerCase()}_${placeholderName.toLowerCase()}`;
 
-                    if (!parentMap.has(childTemplateKey)) {
-                        parentMap.set(childTemplateKey, templateKey);
+                    // Use "last wins" strategy - later templates (main AppSite) override earlier ones (SearchAppSites)
+                    const existingParent = parentMap.get(childTemplateKey);
+                    if (existingParent && existingParent !== templateKey) {
+                        Logger.debug(`Overwriting parent relationship: ${childTemplateKey} -> parent: ${templateKey} (was: ${existingParent})`, 'LoaderNormalJson');
+                    } else if (!existingParent) {
                         Logger.debug(`Parent relationship: ${childTemplateKey} -> parent: ${templateKey}`, 'LoaderNormalJson');
                     }
+                    parentMap.set(childTemplateKey, templateKey);
                 }
 
                 searchPos = closeStart + 2;
