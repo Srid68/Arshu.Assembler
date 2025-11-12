@@ -1,9 +1,8 @@
 use super::json_object::{JsonObject, JsonValue};
-use serde::{Deserialize, Serialize};
 
 /// Uniform JsonArray type for consistent JSON array handling across the application
 /// This provides a standard interface that matches the C# JsonArray implementation
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct JsonArray {
     data: Vec<JsonValue>,
 }

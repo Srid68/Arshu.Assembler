@@ -2,45 +2,30 @@
 // Should represent the template's structure and metadata
 
 use crate::app::JsonObject;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct PreprocessedSiteTemplates {
-    #[serde(rename = "siteName")]
     pub site_name: String,
     pub templates: std::collections::HashMap<String, PreprocessedTemplate>,
-    #[serde(rename = "rawTemplates")]
     pub raw_templates: std::collections::HashMap<String, String>,
-    #[serde(rename = "templateKeys")]
     pub template_keys: std::collections::HashSet<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct PreprocessedTemplate {
-    #[serde(rename = "originalContent")]
     pub original_content: String,
     pub placeholders: Vec<TemplatePlaceholder>,
-    #[serde(rename = "slottedTemplates")]
     pub slotted_templates: Vec<SlottedTemplate>,
-    #[serde(rename = "jsonData")]
     pub json_data: Option<JsonObject>,
-    #[serde(rename = "jsonPlaceholders")]
     pub json_placeholders: Vec<JsonPlaceholder>,
-    #[serde(rename = "replacementMappings")]
     pub replacement_mappings: Vec<ReplacementMapping>,
 
     // Helper properties included in JSON serialization
-    #[serde(rename = "hasPlaceholders")]
     pub has_placeholders_flag: bool,
-    #[serde(rename = "hasSlottedTemplates")]
     pub has_slotted_templates_flag: bool,
-    #[serde(rename = "hasJsonData")]
     pub has_json_data_flag: bool,
-    #[serde(rename = "hasJsonPlaceholders")]
     pub has_json_placeholders_flag: bool,
-    #[serde(rename = "hasReplacementMappings")]
     pub has_replacement_mappings_flag: bool,
-    #[serde(rename = "requiresProcessing")]
     pub requires_processing_flag: bool,
 }
 
@@ -85,119 +70,80 @@ impl PreprocessedTemplate {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct JsonPlaceholder {
     pub key: String,
     pub placeholder: String,
     pub value: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct ReplacementMapping {
-    #[serde(rename = "startIndex")]
     pub start_index: usize,
-    #[serde(rename = "endIndex")]
     pub end_index: usize,
-    #[serde(rename = "originalText")]
     pub original_text: String,
-    #[serde(rename = "replacementText")]
     pub replacement_text: String,
-    #[serde(rename = "type")]
     pub r#type: ReplacementType,
     /// Name of the target template this mapping references (for engine to retrieve JSON)
     /// Format: lowercase template name (e.g., "header", "footer")
-    #[serde(
-        rename = "targetTemplateName",
-        skip_serializing_if = "Option::is_none",
-        default
-    )]
     pub target_template_name: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ReplacementType {
     JsonPlaceholder,
     SimpleTemplate,
     SlottedTemplate,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct TemplatePlaceholder {
     pub name: String,
-    #[serde(rename = "startIndex")]
     pub start_index: usize,
-    #[serde(rename = "endIndex")]
     pub end_index: usize,
-    #[serde(rename = "fullMatch")]
     pub full_match: String,
-    #[serde(rename = "templateKey")]
     pub template_key: String,
-    #[serde(rename = "jsonData")]
     pub json_data: Option<JsonObject>,
-    #[serde(rename = "nestedPlaceholders")]
     pub nested_placeholders: Vec<TemplatePlaceholder>,
-    #[serde(rename = "nestedSlots")]
     pub nested_slots: Vec<SlotPlaceholder>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct SlottedTemplate {
     pub name: String,
-    #[serde(rename = "startIndex")]
     pub start_index: usize,
-    #[serde(rename = "endIndex")]
     pub end_index: usize,
-    #[serde(rename = "fullMatch")]
     pub full_match: String,
-    #[serde(rename = "innerContent")]
     pub inner_content: String,
     pub slots: Vec<SlotPlaceholder>,
-    #[serde(rename = "templateKey")]
     pub template_key: String,
-    #[serde(rename = "jsonData")]
     pub json_data: Option<JsonObject>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct SlotPlaceholder {
-    #[serde(rename = "nestedSlots")]
     pub nested_slots: Vec<SlotPlaceholder>,
     pub number: String,
-    #[serde(rename = "startIndex")]
     pub start_index: usize,
-    #[serde(rename = "endIndex")]
     pub end_index: usize,
     pub content: String,
-    #[serde(rename = "slotKey")]
     pub slot_key: String,
-    #[serde(rename = "openTag")]
     pub open_tag: String,
-    #[serde(rename = "closeTag")]
     pub close_tag: String,
-    #[serde(rename = "nestedPlaceholders")]
     pub nested_placeholders: Vec<TemplatePlaceholder>,
-    #[serde(rename = "nestedSlottedTemplates")]
     pub nested_slotted_templates: Vec<SlottedTemplate>,
-    #[serde(rename = "hasNestedPlaceholders")]
     pub has_nested_placeholders: bool,
-    #[serde(rename = "hasNestedSlottedTemplates")]
     pub has_nested_slotted_templates: bool,
-    #[serde(rename = "requiresNestedProcessing")]
     pub requires_nested_processing: bool,
 }
 
 impl PreprocessedSiteTemplates {}
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct PreprocessedSummary {
-    #[serde(rename = "siteName")]
     pub site_name: String,
-    #[serde(rename = "templatesRequiringProcessing")]
     pub templates_requiring_processing: usize,
-    #[serde(rename = "templatesWithJsonData")]
     pub templates_with_json_data: usize,
-    #[serde(rename = "templatesWithPlaceholders")]
     pub templates_with_placeholders: usize,
-    #[serde(rename = "totalTemplates")]
     pub total_templates: usize,
 }

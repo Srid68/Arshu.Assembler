@@ -1,9 +1,8 @@
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Unified JSON value type that can hold any JSON-compatible value
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum JsonValue {
     String(String),
     Number(f64),
@@ -87,7 +86,7 @@ impl JsonValue {
 
 /// Uniform JsonObject type for consistent JSON object handling across the application
 /// This provides a standard interface that matches the C# JsonObject implementation
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct JsonObject {
     data: IndexMap<String, JsonValue>,
 }

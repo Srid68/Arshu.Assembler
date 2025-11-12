@@ -1,10 +1,9 @@
-use super::json_merge_util::JsonMergeUtil;
 use crate::common::common_util::CommonUtil;
-use crate::loader::i_loader::ILoader;
+use crate::interface::ILoaderJson;
 use arshu::common::Logger;
 use std::collections::HashMap;
 
-/// NEW Normal engine that uses ILoader interface and JsonObject
+/// NEW Normal engine that uses ILoaderJson interface and JsonObject
 /// Based on EngineNormal but with improved architecture and type safety
 pub struct EngineNormalJson {
     app_view_prefix: String,
@@ -33,7 +32,7 @@ impl EngineNormalJson {
     /// * `app_site` - The application site name for template key generation
     /// * `app_file` - The application file name
     /// * `app_view` - The application view name (optional)
-    /// * `loader` - ILoader instance providing templates and JSON merging
+    /// * `loader` - ILoaderJson instance providing templates and JSON merging
     /// * `enable_json_processing` - Whether to enable JSON data processing
     ///
     /// # Returns
@@ -43,7 +42,7 @@ impl EngineNormalJson {
         app_site: &str,
         app_file: &str,
         app_view: Option<&str>,
-        loader: &dyn ILoader<String>,
+        loader: &dyn ILoaderJson<String>,
         enable_json_processing: bool,
     ) -> String {
         let app_view_str = app_view.unwrap_or("null");
@@ -55,9 +54,13 @@ impl EngineNormalJson {
             Some("EngineNormalJson"),
         );
 
-        // Get main template using ILoader (includes AppView fallback logic)
-        let content_html =
-            loader.get_template_html(app_site, app_file, app_view, Some(&self.app_view_prefix));
+        // Get main template using ILoaderJson
+        // FIRST: Try direct lookup without AppView overrides to match C# behavior
+        let mut content_html = loader.get_template_html(app_site, app_file, None, None);
+        if content_html.is_none() {
+            content_html =
+                loader.get_template_html(app_site, app_file, app_view, Some(&self.app_view_prefix));
+        }
         let mut content_html = match content_html {
             Some(html) => html,
             None => {
@@ -79,14 +82,11 @@ impl EngineNormalJson {
 
         // Merge main template with JSON data - engine handles merging
         if enable_json_processing {
-            if let Some(json_data) = loader.get_template_json(app_site, app_file) {
-                Logger::debug("Merging main template with JSON", Some("EngineNormalJson"));
-                content_html = JsonMergeUtil::merge_template_with_json(&content_html, &json_data);
-                Logger::debug(
-                    &format!("After main JSON merge: {} chars", content_html.len()),
-                    Some("EngineNormalJson"),
-                );
-            }
+            content_html = loader.merge_html_with_json(&content_html, app_site, app_file);
+            Logger::debug(
+                &format!("After main JSON merge: {} chars", content_html.len()),
+                Some("EngineNormalJson"),
+            );
         }
 
         // Simple loop like Go implementation - avoid StringBuilder overhead
@@ -154,12 +154,12 @@ impl EngineNormalJson {
         content_html
     }
 
-    /// Gets a template with on-demand loading and JSON merging from ILoader
+    /// Gets a template with on-demand loading and JSON merging from ILoaderJson
     fn get_template_with_json(
         &self,
         app_site: &str,
         template_name: &str,
-        loader: &dyn ILoader<String>,
+        loader: &dyn ILoaderJson<String>,
         app_view: Option<&str>,
         enable_json_processing: bool,
     ) -> Option<String> {
@@ -182,28 +182,17 @@ impl EngineNormalJson {
 
         // Merge with JSON if enabled - engine handles merging
         if enable_json_processing {
-            if let Some(json_data) = loader.get_template_json(app_site, template_name) {
-                Logger::debug(
-                    &format!("Merging JSON for template {}", template_name),
-                    Some("EngineNormalJson"),
-                );
-                let original_size = html.len();
-                html = JsonMergeUtil::merge_template_with_json(&html, &json_data);
-                Logger::debug(
-                    &format!(
-                        "After JSON merge for {}: size {} -> {}",
-                        template_name,
-                        original_size,
-                        html.len()
-                    ),
-                    Some("EngineNormalJson"),
-                );
-            } else {
-                Logger::debug(
-                    &format!("No JSON data found for template {}", template_name),
-                    Some("EngineNormalJson"),
-                );
-            }
+            let original_size = html.len();
+            html = loader.merge_html_with_json(&html, app_site, template_name);
+            Logger::debug(
+                &format!(
+                    "After JSON merge for {}: size {} -> {}",
+                    template_name,
+                    original_size,
+                    html.len()
+                ),
+                Some("EngineNormalJson"),
+            );
         }
 
         Some(html)
@@ -218,7 +207,7 @@ impl EngineNormalJson {
         content_html: &str,
         app_site: &str,
         app_view: Option<&str>,
-        loader: &dyn ILoader<String>,
+        loader: &dyn ILoaderJson<String>,
         enable_json_processing: bool,
     ) -> String {
         if content_html.is_empty() {
@@ -251,7 +240,7 @@ impl EngineNormalJson {
         content_html: &str,
         app_site: &str,
         app_view: Option<&str>,
-        loader: &dyn ILoader<String>,
+        loader: &dyn ILoaderJson<String>,
         enable_json_processing: bool,
     ) -> String {
         let mut result = content_html.to_string();
@@ -348,7 +337,7 @@ impl EngineNormalJson {
         inner_content: &str,
         app_site: &str,
         app_view: Option<&str>,
-        loader: &dyn ILoader<String>,
+        loader: &dyn ILoaderJson<String>,
         enable_json_processing: bool,
     ) -> HashMap<String, String> {
         let mut slot_contents = HashMap::new();
@@ -452,7 +441,7 @@ impl EngineNormalJson {
         html: &str,
         app_site: &str,
         app_view: Option<&str>,
-        loader: &dyn ILoader<String>,
+        loader: &dyn ILoaderJson<String>,
         enable_json_processing: bool,
     ) -> String {
         let mut result = html.to_string();

@@ -1,6 +1,6 @@
+use regex::Regex;
 use std::collections::HashSet;
 use std::sync::OnceLock;
-use regex::Regex;
 
 // Maximum parameter length to prevent DoS attacks
 const PARAM_MAX_LENGTH: usize = 256;
@@ -55,7 +55,9 @@ pub fn is_valid_path_component(value: Option<&str>) -> bool {
 
             // Check for other suspicious characters
             let invalid_chars = ['<', '>', ':', '"', '|', '?', '*', '\0'];
-            if v.chars().any(|c| invalid_chars.contains(&c) || c.is_control()) {
+            if v.chars()
+                .any(|c| invalid_chars.contains(&c) || c.is_control())
+            {
                 return false;
             }
 
@@ -83,11 +85,15 @@ pub fn is_valid_log_content(log_content: Option<&str>) -> (bool, Option<String>)
 
     // Check file size limit (500 KB per log file)
     if !is_valid_content_size(Some(content), MAX_LOG_FILE_SIZE) {
-        return (false, Some("Log file exceeds maximum size limit (500 KB)".to_string()));
+        return (
+            false,
+            Some("Log file exceeds maximum size limit (500 KB)".to_string()),
+        );
     }
 
     // Split into lines for validation
-    let lines: Vec<&str> = content.lines()
+    let lines: Vec<&str> = content
+        .lines()
         .filter(|line| !line.trim().is_empty())
         .collect();
 
@@ -107,9 +113,11 @@ pub fn is_valid_log_content(log_content: Option<&str>) -> (bool, Option<String>)
 
     // At least 50% of lines should match expected log format
     if total_lines > 0 && (valid_lines as f64 / total_lines as f64) < 0.5 {
-        return (false, Some("Log content does not match expected format".to_string()));
+        return (
+            false,
+            Some("Log content does not match expected format".to_string()),
+        );
     }
 
     (true, None)
 }
-

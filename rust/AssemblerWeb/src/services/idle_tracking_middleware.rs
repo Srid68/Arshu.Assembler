@@ -1,9 +1,9 @@
-use std::sync::{Arc, Mutex, Once};
-use std::time::{Duration, Instant};
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::Error;
-use futures_util::future::{self, LocalBoxFuture};
 use arshu::common::Logger;
+use futures_util::future::{self, LocalBoxFuture};
+use std::sync::{Arc, Mutex, Once};
+use std::time::{Duration, Instant};
 
 static INIT: Once = Once::new();
 
@@ -35,7 +35,10 @@ impl IdleTracking {
     pub fn acquire_hold(&self, hold_id: &str) {
         let mut holds = self.active_holds.lock().unwrap();
         holds.insert(hold_id.to_string(), Instant::now());
-        Logger::info(&format!("[AcquireHold] Hold set: {}", hold_id), Some("IdleTracking"));
+        Logger::info(
+            &format!("[AcquireHold] Hold set: {}", hold_id),
+            Some("IdleTracking"),
+        );
     }
 
     /// Release a previously acquired hold
@@ -43,24 +46,42 @@ impl IdleTracking {
     pub fn release_hold(&self, hold_id: &str) {
         let mut holds = self.active_holds.lock().unwrap();
         if holds.remove(hold_id).is_some() {
-            Logger::info(&format!("[ReleaseHold] Hold removed: {}", hold_id), Some("IdleTracking"));
+            Logger::info(
+                &format!("[ReleaseHold] Hold removed: {}", hold_id),
+                Some("IdleTracking"),
+            );
         }
     }
 
     pub fn shutdown(&self) {
         let holds = self.active_holds.lock().unwrap();
-        println!("[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: {}", holds.len());
-        Logger::info(&format!("[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: {}", holds.len()), Some("IdleTracking"));
-        
+        println!(
+            "[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: {}",
+            holds.len()
+        );
+        Logger::info(
+            &format!(
+                "[SHUTDOWN] IdleTrackingMiddleware shutting down, active holds: {}",
+                holds.len()
+            ),
+            Some("IdleTracking"),
+        );
+
         // Log any remaining holds
         for (hold_id, _) in holds.iter() {
             println!("[SHUTDOWN] Unreleased hold: {}", hold_id);
-            Logger::info(&format!("[SHUTDOWN] Unreleased hold: {}", hold_id), Some("IdleTracking"));
+            Logger::info(
+                &format!("[SHUTDOWN] Unreleased hold: {}", hold_id),
+                Some("IdleTracking"),
+            );
         }
         drop(holds);
 
         println!("[SHUTDOWN] IdleTrackingMiddleware stopped");
-        Logger::info("[SHUTDOWN] IdleTrackingMiddleware stopped", Some("IdleTracking"));
+        Logger::info(
+            "[SHUTDOWN] IdleTrackingMiddleware stopped",
+            Some("IdleTracking"),
+        );
         Logger::flush();
     }
 
@@ -73,9 +94,15 @@ impl IdleTracking {
         let self_clone = self.clone();
 
         println!("[STARTUP] Configured idleSeconds = {}", idle_seconds);
-        Logger::info(&format!("[STARTUP] Configured idleSeconds = {}", idle_seconds), Some("IdleTracking"));
+        Logger::info(
+            &format!("[STARTUP] Configured idleSeconds = {}", idle_seconds),
+            Some("IdleTracking"),
+        );
         println!("[STARTUP] Starting idle monitor with 10-second check interval");
-        Logger::info("[STARTUP] Starting idle monitor with 10-second check interval", Some("IdleTracking"));
+        Logger::info(
+            "[STARTUP] Starting idle monitor with 10-second check interval",
+            Some("IdleTracking"),
+        );
 
         std::thread::spawn(move || {
             loop {
@@ -97,7 +124,10 @@ impl IdleTracking {
 
                 for hold_id in &expired_holds {
                     holds.remove(hold_id);
-                    let msg = format!("[MONITOR] Removed expired hold: {} (age: {}s)", hold_id, hold_timeout_seconds);
+                    let msg = format!(
+                        "[MONITOR] Removed expired hold: {} (age: {}s)",
+                        hold_id, hold_timeout_seconds
+                    );
                     println!("{}", msg);
                     Logger::info(&msg, Some("IdleTracking"));
                 }
@@ -105,7 +135,10 @@ impl IdleTracking {
                 let active_holds_count = holds.len();
                 drop(holds); // Release lock before potentially exiting
 
-                let monitor_msg = format!("[MONITOR] IdleTime: {}s, Threshold: {}s, ActiveHolds: {}", idle, idle_seconds, active_holds_count);
+                let monitor_msg = format!(
+                    "[MONITOR] IdleTime: {}s, Threshold: {}s, ActiveHolds: {}",
+                    idle, idle_seconds, active_holds_count
+                );
                 println!("{}", monitor_msg);
                 Logger::info(&monitor_msg, Some("IdleTracking"));
 
@@ -114,14 +147,22 @@ impl IdleTracking {
                 if !*shutdown && idle > idle_seconds && active_holds_count == 0 {
                     *shutdown = true;
                     drop(shutdown);
-                    
-                    println!("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown");
-                    Logger::info("[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown", Some("IdleTracking"));
+
+                    println!(
+                        "[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown"
+                    );
+                    Logger::info(
+                        "[MONITOR] Idle timeout exceeded with no active holds, triggering shutdown",
+                        Some("IdleTracking"),
+                    );
 
                     // Call shutdown method to log everything
                     self_clone.shutdown();
 
-                    Logger::info("AssemblerWeb shutting down due to idle timeout...", Some("Main"));
+                    Logger::info(
+                        "AssemblerWeb shutting down due to idle timeout...",
+                        Some("Main"),
+                    );
                     println!("AssemblerWeb shutting down due to idle timeout...");
 
                     // Give time for logs to flush
@@ -134,7 +175,6 @@ impl IdleTracking {
             }
         });
     }
-
 }
 
 impl<S, B> Transform<S, ServiceRequest> for IdleTracking
@@ -145,7 +185,7 @@ where
     type Response = ServiceResponse<B>;
     type Error = Error;
     type Transform = IdleTrackingMiddleware<S>;
-    type InitError = (); 
+    type InitError = ();
     type Future = future::Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
@@ -200,9 +240,7 @@ where
         // Only track and log if enabled
         if !enabled {
             let fut = self.service.call(req);
-            return Box::pin(async move {
-                fut.await
-            });
+            return Box::pin(async move { fut.await });
         }
 
         // Generate unique hold ID for this request
@@ -213,10 +251,13 @@ where
             let mut holds = active_holds.lock().unwrap();
             holds.insert(hold_id.clone(), Instant::now());
         }
-        
+
         // Log after releasing the lock
         println!("[REQUEST] Request started, hold set: {}", hold_id);
-        Logger::info(&format!("[REQUEST] Request started, hold set: {}", hold_id), Some("IdleTracking"));
+        Logger::info(
+            &format!("[REQUEST] Request started, hold set: {}", hold_id),
+            Some("IdleTracking"),
+        );
 
         // Update last request time
         {
@@ -246,7 +287,10 @@ where
             println!("[REQUEST] Request completed");
             Logger::info("[REQUEST] Request completed", Some("IdleTracking"));
             println!("[REQUEST] Hold removed: {}", hold_id_for_cleanup);
-            Logger::info(&format!("[REQUEST] Hold removed: {}", hold_id_for_cleanup), Some("IdleTracking"));
+            Logger::info(
+                &format!("[REQUEST] Hold removed: {}", hold_id_for_cleanup),
+                Some("IdleTracking"),
+            );
 
             res
         })

@@ -111,16 +111,6 @@ impl JsonConverter {
             .unwrap_or(false)
     }
 
-    /// Serializes any serializable object to pretty-printed JSON string
-    pub fn to_pretty_json<T: serde::Serialize>(obj: &T) -> String {
-        serde_json::to_string_pretty(obj).unwrap_or_else(|_| "{}".to_string())
-    }
-
-    /// Serializes any serializable object to compact JSON string
-    pub fn to_json<T: serde::Serialize>(obj: &T) -> String {
-        serde_json::to_string(obj).unwrap_or_else(|_| "{}".to_string())
-    }
-
     /// Manually serialize JsonObject to JSON string
     /// Matches C# JsonConverter.SerializeObject behavior
     pub fn serialize_object(json_object: &JsonObject) -> String {

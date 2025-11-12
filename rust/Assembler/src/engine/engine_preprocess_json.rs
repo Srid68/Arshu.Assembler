@@ -1,6 +1,5 @@
-use super::json_merge_util::JsonMergeUtil;
 use crate::common::common_util::CommonUtil;
-use crate::loader::i_loader::ILoader;
+use crate::interface::ILoaderJson;
 use crate::loader::loader_preprocess_json::LoaderPreProcessJson;
 use crate::model::model_preprocess::{PreprocessedTemplate, ReplacementType};
 use arshu::common::Logger;
@@ -45,7 +44,7 @@ impl EnginePreProcessJson {
         app_site: &str,
         app_file: &str,
         app_view: Option<&str>,
-        loader: &dyn ILoader<PreprocessedTemplate>,
+        loader: &dyn ILoaderJson<PreprocessedTemplate>,
         enable_json_processing: bool,
     ) -> String {
         let app_view_str = app_view.unwrap_or("null");
@@ -115,12 +114,16 @@ impl EnginePreProcessJson {
         // Start with original content
         let mut content_html = main_preprocessed.original_content.clone();
 
-        // Merge JSON into main template first - engine handles merging
+        // Merge JSON into main template first using loader's centralized method
         if enable_json_processing {
-            if let Some(json_data) = &main_preprocessed.json_data {
-                Logger::debug("Merging main template JSON", Some("EnginePreProcessJson"));
-                content_html = JsonMergeUtil::merge_template_with_json(&content_html, json_data);
-            }
+            content_html = loader.merge_html_with_json(&content_html, app_site, app_file);
+            Logger::debug(
+                &format!(
+                    "After main template JSON merge: {} chars",
+                    content_html.len()
+                ),
+                Some("EnginePreProcessJson"),
+            );
         }
 
         // Apply ALL replacement mappings from ALL templates
@@ -207,7 +210,7 @@ impl EnginePreProcessJson {
         enable_json_processing: bool,
         app_view: Option<&str>,
         main_template: Option<&PreprocessedTemplate>,
-        loader: &dyn ILoader<PreprocessedTemplate>,
+        loader: &dyn ILoaderJson<PreprocessedTemplate>,
         app_site: &str,
     ) -> String {
         let mut result = content.to_string();
@@ -280,21 +283,19 @@ impl EnginePreProcessJson {
                         // Merge JSON using TargetTemplateName if available
                         if enable_json_processing {
                             if let Some(ref target_template_name) = mapping.target_template_name {
-                                if let Some(target_json) =
-                                    loader.get_template_json(app_site, target_template_name)
-                                {
-                                    Logger::debug(
-                                        &format!(
-                                            "Merging JSON for slotted template {}",
-                                            target_template_name
-                                        ),
-                                        Some("EnginePreProcessJson"),
-                                    );
-                                    replacement_text = JsonMergeUtil::merge_template_with_json(
-                                        &replacement_text,
-                                        &target_json,
-                                    );
-                                }
+                                replacement_text = loader.merge_html_with_json(
+                                    &replacement_text,
+                                    app_site,
+                                    target_template_name,
+                                );
+                                Logger::debug(
+                                    &format!(
+                                        "After merging JSON for slotted template {}: {} chars",
+                                        target_template_name,
+                                        replacement_text.len()
+                                    ),
+                                    Some("EnginePreProcessJson"),
+                                );
                             }
                         }
 
@@ -343,21 +344,19 @@ impl EnginePreProcessJson {
                         // Merge JSON using TargetTemplateName
                         if enable_json_processing {
                             if let Some(ref target_template_name) = mapping.target_template_name {
-                                if let Some(target_json) =
-                                    loader.get_template_json(app_site, target_template_name)
-                                {
-                                    Logger::debug(
-                                        &format!(
-                                            "Merging JSON for simple template {}",
-                                            target_template_name
-                                        ),
-                                        Some("EnginePreProcessJson"),
-                                    );
-                                    replacement_text = JsonMergeUtil::merge_template_with_json(
-                                        &replacement_text,
-                                        &target_json,
-                                    );
-                                }
+                                replacement_text = loader.merge_html_with_json(
+                                    &replacement_text,
+                                    app_site,
+                                    target_template_name,
+                                );
+                                Logger::debug(
+                                    &format!(
+                                        "After merging JSON for simple template {}: {} chars",
+                                        target_template_name,
+                                        replacement_text.len()
+                                    ),
+                                    Some("EnginePreProcessJson"),
+                                );
                             }
                         }
 
@@ -402,13 +401,13 @@ impl EnginePreProcessJson {
 
     /// Helper function to downcast ILoader to LoaderPreProcessJson
     fn downcast_loader(
-        loader: &dyn ILoader<PreprocessedTemplate>,
+        loader: &dyn ILoaderJson<PreprocessedTemplate>,
     ) -> Option<&LoaderPreProcessJson> {
         // In Rust, we can't directly downcast trait objects without unsafe code
         // This is a limitation - we'll need to use a workaround
         // For now, we'll use an unsafe approach (this should be improved in production code)
         unsafe {
-            let loader_ptr = loader as *const dyn ILoader<PreprocessedTemplate>;
+            let loader_ptr = loader as *const dyn ILoaderJson<PreprocessedTemplate>;
             let concrete_ptr = loader_ptr as *const LoaderPreProcessJson;
             Some(&*concrete_ptr)
         }

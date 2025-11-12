@@ -9,31 +9,67 @@ use crate::loader::loader_preprocess::LoaderPreProcess;
 use crate::loader::loader_preprocess_json::LoaderPreProcessJson;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone)]
 pub struct TestSummaryRow {
-    #[serde(rename = "AppSite")]
     pub app_site: String,
-    #[serde(rename = "AppFile")]
     pub app_file: String,
-    #[serde(rename = "AppView")]
     pub app_view: String,
-    #[serde(rename = "NormalPreProcess")]
     pub normal_preprocess: String,
-    #[serde(rename = "CrossViewUnMatch")]
     pub cross_view_unmatch: String,
-    #[serde(rename = "Error")]
     pub error: String,
     // Advanced test fields - output sizes for all 4 engines
-    #[serde(rename = "NormalSize")]
     pub normal_size: usize,
-    #[serde(rename = "NormalJsonSize")]
     pub normal_json_size: usize,
-    #[serde(rename = "PreProcessSize")]
     pub preprocess_size: usize,
-    #[serde(rename = "PreProcessJsonSize")]
     pub preprocess_json_size: usize,
-    #[serde(rename = "AllEnginesMatch")]
     pub all_engines_match: bool,
+}
+
+impl TestSummaryRow {
+    /// Manually serialize TestSummaryRow to JSON string
+    fn serialize_to_json(&self) -> String {
+        format!(
+            r#"{{"AppSite":"{}","AppFile":"{}","AppView":"{}","NormalPreProcess":"{}","CrossViewUnMatch":"{}","Error":"{}","NormalSize":{},"NormalJsonSize":{},"PreProcessSize":{},"PreProcessJsonSize":{},"AllEnginesMatch":{}}}"#,
+            escape_json_string(&self.app_site),
+            escape_json_string(&self.app_file),
+            escape_json_string(&self.app_view),
+            escape_json_string(&self.normal_preprocess),
+            escape_json_string(&self.cross_view_unmatch),
+            escape_json_string(&self.error),
+            self.normal_size,
+            self.normal_json_size,
+            self.preprocess_size,
+            self.preprocess_json_size,
+            if self.all_engines_match { "true" } else { "false" }
+        )
+    }
+}
+
+/// Escape JSON string following standard JSON escaping rules
+fn escape_json_string(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\r', "\\r")
+        .replace('\n', "\\n")
+        .replace('\t', "\\t")
+}
+
+/// Serialize Vec<TestSummaryRow> to pretty-printed JSON string
+fn serialize_summary_rows_to_json(rows: &[TestSummaryRow]) -> String {
+    if rows.is_empty() {
+        return "[]".to_string();
+    }
+
+    let mut result = String::from("[\n");
+    for (i, row) in rows.iter().enumerate() {
+        if i > 0 {
+            result.push_str(",\n");
+        }
+        result.push_str("  ");
+        result.push_str(&row.serialize_to_json());
+    }
+    result.push_str("\n]");
+    result
 }
 
 pub struct TestingUtils;
@@ -241,8 +277,8 @@ pub fn run_standard_tests(
             );
             println!("{}: {}", test_site, "=".repeat(50));
         }
-        let templates =
-            LoaderNormal::load_get_template_files(assembler_web_dir, &test_site, search_app_sites);
+        let loader_normal =
+            LoaderNormal::new(assembler_web_dir, &test_site, search_app_sites);
 
         let mut scenario_outputs = Vec::new();
         let mut scenario_unresolved: Vec<bool> = Vec::new();
@@ -254,8 +290,7 @@ pub fn run_standard_tests(
                 &test_site,
                 &app_file_name,
                 Some(app_view),
-                &mut templates.clone(),
-                search_app_sites,
+                &loader_normal,
                 enable_json_processing,
             );
             scenario_outputs.push(result_normal.clone());
@@ -384,7 +419,7 @@ pub fn run_standard_tests(
                     String::new()
                 },
                 normal_size: 0,
-                normal_json_size: 0,
+                normal_json_size: scenario_outputs.get(i).map(|s| s.len()).unwrap_or(0),
                 preprocess_size: 0,
                 preprocess_json_size: 0,
                 all_engines_match: false,
@@ -465,27 +500,25 @@ pub fn run_standard_preprocess_tests(
             );
             println!("{}: {}", test_site, "=".repeat(50));
         }
-        // Use LoaderPreProcess instead of LoaderNormal
-        let preprocessed_templates = LoaderPreProcess::load_process_get_template_files(
+        // Use LoaderPreProcess
+        let loader_preprocess = LoaderPreProcess::new(
             assembler_web_dir,
             &test_site,
             search_app_sites,
-        )
-        .templates;
+        );
 
         let mut scenario_outputs = Vec::new();
         let mut scenario_unresolved: Vec<bool> = Vec::new();
 
         for scenario in group {
             let app_view = &scenario.app_view;
-            // Use EnginePreProcess instead of EngineNormal
+            // Use EnginePreProcess
             let preprocess_engine = EnginePreProcess::new(app_file_name.clone());
             let result_preprocess = preprocess_engine.merge_templates(
                 &test_site,
                 &app_file_name,
                 Some(app_view),
-                &preprocessed_templates,
-                search_app_sites,
+                &loader_preprocess,
                 enable_json_processing,
             );
             scenario_outputs.push(result_preprocess.clone());
@@ -614,7 +647,7 @@ pub fn run_standard_preprocess_tests(
                     String::new()
                 },
                 normal_size: 0,
-                normal_json_size: 0,
+                normal_json_size: scenario_outputs.get(i).map(|s| s.len()).unwrap_or(0),
                 preprocess_size: 0,
                 preprocess_json_size: 0,
                 all_engines_match: false,
@@ -758,7 +791,7 @@ pub fn run_standard_json_tests(
                     String::new()
                 },
                 normal_size: 0,
-                normal_json_size: 0,
+                normal_json_size: scenario_outputs.get(i).map(|s| s.len()).unwrap_or(0),
                 preprocess_size: 0,
                 preprocess_json_size: 0,
                 all_engines_match: false,
@@ -904,7 +937,7 @@ pub fn run_standard_preprocess_json_tests(
                     String::new()
                 },
                 normal_size: 0,
-                normal_json_size: 0,
+                normal_json_size: scenario_outputs.get(i).map(|s| s.len()).unwrap_or(0),
                 preprocess_size: 0,
                 preprocess_json_size: 0,
                 all_engines_match: false,
@@ -968,33 +1001,17 @@ pub fn run_advanced_tests(
         LoaderNormal::clear_cache();
         LoaderPreProcess::clear_cache();
 
-        let templates =
-            LoaderNormal::load_get_template_files(assembler_web_dir, &test_site, search_app_sites);
+        let loader_normal =
+            LoaderNormal::new(assembler_web_dir, &test_site, search_app_sites);
         let loader_normal_json =
             LoaderNormalJson::new(assembler_web_dir, &test_site, search_app_sites);
-        let preprocessed_site_templates = LoaderPreProcess::load_process_get_template_files(
-            assembler_web_dir,
-            &test_site,
-            search_app_sites,
-        );
+        let loader_preprocess =
+            LoaderPreProcess::new(assembler_web_dir, &test_site, search_app_sites);
         let loader_preprocess_json =
             LoaderPreProcessJson::new(assembler_web_dir, &test_site, search_app_sites);
 
         if !skip_details {
-            println!("📂 Loaded {} templates:", templates.len());
-            let mut sorted_templates: Vec<_> = templates.iter().collect();
-            sorted_templates.sort_by(|a, b| a.0.cmp(b.0));
-            for (key, (html, json_opt)) in sorted_templates {
-                let html_length = html.len();
-                let json_info = if let Some(json) = json_opt {
-                    format!(" + {} chars JSON", json.len())
-                } else {
-                    String::new()
-                };
-                println!("   • {}: {} chars HTML{}", key, html_length, json_info);
-            }
-            println!();
-            println!(
+                        println!(
                 "🔧 JSON Processing: {}",
                 if enable_json_processing {
                     "ENABLED"
@@ -1031,8 +1048,7 @@ pub fn run_advanced_tests(
                 &test_site,
                 &app_file_name,
                 Some(app_view),
-                &mut templates.clone(),
-                search_app_sites,
+                &loader_normal,
                 enable_json_processing,
             );
             let result_normal_json = normal_json_engine.merge_templates(
@@ -1046,8 +1062,7 @@ pub fn run_advanced_tests(
                 &test_site,
                 &app_file_name,
                 Some(app_view),
-                &preprocessed_site_templates.templates,
-                search_app_sites,
+                &loader_preprocess,
                 enable_json_processing,
             );
             let result_preprocess_json = preprocess_json_engine.merge_templates(
@@ -1058,8 +1073,12 @@ pub fn run_advanced_tests(
                 enable_json_processing,
             );
 
-            // Check if all engines match
-            let all_match = result_normal == result_normal_json
+            // Check if all engines match (must be non-empty AND equal)
+            let all_match = !result_normal.is_empty()
+                && !result_normal_json.is_empty()
+                && !result_preprocess.is_empty()
+                && !result_preprocess_json.is_empty()
+                && result_normal == result_normal_json
                 && result_normal == result_preprocess
                 && result_normal == result_preprocess_json;
 
@@ -1099,6 +1118,24 @@ pub fn run_advanced_tests(
             let _ = std::fs::write(&normal_json_output_file, &result_normal_json);
             let _ = std::fs::write(&preprocess_output_file, &result_preprocess);
             let _ = std::fs::write(&preprocess_json_output_file, &result_preprocess_json);
+
+            // Display failure information even with --skipdetails (matching C# behavior)
+            let normal_valid = !result_normal.is_empty();
+            let normal_json_valid = !result_normal_json.is_empty();
+            let preprocess_valid = !result_preprocess.is_empty();
+            let preprocess_json_valid = !result_preprocess_json.is_empty();
+
+            let match_status = if all_match { "✓" } else { "✗ (EMPTY)" };
+
+            if !skip_details || !all_match {
+                println!("{}: scenario: AppView='{}' - {}", test_site, app_view, match_status);
+                if !all_match {
+                    println!("  Normal: {} chars (Valid: {})", result_normal.len(), normal_valid);
+                    println!("  NormalJson: {} chars (Valid: {})", result_normal_json.len(), normal_json_valid);
+                    println!("  PreProcess: {} chars (Valid: {})", result_preprocess.len(), preprocess_valid);
+                    println!("  PreProcessJson: {} chars (Valid: {})", result_preprocess_json.len(), preprocess_json_valid);
+                }
+            }
 
             if print_html_output {
                 println!("\n📋 FULL HTML OUTPUT (Normal):\n{}", result_normal);
@@ -1345,11 +1382,12 @@ pub fn print_test_summary_table(
         println!("| {:<15} | {:<10} | {:<10} | {:<8} | {:<8} | {:<8} | {:<8} | {:<6} | {:<11} | {:<10} |",
                 "---------------", "----------", "----------", "--------", "--------", "--------", "--------", "------", "-----------", "----------");
     } else {
-        // Standard test table (original format)
+        // Standard test table with Size column
         let headers = [
             "AppSite",
             "AppFile",
             "AppView",
+            "Size",
             "OutputMatch",
             "ViewUnMatch",
             "Error",
@@ -1357,6 +1395,7 @@ pub fn print_test_summary_table(
         let col_count = headers.len();
         let mut widths = vec![10; col_count]; // minimum width of 10
         widths[0] = 15; // AppSite column width
+        widths[3] = 8;  // Size column width
 
         // Calculate column widths
         for (i, header) in headers.iter().enumerate() {
@@ -1364,10 +1403,12 @@ pub fn print_test_summary_table(
         }
 
         for row in summary_rows {
+            let size_str = row.normal_json_size.to_string();
             let values = [
                 &row.app_site,
                 &row.app_file,
                 &row.app_view,
+                &size_str,
                 &row.normal_preprocess,
                 &row.cross_view_unmatch,
                 &row.error,
@@ -1399,10 +1440,12 @@ pub fn print_test_summary_table(
 
         // Print rows
         for row in summary_rows {
+            let size_str = row.normal_json_size.to_string();
             let values = [
                 &row.app_site,
                 &row.app_file,
                 &row.app_view,
+                &size_str,
                 &row.normal_preprocess,
                 &row.cross_view_unmatch,
                 &row.error,
@@ -1477,6 +1520,10 @@ fn save_test_summary_html(
     html.push_str("        tr:nth-child(even) { background-color: #f2f2f2; }\n");
     html.push_str("        .pass { color: green; font-weight: bold; }\n");
     html.push_str("        .fail { color: red; font-weight: bold; }\n");
+    html.push_str("        .match { background-color: #d4edda; color: #155724; font-weight: bold; }\n");
+    html.push_str("        .mismatch { background-color: #f8d7da; color: #721c24; font-weight: bold; }\n");
+    html.push_str("        .size-match { background-color: #d4edda; }\n");
+    html.push_str("        .size-mismatch { background-color: #f8d7da; }\n");
     html.push_str("        @media (max-width: 768px) {\n");
     html.push_str("            body { margin: 10px; }\n");
     html.push_str("            th, td { padding: 8px; font-size: 14px; }\n");
@@ -1501,22 +1548,29 @@ fn save_test_summary_html(
         html.push_str("            <th>AppFile</th>\n");
         html.push_str("            <th>AppView</th>\n");
         html.push_str("            <th>Normal</th>\n");
-        html.push_str("            <th>PreProc</th>\n");
+        html.push_str("            <th>NormalJson</th>\n");
+        html.push_str("            <th>PreProcess</th>\n");
+        html.push_str("            <th>PreProcessJson</th>\n");
         html.push_str("            <th>Match</th>\n");
         html.push_str("            <th>ViewUnMatch</th>\n");
         html.push_str("            <th>Error</th>\n");
         html.push_str("        </tr>\n");
 
         for row in summary_rows {
-            let match_indicator = if row.normal_size == row.preprocess_size {
-                "✓"
+            let size_class = if row.all_engines_match {
+                "size-match"
             } else {
-                "✗"
+                "size-mismatch"
             };
-            let match_class = if row.normal_size == row.preprocess_size {
-                "pass"
+            let match_class = if row.all_engines_match {
+                "match"
             } else {
-                "fail"
+                "mismatch"
+            };
+            let match_text = if row.all_engines_match {
+                "✓ PASS"
+            } else {
+                "✗ FAIL"
             };
             let view_unmatch_class = if row.cross_view_unmatch == "PASS" {
                 "pass"
@@ -1530,11 +1584,13 @@ fn save_test_summary_html(
             html.push_str(&format!("            <td>{}</td>\n", row.app_site));
             html.push_str(&format!("            <td>{}</td>\n", row.app_file));
             html.push_str(&format!("            <td>{}</td>\n", row.app_view));
-            html.push_str(&format!("            <td>{}</td>\n", row.normal_size));
-            html.push_str(&format!("            <td>{}</td>\n", row.preprocess_size));
+            html.push_str(&format!("            <td class=\"{}\">{}</td>\n", size_class, row.normal_size));
+            html.push_str(&format!("            <td class=\"{}\">{}</td>\n", size_class, row.normal_json_size));
+            html.push_str(&format!("            <td class=\"{}\">{}</td>\n", size_class, row.preprocess_size));
+            html.push_str(&format!("            <td class=\"{}\">{}</td>\n", size_class, row.preprocess_json_size));
             html.push_str(&format!(
                 "            <td class=\"{}\">{}</td>\n",
-                match_class, match_indicator
+                match_class, match_text
             ));
             html.push_str(&format!(
                 "            <td class=\"{}\">{}</td>\n",
@@ -1544,11 +1600,12 @@ fn save_test_summary_html(
             html.push_str("        </tr>\n");
         }
     } else {
-        // Standard test headers
+        // Standard test headers with Size column
         html.push_str("        <tr>\n");
         html.push_str("            <th>AppSite</th>\n");
         html.push_str("            <th>AppFile</th>\n");
         html.push_str("            <th>AppView</th>\n");
+        html.push_str("            <th>Size</th>\n");
         html.push_str("            <th>OutputMatch</th>\n");
         html.push_str("            <th>ViewUnMatch</th>\n");
         html.push_str("            <th>Error</th>\n");
@@ -1574,6 +1631,7 @@ fn save_test_summary_html(
             html.push_str(&format!("            <td>{}</td>\n", row.app_site));
             html.push_str(&format!("            <td>{}</td>\n", row.app_file));
             html.push_str(&format!("            <td>{}</td>\n", row.app_view));
+            html.push_str(&format!("            <td>{}</td>\n", row.normal_json_size));
             html.push_str(&format!(
                 "            <td class=\"{}\">{}</td>\n",
                 output_match_class, row.normal_preprocess
@@ -1608,7 +1666,7 @@ fn save_test_summary_json(
     let reports_dir = format!("{}/Analysis/Reports", project_directory);
     std::fs::create_dir_all(&reports_dir)?;
     let json_file = format!("{}/rust_{}_Summary.json", reports_dir, test_type_file);
-    let json = serde_json::to_string_pretty(summary_rows)?;
+    let json = serialize_summary_rows_to_json(summary_rows);
     std::fs::write(&json_file, json)?;
     Ok(json_file)
 }
@@ -1709,27 +1767,24 @@ pub fn compare_engines_for_scenario(
     app_view: &str,
     normal_engine: &EngineNormal,
     preprocess_engine: &EnginePreProcess,
-    templates: &mut HashMap<String, (String, Option<String>)>,
-    preprocessed_templates: &HashMap<String, crate::model::model_preprocess::PreprocessedTemplate>,
-    search_app_sites: &str,
+    loader_normal: &dyn crate::interface::ILoaderNormal,
+    loader_preprocess: &dyn crate::interface::ILoaderPreProcess,
     enable_json_processing: bool,
-    assembler_web_dir: &str,
+    _assembler_web_dir: &str,
     skip_details: bool,
 ) -> (String, String, bool) {
     let result_normal = normal_engine.merge_templates(
         app_site,
         app_file,
         Some(app_view),
-        templates,
-        search_app_sites,
+        loader_normal,
         enable_json_processing,
     );
     let result_preprocess = preprocess_engine.merge_templates(
         app_site,
         app_file,
         Some(app_view),
-        preprocessed_templates,
-        search_app_sites,
+        loader_preprocess,
         enable_json_processing,
     );
 
@@ -1755,7 +1810,7 @@ pub fn compare_engines_for_scenario(
     }
 
     if !outputs_match {
-        let test_output_dir = format!("{}/test_output", assembler_web_dir);
+        let test_output_dir = format!("{}/test_output", _assembler_web_dir);
         let _ = std::fs::create_dir_all(&test_output_dir);
         let normal_path = format!(
             "{}/{}_normal_{}_{}.html",

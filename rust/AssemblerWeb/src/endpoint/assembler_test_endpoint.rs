@@ -1,12 +1,12 @@
-use serde_json::json;
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
-use serde::{Deserialize, Serialize};
-use std::time::Instant;
-use arshu::common::{Logger, LogLevel};
-use assembler::test::testing_utils::TestingUtils;
-use assembler::performance::performance_utils::PerformanceUtils;
-use crate::endpoint::security_validator;
 use crate::endpoint::assembler_endpoint::SEARCH_APP_SITE;
+use crate::endpoint::security_validator;
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use arshu::common::{LogLevel, Logger};
+use assembler::performance::performance_utils::PerformanceUtils;
+use assembler::test::testing_utils::TestingUtils;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use std::time::Instant;
 
 // Configurable rule groups for consolidated report grouping
 const RULE_GROUPS: &[&str] = &[
@@ -15,7 +15,7 @@ const RULE_GROUPS: &[&str] = &[
     "HtmlRule3",
     "JsonRule1",
     "JsonRule2",
-    "Rule1"
+    "Rule1",
 ];
 
 #[derive(Debug, Deserialize, Serialize, utoipa::ToSchema)]
@@ -71,7 +71,11 @@ pub async fn test_standard() -> impl Responder {
     let start = Instant::now();
     let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
-    let root_dir_str = std::path::Path::new(project_dir_str).join("wwwroot").to_str().unwrap_or("").to_string();
+    let root_dir_str = std::path::Path::new(project_dir_str)
+        .join("wwwroot")
+        .to_str()
+        .unwrap_or("")
+        .to_string();
 
     // Enable logging temporarily for tests
     let original_log_level = Logger::get_log_level();
@@ -82,8 +86,22 @@ pub async fn test_standard() -> impl Responder {
     let _ = std::fs::create_dir_all(&logs_dir);
 
     let mut context_log_files = std::collections::HashMap::new();
-    context_log_files.insert("LoaderNormal".to_string(), logs_dir.join("rust_loadernormal.log").to_str().unwrap_or("").to_string());
-    context_log_files.insert("EngineNormal".to_string(), logs_dir.join("rust_enginenormal.log").to_str().unwrap_or("").to_string());
+    context_log_files.insert(
+        "LoaderNormal".to_string(),
+        logs_dir
+            .join("rust_loadernormal.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
+    context_log_files.insert(
+        "EngineNormal".to_string(),
+        logs_dir
+            .join("rust_enginenormal.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
 
     // LogLevel already imported at top
     Logger::configure(LogLevel::DEBUG, false, arshu::common::LogRotation::NONE);
@@ -94,25 +112,43 @@ pub async fn test_standard() -> impl Responder {
         Ok(s) => s,
         Err(e) => {
             Logger::set_log_level(original_log_level);
-            return HttpResponse::InternalServerError().body(format!("Failed to load scenarios: {}", e));
+            return HttpResponse::InternalServerError()
+                .body(format!("Failed to load scenarios: {}", e));
         }
     };
 
-    let results = TestingUtils::run_standard_tests(&root_dir_str, project_dir_str, &scenarios, SEARCH_APP_SITE, false, false, true);
+    let results = TestingUtils::run_standard_tests(
+        &root_dir_str,
+        project_dir_str,
+        &scenarios,
+        SEARCH_APP_SITE,
+        false,
+        false,
+        true,
+    );
     if !results.is_empty() {
-        TestingUtils::print_test_summary_table(&root_dir_str, project_dir_str, &results, "STANDARD TEST");
+        TestingUtils::print_test_summary_table(
+            &root_dir_str,
+            project_dir_str,
+            &results,
+            "STANDARD TEST",
+        );
     }
     let elapsed = start.elapsed().as_secs_f64();
     let test_count = results.len();
 
     // Check for failures
-    let failed_count = results.iter().filter(|r|
-        r.normal_preprocess == "FAIL" ||
-        r.cross_view_unmatch == "FAIL" ||
-        !r.error.is_empty()
-    ).count();
+    let failed_count = results
+        .iter()
+        .filter(|r| {
+            r.normal_preprocess == "FAIL" || r.cross_view_unmatch == "FAIL" || !r.error.is_empty()
+        })
+        .count();
 
-    let mut message = format!("Successful run of Standard Tests in {:.2} secs ({} tests)", elapsed, test_count);
+    let mut message = format!(
+        "Successful run of Standard Tests in {:.2} secs ({} tests)",
+        elapsed, test_count
+    );
     if failed_count > 0 {
         message.push_str(&format!("\n⚠️ Warning: {} test(s) failed", failed_count));
     }
@@ -144,7 +180,11 @@ pub async fn test_advanced() -> impl Responder {
     let start = Instant::now();
     let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
-    let root_dir_str = std::path::Path::new(project_dir_str).join("wwwroot").to_str().unwrap_or("").to_string();
+    let root_dir_str = std::path::Path::new(project_dir_str)
+        .join("wwwroot")
+        .to_str()
+        .unwrap_or("")
+        .to_string();
 
     // Enable logging temporarily for tests
     let original_log_level = Logger::get_log_level();
@@ -155,10 +195,38 @@ pub async fn test_advanced() -> impl Responder {
     let _ = std::fs::create_dir_all(&logs_dir);
 
     let mut context_log_files = std::collections::HashMap::new();
-    context_log_files.insert("LoaderNormal".to_string(), logs_dir.join("rust_loadernormal.log").to_str().unwrap_or("").to_string());
-    context_log_files.insert("LoaderPreProcess".to_string(), logs_dir.join("rust_loaderpreprocess.log").to_str().unwrap_or("").to_string());
-    context_log_files.insert("EngineNormal".to_string(), logs_dir.join("rust_enginenormal.log").to_str().unwrap_or("").to_string());
-    context_log_files.insert("EnginePreProcess".to_string(), logs_dir.join("rust_enginepreprocess.log").to_str().unwrap_or("").to_string());
+    context_log_files.insert(
+        "LoaderNormal".to_string(),
+        logs_dir
+            .join("rust_loadernormal.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
+    context_log_files.insert(
+        "LoaderPreProcess".to_string(),
+        logs_dir
+            .join("rust_loaderpreprocess.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
+    context_log_files.insert(
+        "EngineNormal".to_string(),
+        logs_dir
+            .join("rust_enginenormal.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
+    context_log_files.insert(
+        "EnginePreProcess".to_string(),
+        logs_dir
+            .join("rust_enginepreprocess.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
 
     // LogLevel already imported at top
     Logger::configure(LogLevel::DEBUG, false, arshu::common::LogRotation::NONE);
@@ -169,28 +237,52 @@ pub async fn test_advanced() -> impl Responder {
         Ok(s) => s,
         Err(e) => {
             Logger::set_log_level(original_log_level);
-            return HttpResponse::InternalServerError().body(format!("Failed to load scenarios: {}", e));
+            return HttpResponse::InternalServerError()
+                .body(format!("Failed to load scenarios: {}", e));
         }
     };
 
     // Dump preprocessed template structures before running advanced tests
-    TestingUtils::dump_preprocessed_template_structures(&root_dir_str, project_dir_str, &scenarios, SEARCH_APP_SITE, true);
+    TestingUtils::dump_preprocessed_template_structures(
+        &root_dir_str,
+        project_dir_str,
+        &scenarios,
+        SEARCH_APP_SITE,
+        true,
+    );
 
-    let results = TestingUtils::run_advanced_tests(&root_dir_str, project_dir_str, &scenarios, SEARCH_APP_SITE, false, false, true);
+    let results = TestingUtils::run_advanced_tests(
+        &root_dir_str,
+        project_dir_str,
+        &scenarios,
+        SEARCH_APP_SITE,
+        false,
+        false,
+        true,
+    );
     if !results.is_empty() {
-        TestingUtils::print_test_summary_table(&root_dir_str, project_dir_str, &results, "ADVANCED TEST");
+        TestingUtils::print_test_summary_table(
+            &root_dir_str,
+            project_dir_str,
+            &results,
+            "ADVANCED TEST",
+        );
     }
     let elapsed = start.elapsed().as_secs_f64();
     let test_count = results.len();
 
     // Check for failures
-    let failed_count = results.iter().filter(|r|
-        r.normal_preprocess == "FAIL" ||
-        r.cross_view_unmatch == "FAIL" ||
-        !r.error.is_empty()
-    ).count();
+    let failed_count = results
+        .iter()
+        .filter(|r| {
+            r.normal_preprocess == "FAIL" || r.cross_view_unmatch == "FAIL" || !r.error.is_empty()
+        })
+        .count();
 
-    let mut message = format!("Successful run of Advanced Tests in {:.2} secs ({} tests)", elapsed, test_count);
+    let mut message = format!(
+        "Successful run of Advanced Tests in {:.2} secs ({} tests)",
+        elapsed, test_count
+    );
     if failed_count > 0 {
         message.push_str(&format!("\n⚠️ Warning: {} test(s) failed", failed_count));
     }
@@ -222,13 +314,18 @@ pub async fn test_performance() -> impl Responder {
     let start = Instant::now();
     let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
-    let root_dir_str = std::path::Path::new(project_dir_str).join("wwwroot").to_str().unwrap_or("").to_string();
+    let root_dir_str = std::path::Path::new(project_dir_str)
+        .join("wwwroot")
+        .to_str()
+        .unwrap_or("")
+        .to_string();
 
     // Get scenarios from ConfigUtil
     let scenarios = match assembler::config::config_util::ConfigUtil::get_scenarios() {
         Ok(s) => s,
         Err(e) => {
-            return HttpResponse::InternalServerError().body(format!("Failed to load scenarios: {}", e));
+            return HttpResponse::InternalServerError()
+                .body(format!("Failed to load scenarios: {}", e));
         }
     };
 
@@ -237,7 +334,14 @@ pub async fn test_performance() -> impl Responder {
     let original_log_level = Logger::get_log_level();
     Logger::set_log_level(LogLevel::NONE);
 
-    let results = PerformanceUtils::run_performance_comparison(&root_dir_str, project_dir_str, &scenarios, SEARCH_APP_SITE, true, true);
+    let results = PerformanceUtils::run_performance_comparison(
+        &root_dir_str,
+        project_dir_str,
+        &scenarios,
+        SEARCH_APP_SITE,
+        true,
+        true,
+    );
 
     // Restore logging
     Logger::set_log_level(original_log_level);
@@ -252,9 +356,15 @@ pub async fn test_performance() -> impl Responder {
     // Check for performance test mismatches
     let mismatch_count = results.iter().filter(|r| r.results_match != "YES").count();
 
-    let mut message = format!("Successful run of Performance Tests in {:.2} secs ({} tests)", elapsed, test_count);
+    let mut message = format!(
+        "Successful run of Performance Tests in {:.2} secs ({} tests)",
+        elapsed, test_count
+    );
     if mismatch_count > 0 {
-        message.push_str(&format!("\n⚠️ Warning: {} test(s) have output mismatch", mismatch_count));
+        message.push_str(&format!(
+            "\n⚠️ Warning: {} test(s) have output mismatch",
+            mismatch_count
+        ));
     }
 
     let response = json!({
@@ -281,7 +391,11 @@ pub async fn test_consolidate_performance() -> impl Responder {
     let start = Instant::now();
     let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
-    let root_dir_str = std::path::Path::new(project_dir_str).join("wwwroot").to_str().unwrap_or("").to_string();
+    let root_dir_str = std::path::Path::new(project_dir_str)
+        .join("wwwroot")
+        .to_str()
+        .unwrap_or("")
+        .to_string();
 
     // Configure logging for consolidate endpoint
     let template_analysis_dir = std::path::Path::new(project_dir_str).join("Analysis");
@@ -290,12 +404,20 @@ pub async fn test_consolidate_performance() -> impl Responder {
     let consolidate_log_file = logs_dir.join("rust_consolidate_perf.log");
 
     // Log start
-    let log_msg = format!("\n[{}] Starting consolidate-performance endpoint\n", chrono::Utc::now().to_rfc3339());
-    let _ = std::fs::OpenOptions::new().create(true).append(true).open(&consolidate_log_file)
+    let log_msg = format!(
+        "\n[{}] Starting consolidate-performance endpoint\n",
+        chrono::Utc::now().to_rfc3339()
+    );
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&consolidate_log_file)
         .and_then(|mut f| std::io::Write::write_all(&mut f, log_msg.as_bytes()));
 
     // Read server configuration from servers.csv
-    let servers_config_path = std::path::Path::new(&root_dir_str).join("App_Data").join("servers.csv");
+    let servers_config_path = std::path::Path::new(&root_dir_str)
+        .join("App_Data")
+        .join("servers.csv");
     let mut servers = Vec::new();
 
     if servers_config_path.exists() {
@@ -310,9 +432,18 @@ pub async fn test_consolidate_performance() -> impl Responder {
                     let language = parts[0].trim();
                     let method = parts[1].trim().to_uppercase();
                     let url = parts[2].trim();
-                    let file_name = if parts.len() >= 4 { parts[3].trim() } else { "" };
+                    let file_name = if parts.len() >= 4 {
+                        parts[3].trim()
+                    } else {
+                        ""
+                    };
                     if !language.is_empty() && !method.is_empty() && !url.is_empty() {
-                        servers.push((language.to_string(), method, url.to_string(), file_name.to_string()));
+                        servers.push((
+                            language.to_string(),
+                            method,
+                            url.to_string(),
+                            file_name.to_string(),
+                        ));
                     }
                 }
             }
@@ -320,9 +451,13 @@ pub async fn test_consolidate_performance() -> impl Responder {
     }
 
     if servers.is_empty() {
-        let error_msg = "No server configuration found. Please configure servers in App_Data/servers.csv";
+        let error_msg =
+            "No server configuration found. Please configure servers in App_Data/servers.csv";
         let log_msg = format!("[{}] ❌ {}\n", chrono::Utc::now().to_rfc3339(), error_msg);
-        let _ = std::fs::OpenOptions::new().create(true).append(true).open(&consolidate_log_file)
+        let _ = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&consolidate_log_file)
             .and_then(|mut f| std::io::Write::write_all(&mut f, log_msg.as_bytes()));
 
         let response = json!({
@@ -344,14 +479,18 @@ pub async fn test_consolidate_performance() -> impl Responder {
 
     use std::collections::BTreeMap;
     use std::collections::HashMap;
-    let mut app_perf: BTreeMap<String, BTreeMap<String, (Option<f64>, Option<f64>, Option<i32>, String)>> = BTreeMap::new();
+    let mut app_perf: BTreeMap<
+        String,
+        BTreeMap<String, (Option<f64>, Option<f64>, Option<i32>, String)>,
+    > = BTreeMap::new();
     let mut servers_processed = Vec::new();
     let mut servers_failed = Vec::new();
 
     // Group servers by language
     let mut servers_by_lang: HashMap<String, Vec<(String, String, String)>> = HashMap::new();
     for (lang, method, url, file_name) in &servers {
-        servers_by_lang.entry(lang.clone())
+        servers_by_lang
+            .entry(lang.clone())
             .or_insert_with(Vec::new)
             .push((method.clone(), url.clone(), file_name.clone()));
     }
@@ -363,12 +502,26 @@ pub async fn test_consolidate_performance() -> impl Responder {
         for (method, url, file_name) in lang_servers {
             // Log fetch attempt
             let log_msg = if method == "POST" {
-                format!("[{}] Fetching {} via POST {} (fileName: {})\n", chrono::Utc::now().to_rfc3339(), lang, url, file_name)
+                format!(
+                    "[{}] Fetching {} via POST {} (fileName: {})\n",
+                    chrono::Utc::now().to_rfc3339(),
+                    lang,
+                    url,
+                    file_name
+                )
             } else {
                 let full_url = format!("{}{}", url, file_name);
-                format!("[{}] Fetching {} via GET {}\n", chrono::Utc::now().to_rfc3339(), lang, full_url)
+                format!(
+                    "[{}] Fetching {} via GET {}\n",
+                    chrono::Utc::now().to_rfc3339(),
+                    lang,
+                    full_url
+                )
             };
-            let _ = std::fs::OpenOptions::new().create(true).append(true).open(&consolidate_log_file)
+            let _ = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&consolidate_log_file)
                 .and_then(|mut f| std::io::Write::write_all(&mut f, log_msg.as_bytes()));
 
             let result = if method == "POST" {
@@ -377,7 +530,8 @@ pub async fn test_consolidate_performance() -> impl Responder {
                     "useLangPrefix": false
                 });
                 let json_body = serde_json::to_string(&report_request).unwrap();
-                client.post(url)
+                client
+                    .post(url)
                     .header("Content-Type", "application/json")
                     .body(json_body)
                     .send()
@@ -389,75 +543,148 @@ pub async fn test_consolidate_performance() -> impl Responder {
 
             match result {
                 Ok(resp) if resp.status().is_success() => {
-                if let Ok(content) = resp.text().await {
-                    if let Ok(arr) = serde_json::from_str::<serde_json::Value>(&content) {
-                        if let Some(items) = arr.as_array() {
-                            let item_count = items.len();
-                            for item in items {
-                                let app_site = item.get("AppSite").or_else(|| item.get("app_site")).or_else(|| item.get("appSite"))
-                                    .and_then(|v| v.as_str()).unwrap_or("").to_string();
-                                let app_view = item.get("AppView").or_else(|| item.get("app_view")).or_else(|| item.get("appView"))
-                                    .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    if let Ok(content) = resp.text().await {
+                        if let Ok(arr) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let Some(items) = arr.as_array() {
+                                let item_count = items.len();
+                                for item in items {
+                                    let app_site = item
+                                        .get("AppSite")
+                                        .or_else(|| item.get("app_site"))
+                                        .or_else(|| item.get("appSite"))
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    let app_view = item
+                                        .get("AppView")
+                                        .or_else(|| item.get("app_view"))
+                                        .or_else(|| item.get("appView"))
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
 
-                                let normal_time = item.get("NormalTimeMs").or_else(|| item.get("normal_time_ms")).or_else(|| item.get("normalTimeMs"))
-                                    .and_then(|v| v.as_f64())
-                                    .or_else(|| item.get("NormalTimeNanos").or_else(|| item.get("normal_time_nanos"))
-                                        .and_then(|v| v.as_f64()).map(|n| n / 1_000_000.0));
+                                    let normal_time = item
+                                        .get("NormalTimeMs")
+                                        .or_else(|| item.get("normal_time_ms"))
+                                        .or_else(|| item.get("normalTimeMs"))
+                                        .and_then(|v| v.as_f64())
+                                        .or_else(|| {
+                                            item.get("NormalTimeNanos")
+                                                .or_else(|| item.get("normal_time_nanos"))
+                                                .and_then(|v| v.as_f64())
+                                                .map(|n| n / 1_000_000.0)
+                                        });
 
-                                let preprocess_time = item.get("PreProcessTimeMs").or_else(|| item.get("preprocess_time_ms")).or_else(|| item.get("preProcessTimeMs"))
-                                    .and_then(|v| v.as_f64())
-                                    .or_else(|| item.get("PreProcessTimeNanos").or_else(|| item.get("preprocess_time_nanos"))
-                                        .and_then(|v| v.as_f64()).map(|n| n / 1_000_000.0));
+                                    let preprocess_time = item
+                                        .get("PreProcessTimeMs")
+                                        .or_else(|| item.get("preprocess_time_ms"))
+                                        .or_else(|| item.get("preProcessTimeMs"))
+                                        .and_then(|v| v.as_f64())
+                                        .or_else(|| {
+                                            item.get("PreProcessTimeNanos")
+                                                .or_else(|| item.get("preprocess_time_nanos"))
+                                                .and_then(|v| v.as_f64())
+                                                .map(|n| n / 1_000_000.0)
+                                        });
 
-                                let output_size = item.get("OutputSize").or_else(|| item.get("output_size"))
-                                    .and_then(|v| v.as_i64()).map(|v| v as i32);
+                                    let output_size = item
+                                        .get("OutputSize")
+                                        .or_else(|| item.get("output_size"))
+                                        .and_then(|v| v.as_i64())
+                                        .map(|v| v as i32);
 
-                                if !app_site.is_empty() {
-                                    let key = if app_view.is_empty() {
-                                        app_site.clone()
-                                    } else {
-                                        format!("{} → {}", app_site, app_view)
-                                    };
+                                    if !app_site.is_empty() {
+                                        let key = if app_view.is_empty() {
+                                            app_site.clone()
+                                        } else {
+                                            format!("{} → {}", app_site, app_view)
+                                        };
 
-                                    // Use case-insensitive comparison for key matching
-                                    let existing_key = app_perf.keys()
-                                        .find(|k| k.eq_ignore_ascii_case(&key))
-                                        .cloned();
+                                        // Use case-insensitive comparison for key matching
+                                        let existing_key = app_perf
+                                            .keys()
+                                            .find(|k| k.eq_ignore_ascii_case(&key))
+                                            .cloned();
 
-                                    let final_key = existing_key.unwrap_or(key);
-                                    app_perf.entry(final_key).or_insert_with(BTreeMap::new)
-                                        .insert(lang.clone(), (normal_time, preprocess_time, output_size, app_view.clone()));
+                                        let final_key = existing_key.unwrap_or(key);
+                                        app_perf
+                                            .entry(final_key)
+                                            .or_insert_with(BTreeMap::new)
+                                            .insert(
+                                                lang.clone(),
+                                                (
+                                                    normal_time,
+                                                    preprocess_time,
+                                                    output_size,
+                                                    app_view.clone(),
+                                                ),
+                                            );
+                                    }
                                 }
+                                // Log success
+                                let log_msg = format!(
+                                    "[{}] ✅ {}: Successfully processed {} items\n",
+                                    chrono::Utc::now().to_rfc3339(),
+                                    lang,
+                                    item_count
+                                );
+                                let _ = std::fs::OpenOptions::new()
+                                    .create(true)
+                                    .append(true)
+                                    .open(&consolidate_log_file)
+                                    .and_then(|mut f| {
+                                        std::io::Write::write_all(&mut f, log_msg.as_bytes())
+                                    });
                             }
-                            // Log success
-                            let log_msg = format!("[{}] ✅ {}: Successfully processed {} items\n", chrono::Utc::now().to_rfc3339(), lang, item_count);
-                            let _ = std::fs::OpenOptions::new().create(true).append(true).open(&consolidate_log_file)
-                                .and_then(|mut f| std::io::Write::write_all(&mut f, log_msg.as_bytes()));
                         }
                     }
+                    lang_success = true;
+                    break; // Success, no need to try other methods
                 }
-                lang_success = true;
-                break; // Success, no need to try other methods
+                Ok(resp) => {
+                    let domain = url
+                        .split("://")
+                        .nth(1)
+                        .and_then(|s| s.split('/').next())
+                        .unwrap_or(url);
+                    let error_msg =
+                        format!("{} {} (HTTP {})", method, domain, resp.status().as_u16());
+                    lang_errors.push(error_msg.clone());
+                    // Log warning
+                    let log_msg = format!(
+                        "[{}] ⚠️ {}: {}\n",
+                        chrono::Utc::now().to_rfc3339(),
+                        lang,
+                        error_msg
+                    );
+                    let _ = std::fs::OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(&consolidate_log_file)
+                        .and_then(|mut f| std::io::Write::write_all(&mut f, log_msg.as_bytes()));
+                }
+                Err(e) => {
+                    let domain = url
+                        .split("://")
+                        .nth(1)
+                        .and_then(|s| s.split('/').next())
+                        .unwrap_or(url);
+                    let error_msg = format!("{} {} (ERROR: {})", method, domain, e);
+                    lang_errors.push(error_msg.clone());
+                    // Log warning
+                    let log_msg = format!(
+                        "[{}] ⚠️ {}: {}\n",
+                        chrono::Utc::now().to_rfc3339(),
+                        lang,
+                        error_msg
+                    );
+                    let _ = std::fs::OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(&consolidate_log_file)
+                        .and_then(|mut f| std::io::Write::write_all(&mut f, log_msg.as_bytes()));
+                }
             }
-            Ok(resp) => {
-                let domain = url.split("://").nth(1).and_then(|s| s.split('/').next()).unwrap_or(url);
-                let error_msg = format!("{} {} (HTTP {})", method, domain, resp.status().as_u16());
-                lang_errors.push(error_msg.clone());
-                // Log warning
-                let log_msg = format!("[{}] ⚠️ {}: {}\n", chrono::Utc::now().to_rfc3339(), lang, error_msg);
-                let _ = std::fs::OpenOptions::new().create(true).append(true).open(&consolidate_log_file)
-                    .and_then(|mut f| std::io::Write::write_all(&mut f, log_msg.as_bytes()));
-            }
-            Err(e) => {
-                let domain = url.split("://").nth(1).and_then(|s| s.split('/').next()).unwrap_or(url);
-                let error_msg = format!("{} {} (ERROR: {})", method, domain, e);
-                lang_errors.push(error_msg.clone());
-                // Log warning
-                let log_msg = format!("[{}] ⚠️ {}: {}\n", chrono::Utc::now().to_rfc3339(), lang, error_msg);
-                let _ = std::fs::OpenOptions::new().create(true).append(true).open(&consolidate_log_file)
-                    .and_then(|mut f| std::io::Write::write_all(&mut f, log_msg.as_bytes()));
-            }
-        }
         }
 
         // After trying all methods for this language, determine overall result
@@ -466,8 +693,15 @@ pub async fn test_consolidate_performance() -> impl Responder {
         } else {
             let failure_msg = format!("{}: All methods failed - {}", lang, lang_errors.join("; "));
             servers_failed.push(failure_msg.clone());
-            let log_msg = format!("[{}] ❌ {}: All methods failed\n", chrono::Utc::now().to_rfc3339(), lang);
-            let _ = std::fs::OpenOptions::new().create(true).append(true).open(&consolidate_log_file)
+            let log_msg = format!(
+                "[{}] ❌ {}: All methods failed\n",
+                chrono::Utc::now().to_rfc3339(),
+                lang
+            );
+            let _ = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&consolidate_log_file)
                 .and_then(|mut f| std::io::Write::write_all(&mut f, log_msg.as_bytes()));
         }
     }
@@ -478,7 +712,9 @@ pub async fn test_consolidate_performance() -> impl Responder {
     html.push_str("<html>\n");
     html.push_str("<head>\n");
     html.push_str("    <meta charset=\"UTF-8\">\n");
-    html.push_str("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
+    html.push_str(
+        "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n",
+    );
     html.push_str("    <title>Consolidated Performance Summary</title>\n");
     html.push_str("    <style>\n");
     html.push_str("        body { font-family: Arial, sans-serif; margin: 20px; }\n");
@@ -494,7 +730,9 @@ pub async fn test_consolidate_performance() -> impl Responder {
     html.push_str("        .best-perf { background-color: #90EE90; font-weight: bold; }\n");
     html.push_str("        .worst-perf { background-color: #FFB6C6; font-weight: bold; }\n");
     html.push_str("        .avg-perf { background-color: #FFD700; font-weight: bold; }\n");
-    html.push_str("        .legend { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }\n");
+    html.push_str(
+        "        .legend { display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }\n",
+    );
     html.push_str("        .legend-item { display: flex; align-items: center; gap: 8px; }\n");
     html.push_str("        .legend-box { width: 24px; height: 24px; border: 1px solid #999; }\n");
     html.push_str("        .view-toggle { margin: 20px 0; }\n");
@@ -505,8 +743,12 @@ pub async fn test_consolidate_performance() -> impl Responder {
     html.push_str("        .chart-container { margin: 20px 0; }\n");
     html.push_str("        .chart-row { margin-bottom: 25px; }\n");
     html.push_str("        .chart-label { font-weight: bold; margin-bottom: 8px; font-size: 14px; color: #333; }\n");
-    html.push_str("        .chart-bars-container { display: flex; flex-direction: column; gap: 8px; }\n");
-    html.push_str("        .chart-bar-wrapper { display: flex; align-items: center; gap: 10px; }\n");
+    html.push_str(
+        "        .chart-bars-container { display: flex; flex-direction: column; gap: 8px; }\n",
+    );
+    html.push_str(
+        "        .chart-bar-wrapper { display: flex; align-items: center; gap: 10px; }\n",
+    );
     html.push_str("        .chart-bar-label { min-width: 80px; font-weight: 600; color: #555; font-size: 13px; }\n");
     html.push_str("        .chart-bar { height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: white; font-weight: bold; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; min-width: 40px; }\n");
     html.push_str("        .chart-bar:hover { transform: translateX(5px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }\n");
@@ -533,8 +775,12 @@ pub async fn test_consolidate_performance() -> impl Responder {
     html.push_str("        <div class=\"legend-item\"><div class=\"legend-box\" style=\"background-color: #FFB6C6;\"></div><span>Worst (Highest Time - Table View)</span></div>\n");
     html.push_str("    </div>\n");
     html.push_str("    <div class=\"view-toggle\">\n");
-    html.push_str("        <button class=\"view-btn active\" data-view=\"grouped\">Grouped View</button>\n");
-    html.push_str("        <button class=\"view-btn\" data-view=\"chart\">Bar Chart View</button>\n");
+    html.push_str(
+        "        <button class=\"view-btn active\" data-view=\"grouped\">Grouped View</button>\n",
+    );
+    html.push_str(
+        "        <button class=\"view-btn\" data-view=\"chart\">Bar Chart View</button>\n",
+    );
     html.push_str("        <button class=\"view-btn\" data-view=\"table\">Table View</button>\n");
     html.push_str("    </div>\n");
 
@@ -548,7 +794,8 @@ pub async fn test_consolidate_performance() -> impl Responder {
 
     for rule_pattern in RULE_GROUPS {
         // Find all apps matching this rule pattern (excluding Test AppSite)
-        let matching_apps: Vec<&String> = app_perf.keys()
+        let matching_apps: Vec<&String> = app_perf
+            .keys()
             .filter(|app| app.starts_with(rule_pattern) && !app.contains("Test"))
             .collect();
 
@@ -557,30 +804,56 @@ pub async fn test_consolidate_performance() -> impl Responder {
         }
 
         html.push_str("            <div class=\"grouped-chart-section\">\n");
-        html.push_str(&format!("                <div class=\"grouped-chart-title\">{}</div>\n", rule_pattern));
+        html.push_str(&format!(
+            "                <div class=\"grouped-chart-title\">{}</div>\n",
+            rule_pattern
+        ));
         html.push_str("                <div class=\"chart-bars-container\">\n");
 
         // Calculate max time across ALL languages in this rule group for consistent scaling
         let mut all_max_values = Vec::new();
         for lang in &languages {
-            let normal_times: Vec<f64> = matching_apps.iter()
-                .filter_map(|app| app_perf.get(*app).and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.0)))
+            let normal_times: Vec<f64> = matching_apps
+                .iter()
+                .filter_map(|app| {
+                    app_perf
+                        .get(*app)
+                        .and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.0))
+                })
                 .filter(|&v| v > 0.0)
                 .collect();
-            let preprocess_times: Vec<f64> = matching_apps.iter()
-                .filter_map(|app| app_perf.get(*app).and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.1)))
+            let preprocess_times: Vec<f64> = matching_apps
+                .iter()
+                .filter_map(|app| {
+                    app_perf
+                        .get(*app)
+                        .and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.1))
+                })
                 .filter(|&v| v > 0.0)
                 .collect();
 
             if !normal_times.is_empty() {
-                all_max_values.push(normal_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max));
+                all_max_values.push(
+                    normal_times
+                        .iter()
+                        .cloned()
+                        .fold(f64::NEG_INFINITY, f64::max),
+                );
             }
             if !preprocess_times.is_empty() {
-                all_max_values.push(preprocess_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max));
+                all_max_values.push(
+                    preprocess_times
+                        .iter()
+                        .cloned()
+                        .fold(f64::NEG_INFINITY, f64::max),
+                );
             }
         }
         let max_time_for_scale = if !all_max_values.is_empty() {
-            all_max_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+            all_max_values
+                .iter()
+                .cloned()
+                .fold(f64::NEG_INFINITY, f64::max)
         } else {
             1.0
         };
@@ -588,14 +861,24 @@ pub async fn test_consolidate_performance() -> impl Responder {
         // For each language, calculate min/avg/max across all apps in this rule group
         for lang in &languages {
             // Collect Normal Engine times
-            let normal_times: Vec<f64> = matching_apps.iter()
-                .filter_map(|app| app_perf.get(*app).and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.0)))
+            let normal_times: Vec<f64> = matching_apps
+                .iter()
+                .filter_map(|app| {
+                    app_perf
+                        .get(*app)
+                        .and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.0))
+                })
                 .filter(|&v| v > 0.0)
                 .collect();
 
             // Collect PreProcess Engine times
-            let preprocess_times: Vec<f64> = matching_apps.iter()
-                .filter_map(|app| app_perf.get(*app).and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.1)))
+            let preprocess_times: Vec<f64> = matching_apps
+                .iter()
+                .filter_map(|app| {
+                    app_perf
+                        .get(*app)
+                        .and_then(|langs| langs.get(lang.as_str()).and_then(|t| t.1))
+                })
                 .filter(|&v| v > 0.0)
                 .collect();
 
@@ -604,16 +887,58 @@ pub async fn test_consolidate_performance() -> impl Responder {
             }
 
             // Calculate aggregates
-            let normal_min = if !normal_times.is_empty() { Some(normal_times.iter().cloned().fold(f64::INFINITY, f64::min)) } else { None };
-            let normal_avg = if !normal_times.is_empty() { Some(normal_times.iter().sum::<f64>() / normal_times.len() as f64) } else { None };
-            let normal_max = if !normal_times.is_empty() { Some(normal_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max)) } else { None };
+            let normal_min = if !normal_times.is_empty() {
+                Some(normal_times.iter().cloned().fold(f64::INFINITY, f64::min))
+            } else {
+                None
+            };
+            let normal_avg = if !normal_times.is_empty() {
+                Some(normal_times.iter().sum::<f64>() / normal_times.len() as f64)
+            } else {
+                None
+            };
+            let normal_max = if !normal_times.is_empty() {
+                Some(
+                    normal_times
+                        .iter()
+                        .cloned()
+                        .fold(f64::NEG_INFINITY, f64::max),
+                )
+            } else {
+                None
+            };
 
-            let preprocess_min = if !preprocess_times.is_empty() { Some(preprocess_times.iter().cloned().fold(f64::INFINITY, f64::min)) } else { None };
-            let preprocess_avg = if !preprocess_times.is_empty() { Some(preprocess_times.iter().sum::<f64>() / preprocess_times.len() as f64) } else { None };
-            let preprocess_max = if !preprocess_times.is_empty() { Some(preprocess_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max)) } else { None };
+            let preprocess_min = if !preprocess_times.is_empty() {
+                Some(
+                    preprocess_times
+                        .iter()
+                        .cloned()
+                        .fold(f64::INFINITY, f64::min),
+                )
+            } else {
+                None
+            };
+            let preprocess_avg = if !preprocess_times.is_empty() {
+                Some(preprocess_times.iter().sum::<f64>() / preprocess_times.len() as f64)
+            } else {
+                None
+            };
+            let preprocess_max = if !preprocess_times.is_empty() {
+                Some(
+                    preprocess_times
+                        .iter()
+                        .cloned()
+                        .fold(f64::NEG_INFINITY, f64::max),
+                )
+            } else {
+                None
+            };
 
             html.push_str("                    <div class=\"chart-bar-wrapper\">\n");
-            html.push_str(&format!("                        <div class=\"chart-bar-label\">{}</div>\n", lang));
+            html.push_str(&format!(
+                "                        <div class=\"chart-bar-label\">{}</div>\n",
+                lang
+            ));
             html.push_str("                        <div style=\"position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;\">\n");
 
             // Normal Engine Bar (showing min, avg, max as segments)
@@ -634,11 +959,16 @@ pub async fn test_consolidate_performance() -> impl Responder {
                 } else {
                     format!("position: absolute; left: calc({:.2}% + 5px); top: 0; font-size: 11px; color: #4CAF50; font-weight: 600; white-space: nowrap;", max_width)
                 };
-                html.push_str(&format!("                            <span style=\"{}\">N: {:.2}/{:.2}/{:.2}</span>\n", label_style, min, avg, max));
+                html.push_str(&format!(
+                    "                            <span style=\"{}\">N: {:.2}/{:.2}/{:.2}</span>\n",
+                    label_style, min, avg, max
+                ));
             }
 
             // PreProcess Engine Bar (showing min, avg, max as segments)
-            if let (Some(min), Some(avg), Some(max)) = (preprocess_min, preprocess_avg, preprocess_max) {
+            if let (Some(min), Some(avg), Some(max)) =
+                (preprocess_min, preprocess_avg, preprocess_max)
+            {
                 let min_width = (min / max_time_for_scale) * 100.0;
                 let avg_width = (avg / max_time_for_scale) * 100.0;
                 let max_width = (max / max_time_for_scale) * 100.0;
@@ -655,7 +985,10 @@ pub async fn test_consolidate_performance() -> impl Responder {
                 } else {
                     format!("position: absolute; left: calc({:.2}% + 5px); top: 15px; font-size: 11px; color: #2196F3; font-weight: 600; white-space: nowrap;", max_width)
                 };
-                html.push_str(&format!("                            <span style=\"{}\">P: {:.2}/{:.2}/{:.2}</span>\n", label_style, min, avg, max));
+                html.push_str(&format!(
+                    "                            <span style=\"{}\">P: {:.2}/{:.2}/{:.2}</span>\n",
+                    label_style, min, avg, max
+                ));
             }
 
             html.push_str("                        </div>\n");
@@ -674,13 +1007,17 @@ pub async fn test_consolidate_performance() -> impl Responder {
     html.push_str("        <div class=\"chart-container\">\n");
 
     // Generate combined chart data showing both engines (filter by rule groups)
-    let filtered_apps: Vec<&String> = app_perf.keys()
+    let filtered_apps: Vec<&String> = app_perf
+        .keys()
         .filter(|app| RULE_GROUPS.iter().any(|rule| app.starts_with(rule)))
         .collect();
 
     for app in filtered_apps.iter() {
         html.push_str("            <div class=\"chart-row\">\n");
-        html.push_str(&format!("                <div class=\"chart-label\">{}</div>\n", app));
+        html.push_str(&format!(
+            "                <div class=\"chart-label\">{}</div>\n",
+            app
+        ));
         html.push_str("                <div class=\"chart-bars-container\">\n");
 
         let langs = app_perf.get(*app).unwrap();
@@ -708,17 +1045,28 @@ pub async fn test_consolidate_performance() -> impl Responder {
         };
 
         // Calculate highlighting for Normal Engine
-        let normal_valid_times: Vec<f64> = languages.iter()
+        let normal_valid_times: Vec<f64> = languages
+            .iter()
             .filter_map(|lang| langs.get(lang.as_str()).and_then(|t| t.0))
             .filter(|&v| v > 0.0)
             .collect();
         let normal_min_time = if !normal_valid_times.is_empty() {
-            Some(normal_valid_times.iter().cloned().fold(f64::INFINITY, f64::min))
+            Some(
+                normal_valid_times
+                    .iter()
+                    .cloned()
+                    .fold(f64::INFINITY, f64::min),
+            )
         } else {
             None
         };
         let normal_max_time = if !normal_valid_times.is_empty() {
-            Some(normal_valid_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
+            Some(
+                normal_valid_times
+                    .iter()
+                    .cloned()
+                    .fold(f64::NEG_INFINITY, f64::max),
+            )
         } else {
             None
         };
@@ -729,17 +1077,28 @@ pub async fn test_consolidate_performance() -> impl Responder {
         };
 
         // Calculate highlighting for PreProcess Engine
-        let preprocess_valid_times: Vec<f64> = languages.iter()
+        let preprocess_valid_times: Vec<f64> = languages
+            .iter()
             .filter_map(|lang| langs.get(lang.as_str()).and_then(|t| t.1))
             .filter(|&v| v > 0.0)
             .collect();
         let preprocess_min_time = if !preprocess_valid_times.is_empty() {
-            Some(preprocess_valid_times.iter().cloned().fold(f64::INFINITY, f64::min))
+            Some(
+                preprocess_valid_times
+                    .iter()
+                    .cloned()
+                    .fold(f64::INFINITY, f64::min),
+            )
         } else {
             None
         };
         let preprocess_max_time = if !preprocess_valid_times.is_empty() {
-            Some(preprocess_valid_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
+            Some(
+                preprocess_valid_times
+                    .iter()
+                    .cloned()
+                    .fold(f64::NEG_INFINITY, f64::max),
+            )
         } else {
             None
         };
@@ -754,9 +1113,14 @@ pub async fn test_consolidate_performance() -> impl Responder {
                 let normal_time = times.0;
                 let preprocess_time = times.1;
 
-                if (normal_time.is_some() && normal_time.unwrap() > 0.0) || (preprocess_time.is_some() && preprocess_time.unwrap() > 0.0) {
+                if (normal_time.is_some() && normal_time.unwrap() > 0.0)
+                    || (preprocess_time.is_some() && preprocess_time.unwrap() > 0.0)
+                {
                     html.push_str("                    <div class=\"chart-bar-wrapper\">\n");
-                    html.push_str(&format!("                        <div class=\"chart-bar-label\">{}</div>\n", lang));
+                    html.push_str(&format!(
+                        "                        <div class=\"chart-bar-label\">{}</div>\n",
+                        lang
+                    ));
                     html.push_str("                        <div style=\"position: relative; flex: 1; height: 30px; min-width: 0; overflow: visible;\">\n");
 
                     // Normal Engine Bar (bottom layer) with label at the end
@@ -778,8 +1142,16 @@ pub async fn test_consolidate_performance() -> impl Responder {
                             }
                             if let Some(avg_time) = normal_avg_time {
                                 if normal_valid_times.len() > 2 {
-                                    let nearest_to_avg = normal_valid_times.iter().cloned()
-                                        .min_by(|a, b| (a - avg_time).abs().partial_cmp(&(b - avg_time).abs()).unwrap()).unwrap();
+                                    let nearest_to_avg = normal_valid_times
+                                        .iter()
+                                        .cloned()
+                                        .min_by(|a, b| {
+                                            (a - avg_time)
+                                                .abs()
+                                                .partial_cmp(&(b - avg_time).abs())
+                                                .unwrap()
+                                        })
+                                        .unwrap();
                                     if (normal_time_value - nearest_to_avg).abs() < 0.01 {
                                         normal_bg_color = "#FFD700"; // avg (gold)
                                     }
@@ -800,7 +1172,8 @@ pub async fn test_consolidate_performance() -> impl Responder {
                     // PreProcess Engine Bar (top layer, slightly offset) with label at the end
                     if let Some(preprocess_time_value) = preprocess_time {
                         if preprocess_time_value > 0.0 {
-                            let width_percent = (preprocess_time_value / max_time_for_scale) * 100.0;
+                            let width_percent =
+                                (preprocess_time_value / max_time_for_scale) * 100.0;
 
                             // Determine highlight color
                             let mut preprocess_bg_color = "#2196F3"; // default blue
@@ -816,8 +1189,16 @@ pub async fn test_consolidate_performance() -> impl Responder {
                             }
                             if let Some(avg_time) = preprocess_avg_time {
                                 if preprocess_valid_times.len() > 2 {
-                                    let nearest_to_avg = preprocess_valid_times.iter().cloned()
-                                        .min_by(|a, b| (a - avg_time).abs().partial_cmp(&(b - avg_time).abs()).unwrap()).unwrap();
+                                    let nearest_to_avg = preprocess_valid_times
+                                        .iter()
+                                        .cloned()
+                                        .min_by(|a, b| {
+                                            (a - avg_time)
+                                                .abs()
+                                                .partial_cmp(&(b - avg_time).abs())
+                                                .unwrap()
+                                        })
+                                        .unwrap();
                                     if (preprocess_time_value - nearest_to_avg).abs() < 0.01 {
                                         preprocess_bg_color = "#FFD700"; // avg (gold)
                                     }
@@ -860,25 +1241,44 @@ pub async fn test_consolidate_performance() -> impl Responder {
     html.push_str("<th>OutputSize</th></tr>\n");
 
     // Filter apps by RULE_GROUPS
-    let filtered_apps: Vec<&String> = app_perf.keys()
+    let filtered_apps: Vec<&String> = app_perf
+        .keys()
         .filter(|app| RULE_GROUPS.iter().any(|rule| app.starts_with(rule)))
         .collect();
 
     for app in filtered_apps.iter() {
         let langs = app_perf.get(*app).unwrap();
         // Find min, max, and avg time for highlighting (excluding zero values)
-        let valid_times: Vec<f64> = languages.iter()
+        let valid_times: Vec<f64> = languages
+            .iter()
             .filter_map(|lang| langs.get(lang.as_str()).and_then(|t| t.0))
             .filter(|&v| v > 0.0)
             .collect();
-        let min_time = if !valid_times.is_empty() { valid_times.iter().cloned().fold(f64::INFINITY, f64::min) } else { f64::NAN };
-        let max_time = if !valid_times.is_empty() { valid_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max) } else { f64::NAN };
-        let avg_time = if !valid_times.is_empty() { valid_times.iter().sum::<f64>() / valid_times.len() as f64 } else { f64::NAN };
+        let min_time = if !valid_times.is_empty() {
+            valid_times.iter().cloned().fold(f64::INFINITY, f64::min)
+        } else {
+            f64::NAN
+        };
+        let max_time = if !valid_times.is_empty() {
+            valid_times
+                .iter()
+                .cloned()
+                .fold(f64::NEG_INFINITY, f64::max)
+        } else {
+            f64::NAN
+        };
+        let avg_time = if !valid_times.is_empty() {
+            valid_times.iter().sum::<f64>() / valid_times.len() as f64
+        } else {
+            f64::NAN
+        };
 
         html.push_str(&format!("        <tr><td>{}</td>", app));
         for lang in &languages {
             let time_opt = langs.get(lang.as_str()).and_then(|t| t.0);
-            let time_value = time_opt.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".to_string());
+            let time_value = time_opt
+                .map(|v| format!("{:.2}", v))
+                .unwrap_or_else(|| "-".to_string());
 
             let css_class = if let Some(current_time) = time_opt {
                 if current_time > 0.0 {
@@ -887,7 +1287,16 @@ pub async fn test_consolidate_performance() -> impl Responder {
                     } else if !max_time.is_nan() && (current_time - max_time).abs() < 0.001 {
                         " class=\"worst-perf\""
                     } else if !avg_time.is_nan() && valid_times.len() > 2 {
-                        let nearest_to_avg = valid_times.iter().cloned().min_by(|a, b| (a - avg_time).abs().partial_cmp(&(b - avg_time).abs()).unwrap()).unwrap();
+                        let nearest_to_avg = valid_times
+                            .iter()
+                            .cloned()
+                            .min_by(|a, b| {
+                                (a - avg_time)
+                                    .abs()
+                                    .partial_cmp(&(b - avg_time).abs())
+                                    .unwrap()
+                            })
+                            .unwrap();
                         if (current_time - nearest_to_avg).abs() < 0.001 {
                             " class=\"avg-perf\""
                         } else {
@@ -905,7 +1314,11 @@ pub async fn test_consolidate_performance() -> impl Responder {
 
             html.push_str(&format!("<td{}>{}</td>", css_class, time_value));
         }
-        let output_size = langs.values().find_map(|t| t.2).map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
+        let output_size = langs
+            .values()
+            .find_map(|t| t.2)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".to_string());
         html.push_str(&format!("<td>{}</td></tr>\n", output_size));
     }
     html.push_str("    </table>\n");
@@ -924,18 +1337,36 @@ pub async fn test_consolidate_performance() -> impl Responder {
     for app in filtered_apps.iter() {
         let langs = app_perf.get(*app).unwrap();
         // Find min, max, and avg time for highlighting (excluding zero values)
-        let valid_times: Vec<f64> = languages.iter()
+        let valid_times: Vec<f64> = languages
+            .iter()
             .filter_map(|lang| langs.get(lang.as_str()).and_then(|t| t.1))
             .filter(|&v| v > 0.0)
             .collect();
-        let min_time = if !valid_times.is_empty() { valid_times.iter().cloned().fold(f64::INFINITY, f64::min) } else { f64::NAN };
-        let max_time = if !valid_times.is_empty() { valid_times.iter().cloned().fold(f64::NEG_INFINITY, f64::max) } else { f64::NAN };
-        let avg_time = if !valid_times.is_empty() { valid_times.iter().sum::<f64>() / valid_times.len() as f64 } else { f64::NAN };
+        let min_time = if !valid_times.is_empty() {
+            valid_times.iter().cloned().fold(f64::INFINITY, f64::min)
+        } else {
+            f64::NAN
+        };
+        let max_time = if !valid_times.is_empty() {
+            valid_times
+                .iter()
+                .cloned()
+                .fold(f64::NEG_INFINITY, f64::max)
+        } else {
+            f64::NAN
+        };
+        let avg_time = if !valid_times.is_empty() {
+            valid_times.iter().sum::<f64>() / valid_times.len() as f64
+        } else {
+            f64::NAN
+        };
 
         html.push_str(&format!("        <tr><td>{}</td>", app));
         for lang in &languages {
             let time_opt = langs.get(lang.as_str()).and_then(|t| t.1);
-            let time_value = time_opt.map(|v| format!("{:.2}", v)).unwrap_or_else(|| "-".to_string());
+            let time_value = time_opt
+                .map(|v| format!("{:.2}", v))
+                .unwrap_or_else(|| "-".to_string());
 
             let css_class = if let Some(current_time) = time_opt {
                 if current_time > 0.0 {
@@ -944,7 +1375,16 @@ pub async fn test_consolidate_performance() -> impl Responder {
                     } else if !max_time.is_nan() && (current_time - max_time).abs() < 0.001 {
                         " class=\"worst-perf\""
                     } else if !avg_time.is_nan() && valid_times.len() > 2 {
-                        let nearest_to_avg = valid_times.iter().cloned().min_by(|a, b| (a - avg_time).abs().partial_cmp(&(b - avg_time).abs()).unwrap()).unwrap();
+                        let nearest_to_avg = valid_times
+                            .iter()
+                            .cloned()
+                            .min_by(|a, b| {
+                                (a - avg_time)
+                                    .abs()
+                                    .partial_cmp(&(b - avg_time).abs())
+                                    .unwrap()
+                            })
+                            .unwrap();
                         if (current_time - nearest_to_avg).abs() < 0.001 {
                             " class=\"avg-perf\""
                         } else {
@@ -962,7 +1402,11 @@ pub async fn test_consolidate_performance() -> impl Responder {
 
             html.push_str(&format!("<td{}>{}</td>", css_class, time_value));
         }
-        let output_size = langs.values().find_map(|t| t.2).map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
+        let output_size = langs
+            .values()
+            .find_map(|t| t.2)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "-".to_string());
         html.push_str(&format!("<td>{}</td></tr>\n", output_size));
     }
     html.push_str("    </table>\n");
@@ -986,7 +1430,9 @@ pub async fn test_consolidate_performance() -> impl Responder {
     html.push_str("</body>\n</html>");
 
     // Write HTML to Reports directory
-    let reports_dir = std::path::Path::new(project_dir_str).join("Analysis").join("Reports");
+    let reports_dir = std::path::Path::new(project_dir_str)
+        .join("Analysis")
+        .join("Reports");
     let _ = std::fs::create_dir_all(&reports_dir);
     let html_path = reports_dir.join("all_perf_tests.html");
     let _ = std::fs::write(&html_path, html);
@@ -995,13 +1441,27 @@ pub async fn test_consolidate_performance() -> impl Responder {
 
     // Log completion
     let total_languages = servers_by_lang.len();
-    let log_msg = format!("[{}] Consolidation complete in {:.2}s - {} AppSites from {}/{} languages\n",
-        chrono::Utc::now().to_rfc3339(), elapsed, app_perf.len(), servers_processed.len(), total_languages);
-    let _ = std::fs::OpenOptions::new().create(true).append(true).open(&consolidate_log_file)
+    let log_msg = format!(
+        "[{}] Consolidation complete in {:.2}s - {} AppSites from {}/{} languages\n",
+        chrono::Utc::now().to_rfc3339(),
+        elapsed,
+        app_perf.len(),
+        servers_processed.len(),
+        total_languages
+    );
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&consolidate_log_file)
         .and_then(|mut f| std::io::Write::write_all(&mut f, log_msg.as_bytes()));
 
-    let mut message = format!("Consolidated {} AppSites from {}/{} languages in {:.2} secs",
-        app_perf.len(), servers_processed.len(), total_languages, elapsed);
+    let mut message = format!(
+        "Consolidated {} AppSites from {}/{} languages in {:.2} secs",
+        app_perf.len(),
+        servers_processed.len(),
+        total_languages,
+        elapsed
+    );
 
     if !servers_processed.is_empty() {
         message.push_str(&format!(" | ✅ Success: {}", servers_processed.join(", ")));
@@ -1084,13 +1544,9 @@ pub async fn get_report(req: web::Json<ReportRequest>) -> impl Responder {
                 "text/plain"
             };
 
-            HttpResponse::Ok()
-                .content_type(content_type)
-                .body(content)
+            HttpResponse::Ok().content_type(content_type).body(content)
         }
-        Err(_) => {
-            HttpResponse::NotFound().body(format!("Report not found: {}", final_file_name))
-        }
+        Err(_) => HttpResponse::NotFound().body(format!("Report not found: {}", final_file_name)),
     }
 }
 
@@ -1104,20 +1560,20 @@ pub async fn get_report(req: web::Json<ReportRequest>) -> impl Responder {
         (status = 500, description = "Internal server error")
     )
 )]
-pub async fn save_log(
-    body: web::Bytes
-) -> impl Responder {
+pub async fn save_log(body: web::Bytes) -> impl Responder {
     let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
 
     // Parse JSON
     let (context_name, log_content) = match serde_json::from_slice::<serde_json::Value>(&body) {
         Ok(json) => {
-            let context = json.get("context")
+            let context = json
+                .get("context")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let content = json.get("content")
+            let content = json
+                .get("content")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .trim()
@@ -1147,10 +1603,13 @@ pub async fn save_log(
     // Validate log content (size and format)
     let (is_valid, error_message) = security_validator::is_valid_log_content(Some(&log_content));
     if !is_valid {
-        return HttpResponse::BadRequest().body(error_message.unwrap_or_else(|| "Invalid log content".to_string()));
+        return HttpResponse::BadRequest()
+            .body(error_message.unwrap_or_else(|| "Invalid log content".to_string()));
     }
 
-    let logs_dir = std::path::Path::new(project_dir_str).join("Analysis").join("logs");
+    let logs_dir = std::path::Path::new(project_dir_str)
+        .join("Analysis")
+        .join("logs");
     let _ = std::fs::create_dir_all(&logs_dir);
 
     let log_file = logs_dir.join(format!("javascript_{}.log", context_name.to_lowercase()));
@@ -1172,9 +1631,7 @@ pub async fn save_log(
         (status = 500, description = "Internal server error")
     )
 )]
-pub async fn save_output(
-    body: web::Bytes
-) -> impl Responder {
+pub async fn save_output(body: web::Bytes) -> impl Responder {
     let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
 
@@ -1182,26 +1639,38 @@ pub async fn save_output(
     println!("[/api/save-output] Request body length: {}", body.len());
 
     // Parse JSON
-    let (app_site, app_view, engine_type, html_content) = match serde_json::from_slice::<serde_json::Value>(&body) {
+    let (app_site, app_view, engine_type, html_content) = match serde_json::from_slice::<
+        serde_json::Value,
+    >(&body)
+    {
         Ok(json) => {
-            let site = json.get("appSite")
+            let site = json
+                .get("appSite")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let view = json.get("appView")
+            let view = json
+                .get("appView")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let engine = json.get("engineType")
+            let engine = json
+                .get("engineType")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let html = json.get("html")
+            let html = json
+                .get("html")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            println!("[/api/save-output] Parsed: appSite={}, appView={}, engineType={}, htmlLength={}",
-                site, view, engine, html.len());
+            println!(
+                "[/api/save-output] Parsed: appSite={}, appView={}, engineType={}, htmlLength={}",
+                site,
+                view,
+                engine,
+                html.len()
+            );
             (site, view, engine, html)
         }
         Err(e) => {
@@ -1211,8 +1680,12 @@ pub async fn save_output(
     };
 
     if app_site.is_empty() || engine_type.is_empty() || html_content.is_empty() {
-        println!("[/api/save-output] Missing parameters: appSite={}, engineType={}, htmlLength={}",
-            app_site, engine_type, html_content.len());
+        println!(
+            "[/api/save-output] Missing parameters: appSite={}, engineType={}, htmlLength={}",
+            app_site,
+            engine_type,
+            html_content.len()
+        );
         return HttpResponse::BadRequest().body("Missing required parameters");
     }
 
@@ -1221,32 +1694,48 @@ pub async fn save_output(
         Ok(sites) => sites,
         Err(e) => {
             println!("[/api/save-output] Failed to load AppSites: {}", e);
-            return HttpResponse::InternalServerError().body(format!("Failed to load AppSites: {}", e));
+            return HttpResponse::InternalServerError()
+                .body(format!("Failed to load AppSites: {}", e));
         }
     };
 
-    if !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(&app_site)) {
+    if !valid_app_sites
+        .iter()
+        .any(|valid| valid.eq_ignore_ascii_case(&app_site))
+    {
         println!("[/api/save-output] Invalid AppSite: {}", app_site);
         return HttpResponse::BadRequest().body("Invalid AppSite value");
     }
 
     // Validate engine type against allowlist
-    if !security_validator::get_valid_engine_types().iter().any(|valid| valid.eq_ignore_ascii_case(&engine_type)) {
+    if !security_validator::get_valid_engine_types()
+        .iter()
+        .any(|valid| valid.eq_ignore_ascii_case(&engine_type))
+    {
         println!("[/api/save-output] Invalid engineType: {}", engine_type);
         return HttpResponse::BadRequest().body("Invalid engine type");
     }
 
     // Validate parameters (256 char limit, no path traversal)
     if !security_validator::is_valid_path_component(Some(&app_site)) {
-        println!("[/api/save-output] Invalid AppSite path component: {}", app_site);
+        println!(
+            "[/api/save-output] Invalid AppSite path component: {}",
+            app_site
+        );
         return HttpResponse::BadRequest().body("Invalid AppSite parameter");
     }
     if !app_view.is_empty() && !security_validator::is_valid_path_component(Some(&app_view)) {
-        println!("[/api/save-output] Invalid AppView path component: {}", app_view);
+        println!(
+            "[/api/save-output] Invalid AppView path component: {}",
+            app_view
+        );
         return HttpResponse::BadRequest().body("Invalid AppView parameter");
     }
     if !security_validator::is_valid_path_component(Some(&engine_type)) {
-        println!("[/api/save-output] Invalid engineType path component: {}", engine_type);
+        println!(
+            "[/api/save-output] Invalid engineType path component: {}",
+            engine_type
+        );
         return HttpResponse::BadRequest().body("Invalid engineType parameter");
     }
 
@@ -1254,7 +1743,9 @@ pub async fn save_output(
     let output_size = html_content.len();
     println!("[/api/save-output] Output size: {} bytes", output_size);
 
-    let output_dir = std::path::Path::new(project_dir_str).join("Analysis").join("output");
+    let output_dir = std::path::Path::new(project_dir_str)
+        .join("Analysis")
+        .join("output");
     let _ = std::fs::create_dir_all(&output_dir);
 
     let app_view_suffix = if !app_view.is_empty() {
@@ -1263,9 +1754,15 @@ pub async fn save_output(
         String::new()
     };
     let engine_suffix = engine_type.to_lowercase();
-    let output_file = output_dir.join(format!("javascript_{}{}_{}.html", app_site, app_view_suffix, engine_suffix));
+    let output_file = output_dir.join(format!(
+        "javascript_{}{}_{}.html",
+        app_site, app_view_suffix, engine_suffix
+    ));
     let _ = std::fs::write(&output_file, html_content);
-    println!("[/api/save-output] Success! Output saved to: {:?}", output_file);
+    println!(
+        "[/api/save-output] Success! Output saved to: {:?}",
+        output_file
+    );
 
     let response = TestResponse {
         message: "Output saved successfully".to_string(),
@@ -1286,22 +1783,32 @@ pub async fn save_output(
 )]
 pub async fn save_test_results(
     summary_rows: web::Json<Vec<TestSummaryRowDto>>,
-    req: HttpRequest
+    req: HttpRequest,
 ) -> impl Responder {
     let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
 
-    println!("POST /api/test-results called with {} rows", summary_rows.len());
+    println!(
+        "POST /api/test-results called with {} rows",
+        summary_rows.len()
+    );
 
     // Validate each row
     let valid_app_sites = match security_validator::get_valid_app_sites() {
         Ok(sites) => sites,
-        Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to load AppSites: {}", e)),
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Failed to load AppSites: {}", e))
+        }
     };
 
     for row in summary_rows.iter() {
         // Validate AppSite is in allowlist
-        if !row.app_site.is_empty() && !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(&row.app_site)) {
+        if !row.app_site.is_empty()
+            && !valid_app_sites
+                .iter()
+                .any(|valid| valid.eq_ignore_ascii_case(&row.app_site))
+        {
             return HttpResponse::BadRequest().body(format!("Invalid AppSite: {}", row.app_site));
         }
 
@@ -1312,16 +1819,21 @@ pub async fn save_test_results(
         if !security_validator::is_valid_path_component(Some(&row.app_file)) {
             return HttpResponse::BadRequest().body("Invalid AppFile parameter");
         }
-        if !row.app_view.is_empty() && !security_validator::is_valid_path_component(Some(&row.app_view)) {
+        if !row.app_view.is_empty()
+            && !security_validator::is_valid_path_component(Some(&row.app_view))
+        {
             return HttpResponse::BadRequest().body("Invalid AppView parameter");
         }
     }
 
-    let reports_path = std::path::Path::new(project_dir_str).join("Analysis").join("Reports");
+    let reports_path = std::path::Path::new(project_dir_str)
+        .join("Analysis")
+        .join("Reports");
     let _ = std::fs::create_dir_all(&reports_path);
 
     // Get test type from query parameter
-    let test_type = req.query_string()
+    let test_type = req
+        .query_string()
         .split('&')
         .find(|param| param.starts_with("testType="))
         .and_then(|param| param.split('=').nth(1))
@@ -1334,8 +1846,13 @@ pub async fn save_test_results(
     let mut html = String::new();
     html.push_str("<!DOCTYPE html>\n<html>\n<head>\n");
     html.push_str("    <meta charset=\"UTF-8\">\n");
-    html.push_str("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-    html.push_str(&format!("    <title>JavaScript {}</title>\n", formatted_test_type));
+    html.push_str(
+        "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n",
+    );
+    html.push_str(&format!(
+        "    <title>JavaScript {}</title>\n",
+        formatted_test_type
+    ));
     html.push_str("    <style>\n");
     html.push_str("        body { font-family: Arial, sans-serif; margin: 20px; }\n");
     html.push_str("        h1 { color: #333; }\n");
@@ -1352,7 +1869,10 @@ pub async fn save_test_results(
     html.push_str("            h1 { font-size: 24px; }\n");
     html.push_str("        }\n");
     html.push_str("    </style>\n</head>\n<body>\n");
-    html.push_str(&format!("    <h1>JavaScript {}</h1>\n", formatted_test_type));
+    html.push_str(&format!(
+        "    <h1>JavaScript {}</h1>\n",
+        formatted_test_type
+    ));
     html.push_str(&format!("    <div class=\"meta\" style=\"color: #666; font-style: italic; margin-bottom: 10px;\">Generated: {} UTC</div>\n",
         chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
     html.push_str("    <div class=\"table-container\">\n    <table>\n        <tr>\n");
@@ -1379,8 +1899,14 @@ pub async fn save_test_results(
         html.push_str(&format!("            <td>{}</td>\n", row.app_site));
         html.push_str(&format!("            <td>{}</td>\n", row.app_file));
         html.push_str(&format!("            <td>{}</td>\n", row.app_view));
-        html.push_str(&format!("            <td class=\"{}\">{}</td>\n", output_match_class, row.normal_pre_process));
-        html.push_str(&format!("            <td class=\"{}\">{}</td>\n", view_unmatch_class, row.cross_view_un_match));
+        html.push_str(&format!(
+            "            <td class=\"{}\">{}</td>\n",
+            output_match_class, row.normal_pre_process
+        ));
+        html.push_str(&format!(
+            "            <td class=\"{}\">{}</td>\n",
+            view_unmatch_class, row.cross_view_un_match
+        ));
         html.push_str(&format!("            <td>{}</td>\n", row.error));
         html.push_str("        </tr>\n");
     }
@@ -1395,7 +1921,10 @@ pub async fn save_test_results(
     let json_file = reports_path.join(format!("javascript_{}_Summary.json", test_type_file));
     let json_data = match serde_json::to_string_pretty(&*summary_rows) {
         Ok(j) => j,
-        Err(e) => return HttpResponse::InternalServerError().body(format!("JSON serialization failed: {}", e)),
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("JSON serialization failed: {}", e))
+        }
     };
     let _ = std::fs::write(&json_file, json_data);
     println!("Test summary JSON saved to: {:?}", json_file);
@@ -1418,22 +1947,32 @@ pub async fn save_test_results(
     )
 )]
 pub async fn save_performance_results(
-    summary_rows: web::Json<Vec<PerfSummaryRowDto>>
+    summary_rows: web::Json<Vec<PerfSummaryRowDto>>,
 ) -> impl Responder {
     let project_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let project_dir_str = project_dir.to_str().unwrap_or("");
 
-    println!("POST /api/performance-results called with {} rows", summary_rows.len());
+    println!(
+        "POST /api/performance-results called with {} rows",
+        summary_rows.len()
+    );
 
     // Validate each row
     let valid_app_sites = match security_validator::get_valid_app_sites() {
         Ok(sites) => sites,
-        Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to load AppSites: {}", e)),
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Failed to load AppSites: {}", e))
+        }
     };
 
     for row in summary_rows.iter() {
         // Validate AppSite is in allowlist
-        if !row.app_site.is_empty() && !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(&row.app_site)) {
+        if !row.app_site.is_empty()
+            && !valid_app_sites
+                .iter()
+                .any(|valid| valid.eq_ignore_ascii_case(&row.app_site))
+        {
             return HttpResponse::BadRequest().body(format!("Invalid AppSite: {}", row.app_site));
         }
 
@@ -1444,12 +1983,16 @@ pub async fn save_performance_results(
         if !security_validator::is_valid_path_component(Some(&row.app_file)) {
             return HttpResponse::BadRequest().body("Invalid AppFile parameter");
         }
-        if !row.app_view.is_empty() && !security_validator::is_valid_path_component(Some(&row.app_view)) {
+        if !row.app_view.is_empty()
+            && !security_validator::is_valid_path_component(Some(&row.app_view))
+        {
             return HttpResponse::BadRequest().body("Invalid AppView parameter");
         }
     }
 
-    let reports_path = std::path::Path::new(project_dir_str).join("Analysis").join("Reports");
+    let reports_path = std::path::Path::new(project_dir_str)
+        .join("Analysis")
+        .join("Reports");
     let _ = std::fs::create_dir_all(&reports_path);
 
     // Generate HTML table
@@ -1484,7 +2027,10 @@ pub async fn save_performance_results(
     let json_file = reports_path.join("javascript_perfsummary.json");
     let json_data = match serde_json::to_string_pretty(&*summary_rows) {
         Ok(j) => j,
-        Err(e) => return HttpResponse::InternalServerError().body(format!("JSON serialization failed: {}", e)),
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("JSON serialization failed: {}", e))
+        }
     };
     let _ = std::fs::write(&json_file, json_data);
     println!("Performance summary JSON saved to: {:?}", json_file);
@@ -1499,12 +2045,18 @@ pub async fn save_performance_results(
 /// Usage: map_assembler_test_endpoints(&mut cfg)
 pub fn map_assembler_test_endpoints(cfg: &mut web::ServiceConfig) {
     cfg.route("/api/test-results", web::post().to(save_test_results))
-        .route("/api/performance-results", web::post().to(save_performance_results))
+        .route(
+            "/api/performance-results",
+            web::post().to(save_performance_results),
+        )
         .route("/api/save-log", web::post().to(save_log))
         .route("/api/save-output", web::post().to(save_output))
         .route("/test/standard", web::post().to(test_standard))
         .route("/test/advanced", web::post().to(test_advanced))
         .route("/test/performance", web::post().to(test_performance))
-        .route("/test/consolidate-performance", web::post().to(test_consolidate_performance))
+        .route(
+            "/test/consolidate-performance",
+            web::post().to(test_consolidate_performance),
+        )
         .route("/api/report", web::post().to(get_report));
 }

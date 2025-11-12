@@ -1,19 +1,26 @@
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use actix_web::http::header::ContentType;
-use serde::{Deserialize, Serialize};
-use std::time::Instant;
-use std::collections::HashSet;
-use std::sync::OnceLock;
-use assembler::loader::loader_normal::LoaderNormal;
-use assembler::loader::loader_preprocess::LoaderPreProcess;
-use assembler::engine::engine_normal::EngineNormal;
-use assembler::engine::engine_preprocess::EnginePreProcess;
-use assembler::api::api_response::TemplateData;
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use arshu::common::Logger;
 use assembler::config::config_util;
+use assembler::engine::engine_normal::EngineNormal;
+use assembler::engine::engine_normal_json::EngineNormalJson;
+use assembler::engine::engine_preprocess::EnginePreProcess;
+use assembler::engine::engine_preprocess_json::EnginePreProcessJson;
+use assembler::interface::i_loader_json::ILoaderJson;
+use assembler::loader::loader_normal::LoaderNormal;
+use assembler::loader::loader_normal_json::LoaderNormalJson;
+use assembler::loader::loader_preprocess::LoaderPreProcess;
+use assembler::loader::loader_preprocess_json::LoaderPreProcessJson;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::sync::OnceLock;
+use std::time::Instant;
+
+use crate::WEB_ROOT_FOLDER_NAME;
 
 pub const DEFAULT_APP_SITE: &str = "Main";
-pub const SEARCH_APP_SITE: &str = "Common, Language";
+pub const DEFAULT_ENGINE_TYPE: &str = "Normal";
+pub const SEARCH_APP_SITE: &str = "Main, Language";
 
 // Maximum parameter length to prevent DoS attacks
 const PARAM_MAX_LENGTH: usize = 256;
@@ -27,6 +34,8 @@ fn get_valid_engine_types() -> &'static HashSet<String> {
         let mut set = HashSet::new();
         set.insert("Normal".to_string());
         set.insert("PreProcess".to_string());
+        set.insert("NormalJson".to_string());
+        set.insert("PreProcessJson".to_string());
         set
     })
 }
@@ -54,13 +63,46 @@ fn is_valid_path_component(value: Option<&str>) -> bool {
 
             // Check for other suspicious characters
             let invalid_chars = ['<', '>', ':', '"', '|', '?', '*', '\0'];
-            if v.chars().any(|c| invalid_chars.contains(&c) || c.is_control()) {
+            if v.chars()
+                .any(|c| invalid_chars.contains(&c) || c.is_control())
+            {
                 return false;
             }
 
             true
         }
     }
+}
+
+/// Builds the JSON response for /api/templates endpoint using pre-serialized template JSON
+fn build_templates_api_response(
+    normal_templates_json: &str,
+    preprocess_templates_json: &str,
+    app_site: &str,
+    server_time_ms: f64,
+) -> String {
+    format!(
+        r#"{{"Templates":{},"PreProcessTemplates":{},"AppSite":"{}","AppFile":null,"AppView":null,"ServerTimeMs":{}}}"#,
+        normal_templates_json,
+        preprocess_templates_json,
+        escape_json_string(app_site),
+        server_time_ms
+    )
+}
+
+/// Escapes a string for safe inclusion in JSON
+fn escape_json_string(input: &str) -> String {
+    input
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\r', "\\r")
+        .replace('\n', "\\n")
+        .replace('\t', "\\t")
+        .replace('<', "\\u003C")
+        .replace('>', "\\u003E")
+        .replace('&', "\\u0026")
+        .replace('\'', "\\u0027")
+        .replace('+', "\\u002B")
 }
 
 #[derive(Debug, Deserialize, Serialize, utoipa::ToSchema)]
@@ -89,15 +131,17 @@ pub struct MergeRequest {
 )]
 pub async fn index(req: HttpRequest) -> impl Responder {
     // Get appsite from query parameter or use default
-    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-    let root_dir_path = project_directory.join("wwwroot");
+    let project_directory =
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let root_dir_path = project_directory.join(WEB_ROOT_FOLDER_NAME);
     let root_dir_path_str = root_dir_path.to_str().unwrap_or("");
 
     let mut app_site = DEFAULT_APP_SITE.to_string();
     let mut app_file = "index".to_string();
 
     // Get appsite from query parameter
-    let requested_app_site = req.query_string()
+    let requested_app_site = req
+        .query_string()
         .split('&')
         .find(|param| param.starts_with("appsite="))
         .and_then(|param| param.split('=').nth(1));
@@ -107,10 +151,16 @@ pub async fn index(req: HttpRequest) -> impl Responder {
         // Validate AppSite against allowlist
         let valid_app_sites = match get_valid_app_sites() {
             Ok(sites) => sites,
-            Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to get valid AppSites: {}", e)),
+            Err(e) => {
+                return HttpResponse::InternalServerError()
+                    .body(format!("Failed to get valid AppSites: {}", e))
+            }
         };
 
-        if !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(requested)) {
+        if !valid_app_sites
+            .iter()
+            .any(|valid| valid.eq_ignore_ascii_case(requested))
+        {
             return HttpResponse::BadRequest().body("Invalid AppSite value");
         }
 
@@ -122,48 +172,93 @@ pub async fn index(req: HttpRequest) -> impl Responder {
         // Get AppFile from scenarios
         let scenarios = match config_util::ConfigUtil::get_scenarios() {
             Ok(scenarios) => scenarios,
-            Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to get scenarios: {}", e)),
+            Err(e) => {
+                return HttpResponse::InternalServerError()
+                    .body(format!("Failed to get scenarios: {}", e))
+            }
         };
 
-        let matching_scenario = scenarios.iter().find(|s|
-            s.app_site.eq_ignore_ascii_case(requested) && s.app_view.is_empty()
-        );
+        let matching_scenario = scenarios
+            .iter()
+            .find(|s| s.app_site.eq_ignore_ascii_case(requested) && s.app_view.is_empty());
 
         match matching_scenario {
             Some(scenario) => {
                 app_site = scenario.app_site.clone();
                 app_file = scenario.app_file.clone();
-            },
-            None => return HttpResponse::BadRequest().body(format!("No matching scenario found for AppSite='{}' without AppView", requested)),
+            }
+            None => {
+                return HttpResponse::BadRequest().body(format!(
+                    "No matching scenario found for AppSite='{}' without AppView",
+                    requested
+                ))
+            }
         }
     }
 
-    // Get engine type from query parameter (default to Normal)
-    let engine_type = req.query_string()
+    // Get engine type from query parameter (default to DEFAULT_ENGINE_TYPE)
+    let engine_type = req
+        .query_string()
         .split('&')
         .find(|param| param.starts_with("engine="))
         .and_then(|param| param.split('=').nth(1))
-        .unwrap_or("Normal");
+        .unwrap_or(DEFAULT_ENGINE_TYPE);
 
     // Validate EngineType against allowlist
-    if !get_valid_engine_types().iter().any(|valid| valid.eq_ignore_ascii_case(engine_type)) {
-        return HttpResponse::BadRequest().body("Invalid engine type. Use 'Normal' or 'PreProcess'");
+    if !get_valid_engine_types()
+        .iter()
+        .any(|valid| valid.eq_ignore_ascii_case(engine_type))
+    {
+        return HttpResponse::BadRequest()
+            .body("Invalid engine type. Use 'Normal', 'PreProcess', 'NormalJson', or 'PreProcessJson'");
     }
 
-    // Load templates for requested AppSite
-    let mut normal_templates_raw = LoaderNormal::load_get_template_files(root_dir_path_str, &app_site, SEARCH_APP_SITE);
-    let preprocess_templates_raw = LoaderPreProcess::load_process_get_template_files(root_dir_path_str, &app_site, SEARCH_APP_SITE);
-
     // Merge using selected engine (no AppView context)
-    let merged_html = if engine_type.eq_ignore_ascii_case("PreProcess") {
+    let merged_html = if engine_type.eq_ignore_ascii_case("PreProcessJson") {
+        let loader = LoaderPreProcessJson::new(root_dir_path_str, &app_site, SEARCH_APP_SITE);
+        let engine = EnginePreProcessJson::new(String::new());
+        engine.merge_templates(
+            &app_site,
+            &app_file,
+            None,
+            &loader,
+            true,
+        )
+    } else if engine_type.eq_ignore_ascii_case("PreProcess") {
+        let loader = LoaderPreProcess::new(root_dir_path_str, &app_site, SEARCH_APP_SITE);
         let engine = EnginePreProcess::new(String::new());
-        engine.merge_templates(&app_site, &app_file, None, &preprocess_templates_raw.templates, SEARCH_APP_SITE, true)
+        engine.merge_templates(
+            &app_site,
+            &app_file,
+            None,
+            &loader,
+            true,
+        )
+    } else if engine_type.eq_ignore_ascii_case("NormalJson") {
+        let loader = LoaderNormalJson::new(root_dir_path_str, &app_site, SEARCH_APP_SITE);
+        let engine = EngineNormalJson::new(String::new());
+        engine.merge_templates(
+            &app_site,
+            &app_file,
+            None,
+            &loader,
+            true,
+        )
     } else {
+        let loader = LoaderNormal::new(root_dir_path_str, &app_site, SEARCH_APP_SITE);
         let engine = EngineNormal::new(String::new());
-        engine.merge_templates(&app_site, &app_file, None, &mut normal_templates_raw, SEARCH_APP_SITE, true)
+        engine.merge_templates(
+            &app_site,
+            &app_file,
+            None,
+            &loader,
+            true,
+        )
     };
 
-    HttpResponse::Ok().content_type(ContentType::html()).body(merged_html)
+    HttpResponse::Ok()
+        .content_type(ContentType::html())
+        .body(merged_html)
 }
 
 /// GET /{appSite}/{appView?} - Navigation endpoint
@@ -176,14 +271,20 @@ pub async fn index(req: HttpRequest) -> impl Responder {
         (status = 500, description = "Internal server error")
     )
 )]
-pub async fn navigation_endpoint(req: HttpRequest, path: web::Path<(String, Option<String>)>) -> impl Responder {
+pub async fn navigation_endpoint(
+    req: HttpRequest,
+    path: web::Path<(String, Option<String>)>,
+) -> impl Responder {
     let (app_site, app_view_opt) = path.into_inner();
     let app_view = app_view_opt.unwrap_or_default();
 
     // Validate AppSite against allowlist
     let valid_app_sites = match get_valid_app_sites() {
         Ok(sites) => sites,
-        Err(e) => return HttpResponse::InternalServerError().body(format!("Error loading valid AppSites: {}", e)),
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Error loading valid AppSites: {}", e))
+        }
     };
 
     if !valid_app_sites.contains(&app_site.to_lowercase()) {
@@ -202,7 +303,10 @@ pub async fn navigation_endpoint(req: HttpRequest, path: web::Path<(String, Opti
     // Get AppFile from scenarios
     let scenarios = match config_util::ConfigUtil::get_scenarios() {
         Ok(s) => s,
-        Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to get scenarios: {}", e)),
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Failed to get scenarios: {}", e))
+        }
     };
 
     let matching_scenario = scenarios.iter().find(|s| {
@@ -211,13 +315,18 @@ pub async fn navigation_endpoint(req: HttpRequest, path: web::Path<(String, Opti
 
     let app_file = match matching_scenario {
         Some(s) => &s.app_file,
-        None => return HttpResponse::BadRequest().body(format!("No matching scenario found for AppSite='{}' and AppView='{}'", app_site, app_view)),
+        None => {
+            return HttpResponse::BadRequest().body(format!(
+                "No matching scenario found for AppSite='{}' and AppView='{}'",
+                app_site, app_view
+            ))
+        }
     };
 
-    // Get engine type from query parameter (default to Normal)
+    // Get engine type from query parameter (default to DEFAULT_ENGINE_TYPE)
     let query_string = req.query_string();
     let params: Vec<&str> = query_string.split('&').collect();
-    let mut engine_type = "Normal".to_string();
+    let mut engine_type = DEFAULT_ENGINE_TYPE.to_string();
     for param in params {
         if let Some(value) = param.strip_prefix("engine=") {
             engine_type = value.to_string();
@@ -226,26 +335,81 @@ pub async fn navigation_endpoint(req: HttpRequest, path: web::Path<(String, Opti
     }
 
     // Validate EngineType against allowlist
-    if !get_valid_engine_types().iter().any(|valid| valid.eq_ignore_ascii_case(&engine_type)) {
-        return HttpResponse::BadRequest().body("Invalid engine type. Use 'Normal' or 'PreProcess'");
+    if !get_valid_engine_types()
+        .iter()
+        .any(|valid| valid.eq_ignore_ascii_case(&engine_type))
+    {
+        return HttpResponse::BadRequest()
+            .body("Invalid engine type. Use 'Normal', 'PreProcess', 'NormalJson', or 'PreProcessJson'");
     }
 
     // Get wwwroot path
-    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-    let wwwroot_path = project_directory.join("wwwroot");
+    let project_directory =
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let wwwroot_path = project_directory.join(WEB_ROOT_FOLDER_NAME);
     let wwwroot_path_str = wwwroot_path.to_str().unwrap_or("");
 
     // Merge using selected engine
-    let merged_html = if engine_type.eq_ignore_ascii_case("PreProcess") {
-        let templates = LoaderPreProcess::load_process_get_template_files(wwwroot_path_str, &app_site, SEARCH_APP_SITE);
+    let merged_html = if engine_type.eq_ignore_ascii_case("PreProcessJson") {
+        let loader = LoaderPreProcessJson::new(wwwroot_path_str, &app_site, SEARCH_APP_SITE);
+        let engine = EnginePreProcessJson::new(String::new());
+        let app_view_opt = if app_view.is_empty() {
+            None
+        } else {
+            Some(app_view.as_str())
+        };
+        engine.merge_templates(
+            &app_site,
+            app_file,
+            app_view_opt,
+            &loader,
+            false,
+        )
+    } else if engine_type.eq_ignore_ascii_case("PreProcess") {
+        let loader = LoaderPreProcess::new(wwwroot_path_str, &app_site, SEARCH_APP_SITE);
         let engine = EnginePreProcess::new(String::new());
-        let app_view_opt = if app_view.is_empty() { None } else { Some(app_view.as_str()) };
-        engine.merge_templates(&app_site, app_file, app_view_opt, &templates.templates, SEARCH_APP_SITE, false)
+        let app_view_opt = if app_view.is_empty() {
+            None
+        } else {
+            Some(app_view.as_str())
+        };
+        engine.merge_templates(
+            &app_site,
+            app_file,
+            app_view_opt,
+            &loader,
+            false,
+        )
+    } else if engine_type.eq_ignore_ascii_case("NormalJson") {
+        let loader = LoaderNormalJson::new(wwwroot_path_str, &app_site, SEARCH_APP_SITE);
+        let engine = EngineNormalJson::new(String::new());
+        let app_view_opt = if app_view.is_empty() {
+            None
+        } else {
+            Some(app_view.as_str())
+        };
+        engine.merge_templates(
+            &app_site,
+            app_file,
+            app_view_opt,
+            &loader,
+            false,
+        )
     } else {
-        let mut templates = LoaderNormal::load_get_template_files(wwwroot_path_str, &app_site, SEARCH_APP_SITE);
+        let loader = LoaderNormal::new(wwwroot_path_str, &app_site, SEARCH_APP_SITE);
         let engine = EngineNormal::new(String::new());
-        let app_view_opt = if app_view.is_empty() { None } else { Some(app_view.as_str()) };
-        engine.merge_templates(&app_site, app_file, app_view_opt, &mut templates, SEARCH_APP_SITE, false)
+        let app_view_opt = if app_view.is_empty() {
+            None
+        } else {
+            Some(app_view.as_str())
+        };
+        engine.merge_templates(
+            &app_site,
+            app_file,
+            app_view_opt,
+            &loader,
+            false,
+        )
     };
 
     HttpResponse::Ok()
@@ -265,24 +429,82 @@ pub async fn navigation_endpoint(req: HttpRequest, path: web::Path<(String, Opti
 #[actix_web::post("/merge")]
 pub async fn merge_templates(
     req: web::Json<MergeRequest>,
-    http_req: HttpRequest
+    http_req: HttpRequest,
 ) -> impl Responder {
     // Enable logging for merge operations
-    let original_log_level = Logger::get_log_level();
-    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let project_directory =
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
     let template_analysis_dir = project_directory.join("Analysis");
     let logs_dir = template_analysis_dir.join("logs");
     let _ = std::fs::create_dir_all(&logs_dir);
 
     let mut context_log_files = std::collections::HashMap::new();
-    context_log_files.insert("LoaderNormal".to_string(), logs_dir.join("rust_loadernormal.log").to_str().unwrap_or("").to_string());
-    context_log_files.insert("LoaderPreProcess".to_string(), logs_dir.join("rust_loaderpreprocess.log").to_str().unwrap_or("").to_string());
-    context_log_files.insert("EngineNormal".to_string(), logs_dir.join("rust_enginenormal.log").to_str().unwrap_or("").to_string());
-    context_log_files.insert("EnginePreProcess".to_string(), logs_dir.join("rust_enginepreprocess.log").to_str().unwrap_or("").to_string());
+    context_log_files.insert(
+        "LoaderNormal".to_string(),
+        logs_dir
+            .join("rust_loadernormal.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
+    context_log_files.insert(
+        "LoaderPreProcess".to_string(),
+        logs_dir
+            .join("rust_loaderpreprocess.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
+    context_log_files.insert(
+        "LoaderNormalJson".to_string(),
+        logs_dir
+            .join("rust_loadernormaljson.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
+    context_log_files.insert(
+        "LoaderPreProcessJson".to_string(),
+        logs_dir
+            .join("rust_loaderpreprocessjson.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
+    context_log_files.insert(
+        "EngineNormal".to_string(),
+        logs_dir
+            .join("rust_enginenormal.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
+    context_log_files.insert(
+        "EnginePreProcess".to_string(),
+        logs_dir
+            .join("rust_enginepreprocess.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
+    context_log_files.insert(
+        "EngineNormalJson".to_string(),
+        logs_dir
+            .join("rust_enginenormaljson.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
+    context_log_files.insert(
+        "EnginePreProcessJson".to_string(),
+        logs_dir
+            .join("rust_enginepreprocessjson.log")
+            .to_str()
+            .unwrap_or("")
+            .to_string(),
+    );
 
-    use arshu::common::LogLevel;
-    Logger::configure(LogLevel::DEBUG, false, arshu::common::LogRotation::NONE);
     Logger::add_context_log_files(context_log_files);
 
     let log_msg = format!(
@@ -303,21 +525,30 @@ pub async fn merge_templates(
     };
 
     // Get wwwroot directory (project_directory already set from parameter)
-    let assembler_web_dir_path = project_directory.join("wwwroot");
+    let assembler_web_dir_path = project_directory.join(WEB_ROOT_FOLDER_NAME);
     let root_dir_path = assembler_web_dir_path.to_str().unwrap_or("");
 
     // Validate EngineType against allowlist
-    if !get_valid_engine_types().iter().any(|valid| valid.eq_ignore_ascii_case(engine_type)) {
+    if !get_valid_engine_types()
+        .iter()
+        .any(|valid| valid.eq_ignore_ascii_case(engine_type))
+    {
         return HttpResponse::BadRequest().body("Invalid EngineType value");
     }
 
     // Validate AppSite against allowlist loaded from appsites.csv
     let valid_app_sites = match get_valid_app_sites() {
         Ok(sites) => sites,
-        Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to load AppSites: {}", e)),
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Failed to load AppSites: {}", e))
+        }
     };
 
-    if !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(app_site)) {
+    if !valid_app_sites
+        .iter()
+        .any(|valid| valid.eq_ignore_ascii_case(app_site))
+    {
         return HttpResponse::BadRequest().body("Invalid AppSite value");
     }
 
@@ -329,7 +560,10 @@ pub async fn merge_templates(
     // Get AppFile from scenarios
     let scenarios = match assembler::config::config_util::ConfigUtil::get_scenarios() {
         Ok(s) => s,
-        Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to load scenarios: {}", e)),
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Failed to load scenarios: {}", e))
+        }
     };
 
     let app_view = req.app_view.as_deref().unwrap_or("");
@@ -366,75 +600,59 @@ pub async fn merge_templates(
             return HttpResponse::BadRequest().body("Invalid characters in AppView");
         }
     }
-    
+
     let server_start = Instant::now();
-
-    let templates_map = LoaderNormal::load_get_template_files(root_dir_path, app_site, SEARCH_APP_SITE);
-    let pre_templates = LoaderPreProcess::load_process_get_template_files(root_dir_path, app_site, SEARCH_APP_SITE);
-
-    // Convert (String, Option<String>) to TemplateData for ApiResponse
-    let mut templates = std::collections::HashMap::new();
-    for (k, v) in &templates_map {
-        let (html, json) = v;
-        templates.insert(k.clone(), TemplateData {
-            html: html.clone(),
-            json: json.clone(),
-        });
-    }
-
-    // Convert PreprocessedTemplate to PreProcessTemplateMetadata for ApiResponse
-    let mut preprocess_map = std::collections::HashMap::new();
-    for (k, v) in &pre_templates.templates {
-        preprocess_map.insert(
-            k.clone(),
-            assembler::api::api_response::PreProcessTemplateMetadata {
-                original_content: v.original_content.clone(),
-                placeholders: v.placeholders.clone(),
-                slotted_templates: v.slotted_templates.clone(),
-                json_data: v.json_data.as_ref().map(|j| assembler::app::json_convertor::JsonConverter::serialize_object(j)),
-                json_placeholders: v.json_placeholders.clone(),
-                replacement_mappings: v.replacement_mappings.clone(),
-                has_placeholders: v.has_placeholders_flag,
-                has_slotted_templates: v.has_slotted_templates_flag,
-                has_json_data: v.has_json_data_flag,
-                has_json_placeholders: v.has_json_placeholders_flag,
-                has_replacement_mappings: v.has_replacement_mappings_flag,
-                requires_processing: v.requires_processing_flag,
-            }
-        );
-    }
 
     let engine_start = Instant::now();
 
-    let (templates, pre_process_templates, merged_html) = if engine_type.eq_ignore_ascii_case("PreProcess") {
+    let merged_html = if engine_type.eq_ignore_ascii_case("PreProcessJson") {
+        let loader = LoaderPreProcessJson::new(root_dir_path, app_site, SEARCH_APP_SITE);
+        let engine = EnginePreProcessJson::new(app_view_prefix.clone());
+        engine.merge_templates(
+            app_site,
+            app_file,
+            req.app_view.as_deref(),
+            &loader,
+            true,
+        )
+    } else if engine_type.eq_ignore_ascii_case("PreProcess") {
+        let loader = LoaderPreProcess::new(root_dir_path, app_site, SEARCH_APP_SITE);
         let engine = EnginePreProcess::new(app_view_prefix.clone());
-        let html = engine.merge_templates(
+        engine.merge_templates(
             app_site,
             app_file,
             req.app_view.as_deref(),
-            &pre_templates.templates,
-            SEARCH_APP_SITE,
-            true
-        );
-        (std::collections::HashMap::new(), preprocess_map, html)
+            &loader,
+            true,
+        )
+    } else if engine_type.eq_ignore_ascii_case("NormalJson") {
+        let loader = LoaderNormalJson::new(root_dir_path, app_site, SEARCH_APP_SITE);
+        let engine = EngineNormalJson::new(app_view_prefix.clone());
+        engine.merge_templates(
+            app_site,
+            app_file,
+            req.app_view.as_deref(),
+            &loader,
+            true,
+        )
     } else {
+        let loader = LoaderNormal::new(root_dir_path, app_site, SEARCH_APP_SITE);
         let engine = EngineNormal::new(app_view_prefix.clone());
-        let html = engine.merge_templates(
+        engine.merge_templates(
             app_site,
             app_file,
             req.app_view.as_deref(),
-            &mut templates_map.clone(),
-            SEARCH_APP_SITE,
-            true
-        );
-        (templates, std::collections::HashMap::new(), html)
+            &loader,
+            true,
+        )
     };
 
     let engine_time_ms = engine_start.elapsed().as_secs_f64() * 1000.0;
     let server_time_ms = server_start.elapsed().as_secs_f64() * 1000.0;
 
     // Save HTML output only if save query parameter is present
-    let save_param = http_req.query_string()
+    let save_param = http_req
+        .query_string()
         .split('&')
         .find(|param| param.starts_with("save="))
         .and_then(|param| param.split('=').nth(1))
@@ -454,13 +672,14 @@ pub async fn merge_templates(
             String::new()
         };
         let engine_suffix = engine_type.to_lowercase();
-        let output_file = output_dir.join(format!("{}{}_{}.html", app_site, app_view_suffix, engine_suffix));
+        let output_file = output_dir.join(format!(
+            "{}{}_{}.html",
+            app_site, app_view_suffix, engine_suffix
+        ));
         let _ = std::fs::write(&output_file, &merged_html);
     }
 
     let response = assembler::api::api_response::ApiResponse {
-        templates,
-        pre_process_templates,
         app_site: app_site.clone(),
         app_file: Some(app_file.clone()),
         app_view: req.app_view.clone(),
@@ -468,9 +687,6 @@ pub async fn merge_templates(
         html: merged_html,
         engine_time_ms,
     };
-
-    // Restore original log level
-    Logger::set_log_level(original_log_level);
 
     HttpResponse::Ok()
         .content_type("application/json")
@@ -487,24 +703,41 @@ pub async fn merge_templates(
         (status = 500, description = "Internal server error")
     )
 )]
-pub async fn get_templates(
-    body: web::Bytes,
-    req: HttpRequest
-) -> impl Responder {
-    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-    let root_dir_path = project_directory.join("wwwroot");
+pub async fn get_templates(body: web::Bytes, _req: HttpRequest) -> impl Responder {
+    // Enable logging for template operations
+    let project_directory =
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+
+    let template_analysis_dir = project_directory.join("Analysis");
+    let logs_dir = template_analysis_dir.join("logs");
+    let _ = std::fs::create_dir_all(&logs_dir);
+
+    let mut context_log_files = std::collections::HashMap::new();
+    context_log_files.insert(
+        "LoaderNormalJson".to_string(),
+        logs_dir.join("rust_loadernormaljson.log").to_string_lossy().to_string(),
+    );
+    context_log_files.insert(
+        "LoaderPreProcessJson".to_string(),
+        logs_dir.join("rust_loaderpreprocessjson.log").to_string_lossy().to_string(),
+    );
+
+    Logger::add_context_log_files(context_log_files);
+
+    let root_dir_path = project_directory.join(WEB_ROOT_FOLDER_NAME);
     let root_dir_path_str = root_dir_path.to_str().unwrap_or("");
 
     // Parse JSON manually
     let app_site = match serde_json::from_slice::<serde_json::Value>(&body) {
-        Ok(json) => {
-            json.get("appsite")
-                .or_else(|| json.get("appSite"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string()
+        Ok(json) => json
+            .get("appsite")
+            .or_else(|| json.get("appSite"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        Err(_) => {
+            return HttpResponse::BadRequest().body("Invalid JSON format");
         }
-        Err(_) => return HttpResponse::BadRequest().body("Invalid JSON format"),
     };
 
     if app_site.is_empty() {
@@ -514,10 +747,16 @@ pub async fn get_templates(
     // Validate AppSite against allowlist loaded from appsites.csv
     let valid_app_sites = match get_valid_app_sites() {
         Ok(sites) => sites,
-        Err(e) => return HttpResponse::InternalServerError().body(format!("Failed to load AppSites: {}", e)),
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Failed to load AppSites: {}", e));
+        }
     };
 
-    if !valid_app_sites.iter().any(|valid| valid.eq_ignore_ascii_case(&app_site)) {
+    if !valid_app_sites
+        .iter()
+        .any(|valid| valid.eq_ignore_ascii_case(&app_site))
+    {
         return HttpResponse::BadRequest().body("Invalid AppSite value");
     }
 
@@ -528,74 +767,25 @@ pub async fn get_templates(
 
     let server_start = Instant::now();
 
-    // Load Normal templates
-    let normal_templates = LoaderNormal::load_get_template_files(root_dir_path_str, &app_site, SEARCH_APP_SITE);
+    // Load Normal templates using JSON loader
+    let normal_loader = LoaderNormalJson::new(root_dir_path_str, &app_site, SEARCH_APP_SITE);
 
-    // Load PreProcess templates
-    let preprocess_templates = LoaderPreProcess::load_process_get_template_files(root_dir_path_str, &app_site, SEARCH_APP_SITE);
+    // Load PreProcess templates using JSON loader
+    let preprocess_loader = LoaderPreProcessJson::new(root_dir_path_str, &app_site, SEARCH_APP_SITE);
 
-    // Convert Normal templates to TemplateData objects for proper JSON serialization
-    let mut normal_result = std::collections::HashMap::new();
-    for (k, v) in &normal_templates {
-        let (html, json) = v;
-        normal_result.insert(k.clone(), TemplateData {
-            html: html.clone(),
-            json: json.clone(),
-        });
-    }
-
-    // Convert PreProcess templates to metadata-only objects
-    let mut preprocess_result = std::collections::HashMap::new();
-    for (k, v) in &preprocess_templates.templates {
-        preprocess_result.insert(
-            k.clone(),
-            assembler::api::api_response::PreProcessTemplateMetadata {
-                original_content: v.original_content.clone(),
-                placeholders: v.placeholders.clone(),
-                slotted_templates: v.slotted_templates.clone(),
-                json_data: v.json_data.as_ref().map(|_| "Arshu.App.Json.JsonObject".to_string()),
-                json_placeholders: v.json_placeholders.clone(),
-                replacement_mappings: v.replacement_mappings.clone(),
-                has_placeholders: v.has_placeholders_flag,
-                has_slotted_templates: v.has_slotted_templates_flag,
-                has_json_data: v.has_json_data_flag,
-                has_json_placeholders: v.has_json_placeholders_flag,
-                has_replacement_mappings: v.has_replacement_mappings_flag,
-                requires_processing: v.requires_processing_flag,
-            }
-        );
-    }
+    // Get pre-serialized JSON from loaders
+    let normal_templates_json = normal_loader.get_all_templates_json();
+    let preprocess_templates_json = preprocess_loader.get_all_templates_json();
 
     let server_time_ms = server_start.elapsed().as_secs_f64() * 1000.0;
 
-    // Use named response class
-    let response = assembler::api::api_response::ApiResponse {
-        templates: normal_result,
-        pre_process_templates: preprocess_result,
-        app_site: app_site.clone(),
-        app_file: None,
-        app_view: None,
+    // Build JSON response manually using pre-serialized template JSON
+    let json_result = build_templates_api_response(
+        &normal_templates_json,
+        &preprocess_templates_json,
+        &app_site,
         server_time_ms,
-        html: String::new(),
-        engine_time_ms: 0.0,
-    };
-
-    let json_result = response.serialize_to_json(false);
-
-    // Check if save query parameter is present
-    let save_param = req.query_string()
-        .split('&')
-        .find(|param| param.starts_with("save="))
-        .and_then(|param| param.split('=').nth(1))
-        .unwrap_or("");
-
-    if save_param.eq_ignore_ascii_case("true") {
-        let templates_dir = project_directory.join("Analysis").join("templates");
-        let _ = std::fs::create_dir_all(&templates_dir);
-
-        let save_file = templates_dir.join(format!("rust_{}_templates.json", app_site));
-        let _ = std::fs::write(&save_file, &json_result);
-    }
+    );
 
     HttpResponse::Ok()
         .content_type("application/json")
@@ -634,4 +824,3 @@ pub fn map_assembler_endpoints(cfg: &mut web::ServiceConfig) {
         .route("/api/templates", web::post().to(get_templates))
         .service(merge_templates);
 }
-

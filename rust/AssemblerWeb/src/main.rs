@@ -1,14 +1,16 @@
+use actix_files as fs;
+use actix_web::{web, App, HttpServer};
+use arshu::common::{LogLevel, LogRotation, Logger};
 use std::thread;
 use std::time::Duration;
-use actix_web::{web, App, HttpServer};
-use actix_files as fs;
-use arshu::common::{Logger, LogLevel, LogRotation};
 
 mod endpoint;
 mod services;
 
 use endpoint::{map_assembler_endpoints, map_assembler_test_endpoints, openapi_handler};
 use services::IdleTracking;
+
+const WEB_ROOT_FOLDER_NAME: &str = "wwwroot";
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -17,7 +19,8 @@ async fn main() -> std::io::Result<()> {
     let skip_idle_tracking = args.iter().any(|arg| arg == "--skipIdleTracking");
 
     // Parse port from --port argument or PORT environment variable, default to 8030
-    let port: u16 = args.iter()
+    let port: u16 = args
+        .iter()
         .position(|arg| arg == "--port")
         .and_then(|i| args.get(i + 1))
         .and_then(|p| p.parse().ok())
@@ -25,7 +28,8 @@ async fn main() -> std::io::Result<()> {
         .unwrap_or(8030);
 
     // Get project directory (current working directory for web projects)
-    let project_directory = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let project_directory =
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
     let template_analysis_dir = project_directory.join("Analysis");
     let logs_dir = template_analysis_dir.join("logs");
@@ -36,23 +40,28 @@ async fn main() -> std::io::Result<()> {
     // Configure separate log files for global contexts only
     // Note: Endpoint-specific contexts and engine-specific logs are configured per-endpoint
     let mut context_log_files = std::collections::HashMap::new();
-    context_log_files.insert("Main".to_string(), logs_dir.join("rust_main.log").to_string_lossy().to_string());
-    context_log_files.insert("IdleTracking".to_string(), logs_dir.join("rust_idletracking.log").to_string_lossy().to_string());
+    context_log_files.insert(
+        "Main".to_string(),
+        logs_dir.join("rust_main.log").to_string_lossy().to_string(),
+    );
+    context_log_files.insert(
+        "IdleTracking".to_string(),
+        logs_dir
+            .join("rust_idletracking.log")
+            .to_string_lossy()
+            .to_string(),
+    );
 
     // Configure logger (no main log file - only context files)
-    Logger::configure(
-        LogLevel::INFO,
-        false,
-        LogRotation::HOURLY
-    );
-    
+    Logger::configure(LogLevel::INFO, false, LogRotation::HOURLY);
+
     // Set logs directory for clearing
     Logger::set_logs_directory(logs_dir.to_string_lossy().to_string());
 
     // Clear logs based on build mode
     #[cfg(debug_assertions)]
     Logger::clear_logs();
-    
+
     #[cfg(not(debug_assertions))]
     Logger::clear_old_logs(7);
 
@@ -61,7 +70,7 @@ async fn main() -> std::io::Result<()> {
     Logger::info("AssemblerWeb starting up", Some("Main"));
 
     // Load ConfigUtil (AppSites and Scenarios) at startup
-    let wwwroot_path = project_directory.join("wwwroot");
+    let wwwroot_path = project_directory.join(WEB_ROOT_FOLDER_NAME);
     let wwwroot_path_str = wwwroot_path.to_str().unwrap_or("");
     if let Err(e) = assembler::config::config_util::ConfigUtil::load(wwwroot_path_str) {
         eprintln!("[WARNING] Failed to load ConfigUtil: {}", e);
@@ -69,13 +78,16 @@ async fn main() -> std::io::Result<()> {
     }
 
     println!("Starting server on http://localhost:{}", port);
-    println!("Scalar UI will be available at http://localhost:{}/scalar", port);
+    println!(
+        "Scalar UI will be available at http://localhost:{}/scalar",
+        port
+    );
 
     // Determine if in debug mode first (needed for browser launch decision)
     let mut is_debug = std::env::var("DEBUG").as_deref() == Ok("true")
-    || std::env::var("VSCODE_DEBUG").unwrap_or_default() == "true"
-    || std::env::var("APP_ENV").unwrap_or_default() == "development";
-    
+        || std::env::var("VSCODE_DEBUG").unwrap_or_default() == "true"
+        || std::env::var("APP_ENV").unwrap_or_default() == "development";
+
     // Also check if compiled in debug mode
     if cfg!(debug_assertions) {
         is_debug = true;
@@ -84,12 +96,12 @@ async fn main() -> std::io::Result<()> {
     // Separate check for idle tracking
     // Command line args and explicit env vars take precedence
     let idle_tracking_enabled = if skip_idle_tracking {
-        false  // --skipIdleTracking flag explicitly disables
+        false // --skipIdleTracking flag explicitly disables
     } else {
         match std::env::var("IDLE_TRACKER_DISABLED").as_deref() {
-            Ok("false") => true,  // Explicitly enable idle tracking
-            Ok("true") => false,  // Explicitly disable idle tracking
-            _ => !is_debug  // Default: disable in debug mode
+            Ok("false") => true, // Explicitly enable idle tracking
+            Ok("true") => false, // Explicitly disable idle tracking
+            _ => !is_debug,      // Default: disable in debug mode
         }
     };
 
@@ -116,7 +128,7 @@ async fn main() -> std::io::Result<()> {
     let idle_tracking = IdleTracking::new(idle_seconds, idle_tracking_enabled);
     let idle_tracking_for_shutdown = idle_tracking.clone();
 
-    let wwwroot_path = project_directory.join("wwwroot");
+    let wwwroot_path = project_directory.join(WEB_ROOT_FOLDER_NAME);
     let server = HttpServer::new(move || {
         let scalar_path = wwwroot_path.join("scalar");
         let wwwroot_serve_path = wwwroot_path.clone();
@@ -131,7 +143,7 @@ async fn main() -> std::io::Result<()> {
     })
     .bind(("0.0.0.0", port))?;
     println!("Server listening on http://localhost:{}", port);
-    
+
     let server = server.run();
     let _server_handle = server.handle();
 
@@ -139,10 +151,16 @@ async fn main() -> std::io::Result<()> {
     // Example: Acquire a hold to prevent idle shutdown during long-running operations
     let example_hold_id = "example_operation";
     idle_tracking_for_shutdown.acquire_hold(example_hold_id);
-    Logger::info(&format!("Example hold acquired: {}", example_hold_id), Some("Main"));
+    Logger::info(
+        &format!("Example hold acquired: {}", example_hold_id),
+        Some("Main"),
+    );
     // Release the hold when the operation completes
     idle_tracking_for_shutdown.release_hold(example_hold_id);
-    Logger::info(&format!("Example hold released: {}", example_hold_id), Some("Main"));
+    Logger::info(
+        &format!("Example hold released: {}", example_hold_id),
+        Some("Main"),
+    );
 
     // Note: Shutdown handler removed - IdleTracking middleware handles shutdown via process::exit
     // Manual Ctrl+C will be caught by the OS and terminate the process

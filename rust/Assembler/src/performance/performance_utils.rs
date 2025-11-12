@@ -4,7 +4,6 @@ use crate::engine::engine_preprocess::EnginePreProcess;
 use crate::loader::loader_normal::LoaderNormal;
 use crate::loader::loader_preprocess::LoaderPreProcess;
 use chrono;
-use serde::Serialize;
 use std::fs;
 use std::time::Instant;
 
@@ -31,33 +30,56 @@ impl PerfSummaryRow {
     pub fn preprocess_time_ms(&self) -> f64 {
         self.preprocess_time_nanos as f64 / 1_000_000.0
     }
-}
 
-impl Serialize for PerfSummaryRow {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut state = serializer.serialize_struct("PerfSummaryRow", 13)?;
-        state.serialize_field("AppSite", &self.app_site)?;
-        state.serialize_field("AppFile", &self.app_file)?;
-        state.serialize_field("AppView", &self.app_view)?;
-        state.serialize_field("Iterations", &self.iterations)?;
-        state.serialize_field("NormalTimeNanos", &self.normal_time_nanos)?;
-        state.serialize_field("PreProcessTimeNanos", &self.preprocess_time_nanos)?;
-        state.serialize_field("OutputSize", &self.output_size)?;
-        state.serialize_field("ResultsMatch", &self.results_match)?;
-        state.serialize_field("PerfDifference", &self.perf_difference)?;
-        state.serialize_field("ScenarioTotalTimeMs", &self.scenario_total_time_ms)?;
-        state.serialize_field("ElapsedTimeMs", &self.elapsed_time_ms)?;
-        // Serialize numeric ms fields as numbers (rounded to 2 decimals) so other tools can parse them as numbers
+    /// Manually serialize PerfSummaryRow to JSON string
+    fn serialize_to_json(&self) -> String {
         let normal_ms = (self.normal_time_ms() * 100.0).round() / 100.0;
         let preprocess_ms = (self.preprocess_time_ms() * 100.0).round() / 100.0;
-        state.serialize_field("NormalTimeMs", &normal_ms)?;
-        state.serialize_field("PreProcessTimeMs", &preprocess_ms)?;
-        state.end()
+
+        format!(
+            r#"{{"AppSite":"{}","AppFile":"{}","AppView":"{}","Iterations":{},"NormalTimeNanos":{},"PreProcessTimeNanos":{},"OutputSize":{},"ResultsMatch":"{}","PerfDifference":"{}","ScenarioTotalTimeMs":{},"ElapsedTimeMs":{},"NormalTimeMs":{},"PreProcessTimeMs":{}}}"#,
+            escape_perf_json_string(&self.app_site),
+            escape_perf_json_string(&self.app_file),
+            escape_perf_json_string(&self.app_view),
+            self.iterations,
+            self.normal_time_nanos,
+            self.preprocess_time_nanos,
+            self.output_size,
+            escape_perf_json_string(&self.results_match),
+            escape_perf_json_string(&self.perf_difference),
+            self.scenario_total_time_ms,
+            self.elapsed_time_ms,
+            normal_ms,
+            preprocess_ms
+        )
     }
+}
+
+/// Escape JSON string following standard JSON escaping rules
+fn escape_perf_json_string(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\r', "\\r")
+        .replace('\n', "\\n")
+        .replace('\t', "\\t")
+}
+
+/// Serialize Vec<PerfSummaryRow> to pretty-printed JSON string
+fn serialize_perf_summary_rows_to_json(rows: &[PerfSummaryRow]) -> String {
+    if rows.is_empty() {
+        return "[]".to_string();
+    }
+
+    let mut result = String::from("[\n");
+    for (i, row) in rows.iter().enumerate() {
+        if i > 0 {
+            result.push_str(",\n");
+        }
+        result.push_str("  ");
+        result.push_str(&row.serialize_to_json());
+    }
+    result.push_str("\n]");
+    result
 }
 
 pub struct PerformanceUtils;
@@ -101,29 +123,21 @@ impl PerformanceUtils {
                     .collect::<String>()
             };
 
-            // Clear cache and load templates
+            // Clear cache and create loaders
             LoaderNormal::clear_cache();
             LoaderPreProcess::clear_cache();
-            let mut templates = LoaderNormal::load_get_template_files(
+
+            let loader_normal = LoaderNormal::new(
                 assembler_web_dir_path,
                 test_app_site,
                 search_app_sites,
             );
 
-            let site_templates = LoaderPreProcess::load_process_get_template_files(
+            let loader_preprocess = LoaderPreProcess::new(
                 assembler_web_dir_path,
                 test_app_site,
                 search_app_sites,
             );
-
-            if templates.is_empty() {
-                continue;
-            }
-
-            let main_template_key = format!("{}_{}", test_app_site, app_file_name).to_lowercase();
-            if !templates.contains_key(&main_template_key) {
-                continue;
-            }
 
             if !skip_details {
                 println!("{}", "-".repeat(60));
@@ -150,8 +164,7 @@ impl PerformanceUtils {
                     } else {
                         Some(&app_view)
                     },
-                    &mut templates,
-                    search_app_sites,
+                    &loader_normal,
                     enable_json_processing,
                 );
             }
@@ -167,8 +180,7 @@ impl PerformanceUtils {
                     } else {
                         Some(&app_view)
                     },
-                    &mut templates,
-                    search_app_sites,
+                    &loader_normal,
                     enable_json_processing,
                 );
             }
@@ -202,8 +214,7 @@ impl PerformanceUtils {
                     } else {
                         Some(&app_view)
                     },
-                    &site_templates.templates,
-                    search_app_sites,
+                    &loader_preprocess,
                     enable_json_processing,
                 );
             }
@@ -219,8 +230,7 @@ impl PerformanceUtils {
                     } else {
                         Some(&app_view)
                     },
-                    &site_templates.templates,
-                    search_app_sites,
+                    &loader_preprocess,
                     enable_json_processing,
                 );
             }
@@ -413,7 +423,7 @@ impl PerformanceUtils {
         let perf_json_file = format!("{}/rust_perfsummary.json", reports_dir);
         let perf_html_file = format!("{}/rust_perfsummary.html", reports_dir);
 
-        let perf_json = serde_json::to_string_pretty(&summary_rows).unwrap();
+        let perf_json = serialize_perf_summary_rows_to_json(&summary_rows);
         if let Err(e) = fs::write(&perf_json_file, perf_json) {
             println!("❌ Error writing performance JSON file: {}", e);
         } else {

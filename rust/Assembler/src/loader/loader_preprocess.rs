@@ -1,3 +1,6 @@
+use crate::interface::i_loader_preprocess::ILoaderPreProcess;
+use super::json_merge_util::JsonMergeUtil;
+use crate::app::json::{JsonObject, JsonValue};
 use crate::common::common_util::CommonUtil;
 use crate::model::model_preprocess::{
     JsonPlaceholder, PreprocessedSiteTemplates, PreprocessedTemplate, ReplacementMapping,
@@ -14,7 +17,11 @@ use walkdir;
 /// <summary>
 /// Handles loading and caching of HTML templates from the file system for PreProcess engine
 /// </summary>
-pub struct LoaderPreProcess;
+pub struct LoaderPreProcess {
+    preprocessed_templates: PreprocessedSiteTemplates,
+    search_app_sites: String,
+    _app_site: String,
+}
 
 lazy_static! {
     static ref PREPROCESSED_TEMPLATES_CACHE: Mutex<HashMap<String, PreprocessedSiteTemplates>> =
@@ -22,6 +29,27 @@ lazy_static! {
 }
 
 impl LoaderPreProcess {
+    /// Creates a new LoaderPreProcess instance
+    pub fn new(root_dir_path: &str, app_site: &str, search_app_sites: &str) -> Self {
+        Logger::debug(
+            &format!("LoaderPreProcess::new called for appSite: {}, searchAppSites: {}", app_site, search_app_sites),
+            Some("LoaderPreProcess"),
+        );
+
+        let preprocessed_templates = Self::load_process_get_template_files(root_dir_path, app_site, search_app_sites);
+
+        Logger::debug(
+            &format!("Loaded {} preprocessed templates for {}", preprocessed_templates.templates.len(), app_site),
+            Some("LoaderPreProcess"),
+        );
+
+        Self {
+            preprocessed_templates,
+            search_app_sites: search_app_sites.to_string(),
+            _app_site: app_site.to_string(),
+        }
+    }
+
     pub fn load_process_get_template_files(
         root_dir_path: &str,
         app_site: &str,
@@ -258,6 +286,271 @@ impl LoaderPreProcess {
         preprocessed_cache.clear();
     }
 
+}
+
+impl ILoaderPreProcess for LoaderPreProcess {
+    fn search_app_sites(&self) -> &str {
+        &self.search_app_sites
+    }
+
+    fn get_template_html(
+        &self,
+        app_site: &str,
+        template_name: &str,
+        app_view: Option<&str>,
+        app_view_prefix: Option<&str>,
+    ) -> Option<PreprocessedTemplate> {
+        // Use stored preprocessed templates directly
+        // Try AppView fallback first if provided
+        if let (Some(view), Some(prefix)) = (app_view, app_view_prefix) {
+            if template_name
+                .to_lowercase()
+                .contains(&prefix.to_lowercase())
+            {
+                let app_key = CommonUtil::replace_case_insensitive(template_name, prefix, view);
+                let fallback_key =
+                    format!("{}_{}", app_site.to_lowercase(), app_key.to_lowercase());
+
+                if let Some(template) = self.preprocessed_templates.templates.get(&fallback_key) {
+                    return Some(template.clone());
+                }
+            }
+        }
+
+        // Try primary template key
+        let primary_key = format!(
+            "{}_{}",
+            app_site.to_lowercase(),
+            template_name.to_lowercase()
+        );
+
+        if let Some(template) = self.preprocessed_templates.templates.get(&primary_key) {
+            return Some(template.clone());
+        }
+
+        // FALLBACK: Search in searchAppSites
+        if !self.search_app_sites.is_empty() {
+            let search_app_sites_array: Vec<&str> = self.search_app_sites.split(',').collect();
+            for search_app_site in search_app_sites_array {
+                let search_app_site = search_app_site.trim();
+                if search_app_site.is_empty() {
+                    continue;
+                }
+
+                let search_key = format!(
+                    "{}_{}",
+                    search_app_site.to_lowercase(),
+                    template_name.to_lowercase()
+                );
+
+                if let Some(template) = self.preprocessed_templates.templates.get(&search_key) {
+                    return Some(template.clone());
+                }
+            }
+        }
+
+        None
+    }
+
+    fn has_template(&self, app_site: &str, template_name: &str) -> bool {
+        // Use stored preprocessed templates directly
+        let key = format!(
+            "{}_{}",
+            app_site.to_lowercase(),
+            template_name.to_lowercase()
+        );
+
+        if self.preprocessed_templates.templates.contains_key(&key) {
+            return true;
+        }
+
+        // FALLBACK: Search in searchAppSites
+        if !self.search_app_sites.is_empty() {
+            let search_app_sites_array: Vec<&str> = self.search_app_sites.split(',').collect();
+            for search_app_site in search_app_sites_array {
+                let search_app_site = search_app_site.trim();
+                if search_app_site.is_empty() {
+                    continue;
+                }
+
+                let search_key = format!(
+                    "{}_{}",
+                    search_app_site.to_lowercase(),
+                    template_name.to_lowercase()
+                );
+
+                if self.preprocessed_templates.templates.contains_key(&search_key) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    fn merge_html_with_json(&self, html: &str, app_site: &str, template_name: &str) -> String {
+        if html.is_empty() {
+            return html.to_string();
+        }
+
+        // Get the preprocessed template which has JSON with inheritance already resolved
+        let template = self.get_template_html(app_site, template_name, None, None);
+
+        if template.is_none() || template.as_ref().unwrap().json_data.is_none() {
+            Logger::debug(
+                &format!("No JSON data found for {}, returning original HTML", template_name),
+                Some("LoaderPreProcess"),
+            );
+            return html.to_string();
+        }
+
+        Logger::debug(
+            &format!("Merging HTML with JSON for {}", template_name),
+            Some("LoaderPreProcess"),
+        );
+
+        let json_data = template.unwrap().json_data.unwrap();
+        JsonMergeUtil::merge_template_with_json(html, &json_data)
+    }
+
+    fn apply_all_replacement_mappings(
+        &self,
+        content: &str,
+        app_site: &str,
+        main_template: Option<&PreprocessedTemplate>,
+        app_view: Option<&str>,
+        app_view_prefix: Option<&str>,
+        enable_json_processing: bool,
+    ) -> String {
+        Logger::debug(
+            &format!(
+                "Starting ApplyAllReplacementMappings, initial size: {}",
+                content.len()
+            ),
+            Some("LoaderPreProcess"),
+        );
+
+        let mut result = content.to_string();
+        let mut previous;
+        let max_passes = 10;
+        let mut current_pass = 0;
+
+        loop {
+            previous = result.clone();
+            current_pass += 1;
+
+            Logger::debug(
+                &format!(
+                    "Replacement pass {}, current size: {}",
+                    current_pass,
+                    result.len()
+                ),
+                Some("LoaderPreProcess"),
+            );
+
+            let mut json_placeholder_count = 0;
+            let mut slotted_count = 0;
+            let mut simple_count = 0;
+
+            // FIRST: Apply JSON placeholder mappings ONLY from the main template (to avoid overwriting component content)
+            if current_pass == 1 && enable_json_processing {
+                if let Some(main) = main_template {
+                    for mapping in main
+                        .replacement_mappings
+                        .iter()
+                        .filter(|m| matches!(m.r#type, ReplacementType::JsonPlaceholder))
+                    {
+                        if result.contains(&mapping.original_text) {
+                            Logger::debug(
+                                &format!(
+                                    "Applying main template JSON placeholder (original size: {}, replacement size: {})",
+                                    mapping.original_text.len(),
+                                    mapping.replacement_text.len()
+                                ),
+                                Some("LoaderPreProcess"),
+                            );
+                            result = result.replace(&mapping.original_text, &mapping.replacement_text);
+                            json_placeholder_count += 1;
+                        }
+                    }
+                }
+            }
+
+            // SECOND: Apply slotted template replacements from all templates
+            for template in self.preprocessed_templates.templates.values() {
+                for mapping in template
+                    .replacement_mappings
+                    .iter()
+                    .filter(|m| matches!(m.r#type, ReplacementType::SlottedTemplate))
+                {
+                    if result.contains(&mapping.original_text) {
+                        Logger::debug(
+                            &format!(
+                                "Applying slotted template (original size: {}, replacement size: {})",
+                                mapping.original_text.len(),
+                                mapping.replacement_text.len()
+                            ),
+                            Some("LoaderPreProcess"),
+                        );
+                        result = result.replace(&mapping.original_text, &mapping.replacement_text);
+                        slotted_count += 1;
+                    }
+                }
+
+                // THIRD: Apply simple template replacements with AppView logic
+                for mapping in template
+                    .replacement_mappings
+                    .iter()
+                    .filter(|m| matches!(m.r#type, ReplacementType::SimpleTemplate))
+                {
+                    if result.contains(&mapping.original_text) {
+                        let replacement_text = self.apply_app_view_logic_to_replacement(
+                            &mapping.original_text,
+                            &mapping.replacement_text,
+                            app_site,
+                            app_view,
+                            app_view_prefix,
+                        );
+                        Logger::debug(
+                            &format!(
+                                "Applying simple template: {} (replacement size: {})",
+                                mapping.original_text,
+                                replacement_text.len()
+                            ),
+                            Some("LoaderPreProcess"),
+                        );
+                        result = result.replace(&mapping.original_text, &replacement_text);
+                        simple_count += 1;
+                    }
+                }
+            }
+
+            Logger::debug(
+                &format!(
+                    "Pass {} applied: {} main JSON placeholders, {} slotted, {} simple",
+                    current_pass, json_placeholder_count, slotted_count, simple_count
+                ),
+                Some("LoaderPreProcess"),
+            );
+
+            if result == previous || current_pass >= max_passes {
+                Logger::debug(
+                    &format!("Completed after {} passes, final size: {}", current_pass, result.len()),
+                    Some("LoaderPreProcess"),
+                );
+                break;
+            }
+        }
+
+        result
+    }
+
+    fn clear_cache(&self) {
+        Self::clear_cache();
+    }
+}
+
+impl LoaderPreProcess {
     fn preprocess_template(
         content: &str,
         json_content: Option<&str>,
@@ -302,6 +595,17 @@ impl LoaderPreProcess {
         app_site: &str,
     ) {
         let template_keys: Vec<String> = site_templates.templates.keys().cloned().collect();
+
+        Logger::debug(
+            &format!(
+                "Creating replacement mappings for {} - Phase 0: JSON inheritance",
+                app_site
+            ),
+            Some("LoaderPreProcess"),
+        );
+        let parent_map = Self::build_parent_map_for_preprocess(site_templates, app_site);
+        Self::resolve_json_inheritance_for_all_templates(site_templates, &parent_map);
+        Self::recreate_json_placeholder_mappings_after_inheritance(site_templates);
 
         Logger::debug(
             &format!(
@@ -365,6 +669,44 @@ impl LoaderPreProcess {
             ),
             Some("LoaderPreProcess"),
         );
+    }
+
+    /// Apply AppView logic to replacement text
+    fn apply_app_view_logic_to_replacement(
+        &self,
+        original_text: &str,
+        replacement_text: &str,
+        app_site: &str,
+        app_view: Option<&str>,
+        app_view_prefix: Option<&str>,
+    ) -> String {
+        // Extract placeholder name from {{PlaceholderName}}
+        let placeholder_name = original_text.trim_start_matches("{{").trim_end_matches("}}").trim();
+
+        // Try to get AppView-specific version of the template
+        if let Some(view_prefix) = app_view_prefix {
+            if let Some(view) = app_view {
+                if !view_prefix.is_empty() && placeholder_name.to_lowercase().contains(&view_prefix.to_lowercase()) {
+                    // Try to get the AppView-specific template
+                    let app_view_key = crate::common::common_util::CommonUtil::replace_case_insensitive(
+                        placeholder_name,
+                        view_prefix,
+                        view,
+                    );
+                    let template_key = format!("{}_{}", app_site.to_lowercase(), app_view_key.to_lowercase());
+
+                    if let Some(view_template) = self.preprocessed_templates.templates.get(&template_key) {
+                        Logger::debug(
+                            &format!("Using AppView-specific template: {}", template_key),
+                            Some("LoaderPreProcess"),
+                        );
+                        return view_template.original_content.clone();
+                    }
+                }
+            }
+        }
+
+        replacement_text.to_string()
     }
 
     fn create_placeholder_replacement_mappings(
@@ -1156,6 +1498,267 @@ impl LoaderPreProcess {
                     }
                 }
             }
+        }
+    }
+
+    fn build_parent_map_for_preprocess(
+        site_templates: &PreprocessedSiteTemplates,
+        app_site: &str,
+    ) -> HashMap<String, String> {
+        let mut parent_map = HashMap::new();
+
+        Logger::debug(
+            &format!("Building parent map for appSite: {}", app_site),
+            Some("LoaderPreProcess"),
+        );
+
+        let primary_prefix = format!("{}_", app_site.to_lowercase());
+
+        for (template_key, template) in &site_templates.templates {
+            let is_primary_template = template_key.starts_with(&primary_prefix);
+            for placeholder in &template.placeholders {
+                let template_name = &placeholder.template_key;
+                let child_template_key = format!(
+                    "{}_{}",
+                    app_site.to_lowercase(),
+                    template_name.to_lowercase()
+                );
+
+                if is_primary_template {
+                    Logger::debug(
+                        &format!(
+                            "Parent relationship: {} -> parent: {}",
+                            child_template_key, template_key
+                        ),
+                        Some("LoaderPreProcess"),
+                    );
+                    parent_map.insert(child_template_key.clone(), template_key.clone());
+                } else {
+                    parent_map
+                        .entry(child_template_key.clone())
+                        .or_insert_with(|| {
+                            Logger::debug(
+                                &format!(
+                                    "Parent relationship: {} -> parent: {}",
+                                    child_template_key, template_key
+                                ),
+                                Some("LoaderPreProcess"),
+                            );
+                            template_key.clone()
+                        });
+                }
+            }
+
+            for slotted_template in &template.slotted_templates {
+                let template_name = &slotted_template.name;
+                let child_template_key = format!(
+                    "{}_{}",
+                    app_site.to_lowercase(),
+                    template_name.to_lowercase()
+                );
+
+                if is_primary_template {
+                    Logger::debug(
+                        &format!(
+                            "Parent relationship (slotted): {} -> parent: {}",
+                            child_template_key, template_key
+                        ),
+                        Some("LoaderPreProcess"),
+                    );
+                    parent_map.insert(child_template_key.clone(), template_key.clone());
+                } else {
+                    parent_map
+                        .entry(child_template_key.clone())
+                        .or_insert_with(|| {
+                            Logger::debug(
+                                &format!(
+                                    "Parent relationship (slotted): {} -> parent: {}",
+                                    child_template_key, template_key
+                                ),
+                                Some("LoaderPreProcess"),
+                            );
+                            template_key.clone()
+                        });
+                }
+            }
+        }
+
+        Logger::debug(
+            &format!("Built parent map with {} relationships", parent_map.len()),
+            Some("LoaderPreProcess"),
+        );
+        parent_map
+    }
+
+    fn resolve_json_inheritance_for_all_templates(
+        site_templates: &mut PreprocessedSiteTemplates,
+        parent_map: &HashMap<String, String>,
+    ) {
+        let template_keys: Vec<String> = site_templates.templates.keys().cloned().collect();
+
+        for template_key in template_keys {
+            let json_data_clone = site_templates
+                .templates
+                .get(&template_key)
+                .and_then(|t| t.json_data.clone());
+
+            if json_data_clone.is_none() {
+                continue;
+            }
+
+            let json_data = json_data_clone.as_ref().unwrap();
+            let mut resolved_json = JsonObject::new();
+            let mut has_inheritance = false;
+
+            for (key, value) in json_data.iter() {
+                if key.ends_with('#') {
+                    if let Some(str_value) = value.as_str() {
+                        has_inheritance = true;
+                        let actual_key = &key[..key.len() - 1];
+                        if let Some(resolved_value) = Self::search_parent_tree_for_key_preprocess(
+                            actual_key,
+                            &template_key,
+                            &site_templates.templates,
+                            parent_map,
+                        ) {
+                            resolved_json.insert(
+                                actual_key.to_string(),
+                                JsonValue::String(resolved_value.clone()),
+                            );
+                            Logger::debug(
+                                &format!(
+                                    "Resolved inherited key {} -> {} = {} for template {}",
+                                    key, actual_key, resolved_value, template_key
+                                ),
+                                Some("LoaderPreProcess"),
+                            );
+                        } else {
+                            resolved_json.insert(
+                                actual_key.to_string(),
+                                JsonValue::String(str_value.to_string()),
+                            );
+                            Logger::debug(
+                                &format!(
+                                    "No inherited value found for {}, using default: {}",
+                                    actual_key, str_value
+                                ),
+                                Some("LoaderPreProcess"),
+                            );
+                        }
+                    }
+                } else {
+                    resolved_json.insert(key.clone(), value.clone());
+                }
+            }
+
+            if has_inheritance {
+                if let Some(template) = site_templates.templates.get_mut(&template_key) {
+                    template.json_data = Some(resolved_json);
+                    Logger::debug(
+                        &format!(
+                            "Updated JsonData for template {} with resolved inheritance",
+                            template_key
+                        ),
+                        Some("LoaderPreProcess"),
+                    );
+                }
+            }
+        }
+    }
+
+    fn search_parent_tree_for_key_preprocess(
+        key: &str,
+        current_template_key: &str,
+        all_templates: &HashMap<String, PreprocessedTemplate>,
+        parent_map: &HashMap<String, String>,
+    ) -> Option<String> {
+        let parent_key = parent_map.get(current_template_key)?;
+
+        Logger::debug(
+            &format!("Checking parent {} for key {}", parent_key, key),
+            Some("LoaderPreProcess"),
+        );
+
+        let parent_template = all_templates.get(parent_key)?;
+
+        if parent_template.json_data.is_none() {
+            Logger::debug(
+                &format!(
+                    "Parent template {} has no JSON data, searching further up",
+                    parent_key
+                ),
+                Some("LoaderPreProcess"),
+            );
+            return Self::search_parent_tree_for_key_preprocess(
+                key,
+                parent_key,
+                all_templates,
+                parent_map,
+            );
+        }
+
+        let parent_json = parent_template.json_data.as_ref().unwrap();
+        for (k, v) in parent_json.iter() {
+            if k.eq_ignore_ascii_case(key) {
+                if let Some(str_value) = v.as_str() {
+                    Logger::debug(
+                        &format!("Found key {} in parent {}: {}", key, parent_key, str_value),
+                        Some("LoaderPreProcess"),
+                    );
+                    return Some(str_value.to_string());
+                }
+            }
+        }
+
+        Logger::debug(
+            &format!(
+                "Key {} not found in parent {}, searching further up",
+                key, parent_key
+            ),
+            Some("LoaderPreProcess"),
+        );
+        Self::search_parent_tree_for_key_preprocess(key, parent_key, all_templates, parent_map)
+    }
+
+    fn recreate_json_placeholder_mappings_after_inheritance(
+        site_templates: &mut PreprocessedSiteTemplates,
+    ) {
+        for (template_key, template) in site_templates.templates.iter_mut() {
+            if template.json_data.is_none() {
+                continue;
+            }
+
+            template
+                .replacement_mappings
+                .retain(|mapping| mapping.r#type != ReplacementType::JsonPlaceholder);
+
+            let content_clone = template.original_content.clone();
+            Self::create_json_array_replacement_mappings(template, &content_clone);
+            let placeholder_clone = template.original_content.clone();
+            Self::create_json_placeholder_replacement_mappings(template, &placeholder_clone);
+
+            if template_key.eq_ignore_ascii_case("jsonruleflow1a_links") {
+                if let Some(json_data) = &template.json_data {
+                    if let Some(language_value) = json_data.get("Language").and_then(|v| v.as_str())
+                    {
+                        Logger::debug(
+                            &format!(
+                                "[Debug] jsonruleflow1a_links inherited Language={}",
+                                language_value
+                            ),
+                            Some("LoaderPreProcess"),
+                        );
+                    }
+                }
+            }
+
+            Logger::debug(
+                &format!(
+                    "Recreated JSON placeholder and array mappings for template {} after inheritance resolution",
+                    template_key
+                ),
+                Some("LoaderPreProcess"),
+            );
         }
     }
 }

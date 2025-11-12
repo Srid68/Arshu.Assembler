@@ -1,15 +1,15 @@
-use crate::app::JsonObject;
-
-/// Generic loader interface that provides template extraction (HTML and JSON)
-/// This interface is responsible ONLY for retrieval - engines handle all merging logic
-pub trait ILoader<TTemplate> {
+/// Loader interface specifically for EngineNormal
+/// Provides simple string-based template access without JSON support
+/// Independent interface to ensure no coupling with other engine implementations
+pub trait ILoaderNormal {
     /// Gets the search AppSites for template fallback resolution
     /// Comma-delimited string of AppSite names
     fn search_app_sites(&self) -> &str;
 
     /// Gets a template's HTML content by appSite and name with optional AppView fallback
-    /// Returns raw HTML only (no JSON merged)
+    /// Returns raw HTML string only (no JSON merged)
     /// Searches in SearchAppSites if not found in primary appSite
+    /// Templates stay immutable inside the loader
     ///
     /// # Arguments
     /// * `app_site` - The application site name
@@ -25,7 +25,7 @@ pub trait ILoader<TTemplate> {
         template_name: &str,
         app_view: Option<&str>,
         app_view_prefix: Option<&str>,
-    ) -> Option<TTemplate>;
+    ) -> Option<String>;
 
     /// Gets parsed JSON data for a template
     /// Returns None if no JSON file exists for the template
@@ -37,7 +37,19 @@ pub trait ILoader<TTemplate> {
     ///
     /// # Returns
     /// Parsed JsonObject or None if no JSON file exists
-    fn get_template_json(&self, app_site: &str, template_name: &str) -> Option<JsonObject>;
+    fn get_template_json(&self, app_site: &str, template_name: &str) -> Option<crate::app::json::JsonObject>;
+
+    /// Merges HTML string with JSON data using loader-controlled inheritance logic
+    /// Centralizes JSON merging so engines do not need to understand inheritance rules
+    ///
+    /// # Arguments
+    /// * `html` - Raw HTML to merge
+    /// * `app_site` - Application site for JSON lookup
+    /// * `template_name` - Template name for JSON lookup
+    ///
+    /// # Returns
+    /// HTML merged with JSON (or original HTML if no JSON is available)
+    fn merge_html_with_json(&self, html: &str, app_site: &str, template_name: &str) -> String;
 
     /// Checks if a template exists
     ///
@@ -46,7 +58,7 @@ pub trait ILoader<TTemplate> {
     /// * `template_name` - The template name
     ///
     /// # Returns
-    /// true if template exists, false otherwise
+    /// True if template exists, false otherwise
     fn has_template(&self, app_site: &str, template_name: &str) -> bool;
 
     /// Clears the template cache (for testing/hot reload)
