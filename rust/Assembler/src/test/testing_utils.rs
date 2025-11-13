@@ -419,7 +419,7 @@ pub fn run_standard_tests(
                     String::new()
                 },
                 normal_size: 0,
-                normal_json_size: scenario_outputs.get(i).map(|s| s.len()).unwrap_or(0),
+                normal_json_size: scenario_outputs.get(i).map(|s| CommonUtil::utf16_len(s)).unwrap_or(0),
                 preprocess_size: 0,
                 preprocess_json_size: 0,
                 all_engines_match: false,
@@ -538,7 +538,7 @@ pub fn run_standard_preprocess_tests(
                     "{}: 🧪 STANDARD PREPROCESS TEST : scenario: AppView='{}'",
                     test_site, app_view
                 );
-                println!("Output length = {}", result_preprocess.len());
+                println!("Output length = {}", CommonUtil::utf16_len(&result_preprocess));
             }
             if print_html_output {
                 println!(
@@ -647,7 +647,7 @@ pub fn run_standard_preprocess_tests(
                     String::new()
                 },
                 normal_size: 0,
-                normal_json_size: scenario_outputs.get(i).map(|s| s.len()).unwrap_or(0),
+                normal_json_size: scenario_outputs.get(i).map(|s| CommonUtil::utf16_len(s)).unwrap_or(0),
                 preprocess_size: 0,
                 preprocess_json_size: 0,
                 all_engines_match: false,
@@ -742,7 +742,7 @@ pub fn run_standard_json_tests(
                     "{}: 🧪 STANDARD JSON TEST : scenario: AppView='{}'",
                     test_site, app_view
                 );
-                println!("Output length = {}", result.len());
+                println!("Output length = {}", CommonUtil::utf16_len(&result));
             }
             if print_html_output {
                 println!(
@@ -791,7 +791,7 @@ pub fn run_standard_json_tests(
                     String::new()
                 },
                 normal_size: 0,
-                normal_json_size: scenario_outputs.get(i).map(|s| s.len()).unwrap_or(0),
+                normal_json_size: scenario_outputs.get(i).map(|s| CommonUtil::utf16_len(s)).unwrap_or(0),
                 preprocess_size: 0,
                 preprocess_json_size: 0,
                 all_engines_match: false,
@@ -888,7 +888,7 @@ pub fn run_standard_preprocess_json_tests(
                     "{}: 🧪 STANDARD PREPROCESS JSON TEST : scenario: AppView='{}'",
                     test_site, app_view
                 );
-                println!("Output length = {}", result.len());
+                println!("Output length = {}", CommonUtil::utf16_len(&result));
             }
             if print_html_output {
                 println!(
@@ -937,7 +937,7 @@ pub fn run_standard_preprocess_json_tests(
                     String::new()
                 },
                 normal_size: 0,
-                normal_json_size: scenario_outputs.get(i).map(|s| s.len()).unwrap_or(0),
+                normal_json_size: scenario_outputs.get(i).map(|s| CommonUtil::utf16_len(s)).unwrap_or(0),
                 preprocess_size: 0,
                 preprocess_json_size: 0,
                 all_engines_match: false,
@@ -1130,10 +1130,10 @@ pub fn run_advanced_tests(
             if !skip_details || !all_match {
                 println!("{}: scenario: AppView='{}' - {}", test_site, app_view, match_status);
                 if !all_match {
-                    println!("  Normal: {} chars (Valid: {})", result_normal.len(), normal_valid);
-                    println!("  NormalJson: {} chars (Valid: {})", result_normal_json.len(), normal_json_valid);
-                    println!("  PreProcess: {} chars (Valid: {})", result_preprocess.len(), preprocess_valid);
-                    println!("  PreProcessJson: {} chars (Valid: {})", result_preprocess_json.len(), preprocess_json_valid);
+                    println!("  Normal: {} chars (Valid: {})", CommonUtil::utf16_len(&result_normal), normal_valid);
+                    println!("  NormalJson: {} chars (Valid: {})", CommonUtil::utf16_len(&result_normal_json), normal_json_valid);
+                    println!("  PreProcess: {} chars (Valid: {})", CommonUtil::utf16_len(&result_preprocess), preprocess_valid);
+                    println!("  PreProcessJson: {} chars (Valid: {})", CommonUtil::utf16_len(&result_preprocess_json), preprocess_json_valid);
                 }
             }
 
@@ -1177,10 +1177,10 @@ pub fn run_advanced_tests(
                 normal_preprocess: match_result.to_string(),
                 cross_view_unmatch: "".to_string(),
                 error: "".to_string(),
-                normal_size: result_normal.len(),
-                normal_json_size: result_normal_json.len(),
-                preprocess_size: result_preprocess.len(),
-                preprocess_json_size: result_preprocess_json.len(),
+                normal_size: CommonUtil::utf16_len(&result_normal),
+                normal_json_size: CommonUtil::utf16_len(&result_normal_json),
+                preprocess_size: CommonUtil::utf16_len(&result_preprocess),
+                preprocess_json_size: CommonUtil::utf16_len(&result_preprocess_json),
                 all_engines_match: all_match,
             });
 
@@ -1790,10 +1790,10 @@ pub fn compare_engines_for_scenario(
 
     if !skip_details {
         println!("{}: 🧪 Testing scenario: AppView='{}'", app_site, app_view);
-        println!("   📏 Normal Engine Output: {} chars", result_normal.len());
+        println!("   📏 Normal Engine Output: {} chars", CommonUtil::utf16_len(&result_normal));
         println!(
             "   📏 PreProcess Engine Output: {} chars",
-            result_preprocess.len()
+            CommonUtil::utf16_len(&result_preprocess)
         );
     }
 

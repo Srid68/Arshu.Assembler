@@ -104,6 +104,11 @@ clojure
 .lsp
 .clj-kondo
 
+/csharp/AssemblerTest/wwwroot
+**/wwworg/
+**/wwwjson/
+**/wwwrule/
+
 
 
 

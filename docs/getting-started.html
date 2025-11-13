@@ -221,53 +221,6 @@ cd Arshu.Assembler
         </div>
 
         <div class="section">
-            <h2>Running Tests</h2>
-            <p>Each language implementation includes a test suite to validate the assembler functionality.</p>
-
-            <h3>C#</h3>
-            <div class="code-block">
-cd csharp\AssemblerTest<br>
-dotnet run .
-            </div>
-
-            <h3>Rust</h3>
-            <div class="code-block">
-cd rust\AssemblerTest<br>
-cargo run .
-            </div>
-
-            <h3>Go</h3>
-            <div class="code-block">
-cd go/AssemblerTest<br>
-go run .
-            </div>
-
-            <h3>Node.js</h3>
-            <div class="code-block">
-cd node/AssemblerTest<br>
-npm install<br>
-node index.js
-            </div>
-
-            <h3>PHP</h3>
-            <div class="code-block">
-cd php/AssemblerTest<br>
-composer install<br>
-php index.php
-            </div>
-
-            <div class="info-box">
-                <strong>Testing Tips:</strong>
-                <ul style="margin-top: 0.5rem;">
-                    <li>Use <code>--skipdetails</code> flag for concise output</li>
-                    <li>Use <code>--printhtml</code> to output HTML results</li>
-                    <li>Use <code>--advancedtests</code> for advanced test scenarios</li>
-                    <li>Use <code>--appsite &lt;name&gt;</code> to test a specific appsite</li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="section">
             <h2>Running the Web Server</h2>
             <p>Each language implementation includes a web server that exposes the assembler functionality.</p>
 
@@ -328,7 +281,6 @@ php -S localhost:8001 index.php
 /<br>
 ├── &lt;language&gt;/<br>
 │   ├── Assembler/       # Core static site generation logic<br>
-│   ├── AssemblerTest/   # Test project for the Assembler<br>
 │   └── AssemblerWeb/    # Web server exposing the assembler<br>
 │   └── AssemblerWebJs/  # Web server for JavaScript assembler (C# only)<br>
 ...
@@ -337,51 +289,10 @@ php -S localhost:8001 index.php
             <h3>Key Directories</h3>
             <ul>
                 <li><strong>Assembler/</strong> - Core library implementing the assembly logic</li>
-                <li><strong>AssemblerTest/</strong> - Test suite with various AppSites for validation</li>
                 <li><strong>AssemblerWeb/</strong> - Web server with API endpoints and demo UI</li>
                 <li><strong>wwwroot/AppSites/</strong> - Template and data files for testing</li>
                 <li><strong>Analysis/</strong> - Debug output for template structure analysis</li>
             </ul>
-        </div>
-
-        <div class="section">
-            <h2>Testing Specific AppSites</h2>
-            <p>To test a single AppSite with HTML output:</p>
-
-            <h3>C#</h3>
-            <div class="code-block">
-cd csharp/AssemblerTest<br>
-dotnet run -c Release -- --skipdetails --printhtml --advancedtests --appsite HtmlRule1A
-            </div>
-
-            <h3>Rust</h3>
-            <div class="code-block">
-cd rust/AssemblerTest<br>
-cargo run --release -- --skipdetails --printhtml --advancedtests --appsite HtmlRule1A
-            </div>
-
-            <h3>Go</h3>
-            <div class="code-block">
-cd go/AssemblerTest<br>
-go run . --skipdetails --printhtml --advancedtests --appsite HtmlRule1A
-            </div>
-
-            <h3>Node.js</h3>
-            <div class="code-block">
-cd node/AssemblerTest<br>
-node index.js --skipdetails --printhtml --advancedtests --appsite HtmlRule1A
-            </div>
-
-            <h3>PHP</h3>
-            <div class="code-block">
-cd php/AssemblerTest<br>
-php index.php --skipdetails --printhtml --advancedtests --appsite HtmlRule1A
-            </div>
-
-            <div class="info-box">
-                <strong>Note:</strong> Using <code>--appsite</code> without <code>--advancedtests</code> will trigger
-                performance testing, which may slow down your testing.
-            </div>
         </div>
 
         <div class="section">

@@ -215,10 +215,10 @@ grouped := make(map[groupKey][]*config.Scenario)
 				NormalPreProcess:   normalMatch,
 				CrossViewUnMatch:   crossView,
 				Error:              errorMsg,
-				NormalSize:         len(scenarioOutputsNormal[i]),
-				PreProcessSize:     len(scenarioOutputsPreProcess[i]),
-				NormalJsonSize:     len(scenarioOutputsNormalJson[i]),
-				PreProcessJsonSize: len(scenarioOutputsPreProcessJson[i]),
+				NormalSize:         common.Utf16Len(scenarioOutputsNormal[i]),
+				PreProcessSize:     common.Utf16Len(scenarioOutputsPreProcess[i]),
+				NormalJsonSize:     common.Utf16Len(scenarioOutputsNormalJson[i]),
+				PreProcessJsonSize: common.Utf16Len(scenarioOutputsPreProcessJson[i]),
 			})
 		}
 	}

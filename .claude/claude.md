@@ -27,7 +27,7 @@ Compare always with c# to fix the structural and logical issues in other langs
 
 Important: Follow the same structure/logic as the rust/csharp project strictly accross all other projects
 
-There are two engines, the normal engine and preprocess engine. 
+There are four engines, the normal engine and preprocess engine, normal json engien and preprocess json engine
 
 After any refactor, change compile the program and get the output from the terminal and ensure the program can compile without errors.
 
@@ -39,21 +39,26 @@ All Servers has to be started with --skipIdleTracking option
 
 After every change build only and fix any compile errors, do not test unless specificaally instructured to test
 
-Normal Loader
+Normal/NormalJson Loader
 
-* The loader does the loading
-Normal engine
+* The loader does the loading using ILoader/ILoaderJson interface
+* The loader also provides Critical Merging functions to be used by the Engine using ILoader/ILoaderJson interface
 
-* Does both parsing and merging.
+Normal/NormalJson engine
 
-PreProcess Loader role:
+* Does both parsing and merging using ILoader/ILoaderJson interface
+
+PreProcess/PreProcessJson Loader role:
 
 * Parse templates and structure
 * Parse JSON into data structures
 * Should NOT do any JSON merging/processing
+* The loader also provides Critical Merging functions to be used by the Engine using ILoader/ILoaderJson interface
+
 PreProcess Engine's role:
+
 * PreProcess Engine: Use the parsed data to merge templates
-* All JSON merging should happen in the engine, not the loader
+* All JSON merging should happen in the engine, and uses Critical Merging functions exposed using ILoader/ILoaderJson interface
 
 Testing for single appsite with html output, use the following commands for respective langs
  
