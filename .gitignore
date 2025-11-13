@@ -110,11 +110,6 @@ clojure
 **/wwwrule/
 **/wwwmeta/
 
-# Ignore AssemblerTest Process folder and config
-/csharp/AssemblerTest/Process/
-/csharp/AssemblerTest/Properties/launchSettings.json
-/csharp/AssemblerTest/processConfig.json
-
 
 
 
